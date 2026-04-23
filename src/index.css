@@ -1,0 +1,353 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* =============================================
+     RTL BASE — Arabic language support
+     Activated automatically when dir="rtl" is set
+     on <html> by i18n/index.js or languageStore.js
+     ============================================= */
+
+  /* Arabic font */
+  [dir="rtl"] body {
+    font-family: 'Noto Sans Arabic', 'Tahoma', sans-serif;
+  }
+
+  /* Default text alignment follows reading direction */
+  [dir="rtl"] h1,
+  [dir="rtl"] h2,
+  [dir="rtl"] h3,
+  [dir="rtl"] h4,
+  [dir="rtl"] h5,
+  [dir="rtl"] h6,
+  [dir="rtl"] p,
+  [dir="rtl"] li,
+  [dir="rtl"] span,
+  [dir="rtl"] label,
+  [dir="rtl"] td {
+    text-align: right;
+  }
+
+  /* Numbers and LTR-only data stay LTR */
+  [dir="rtl"] input[type="number"],
+  [dir="rtl"] input[type="email"],
+  [dir="rtl"] input[type="tel"],
+  [dir="rtl"] input[type="url"],
+  [dir="rtl"] input[type="password"] {
+    direction: ltr;
+    text-align: right;
+  }
+
+  /* Code blocks always LTR */
+  [dir="rtl"] code,
+  [dir="rtl"] pre {
+    direction: ltr;
+    text-align: left;
+  }
+  
+  /* Focus styles */
+  :focus-visible {
+    @apply outline-none ring-2 ring-green-500 ring-offset-2;
+  }
+  
+  /* Selection color */
+  ::selection {
+    @apply bg-green-200 text-green-900;
+  }
+  
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Buttons - Modern rounded style */
+  .btn {
+    @apply inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95;
+  }
+  
+  .btn-primary {
+    @apply btn bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 focus:ring-green-500 shadow-lg shadow-green-500/20 hover:shadow-xl hover:shadow-green-500/30;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-gray-900 text-white hover:bg-gray-800 focus:ring-gray-500 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-gray-200 text-gray-700 hover:border-green-500 hover:text-green-600 focus:ring-green-500 bg-white dark:border-gray-700 dark:text-gray-300 dark:bg-gray-800 dark:hover:border-green-400 dark:hover:text-green-400;
+  }
+
+  .btn-ghost {
+    @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-500 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600 focus:ring-red-500 dark:bg-red-600 dark:hover:bg-red-500;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3.5 text-base;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs rounded-lg;
+  }
+  
+  /* Inputs - Modern style */
+  .input {
+    @apply w-full px-4 py-3 border border-gray-200 rounded-xl text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500 disabled:bg-gray-50 disabled:cursor-not-allowed hover:border-gray-300 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-500 dark:focus:border-green-400 dark:hover:border-gray-600 dark:disabled:bg-gray-900;
+  }
+
+  .input-error {
+    @apply border-red-400 focus:ring-red-500/50 focus:border-red-500 dark:border-red-500;
+  }
+
+  .input-label {
+    @apply block text-sm font-medium text-gray-700 mb-1.5 dark:text-gray-300;
+  }
+  
+  /* Cards - Modern clean style */
+  .card {
+    @apply bg-white rounded-2xl border border-gray-100 overflow-hidden dark:bg-gray-800 dark:border-gray-700;
+  }
+
+  .card-hover {
+    @apply card transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-gray-200 dark:hover:border-gray-600 dark:hover:shadow-gray-900/30;
+  }
+  
+  /* Badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold;
+  }
+
+  .badge-primary {
+    @apply badge bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300;
+  }
+
+  .badge-secondary {
+    @apply badge bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300;
+  }
+
+  .badge-warning {
+    @apply badge bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300;
+  }
+
+  .badge-success {
+    @apply badge bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300;
+  }
+
+  .badge-indigo {
+    @apply badge bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300;
+  }
+
+  .badge-gray {
+    @apply badge bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300;
+  }
+  
+  /* Tables */
+  .table-container {
+    @apply overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-700;
+  }
+
+  .table {
+    @apply min-w-full divide-y divide-gray-200 dark:divide-gray-700;
+  }
+
+  .table th {
+    @apply px-6 py-4 bg-gray-50 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:bg-gray-900 dark:text-gray-400;
+  }
+  
+  /* =============================================
+     RTL COMPONENT OVERRIDES
+     ============================================= */
+
+  /* Tables */
+  [dir="rtl"] .table th {
+    @apply text-right;
+  }
+
+  /* Modal dialog text alignment */
+  [dir="rtl"] .modal-dialog {
+    text-align: right;
+  }
+
+  /* Input labels */
+  [dir="rtl"] .input-label {
+    text-align: right;
+  }
+
+  /* Alert messages */
+  [dir="rtl"] .alert {
+    text-align: right;
+  }
+
+  /* Buttons — flip icon spacing inside .btn */
+  [dir="rtl"] .btn svg:first-child:not(:last-child) {
+    margin-right: 0;
+    margin-left: 0.5rem;
+  }
+  [dir="rtl"] .btn svg:last-child:not(:first-child) {
+    margin-left: 0;
+    margin-right: 0.5rem;
+  }
+
+  .table td {
+    @apply px-6 py-4 bg-white text-sm text-gray-900 dark:bg-gray-800 dark:text-gray-100;
+  }
+
+  .table tbody tr {
+    @apply transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50;
+  }
+  
+  /* Modals */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity;
+  }
+
+  .modal-content {
+    @apply relative z-50;
+  }
+
+  .modal-panel {
+    @apply flex min-h-full items-center justify-center p-4 text-center;
+  }
+
+  .modal-dialog {
+    @apply relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all w-full dark:bg-gray-800;
+  }
+
+  /* Alerts */
+  .alert {
+    @apply p-4 rounded-xl border;
+  }
+
+  .alert-info {
+    @apply alert bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300;
+  }
+
+  .alert-success {
+    @apply alert bg-green-50 border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-800 dark:text-green-300;
+  }
+
+  .alert-warning {
+    @apply alert bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800 dark:text-yellow-300;
+  }
+
+  .alert-error {
+    @apply alert bg-red-50 border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-800 dark:text-red-300;
+  }
+}
+
+/* Utility styles */
+@layer utilities {
+  /* Scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    @apply bg-gray-100 rounded-full;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded-full hover:bg-gray-400;
+  }
+  
+  /* Text clamp */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Safe area insets for mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-gray-200 rounded-xl dark:bg-gray-700;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20 dark:bg-gray-900/80 dark:border-gray-700/50;
+  }
+
+  /* =============================================
+     RTL UTILITY CLASSES
+     ============================================= */
+
+  /* Flip directional icons (arrows, chevrons) in RTL.
+     Add class="rtl-flip" to any icon that points left or right. */
+  [dir="rtl"] .rtl-flip {
+    transform: scaleX(-1);
+  }
+
+  /* Inline-start/end spacing helpers — use instead of ml/mr when both
+     LTR and RTL are needed at the same time */
+  .ms-auto { margin-inline-start: auto; }
+  .me-auto { margin-inline-end: auto; }
+
+  /* Force a block to stay LTR (phone numbers, order IDs, prices) */
+  .force-ltr {
+    direction: ltr;
+    unicode-bidi: embed;
+    display: inline-block;
+  }
+}
+
+/* Leaflet map styles */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  border-radius: 1rem;
+}

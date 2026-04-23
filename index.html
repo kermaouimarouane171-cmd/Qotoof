@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ar" dir="rtl" id="html-root">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/greenmarket-icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, minimum-scale=1, maximum-scale=5" />
+    
+    <!-- SEO Meta Tags -->
+    <title>قطوف - Qotoof | سوق الجملة الأول في المغرب للنباتات والخضروات والفواكه</title>
+    <meta name="description" content="قطوف - سوق الجملة الأول في المغرب. تواصل مباشرة مع المزارعين. اشترِ النباتات والخضروات والفواكه بالجملة بأسعار منافسة. توصيل سريع لجميع أنحاء المملكة." />
+    <meta name="keywords" content="جملة, خضروات, فواكه, نباتات, مزارعين, سوق, المغرب, wholesale, vegetables, fruits, plants, farmers, marketplace, Morocco, B2B" />
+    <meta name="author" content="Qotoof - قطوف" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://qotoof.ma/" />
+    
+    <!-- Theme & Mobile -->
+    <meta name="theme-color" content="#16a34a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Qotoof - قطوف" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://qotoof.ma/" />
+    <meta property="og:title" content="قطوف - Qotoof | سوق الجملة الأول في المغرب" />
+    <meta property="og:description" content="تواصل مباشرة مع المزارعين. اشترِ النباتات والخضروات والفواكه بالجملة بأسعار منافسة." />
+    <meta property="og:image" content="https://qotoof.ma/og-image.jpg" />
+    <meta property="og:locale" content="ar_MA" />
+    <meta property="og:locale:alternate" content="fr_MA,en_US" />
+    <meta property="og:site_name" content="Qotoof - قطوف" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://qotoof.ma/" />
+    <meta name="twitter:title" content="قطوف - Qotoof | B2B Wholesale Marketplace" />
+    <meta name="twitter:description" content="Connect directly with Moroccan farmers for wholesale produce." />
+    <meta name="twitter:image" content="https://qotoof.ma/twitter-card.jpg" />
+
+    <!-- Security Headers via Meta (client-side fallback) -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
+
+    <!-- Content Security Policy (Permissive for Development) -->
+    <!-- Note: Strict CSP is applied via server headers in production -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://*.sentry.io https://unpkg.com https://*.cloudflare.com http://localhost:* http://127.0.0.1:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.org https://*.basemaps.cartocdn.com https://*.supabase.co https://*.googleusercontent.com https://*.firebaseapp.com https://images.unsplash.com https://*.sentry.io https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://unpkg.com data: https://cdnjs.cloudflare.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.firebaseio.com https://*.googleapis.com https://www.google.com/recaptcha/ https://*.sentry.io ws://localhost:* ws://127.0.0.1:* http://localhost:* http://127.0.0.1:*; frame-src 'self' https://www.google.com/recaptcha/; object-src 'none'; base-uri 'self'; form-action 'self';" />
+    
+    <!-- Accessibility -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    
+    <!-- Performance Optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://oyaiiyekfkflesdmcvvo.supabase.co">
+    <link rel="preconnect" href="https://oyaiiyekfkflesdmcvvo.supabase.co" crossorigin>
+
+    <!-- Fonts with preload -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS with SRI -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script>
+      // Set language and direction based on stored preference
+      (function() {
+        const lang = localStorage.getItem('language') || 'en';
+        const isRTL = lang === 'ar';
+        document.documentElement.lang = lang;
+        document.documentElement.dir = isRTL ? 'rtl' : 'ltr';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

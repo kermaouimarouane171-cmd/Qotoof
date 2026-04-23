@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Allow: /marketplace
+Allow: /products/
+Allow: /stores/
+Allow: /about
+Allow: /contact
+Allow: /faq
+
+# Disallow admin and dashboard areas
+Disallow: /admin/
+Disallow: /vendor/
+Disallow: /driver/
+Disallow: /buyer/
+Disallow: /seller/
+Disallow: /checkout
+Disallow: /profile
+
+# Disallow API and auth
+Disallow: /api/
+Disallow: /auth/
+
+# Sitemap
+Sitemap: https://qotoof.com/sitemap.xml
+
+# Crawl delay
+Crawl-delay: 10

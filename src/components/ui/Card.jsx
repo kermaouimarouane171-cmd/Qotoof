@@ -1,0 +1,21 @@
+import clsx from 'clsx'
+
+const Card = ({ children, className, hover = false, onClick }) => {
+  return (
+    <div
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(e) } : undefined}
+      className={clsx(
+        hover ? 'card-hover' : 'card',
+        onClick && 'cursor-pointer',
+        className
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </div>
+  )
+}
+
+export default Card

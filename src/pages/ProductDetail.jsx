@@ -1,0 +1,952 @@
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useCartStore } from '@/store/cartStore'
+import { useAuthStore } from '@/store/authStore'
+import { supabase } from '@/services/supabase'
+import inventoryService from '@/services/inventoryService'
+import reviewService from '@/services/reviewService'
+import refundPolicyService from '@/services/refundPolicyService'
+import { Button, LoadingSpinner, Map, StarRating } from '@/components/ui'
+import ErrorBoundary from '@/components/ErrorBoundary'
+import { formatPrice } from '@/utils/currency'
+import {
+  MapPinIcon,
+  ShoppingCartIcon,
+  TruckIcon,
+  ShieldCheckIcon,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  PhotoIcon,
+  StarIcon,
+  CheckCircleIcon,
+} from '@heroicons/react/24/outline'
+import toast from 'react-hot-toast'
+import { logger } from '@/utils/logger'
+
+const REVIEWS_PER_PAGE = 10
+
+const ProductDetailPage = () => {
+  const { t } = useTranslation()
+  const { id } = useParams()
+  const { addItem } = useCartStore()
+  const { user } = useAuthStore()
+
+  const [product, setProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [notFound, setNotFound] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(0)
+  const [quantity, setQuantity] = useState(1)
+  const [reviews, setReviews] = useState([])
+  const [_reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsPage] = useState(1)
+  const [_totalReviews, setTotalReviews] = useState(0)
+  const [averageRating, setAverageRating] = useState(0)
+  const [userRating, setUserRating] = useState(0)
+  const [reviewText, setReviewText] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [joiningWaitlist, setJoiningWaitlist] = useState(false)
+  const [waitlistEntry, setWaitlistEntry] = useState(null)
+  const [refundPolicy, setRefundPolicy] = useState(null)
+  const [_relatedProducts, setRelatedProducts] = useState([])
+  const [_relatedLoading, setRelatedLoading] = useState(false)
+
+  // SEO: Update title and meta description
+  useEffect(() => {
+    if (product) {
+      document.title = `${product.name} | Qotoof - قطوف`
+
+      let metaDescription = document.querySelector('meta[name="description"]')
+      if (!metaDescription) {
+        metaDescription = document.createElement('meta')
+        metaDescription.name = 'description'
+        document.head.appendChild(metaDescription)
+      }
+      metaDescription.content = product.description || `${product.name} - ${product.category} available at Qotoof marketplace`
+
+      // JSON-LD Structured Data for SEO
+      const jsonLd = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: product.name,
+        description: product.description || '',
+        image: product.images?.map(img => img.url) || [],
+        brand: {
+          '@type': 'Brand',
+          name: product.vendor?.store_name || product.vendor?.first_name || 'Unknown Vendor'
+        },
+        offers: {
+          '@type': 'Offer',
+          url: window.location.href,
+          priceCurrency: 'MAD',
+          price: product.price_per_unit,
+          availability: product.is_available
+            ? 'https://schema.org/InStock'
+            : 'https://schema.org/OutOfStock',
+          eligibleQuantity: product.min_order_quantity
+            ? [{ '@type': 'QuantitativeValue', value: product.min_order_quantity, unitCode: product.unit_type }]
+            : [],
+          seller: {
+            '@type': 'Organization',
+            name: product.vendor?.store_name || product.vendor?.first_name || 'Unknown Vendor'
+          }
+        },
+        aggregateRating: averageRating > 0
+          ? {
+              '@type': 'AggregateRating',
+              ratingValue: averageRating.toFixed(1),
+              reviewCount: reviews.length,
+              bestRating: '5',
+              worstRating: '1'
+            }
+          : undefined,
+        category: product.category
+      }
+
+      // Remove existing JSON-LD if any
+      const existingScript = document.querySelector('script[type="application/ld+json"]')
+      if (existingScript) existingScript.remove()
+
+      // Add new JSON-LD
+      const script = document.createElement('script')
+      script.type = 'application/ld+json'
+      script.innerHTML = JSON.stringify(jsonLd)
+      document.head.appendChild(script)
+
+      // Cleanup on unmount
+      return () => {
+        script.remove()
+      }
+    }
+  }, [product, averageRating, reviews])
+
+  const loadProduct = useCallback(async () => {
+    if (!id) return
+
+    setLoading(true)
+    setNotFound(false)
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_images(id, url, is_primary)
+        `)
+        .eq('id', id)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Product not found
+          setNotFound(true)
+          return
+        }
+        throw error
+      }
+
+      setProduct(data)
+      setQuantity(data?.min_order_quantity || 1)
+
+      // Set primary image as selected
+      if (data?.images?.length > 0) {
+        const primaryIndex = data.images.findIndex(img => img.is_primary)
+        setSelectedImage(primaryIndex >= 0 ? primaryIndex : 0)
+      }
+    } catch (error) {
+      logger.error('Error loading product:', error)
+      toast.error(t('product.notFound.title', 'Product not found'))
+      setNotFound(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [id, t])
+
+  const loadReviews = useCallback(async () => {
+    if (!id || !product) return
+
+    setReviewsLoading(true)
+    try {
+      const from = (reviewsPage - 1) * REVIEWS_PER_PAGE
+      const to = from + REVIEWS_PER_PAGE - 1
+
+      const { data, error, count } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          reviewer:profiles!reviews_user_id_fkey(first_name, last_name, avatar_url)
+        `, { count: 'exact' })
+        .eq('product_id', id)
+        .eq('is_flagged', false)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+
+      setReviews(data || [])
+      setTotalReviews(count || 0)
+
+      // Calculate average rating from all reviews (not just current page)
+      if (count > 0) {
+        const { data: allRatings } = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('product_id', id)
+          .eq('is_flagged', false)
+          .is('deleted_at', null)
+
+        if (allRatings && allRatings.length > 0) {
+          const avg = allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
+          setAverageRating(avg)
+        }
+      }
+    } catch (error) {
+      logger.error('Error loading reviews:', error)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [id, product, reviewsPage])
+
+  const loadRelatedProducts = useCallback(async () => {
+    if (!product?.category) return
+
+    setRelatedLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          product_images(url, is_primary)
+        `)
+        .eq('is_available', true)
+        .eq('category', product.category)
+        .neq('id', id) // Exclude current product
+        .order('created_at', { ascending: false })
+        .limit(4)
+
+      if (error) throw error
+      setRelatedProducts(data || [])
+    } catch (error) {
+      logger.error('Error loading related products:', error)
+    } finally {
+      setRelatedLoading(false)
+    }
+  }, [id, product?.category])
+
+  const loadRefundPolicy = useCallback(async () => {
+    if (!product?.vendor_id) return
+
+    try {
+      const policy = await refundPolicyService.getVendorRefundPolicy(product.vendor_id)
+      setRefundPolicy(policy)
+    } catch (error) {
+      logger.warn('Error loading vendor refund policy:', error)
+      setRefundPolicy(null)
+    }
+  }, [product?.vendor_id])
+
+  useEffect(() => {
+    loadProduct()
+  }, [id, loadProduct])
+
+  useEffect(() => {
+    if (product) {
+      loadReviews()
+    }
+  }, [id, product, loadReviews])
+
+  useEffect(() => {
+    if (product?.category) {
+      loadRelatedProducts()
+    }
+  }, [product?.category, loadRelatedProducts])
+
+  useEffect(() => {
+    if (product?.vendor_id) {
+      loadRefundPolicy()
+    }
+  }, [loadRefundPolicy, product?.vendor_id])
+
+  useEffect(() => {
+    let active = true
+
+    const loadWaitlistEntry = async () => {
+      if (!product?.id || !user?.id) {
+        if (active) setWaitlistEntry(null)
+        return
+      }
+
+      try {
+        const entry = await inventoryService.getUserWaitlistEntry(product.id, user.id)
+        if (active) {
+          setWaitlistEntry(entry)
+        }
+      } catch (error) {
+        logger.warn('Error loading waitlist entry:', error)
+      }
+    }
+
+    loadWaitlistEntry()
+
+    return () => {
+      active = false
+    }
+  }, [product?.id, user?.id])
+
+  const handleSubmitReview = async () => {
+    if (!user) {
+      toast.error('يجب تسجيل الدخول لإضافة تقييم')
+      return
+    }
+
+    if (userRating === 0) {
+      toast.error('الرجاء اختيار تقييم')
+      return
+    }
+
+    try {
+      setSubmittingReview(true)
+
+        await reviewService.createReview({
+          productId: id,
+          vendorId: product?.vendor_id,
+          userId: user.id,
+          rating: userRating,
+          comment: reviewText,
+        })
+
+      toast.success('تم إضافة التقييم بنجاح')
+      setUserRating(0)
+      setReviewText('')
+      await loadReviews()
+    } catch (error) {
+      logger.error('Error submitting review:', error)
+      toast.error('حدث خطأ أثناء إضافة التقييم')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
+
+  const handleAddToCart = () => {
+    if (!product) return
+
+    // Check if product is available
+    if (!product.is_available) {
+      toast.error(t('product.outOfStock', 'This product is out of stock'))
+      return
+    }
+
+    // Check minimum order quantity
+    if (quantity < product.min_order_quantity) {
+      toast.error(
+        t('product.minOrder', 'Minimum order is {{min}} {{unit}}', {
+          min: product.min_order_quantity,
+          unit: product.unit_type
+        })
+      )
+      return
+    }
+
+    // Check available quantity
+    if (product.available_quantity !== null && quantity > product.available_quantity) {
+      toast.error(
+        t('product.exceedsStock', 'Requested quantity exceeds available stock ({{max}} {{unit}})', {
+          max: product.available_quantity,
+          unit: product.unit_type
+        })
+      )
+      return
+    }
+
+    addItem(product, quantity)
+  }
+
+  const handleJoinWaitlist = async () => {
+    if (!product) return
+
+    if (!user) {
+      toast.error('يجب تسجيل الدخول أولاً للانضمام إلى قائمة الانتظار')
+      return
+    }
+
+    setJoiningWaitlist(true)
+    try {
+      const entry = await inventoryService.joinWaitlist({
+        productId: product.id,
+        userId: user.id,
+        requestedQuantity: quantity,
+      })
+
+      setWaitlistEntry(entry)
+      setProduct((previous) => previous ? {
+        ...previous,
+        waitlist_count: Number(previous.waitlist_count || 0) + 1,
+      } : previous)
+      toast.success('تم تسجيلك في قائمة الانتظار بنجاح')
+    } catch (error) {
+      logger.error('Error joining waitlist:', error)
+      toast.error(error.message || 'تعذر إضافتك إلى قائمة الانتظار')
+    } finally {
+      setJoiningWaitlist(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
+
+  const isProductSoldOut = !product?.is_available || Number(product?.available_quantity ?? product?.stock_quantity ?? 0) <= 0
+
+  if (notFound) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <PhotoIcon className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          {t('product.notFound.title', 'Product not found')}
+        </h2>
+        <p className="text-gray-500 mb-6">
+          {t('product.notFound.description', 'The product you\'re looking for doesn\'t exist or has been removed.')}
+        </p>
+        <Link to="/marketplace" className="btn-primary inline-flex items-center gap-2">
+          <ArrowLeftIcon className="w-5 h-5" />
+          {t('product.notFound.backToMarketplace', 'Back to Marketplace')}
+        </Link>
+      </div>
+    )
+  }
+
+  if (!product) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <PhotoIcon className="w-10 h-10 text-gray-400" />
+        </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Product not found</h2>
+        <p className="text-gray-500 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+        <Link to="/marketplace" className="btn-primary">
+          <ArrowLeftIcon className="w-5 h-5 mr-2" />
+          Back to Marketplace
+        </Link>
+      </div>
+    )
+  }
+
+  const allImages = product.images || []
+  const displayImage = allImages[selectedImage]?.url
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6" aria-label={t('product.breadcrumb', 'Breadcrumb')}>
+        <Link to="/" className="hover:text-green-600">{t('nav.home', 'Home')}</Link>
+        <span aria-hidden="true">/</span>
+        <Link to="/marketplace" className="hover:text-green-600">{t('nav.marketplace', 'Marketplace')}</Link>
+        {product.category && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link to={`/marketplace?category=${product.category}`} className="hover:text-green-600 capitalize">
+              {t(`product.categories.${product.category}`, product.category)}
+            </Link>
+          </>
+        )}
+        {product.subcategory && (
+          <>
+            <span aria-hidden="true">/</span>
+            <Link to={`/marketplace?category=${product.category}&subcategory=${product.subcategory}`} className="hover:text-green-600 capitalize">
+              {product.subcategory}
+            </Link>
+          </>
+        )}
+        <span aria-hidden="true">/</span>
+        <span className="text-gray-900 truncate" aria-current="page">{product.name}</span>
+      </nav>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+        {/* Images */}
+        <div>
+          <div className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-4">
+            {displayImage ? (
+              <img
+                src={displayImage}
+                alt={product.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-gray-400">
+                <PhotoIcon className="w-20 h-20" />
+              </div>
+            )}
+
+            {allImages.length > 1 && (
+              <>
+                <button
+                  onClick={() => setSelectedImage(prev => (prev === 0 ? allImages.length - 1 : prev - 1))}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  aria-label={t('product.previousImage', 'Previous image')}
+                >
+                  <ArrowLeftIcon className="w-5 h-5 text-gray-700" />
+                </button>
+                <button
+                  onClick={() => setSelectedImage(prev => (prev === allImages.length - 1 ? 0 : prev + 1))}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                  aria-label={t('product.nextImage', 'Next image')}
+                >
+                  <ArrowRightIcon className="w-5 h-5 text-gray-700" />
+                </button>
+              </>
+            )}
+          </div>
+
+          {allImages.length > 1 && (
+            <div className="grid grid-cols-4 gap-3">
+              {allImages.map((img, index) => (
+                <button
+                  key={img.id || index}
+                  onClick={() => setSelectedImage(index)}
+                  className={`aspect-square rounded-xl overflow-hidden border-2 transition-colors ${
+                    selectedImage === index ? 'border-green-500' : 'border-transparent hover:border-gray-300'
+                  }`}
+                  aria-label={t('product.imageThumbnail', 'View image {{num}}', { num: index + 1 })}
+                  aria-pressed={selectedImage === index}
+                >
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Product Info */}
+        <div>
+          <div className="mb-2">
+            <span className="badge-primary capitalize">{product.category}</span>
+            {product.subcategory && (
+              <span className="badge-secondary ml-2 capitalize">{product.subcategory}</span>
+            )}
+            {!product.is_available && (
+              <span className="badge-danger ml-2">Out of Stock</span>
+            )}
+            {product.is_available && product.available_quantity <= 10 && product.available_quantity > 0 && (
+              <span className="badge-warning ml-2">Low Stock</span>
+            )}
+            {product.is_organic && (
+              <span className="badge-success ml-2">Organic</span>
+            )}
+            {product.is_local && (
+              <span className="badge-secondary ml-2">Local</span>
+            )}
+          </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
+            {product.name}
+          </h1>
+
+          {/* Vendor */}
+          {product.vendor && (
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl mb-6">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                <span className="text-white font-bold">
+                  {product.vendor.first_name?.[0]}{product.vendor.last_name?.[0]}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">
+                  {product.vendor.store_name || `${product.vendor.first_name} ${product.vendor.last_name}`}
+                </p>
+                {product.vendor.city && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <MapPinIcon className="w-4 h-4" />
+                    <span>{product.vendor.city}{product.vendor.country ? `, ${product.vendor.country}` : ''}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Price */}
+          <div className="bg-green-50 rounded-2xl p-6 mb-6 border border-green-100">
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-4xl font-bold text-green-600">
+                {formatPrice(product.price_per_unit)}
+              </span>
+              <span className="text-lg text-gray-500">/{product.unit_type}</span>
+            </div>
+            <div className="flex items-center gap-4 text-sm">
+              <span className="text-gray-600">
+                Min order: <strong>{product.min_order_quantity} {product.unit_type}</strong>
+              </span>
+              {product.available_quantity > 0 && (
+                <span className="text-green-600">
+                  • Available: <strong>{product.available_quantity.toLocaleString()} {product.unit_type}</strong>
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Quantity Selector */}
+          <div className="mb-6">
+            <label className="input-label">Quantity ({product.unit_type})</label>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setQuantity(Math.max(product.min_order_quantity, quantity - product.min_order_quantity))}
+                disabled={quantity <= product.min_order_quantity}
+                className="w-12 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                value={quantity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value)
+                  if (!isNaN(val) && val >= product.min_order_quantity) {
+                    const adjusted = Math.ceil(val / product.min_order_quantity) * product.min_order_quantity
+                    setQuantity(adjusted)
+                  } else if (e.target.value === '') {
+                    setQuantity(product.min_order_quantity)
+                  }
+                }}
+                className="input w-24 text-center text-lg font-semibold"
+                min={product.min_order_quantity}
+                step={product.min_order_quantity}
+              />
+              <button
+                onClick={() => setQuantity(quantity + product.min_order_quantity)}
+                className="w-12 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-medium transition-colors"
+              >
+                +
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Quantity must be a multiple of {product.min_order_quantity} {product.unit_type}
+            </p>
+          </div>
+
+          {/* Total */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-xl">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-600">Total Price:</span>
+              <span className="text-2xl font-bold text-gray-900">
+                {formatPrice(product.price_per_unit * quantity)}
+              </span>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 mb-6">
+            <Button
+              variant="primary"
+              size="lg"
+              className="flex-1"
+              onClick={handleAddToCart}
+              disabled={!product.is_available || quantity < product.min_order_quantity}
+              leftIcon={<ShoppingCartIcon className="w-5 h-5" />}
+            >
+              Add to Cart
+            </Button>
+          </div>
+
+          {isProductSoldOut && product.waitlist_enabled !== false && (
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-900">المنتج غير متوفر حالياً</p>
+              <p className="mt-1 text-sm text-amber-800">
+                سنرسل لك إشعاراً داخل المنصة فور عودة هذا المنتج إلى المخزون.
+              </p>
+              {Number(product.waitlist_count || 0) > 0 && (
+                <p className="mt-2 text-xs text-amber-700">
+                  عدد المنتظرين حالياً: {Number(product.waitlist_count || 0)}
+                </p>
+              )}
+              <div className="mt-4">
+                <Button
+                  variant={waitlistEntry ? 'outline' : 'secondary'}
+                  onClick={handleJoinWaitlist}
+                  disabled={Boolean(waitlistEntry)}
+                  isLoading={joiningWaitlist}
+                >
+                  {waitlistEntry ? 'أنت مسجل بالفعل في قائمة الانتظار' : 'انضم إلى قائمة الانتظار'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Features */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+              <TruckIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Fast Delivery</p>
+                <p className="text-xs text-gray-500">24-48 hours</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
+              <ShieldCheckIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Quality Assured</p>
+                <p className="text-xs text-gray-500">Verified vendor</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Description */}
+      {product.description && (
+        <div className="mb-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Description</h2>
+          <div className="card p-6">
+            <p className="text-gray-600 whitespace-pre-line leading-relaxed">
+              {product.description}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {refundPolicy && (
+        <div className="mb-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">سياسة الاسترجاع</h2>
+          <div className="card p-6">
+            <p className="text-gray-700 leading-7 mb-4">{refundPolicy.policy_text}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-gray-500 mb-1">نافذة الإرجاع</p>
+                <p className="font-semibold text-gray-900">{refundPolicy.return_window_days} يوم</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-gray-500 mb-1">الإرجاع الجزئي</p>
+                <p className="font-semibold text-gray-900">{refundPolicy.allow_partial_returns ? 'مسموح' : 'غير مسموح'}</p>
+              </div>
+              <div className="rounded-xl bg-gray-50 p-3">
+                <p className="text-gray-500 mb-1">مصاريف الشحن</p>
+                <p className="font-semibold text-gray-900">
+                  {refundPolicy.return_shipping_paid_by === 'vendor'
+                    ? 'على البائع'
+                    : refundPolicy.return_shipping_paid_by === 'shared'
+                    ? 'مشاركة بين الطرفين'
+                    : 'على المشتري'}
+                </p>
+              </div>
+            </div>
+            {Array.isArray(refundPolicy.non_returnable_categories) && refundPolicy.non_returnable_categories.length > 0 && (
+              <p className="text-xs text-gray-500 mt-4">
+                فئات غير قابلة للإرجاع: {refundPolicy.non_returnable_categories.join('، ')}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Farming Information */}
+      {(product.scientific_name || product.season || product.care_instructions) && (
+        <div className="mb-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Farming Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {product.scientific_name && (
+              <div className="card p-4">
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Scientific Name</h3>
+                <p className="text-gray-900 font-semibold italic">{product.scientific_name}</p>
+              </div>
+            )}
+            {product.season && (
+              <div className="card p-4">
+                <h3 className="text-sm font-medium text-gray-500 mb-1">Season</h3>
+                <p className="text-gray-900 font-semibold">{product.season}</p>
+              </div>
+            )}
+            {product.care_instructions && (
+              <div className="card p-4 md:col-span-2">
+                <h3 className="text-sm font-medium text-gray-500 mb-2">Care Instructions</h3>
+                <p className="text-gray-600 whitespace-pre-line leading-relaxed">{product.care_instructions}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Vendor Location */}
+      {product.vendor && (product.vendor.latitude || product.vendor.longitude || product.vendor.city) && (
+        <div className="mb-12">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Vendor Location</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="card p-6">
+              <h3 className="font-semibold text-gray-900 text-lg mb-2">
+                {product.vendor.store_name || `${product.vendor.first_name} ${product.vendor.last_name}`}
+              </h3>
+              {product.vendor.store_description && (
+                <p className="text-gray-600 mb-4">{product.vendor.store_description}</p>
+              )}
+              {product.vendor.city && (
+                <div className="flex items-center gap-2 text-gray-500 mb-4">
+                  <MapPinIcon className="w-5 h-5" />
+                  <span>{product.vendor.city}{product.vendor.country ? `, ${product.vendor.country}` : ''}</span>
+                </div>
+              )}
+            </div>
+            <Map
+              center={[
+                product.vendor.latitude || 33.5731,
+                product.vendor.longitude || -7.5898
+              ]}
+              zoom={10}
+              markers={
+                product.vendor.latitude && product.vendor.longitude
+                  ? [{
+                      lat: product.vendor.latitude,
+                      lng: product.vendor.longitude,
+                      popup: product.vendor.store_name || 'Vendor Location'
+                    }]
+                  : []
+              }
+              height="300px"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Reviews Section */}
+      <div className="mb-12">
+        <h2 className="text-xl font-bold text-gray-900 mb-6">
+          التقييمات ({reviews.length})
+        </h2>
+
+        {/* Rating Summary */}
+        <div className="bg-gray-50 rounded-2xl p-6 mb-6">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
+              <StarIcon className="w-8 h-8 text-yellow-500" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-3xl font-bold text-gray-900">
+                  {averageRating > 0 ? averageRating.toFixed(1) : '—'}
+                </span>
+                <span className="text-gray-500">/ 5</span>
+              </div>
+              <p className="text-sm text-gray-500">
+                {reviews.length} {reviews.length === 1 ? 'تقييم' : 'تقييمات'}
+              </p>
+            </div>
+          </div>
+
+          {reviews.length > 0 && (
+            <StarRating
+              rating={Math.round(averageRating)}
+              size="lg"
+              showValue={false}
+            />
+          )}
+        </div>
+
+        {/* Write Review */}
+        {user ? (
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">أضف تقييمك</h3>
+            <div className="mb-4">
+              <p className="block text-sm font-medium text-gray-700 mb-2">التقييم</p>
+              <StarRating
+                rating={userRating}
+                size="lg"
+                onRate={(rating) => setUserRating(rating)}
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="product-review-text" className="block text-sm font-medium text-gray-700 mb-2">
+                تعليقك (اختياري)
+              </label>
+              <textarea
+                id="product-review-text"
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="شارك تجربتك مع هذا المنتج..."
+              />
+            </div>
+            <button
+              onClick={handleSubmitReview}
+              disabled={submittingReview || userRating === 0}
+              className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {submittingReview ? 'جاري الإرسال...' : 'إرسال التقييم'}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6 text-center">
+            <p className="text-blue-800">
+              يجب{' '}
+              <Link to="/login" className="font-semibold underline hover:text-blue-600">
+                تسجيل الدخول
+              </Link>
+              {' '}لإضافة تقييم
+            </p>
+          </div>
+        )}
+
+        {/* Reviews List */}
+        <div className="space-y-4">
+          {reviews.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              لا توجد تقييمات بعد لهذا المنتج
+            </div>
+          ) : (
+            reviews.map((review) => (
+              <div key={review.id} className="bg-white border border-gray-200 rounded-2xl p-6">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">
+                        {review.reviewer?.first_name?.[0]}{review.reviewer?.last_name?.[0] || 'م'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : 'مستخدم'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(review.created_at).toLocaleDateString('ar-MA')}
+                      </p>
+                    </div>
+                  </div>
+                  <StarRating rating={review.rating} size="sm" />
+                </div>
+                {review.comment && (
+                  <p className="text-gray-600 leading-relaxed">{review.comment}</p>
+                )}
+                {/* Vendor Reply */}
+                {review.vendor_reply && (
+                  <div className="mt-4 ml-6 bg-green-50 border border-green-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-semibold text-green-800">رد البائع</span>
+                      {review.vendor_reply_at && (
+                        <span className="text-xs text-green-500">
+                          {new Date(review.vendor_reply_at).toLocaleDateString('ar-MA')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-green-700">{review.vendor_reply}</p>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Wrap with Error Boundary to prevent page crashes
+const ProductDetailWithErrorBoundary = () => (
+  <ErrorBoundary componentName="ProductDetailPage">
+    <ProductDetailPage />
+  </ErrorBoundary>
+)
+
+export default ProductDetailWithErrorBoundary

@@ -1,0 +1,131 @@
+/**
+ * ErrorBoundary - التقاط أخطاء المكونات
+ * 
+ * يستخدم react-error-boundary لالتقاط الأخطاء التي تحدث في المكونات
+ * وعرض واجهة بديلة (Fallback UI)
+ */
+
+import React from 'react';
+import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
+
+/**
+ * مكون Fallback UI - يعرض عند حدوث خطأ
+ */
+export const ErrorFallback = ({ error, resetErrorBoundary }) => {
+  console.error('Error caught by ErrorBoundary:', error);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-red-50 px-4">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
+        <div className="text-center">
+          {/* Icon */}
+          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+            <svg
+              className="h-6 w-6 text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4v2m0 0l-6-3m6 3l6-3"
+              />
+            </svg>
+          </div>
+
+          {/* Title */}
+          <h1 className="mt-4 text-2xl font-bold text-gray-900">
+            حدث خطأ ما
+          </h1>
+
+          {/* Error Message */}
+          <p className="mt-2 text-sm text-gray-500">
+            عذراً، حدث خطأ غير متوقع في التطبيق.
+          </p>
+
+          {/* Error Details (في بيئة Development فقط) */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 p-4 bg-gray-100 rounded text-left">
+              <p className="text-xs font-mono text-gray-700 break-words">
+                <strong>الخطأ:</strong> {error.message}
+              </p>
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs font-bold text-gray-600">
+                  التفاصيل الكاملة
+                </summary>
+                <pre className="mt-2 text-xs text-gray-600 overflow-auto max-h-40">
+                  {error.stack}
+                </pre>
+              </details>
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="mt-6 flex gap-4 justify-center">
+            <button
+              onClick={resetErrorBoundary}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+            >
+              حاول مرة أخرى
+            </button>
+            <a
+              href="/"
+              className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
+            >
+              العودة للرئيسية
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * معالج الأخطاء - يتم استدعاؤه عند التقاط خطأ
+ */
+const handleError = (error, errorInfo) => {
+  console.error('=== ErrorBoundary Caught Error ===');
+  console.error('Message:', error.message);
+  console.error('Component Stack:', errorInfo.componentStack);
+  console.error('Full Stack:', error.stack);
+
+  // في بيئة Production، يمكنك إرسال الخطأ إلى خادم logging
+  // مثل: Sentry, Logstash, إلخ
+  if (process.env.NODE_ENV === 'production') {
+    // sendErrorToServer(error, errorInfo);
+  }
+};
+
+/**
+ * مكون ErrorBoundary الرئيسي
+ */
+export const ErrorBoundary = ({ children }) => {
+  return (
+    <ReactErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onError={handleError}
+      onReset={() => {
+        // يمكن إضافة منطق إضافي هنا إذا لزم الأمر
+        window.location.href = '/';
+      }}
+    >
+      {children}
+    </ReactErrorBoundary>
+  );
+};
+
+/**
+ * HOC للـ ErrorBoundary - للاستخدام مع المكونات
+ */
+export const withErrorBoundary = (Component) => {
+  return (props) => (
+    <ErrorBoundary>
+      <Component {...props} />
+    </ErrorBoundary>
+  );
+};
+
+export default ErrorBoundary;

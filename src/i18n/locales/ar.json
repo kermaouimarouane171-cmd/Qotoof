@@ -1,0 +1,3486 @@
+{
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "success": "نجاح",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "add": "إضافة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "back": "رجوع",
+    "next": "التالي",
+    "previous": "السابق",
+    "submit": "إرسال",
+    "confirm": "تأكيد",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "viewAll": "عرض الكل",
+    "noResults": "لم يتم العثور على نتائج",
+    "tryAgain": "حاول مرة أخرى",
+    "language": "اللغة",
+    "english": "الإنجليزية",
+    "french": "الفرنسية",
+    "arabic": "العربية",
+    "each": "للواحد",
+    "submitting": "جاري الإرسال..."
+  },
+  "nav": {
+    "home": "الرئيسية",
+    "marketplace": "السوق",
+    "cart": "السلة",
+    "dashboard": "لوحة التحكم",
+    "profile": "الملف الشخصي",
+    "products": "المنتجات",
+    "orders": "الطلبات",
+    "analytics": "التحليلات",
+    "users": "المستخدمون",
+    "vendors": "البائعون"
+  },
+  "home": {
+    "meta": {
+      "title": "قطوف | سوق الجملة الأول في المغرب للمنتجات الطازجة",
+      "description": "تواصل مباشرة مع المزارعين المغاربة. اشترِ النباتات والخضروات والفواكه بالجملة بأسعار منافسة. توصيل سريع لجميع أنحاء المملكة.",
+      "ogTitle": "قطوف | سوق الجملة B2B",
+      "ogDescription": "تواصل مباشرة مع المزارعين المغاربة. اشترِ النباتات والخضروات والفواكه بالجملة.",
+      "twitterTitle": "قطوف | سوق الجملة B2B",
+      "twitterDescription": "تواصل مباشرة مع المزارعين المغاربة لمنتجات الجملة."
+    },
+    "hero": {
+      "title": "طازج من",
+      "subtitle": "المزرعة إلى عملك",
+      "description": "تواصل مباشرة مع المزارعين. اشترِ النباتات والخضروات والفواكه بالجملة."
+    },
+    "features": {
+      "title": "لماذا تختار قطوف؟",
+      "subtitle": "أذكى طريقة لشراء النباتات والخضروات والفواكه بالجملة",
+      "directFromFarm": {
+        "title": "مباشرة من المزرعة",
+        "description": "اشترِ مباشرة من المزارعين المحليين"
+      },
+      "wholesalePrices": {
+        "title": "أسعار الجملة",
+        "description": "أفضل أسعار الجملة للأعمال"
+      },
+      "qualityVerified": {
+        "title": "جودة مضمونة",
+        "description": "بائعون موثوقون مع تقييمات"
+      },
+      "fastDelivery": {
+        "title": "توصيل سريع",
+        "description": "شحن وطني خلال 24-48 ساعة"
+      }
+    },
+    "categories": {
+      "title": "تصفح الفئات",
+      "subtitle": "اعثر على ما تحتاجه بالضبط",
+      "plants": "نباتات وأشجار",
+      "vegetables": "خضروات",
+      "fruits": "فاكهة",
+      "herbs": "أعشاب وتوابل",
+      "seeds": "بذور وشتلات",
+      "items": "{{count}} عنصر"
+    },
+    "cta": {
+      "browseProducts": "تصفح المنتجات",
+      "startSelling": "ابدأ البيع",
+      "readyToGrow": "مستعد لتنمية عملك؟",
+      "joinThousands": "انضم لآلاف البائعين والمشترين في السوق الرائد المغربي بالجملة.",
+      "becomeVendor": "كن بائعاً",
+      "startBuying": "ابدأ الشراء"
+    },
+    "products": {
+      "featured": "المنتجات المميزة",
+      "subtitle": "عناصر مختارة بعناية",
+      "seeAll": "عرض الكل",
+      "noProducts": "لا توجد منتجات بعد",
+      "browseMarketplace": "تصفح السوق"
+    },
+    "stats": {
+      "products": "المنتجات",
+      "vendors": "البائعين",
+      "orders": "الطلبات"
+    },
+    "badge": {
+      "text": "#1 سوق الجملة B2B"
+    },
+    "footer": {
+      "description": "السوق الرائد المغربي B2B بالجملة للمنتجات الطازجة.",
+      "marketplace": "السوق",
+      "allProducts": "جميع المنتجات",
+      "plants": "النباتات",
+      "vegetables": "الخضروات",
+      "fruits": "الفواكه",
+      "company": "الشركة",
+      "aboutUs": "من نحن",
+      "becomeVendor": "كن بائعاً",
+      "contact": "اتصل بنا",
+      "support": "الدعم",
+      "helpCenter": "مركز المساعدة",
+      "terms": "شروط الخدمة",
+      "privacy": "سياسة الخصوصية",
+      "copyright": "© {{year}} قطوف - Qotoof. جميع الحقوق محفوظة."
+    }
+  },
+  "marketplace": {
+    "title": "السوق",
+    "subtitle": "اعثر على نباتات وخضروات وفاكهة بالجملة",
+    "categories": {
+      "all": "جميع الفئات",
+      "plants": "نباتات وأشجار",
+      "vegetables": "خضروات",
+      "fruits": "فاكهة"
+    },
+    "filtersLabel": "التصفية",
+    "sortByLabel": "ترتيب حسب",
+    "filters": {
+      "priceRange": "نطاق السعر",
+      "location": "الموقع",
+      "distance": "المسافة",
+      "rating": "التقييم",
+      "minQuantity": "الحد الأدنى للكمية"
+    },
+    "sortBy": {
+      "newest": "الأحدث أولاً",
+      "priceLow": "السعر: من الأقل للأعلى",
+      "priceHigh": "السعر: من الأعلى للأقل",
+      "rating": "الأعلى تقييماً"
+    },
+    "addToCart": "أضف إلى السلة",
+    "viewDetails": "عرض التفاصيل",
+    "vendor": "البائع",
+    "location": "الموقع",
+    "minOrder": "الحد الأدنى للطلب"
+  },
+  "product": {
+    "details": "تفاصيل المنتج",
+    "description": "الوصف",
+    "price": "السعر",
+    "perUnit": "لكل {{unit}}",
+    "available": "متوفر",
+    "outOfStock": "غير متوفر",
+    "quantity": "الكمية",
+    "addToCart": "أضف إلى السلة",
+    "vendor": "البائع",
+    "vendorInfo": "معلومات البائع",
+    "viewStore": "عرض المتجر",
+    "reviews": "التقييمات",
+    "noReviews": "لا توجد تقييمات بعد",
+    "relatedProducts": "منتجات مشابهة"
+  },
+  "cart": {
+    "title": "سلة التسوق",
+    "empty": "سلتك فارغة",
+    "emptyMessage": "تصفح السوق لإضافة منتجات",
+    "browseMarketplace": "تصفح السوق لاكتشاف المنتجات الطازجة",
+    "startShopping": "ابدأ التسوق",
+    "subtotal": "المجموع الفرعي",
+    "total": "الإجمالي",
+    "quantity": "الكمية",
+    "remove": "إزالة",
+    "checkout": "متابعة الدفع",
+    "continueShopping": "متابعة التسوق"
+  },
+  "checkout": {
+    "title": "الدفع",
+    "shipping": "عنوان الشحن",
+    "payment": "طريقة الدفع",
+    "review": "مراجعة الطلب",
+    "placeOrder": "تقديم الطلب",
+    "orderSummary": "ملخص الطلب"
+  },
+  "vendor": {
+    "schedules": {
+      "title": "الجداول والتوفر",
+      "subtitle": "حدد ساعات عملك حتى يعرف العملاء متى تكون متاحاً",
+      "refresh": "تحديث",
+      "openAllDays": "فتح جميع الأيام",
+      "closeAllDays": "إغلاق جميع الأيام",
+      "today": "اليوم",
+      "open": "مفتوح",
+      "closed": "مغلق",
+      "to": "إلى",
+      "closedAllDay": "مغلق طوال اليوم",
+      "unsavedChanges": "لديك تغييرات غير محفوظة",
+      "allSaved": "جميع التغييرات محفوظة",
+      "saving": "جاري الحفظ...",
+      "saveSchedule": "حفظ الجدول",
+      "savedSuccess": "تم حفظ الجدول بنجاح!",
+      "saveFailed": "فشل حفظ الجدول"
+    },
+    "locationSetup": {
+      "title": "حدد موقع متجرك",
+      "subtitle": "لبدء البيع، تحتاج إلى تحديد موقع متجرك على الخريطة. هذا يساعد المشترين في العثور عليك ويتيح حسابات توصيل دقيقة.",
+      "whyRequired": "لماذا هذا مطلوب؟",
+      "reason1": "يمكن للمشترين رؤية موقع متجرك",
+      "reason2": "حسابات دقيقة لمسافة التوصيل",
+      "reason3": "تعيين السائق بناءً على القرب",
+      "reason4": "نتائج بحث أفضل للمشترين القريبين",
+      "cityLabel": "المدينة *",
+      "cityPlaceholder": "مثال: الدار البيضاء",
+      "detectingCity": "جاري اكتشاف المدينة من الخريطة...",
+      "addressLabel": "العنوان (اختياري)",
+      "addressPlaceholder": "عنوان الشارع",
+      "outsideMoroccoTitle": "الموقع خارج المغرب",
+      "outsideMoroccoDesc": "الموقع المحدد خارج المغرب. يرجى النقر على الخريطة داخل حدود المغرب.",
+      "storeLocationLabel": "موقع المتجر *",
+      "clickToSelect": "(انقر على الخريطة للتحديد)",
+      "locationSelected": "تم تحديد الموقع",
+      "selectedCoordinates": "الإحداثيات المحددة:",
+      "saveButton": "حفظ موقع المتجر",
+      "selectLocationError": "يرجى تحديد موقع متجرك على الخريطة",
+      "enterCityError": "يرجى إدخال مدينتك",
+      "savedSuccess": "تم حفظ موقع المتجر بنجاح!",
+      "saveFailed": "فشل حفظ الموقع"
+    },
+    "coupons": {
+      "title": "إدارة القسائم",
+      "couponCount_one": "قسيمة واحدة مُنشأة",
+      "couponCount_two": "قسيمتان مُنشأتان",
+      "couponCount_few": "{{count}} قسائم مُنشأة",
+      "couponCount_many": "{{count}} قسيمة مُنشأة",
+      "couponCount_other": "{{count}} قسيمة مُنشأة",
+      "createCoupon": "إنشاء قسيمة",
+      "editCoupon": "تعديل القسيمة",
+      "createNewCoupon": "إنشاء قسيمة جديدة",
+      "couponCode": "رمز القسيمة",
+      "codePlaceholder": "SUMMER2025",
+      "generateCode": "توليد رمز عشوائي",
+      "titleLabel": "العنوان",
+      "titlePlaceholder": "تخفيضات الصيف",
+      "description": "الوصف",
+      "descriptionPlaceholder": "احصل على خصم 20% على جميع المنتجات",
+      "discountType": "نوع الخصم",
+      "percentage": "نسبة مئوية (%)",
+      "fixed": "مبلغ ثابت (درهم)",
+      "discountValue": "قيمة الخصم",
+      "minOrder": "الحد الأدنى للطلب (درهم)",
+      "maxUses": "الحد الأقصى للاستخدامات",
+      "expiryDate": "تاريخ الانتهاء",
+      "activeLabel": "نشط (مرئي للمشترين)",
+      "cancel": "إلغاء",
+      "updateCoupon": "تحديث القسيمة",
+      "noCoupons": "لم يتم إنشاء قسائم",
+      "noCouponsDesc": "أنشئ أول قسيمة لجذب المزيد من المشترين",
+      "expired": "منتهية",
+      "inactive": "غير نشطة",
+      "noTitle": "بدون عنوان",
+      "off": "خصم",
+      "min": "الحد الأدنى",
+      "used": "اُستخدمت",
+      "times_one": "مرة واحدة",
+      "times_two": "مرتين",
+      "times_few": "مرات",
+      "times_many": "مرة",
+      "times_other": "مرات",
+      "expires": "تنتهي في",
+      "deactivate": "تعطيل",
+      "activate": "تفعيل",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "fillRequired": "يرجى ملء رمز القسيمة وقيمة الخصم",
+      "loadFailed": "فشل تحميل القسائم",
+      "updated": "تم تحديث القسيمة",
+      "created": "تم إنشاء القسيمة",
+      "saveFailed": "فشل حفظ القسيمة",
+      "deactivated": "تم تعطيل القسيمة",
+      "activated": "تم تفعيل القسيمة",
+      "updateFailed": "فشل تحديث القسيمة",
+      "deleted": "تم حذف القسيمة",
+      "deleteFailed": "فشل حذف القسيمة"
+    }
+  },
+  "admin": {
+    "dashboard": {
+      "title": "لوحة تحكم المدير",
+      "totalUsers": "إجمالي المستخدمين",
+      "totalVendors": "إجمالي البائعين",
+      "totalProducts": "إجمالي المنتجات",
+      "totalRevenue": "إجمالي الإيرادات",
+      "pendingApprovals": "موافقات معلقة"
+    },
+    "users": {
+      "title": "إدارة المستخدمين",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "status": "الحالة",
+      "actions": "إجراءات",
+      "joined": "تاريخ الانضمام",
+      "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني...",
+      "noUsers": "لم يتم العثور على مستخدمين",
+      "approved": "معتمد",
+      "pending": "قيد الانتظار",
+      "suspended": "معلق",
+      "edit": "تعديل",
+      "delete": "حذف",
+      "suspend": "تعليق",
+      "unsuspend": "استعادة",
+      "roles": {
+        "all": "الكل",
+        "buyer": "مشتري",
+        "vendor": "بائع",
+        "driver": "سائق",
+        "admin": "مدير"
+      },
+      "sort": {
+        "newest": "الأحدث أولاً",
+        "name": "الاسم أ-ي"
+      },
+      "pagination": {
+        "info": "عرض {{from}}-{{to}} من {{total}}",
+        "previous": "السابق",
+        "next": "التالي"
+      },
+      "editModal": {
+        "title": "تعديل المستخدم",
+        "role": "الدور",
+        "isApproved": "معتمد",
+        "isSuspended": "معلق",
+        "save": "حفظ التغييرات",
+        "saving": "جارٍ الحفظ..."
+      },
+      "deleteModal": {
+        "title": "حذف المستخدم",
+        "warning": "أنت على وشك حذف المستخدم \"{{name}}\" ({{email}}) نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+        "confirmDelete": "حذف المستخدم",
+        "deleting": "جارٍ الحذف..."
+      },
+      "notifications": {
+        "updatedSuccess": "تم تحديث المستخدم بنجاح",
+        "deletedSuccess": "تم حذف المستخدم بنجاح",
+        "suspendedSuccess": "تم تعليق المستخدم",
+        "unsuspendedSuccess": "تم استعادة المستخدم"
+      },
+      "errors": {
+        "loadFailed": "فشل في تحميل المستخدمين",
+        "updateFailed": "فشل في تحديث المستخدم",
+        "deleteFailed": "فشل في حذف المستخدم",
+        "suspendFailed": "فشل في تحديث التعليق",
+        "retry": "إعادة المحاولة"
+      }
+    },
+    "vendors": {
+      "title": "إدارة البائعين",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "suspend": "تعليق",
+      "unsuspend": "استعادة",
+      "viewDetails": "عرض",
+      "pending": "في انتظار الموافقة",
+      "approved": "موافق عليه",
+      "rejected": "مرفوض",
+      "suspended": "معلق",
+      "storeName": "اسم المتجر",
+      "location": "الموقع",
+      "owner": "المالك",
+      "email": "البريد الإلكتروني",
+      "products": "منتجات",
+      "violations": "مخالفات",
+      "noRatings": "لا توجد تقييمات بعد",
+      "suspensionReason": "سبب التعليق",
+      "suspensionEnd": "تاريخ الانتهاء",
+      "filters": {
+        "all": "الكل",
+        "approved": "موافق عليه",
+        "pending": "في الانتظار",
+        "rejected": "مرفوض",
+        "suspended": "معلق"
+      },
+      "notifications": {
+        "approvedTitle": "✅ تمت الموافقة على طلب البائع",
+        "approvedMessage": "تهانينا! تمت الموافقة على طلبك كبائع. يمكنك الآن إضافة المنتجات والبدء في البيع على قطوف.",
+        "approvedSuccess": "تمت الموافقة على البائع بنجاح",
+        "rejectedTitle": "❌ تم رفض طلب البائع",
+        "rejectedMessage": "تم رفض طلبك كبائع. السبب: {{reason}}. يمكنك إعادة التقديم بعد معالجة المشاكل.",
+        "rejectedSuccess": "تم رفض طلب البائع",
+        "suspendedTitle": "⚠️ تم تعليق حساب البائع",
+        "suspendedWithEndMessage": "تم تعليق حسابك كبائع. السبب: {{reason}}. تاريخ انتهاء التعليق: {{endDate}}. لا يمكنك إضافة أو بيع المنتجات خلال هذه الفترة.",
+        "suspendedIndefiniteMessage": "تم تعليق حسابك كبائع بشكل غير محدد. السبب: {{reason}}. لا يمكنك إضافة أو بيع المنتجات حتى رفع التعليق.",
+        "suspendedSuccess": "تم تعليق حساب البائع",
+        "unsuspendedTitle": "✅ تم استعادة حساب البائع",
+        "unsuspendedMessage": "تم استعادة حسابك كبائع. يمكنك الآن إضافة المنتجات والعودة للبيع على قطوف.",
+        "unsuspendedSuccess": "تم استعادة حساب البائع بنجاح"
+      },
+      "errors": {
+        "loadFailed": "فشل في تحميل بيانات البائعين",
+        "approveFailed": "فشل في الموافقة على البائع",
+        "rejectFailed": "فشل في رفض البائع",
+        "suspendFailed": "فشل في تعليق البائع",
+        "unsuspendFailed": "فشل في استعادة البائع",
+        "selectRejectionReason": "يرجى اختيار سبب الرفض",
+        "customRejectionReason": "يرجى تقديم سبب الرفض",
+        "selectSuspensionReason": "يرجى اختيار سبب التعليق",
+        "customSuspensionReason": "يرجى تقديم سبب التعليق"
+      },
+      "rejectModal": {
+        "title": "رفض طلب البائع",
+        "warning": "أنت على وشك رفض طلب \"{{vendorName}}\". سيتم إشعار البائع بسبب الرفض.",
+        "reason": "سبب الرفض",
+        "selectReason": "اختر سبباً",
+        "otherReason": "يرجى التحديد",
+        "otherPlaceholder": "صف السبب...",
+        "confirmReject": "تأكيد الرفض",
+        "rejecting": "جاري الرفض..."
+      },
+      "suspendModal": {
+        "title": "تعليق حساب البائع",
+        "warning": "أنت على وشك تعليق \"{{vendorName}}\". لن يتمكن البائع من إضافة أو بيع المنتجات خلال فترة التعليق.",
+        "reason": "سبب التعليق",
+        "selectReason": "اختر سبباً",
+        "otherReason": "يرجى التحديد",
+        "otherPlaceholder": "صف السبب...",
+        "endDate": "تاريخ انتهاء التعليق (اختياري)",
+        "endDateHint": "اتركه فارغاً للتعليق غير المحدد",
+        "confirmSuspend": "تأكيد التعليق",
+        "suspending": "جاري التعليق..."
+      },
+      "viewModal": {
+        "title": "تفاصيل البائع",
+        "storeName": "اسم المتجر",
+        "owner": "المالك",
+        "email": "البريد الإلكتروني",
+        "phone": "الهاتف",
+        "location": "الموقع",
+        "status": "الحالة",
+        "products": "المنتجات",
+        "rating": "التقييم",
+        "noRating": "لا توجد تقييمات بعد",
+        "violations": "المخالفات",
+        "registeredAt": "تاريخ التسجيل",
+        "description": "وصف المتجر",
+        "suspensionReason": "سبب التعليق",
+        "suspensionStart": "منذ",
+        "suspensionEnd": "تاريخ الانتهاء"
+      }
+    },
+    "analytics": {
+      "title": "التحليلات",
+      "subtitle": "تحليلات أداء المنصة",
+      "dateRange": "الفترة: {{range}}",
+      "dateRanges": {
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يوماً",
+        "3m": "آخر 3 أشهر",
+        "6m": "آخر 6 أشهر",
+        "1y": "آخر سنة"
+      },
+      "customRange": "نطاق مخصص",
+      "fromDate": "من تاريخ",
+      "toDate": "إلى تاريخ",
+      "apply": "تطبيق",
+      "export": {
+        "csv": "تصدير CSV",
+        "pdf": "تصدير PDF"
+      },
+      "metrics": {
+        "totalRevenue": "إجمالي الإيرادات",
+        "avgOrderValue": "متوسط قيمة الطلب",
+        "activeVendors": "البائعون النشطون",
+        "totalUsers": "إجمالي المستخدمين",
+        "orders": "طلبات",
+        "perOrder": "لكل طلب",
+        "drivers": "سائقون",
+        "buyers": "مشترين",
+        "products": "منتجات"
+      },
+      "charts": {
+        "ordersOverTime": "الطلبات عبر الزمن",
+        "revenueOverTime": "الإيرادات عبر الزمن",
+        "revenueByCategory": "الإيرادات حسب الفئة",
+        "topVendors": "أفضل البائعين",
+        "categoryBreakdown": "التوزيع حسب الفئة"
+      },
+      "topVendorsTable": {
+        "vendor": "البائع",
+        "orders": "الطلبات",
+        "revenue": "الإيرادات",
+        "avgOrder": "متوسط الطلب"
+      },
+      "categoryTable": {
+        "category": "الفئة",
+        "orders": "الطلبات",
+        "revenue": "الإيرادات",
+        "avgOrder": "متوسط الطلب",
+        "share": "الحصة"
+      },
+      "pdfReport": {
+        "title": "تقرير التحليلات",
+        "period": "الفترة",
+        "generated": "تاريخ الإنشاء",
+        "footer": "منصة قطوف - تقرير التحليلات",
+        "keyMetrics": "المؤشرات الرئيسية",
+        "revenueByCategory": "الإيرادات حسب الفئة",
+        "topVendors": "أفضل البائعين حسب الإيرادات"
+      },
+      "notifications": {
+        "loadFailed": "فشل في تحميل بيانات التحليلات",
+        "exportFailed": "فشل في التصدير",
+        "csvSuccess": "تم تصدير التحليلات كـ CSV!",
+        "pdfSuccess": "تم تصدير التحليلات كـ PDF!",
+        "noData": "لا توجد بيانات للتصدير"
+      }
+    },
+    "security": {
+      "title": "مركز الأمان",
+      "subtitle": "مراقبة وإدارة أمان المنصة",
+      "totalUsers": "إجمالي المستخدمين",
+      "mfaEnabled": "المصادقة الثنائية",
+      "activeSessions": "الجلسات النشطة",
+      "blockedUsers": "المستخدمين المعلقين",
+      "criticalAlerts": "تنبيهات حرجة",
+      "highAlerts": "أولوية عالية",
+      "unresolvedAlerts": "غير محلولة",
+      "blockedIPs": "عناوين IP المحظورة",
+      "adminAccount": "حساب المدير",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "role": "الدور",
+      "mfa": "المصادقة الثنائية",
+      "enabled": "مفعّلة",
+      "disabled": "معطلة",
+      "accountProtected": "الحساب محمي",
+      "mfaMethod": "باستخدام {{method}}",
+      "authenticatorApp": "تطبيق المصادقة",
+      "disableMFA": "تعطيل المصادقة الثنائية",
+      "disabling": "جاري التعطيل...",
+      "unprotectedWarning": "⚠️ حساب إداري بدون حماية!",
+      "adminMFARequired": "حسابات الإدارة يجب أن تكون محمية بالمصادقة الثنائية",
+      "enableMFA": "تفعيل المصادقة الثنائية الآن",
+      "disableMFAConfirm": "هل أنت متأكد من تعطيل المصادقة الثنائية؟",
+      "mfaDisabled": "تم تعطيل المصادقة الثنائية",
+      "mfaDisableFailed": "فشل تعطيل المصادقة",
+      "activeSessionsTitle": "الجلسات النشطة",
+      "manageSessions": "إدارة جلساتك النشطة",
+      "viewAll": "عرض الكل",
+      "sessionCount": "لديك {{count}} جلسة نشطة",
+      "revokeOther": "تسجيل الخروج من الأجهزة الأخرى",
+      "revokeSessionsConfirm": "تسجيل الخروج من جميع الأجهزة الأخرى؟",
+      "sessionsRevoked": "تم تسجيل الخروج من جميع الأجهزة",
+      "revokeFailed": "فشل تسجيل الخروج",
+      "auditLog": "سجل النشاط النظامي",
+      "noActivity": "لا يوجد نشاط",
+      "securityAlerts": "تنبيهات الأمان الفورية",
+      "unresolved": "غير محلولة",
+      "noAlerts": "لا توجد تنبيهات أمان",
+      "resolved": "محلول",
+      "active": "نشط",
+      "type": "النوع",
+      "time": "الوقت",
+      "resolution": "الحل",
+      "resolve": "حل",
+      "blockedIPsTitle": "عناوين IP المحظورة",
+      "blockIP": "حظر IP",
+      "noBlockedIPs": "لا توجد عناوين IP محظورة",
+      "ipAddress": "عنوان IP",
+      "reason": "السبب",
+      "blockType": "نوع الحظر",
+      "expires": "ينتهي",
+      "actions": "الإجراءات",
+      "indefinite": "غير محدد",
+      "unblock": "إلغاء الحظر",
+      "ipRequired": "عنوان IP مطلوب",
+      "reasonRequired": "السبب مطلوب",
+      "ipBlocked": "تم حظر IP بنجاح",
+      "ipUnblocked": "تم إلغاء حظر IP بنجاح",
+      "blockFailed": "فشل حظر IP",
+      "unblockFailed": "فشل إلغاء حظر IP",
+      "alertResolved": "تم حل التنبيه",
+      "resolveFailed": "فشل حل التنبيه",
+      "blockIPModal": {
+        "title": "حظر عنوان IP",
+        "warning": "حظر IP سيمنع جميع الطلبات من هذا العنوان. استخدم بحذر.",
+        "ipLabel": "عنوان IP",
+        "reasonLabel": "السبب",
+        "reasonPlaceholder": "صف السبب...",
+        "typeLabel": "نوع الحظر",
+        "types": {
+          "manual": "يدوي",
+          "bruteForce": "تلقائي - هجوم القوة الغاشمة",
+          "rateLimit": "تلقائي - تجاوز حد المعدل",
+          "suspicious": "تلقائي - نشاط مشبوه"
+        },
+        "expiresLabel": "تاريخ الانتهاء (اختياري)",
+        "expiresHint": "اتركه فارغاً للحظر الدائم",
+        "confirmBlock": "حظر IP",
+        "blocking": "جاري الحظر..."
+      },
+      "resolveModal": {
+        "title": "حل تنبيه الأمان",
+        "notesLabel": "ملاحظات الحل (اختياري)",
+        "notesPlaceholder": "صف كيف تم الحل...",
+        "confirmResolve": "وضع علامة كمحل",
+        "resolving": "جاري الحل..."
+      }
+    },
+    "products": {
+      "title": "المنتجات",
+      "subtitle": "مراجعة وإدارة قوائم المنتجات",
+      "stats": {
+        "pendingReview": "قيد المراجعة",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض"
+      },
+      "status": {
+        "pending": "قيد المراجعة",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض"
+      },
+      "searchPlaceholder": "البحث عن منتجات أو بائعين...",
+      "bulkActions": {
+        "approveSelected": "موافقة على المحدد ({{count}})",
+        "rejectSelected": "رفض المحدد"
+      },
+      "table": {
+        "product": "المنتج",
+        "vendor": "البائع",
+        "category": "الفئة",
+        "price": "السعر",
+        "status": "الحالة",
+        "created": "تاريخ الإنشاء",
+        "actions": "الإجراءات"
+      },
+      "noProducts": "لم يتم العثور على منتجات",
+      "allReviewed": "تمت مراجعة جميع المنتجات",
+      "noStatusProducts": "لا توجد منتجات {{status}} بعد",
+      "viewDetails": "عرض التفاصيل",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "productDetails": "تفاصيل المنتج",
+      "productName": "اسم المنتج",
+      "description": "الوصف",
+      "availableQuantity": "الكمية المتاحة",
+      "rejectionReason": "سبب الرفض",
+      "rejectProduct": "رفض المنتج",
+      "rejectProducts": "رفض المنتجات",
+      "rejectingCount": "رفض {{count}} منتج",
+      "provideReason": "تقديم سبب للرفض",
+      "rejectionReasonPlaceholder": "أدخل سبب الرفض (اختياري لكن موصى به)...",
+      "cancel": "إلغاء",
+      "confirmRejection": "تأكيد الرفض",
+      "notifications": {
+        "loadFailed": "فشل في تحميل المنتجات",
+        "approveSuccess": "تمت الموافقة على المنتج بنجاح",
+        "approveFailed": "فشل في الموافقة على المنتج",
+        "rejectSuccess": "تم رفض المنتج",
+        "rejectFailed": "فشل في رفض المنتج",
+        "bulkApproveSuccess": "تمت الموافقة على {{count}} منتج",
+        "bulkApproveFailed": "فشل في الموافقة الجماعية على المنتجات",
+        "bulkRejectSuccess": "تم رفض {{count}} منتج",
+        "bulkRejectFailed": "فشل في الرفض الجماعي للمنتجات"
+      }
+    },
+    "orders": {
+      "title": "إدارة الطلبات",
+      "subtitle": "إدارة الطلبات ومعالجة الاسترداد وتتبع التدقيقات",
+      "tabs": {
+        "orders": "الطلبات",
+        "returns": "طلبات الإرجاع"
+      },
+      "stats": {
+        "totalOrders": "إجمالي الطلبات",
+        "inProgress": "قيد التنفيذ",
+        "delivered": "تم التسليم",
+        "revenue": "الإيرادات",
+        "pendingReturns": "إرجاعات معلقة"
+      },
+      "searchPlaceholder": "البحث برقم الطلب أو معرف المشتري أو معرف البائع...",
+      "filters": {
+        "all": "جميع الطلبات",
+        "active": "قيد التنفيذ",
+        "completed": "مكتملة",
+        "cancelled": "ملغية/مستردة"
+      },
+      "table": {
+        "order": "الطلب",
+        "buyer": "المشتري",
+        "vendor": "البائع",
+        "status": "الحالة",
+        "payment": "الدفع",
+        "total": "الإجمالي",
+        "date": "التاريخ",
+        "actions": "الإجراءات"
+      },
+      "items": "عناصر",
+      "status": {
+        "pending": "قيد الانتظار",
+        "accepted": "مقبول",
+        "rejected": "مرفوض",
+        "driverAssigned": "تم تعيين السائق",
+        "driverAccepted": "قبل السائق",
+        "pickedUp": "تم الاستلام",
+        "onTheWay": "في الطريق",
+        "delivered": "تم التسليم",
+        "cancelled": "ملغي",
+        "refunded": "مسترد"
+      },
+      "paymentStatus": {
+        "pending": "الدفع قيد الانتظار",
+        "paid": "مدفوع",
+        "awaitingTransfer": "في انتظار التحويل",
+        "refunded": "مسترد",
+        "failed": "فشل"
+      },
+      "returnStatus": {
+        "pending": "الإرجاع قيد الانتظار",
+        "approved": "تمت الموافقة على الإرجاع",
+        "rejected": "تم رفض الإرجاع",
+        "refunded": "تم الاسترداد"
+      },
+      "actions": {
+        "viewDetails": "عرض",
+        "processRefund": "استرداد",
+        "updateStatus": "تحديث الحالة"
+      },
+      "refundModal": {
+        "title": "معالجة الاسترداد",
+        "orderNumber": "الطلب",
+        "orderTotal": "إجمالي الطلب",
+        "refundAmount": "مبلغ الاسترداد (MAD)",
+        "enterAmount": "أدخل مبلغ الاسترداد",
+        "refundReason": "سبب الاسترداد *",
+        "selectReason": "اختر سبباً...",
+        "notes": "ملاحظات إضافية",
+        "notesPlaceholder": "أضف ملاحظات إضافية حول هذا الاسترداد...",
+        "confirmRefund": "معالجة الاسترداد",
+        "processing": "جاري المعالجة...",
+        "refundWarning": "سيتم معالجة استرداد من خلال بوابة الدفع. سيتم تسجيل التدقيق.",
+        "reasons": {
+          "customerRequest": "طلب العميل",
+          "productDefect": "عيب في المنتج",
+          "wrongItem": "تم تسليم عنصر خاطئ",
+          "lateDelivery": "تأخر في التوصيل",
+          "notAsDescribed": "غير مطابق للوصف",
+          "vendorAgreement": "اتفاق البائع",
+          "other": "أخرى"
+        },
+        "gatewayError": "خطأ في بوابة الدفع: {{message}}. تسجيل الاسترداد اليدوي."
+      },
+      "statusModal": {
+        "title": "تحديث حالة الطلب",
+        "orderInfo": "الطلب",
+        "current": "الحالي",
+        "newStatus": "الحالة الجديدة",
+        "notes": "ملاحظات تغيير الحالة",
+        "notesPlaceholder": "أضف ملاحظات حول تغيير الحالة...",
+        "confirmUpdate": "تحديث الحالة",
+        "updating": "جاري التحديث..."
+      },
+      "detailModal": {
+        "title": "تفاصيل الطلب",
+        "orderInfo": "معلومات الطلب",
+        "buyerInfo": "معلومات المشتري",
+        "vendorInfo": "معلومات البائع",
+        "items": "عناصر الطلب",
+        "timeline": "جدول الطلب",
+        "deliveryAddress": "عنوان التوصيل",
+        "deliveryNotes": "ملاحظات التوصيل",
+        "viewAuditLog": "عرض سجل التدقيق الكامل",
+        "noAuditLogs": "لم يتم العثور على سجلات تدقيق لهذا الطلب"
+      },
+      "returnRequests": {
+        "title": "طلبات الإرجاع",
+        "noRequests": "لم يتم العثور على طلبات إرجاع",
+        "returnNumber": "إرجاع",
+        "order": "الطلب",
+        "buyer": "المشتري",
+        "vendor": "البائع",
+        "reason": "السبب",
+        "status": "الحالة",
+        "date": "التاريخ",
+        "actions": "الإجراءات",
+        "approve": "موافقة",
+        "reject": "رفض",
+        "adminResponse": "رد المدير",
+        "adminResponsePlaceholder": "أضف ردك...",
+        "returnDetails": "تفاصيل الإرجاع"
+      },
+      "pagination": {
+        "previous": "السابق",
+        "next": "التالي",
+        "showing": "عرض {{from}} إلى {{to}} من {{total}} طلبات",
+        "page": "صفحة {{page}} من {{total}}"
+      },
+      "notifications": {
+        "loadFailed": "فشل في تحميل الطلبات",
+        "statusUpdated": "تم تحديث حالة الطلب إلى {{status}}",
+        "statusUpdateFailed": "فشل في تحديث حالة الطلب",
+        "refundSuccess": "تم معالجة استرداد {{amount}} بنجاح",
+        "refundFailed": "فشل في معالجة الاسترداد",
+        "returnApproved": "تمت الموافقة على طلب الإرجاع",
+        "returnRejected": "تم رفض طلب الإرجاع",
+        "returnFailed": "فشل في معالجة طلب الإرجاع"
+      }
+    },
+    "drivers": {
+      "title": "إدارة السائقين",
+      "subtitle": "عرض السائقين والتحقق من الوثائق وتتبع المواقع النشطة",
+      "reviewDocuments": "مراجعة الوثائق ({{count}} قيد الانتظار)",
+      "stats": {
+        "totalDrivers": "إجمالي السائقين",
+        "verified": "تم التحقق",
+        "onlineNow": "متصل الآن",
+        "pendingDocs": "وثائق قيد الانتظار"
+      },
+      "map": {
+        "title": "خريطة السائقين النشطين",
+        "online": "متصل",
+        "noActiveDrivers": "لا يوجد سائقون نشطون",
+        "noActiveDriversDesc": "لا يوجد سائقون متصلون حالياً"
+      },
+      "filters": {
+        "all": "الكل",
+        "online": "متصل",
+        "verified": "تم التحقق",
+        "unverified": "لم يتم التحقق"
+      },
+      "noDriversFound": "لم يتم العثور على سائقين",
+      "noDriversFoundDesc": "لا يوجد سائقون يطابقون الفلتر المحدد",
+      "verificationStatus": {
+        "verified": "تم التحقق",
+        "partial": "جزئي",
+        "unverified": "لم يتم التحقق"
+      },
+      "details": {
+        "license": "الرخصة",
+        "insurance": "التأمين",
+        "expires": "تنتهي في",
+        "viewOnMap": "عرض على الخريطة",
+        "viewDocuments": "عرض الوثائق",
+        "location": "الموقع",
+        "speed": "السرعة",
+        "accuracy": "الدقة",
+        "lastActive": "آخر نشاط",
+        "coordinates": "الإحداثيات"
+      },
+      "notifications": {
+        "loadFailed": "فشل في تحميل السائقين"
+      }
+    },
+    "driverVerification": {
+      "title": "وثائق التحقق من السائقين",
+      "subtitle": "مراجعة والموافقة على وثائق السائقين",
+      "filters": {
+        "pending": "قيد الانتظار",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض",
+        "all": "الكل"
+      },
+      "noDocuments": "لم يتم العثور على وثائق",
+      "noPendingDocs": "لا توجد وثائق قيد الانتظار للمراجعة",
+      "noStatusDocs": "لا توجد وثائق {{status}}",
+      "documentTypes": {
+        "driver_license": "رخصة القيادة",
+        "vehicle_insurance": "تأمين المركبة",
+        "vehicle_registration": "تسجيل المركبة"
+      },
+      "driverInfo": "معلومات السائق",
+      "documentDetails": "تفاصيل الوثيقة",
+      "documentNumber": "رقم الوثيقة",
+      "issueDate": "تاريخ الإصدار",
+      "expiryDate": "تاريخ الانتهاء",
+      "uploaded": "تم الرفع في",
+      "adminNotes": "ملاحظات المدير",
+      "viewDocument": "عرض الوثيقة",
+      "review": "مراجعة",
+      "reviewModal": {
+        "title": "مراجعة الوثيقة",
+        "viewDocumentLink": "عرض الوثيقة",
+        "adminNotesLabel": "ملاحظات المدير (اختياري)",
+        "adminNotesPlaceholder": "أضف ملاحظات حول هذه المراجعة...",
+        "reject": "رفض",
+        "approve": "موافقة",
+        "processing": "جاري المعالجة...",
+        "cancel": "إلغاء",
+        "driverLabel": "السائق"
+      },
+      "status": {
+        "pending": "قيد الانتظار",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض"
+      },
+      "notifications": {
+        "loadFailed": "فشل في تحميل الوثائق",
+        "reviewSuccess": "تم {{status}} الوثيقة بنجاح",
+        "reviewFailed": "فشل في مراجعة الوثيقة"
+      }
+    },
+    "reviews": {
+      "title": "إدارة التقييمات",
+      "subtitle": "إدارة ومراجعة تقييمات العملاء",
+      "stats": {
+        "total": "الإجمالي",
+        "flagged": "مُعلَّم",
+        "withReply": "برَد",
+        "noReply": "بلا رَد"
+      },
+      "filters": {
+        "all": "جميع التقييمات",
+        "flagged": "مُعلَّم",
+        "withReply": "برَد",
+        "withoutReply": "بلا رَد"
+      },
+      "noReviews": "لم يتم العثور على تقييمات",
+      "selectToModerate": "اختر تقييماً للمراجعة",
+      "unknownUser": "مستخدم غير معروف",
+      "loadMore": "تحميل المزيد",
+      "showingCount": "عرض {{current}} من {{total}} تقييم",
+      "reviewDetails": "تفاصيل التقييم",
+      "reviewer": "المقيِّم",
+      "vendor": "البائع",
+      "product": "المنتج",
+      "rating": "التقييم",
+      "comment": "التعليق",
+      "vendorReply": "رَد البائع",
+      "status": "الحالة",
+      "flagged": "مُعلَّم",
+      "active": "نشط",
+      "replied": "تم الرَد",
+      "adminNotes": "ملاحظات المدير",
+      "adminNotesPlaceholder": "أضف ملاحظات أو سبب الحذف...",
+      "reason": "السبب",
+      "actions": {
+        "flag": "إبلاغ عن التقييم",
+        "unflag": "إلغاء الإبلاغ / موافقة",
+        "approve": "الموافقة على التقييم",
+        "delete": "حذف التقييم"
+      },
+      "deleteWarning": "سيؤدي حذف التقييم إلى إرسال إشعار للمستخدم يوضح السبب.",
+      "notifications": {
+        "loadFailed": "فشل في تحميل التقييمات",
+        "flagged": "تم الإبلاغ عن التقييم بنجاح",
+        "flagFailed": "فشل في الإبلاغ عن التقييم",
+        "approved": "تمت الموافقة على التقييم",
+        "approveFailed": "فشل في الموافقة على التقييم",
+        "unflagged": "تم إلغاء الإبلاغ عن التقييم",
+        "unflagFailed": "فشل في إلغاء الإبلاغ عن التقييم",
+        "deleted": "تم حذف التقييم. تم إرسال إشعار إلى {{name}}",
+        "deleteFailed": "فشل في حذف التقييم",
+        "deleteReasonRequired": "يرجى تقديم سبب لحذف هذا التقييم",
+        "reviewRemovedTitle": "تم حذف التقييم",
+        "reviewRemovedMessage": "تم حذف تقييمك لـ \"{{productName}}\" بواسطة مشرف. السبب: {{reason}}"
+      }
+    },
+    "settingsAuditLog": {
+      "title": "سجل تدقيق الإعدادات",
+      "subtitle": "تتبع جميع تغييرات إعدادات المنصة",
+      "refresh": "تحديث",
+      "totalChanges": "إجمالي التغييرات المسجلة",
+      "noChanges": "لم يتم العثور على تغييرات في الإعدادات",
+      "changes": "{{count}} تغيير",
+      "changesPlural": "{{count}} تغييرات",
+      "previousValue": "القيمة السابقة",
+      "newValue": "القيمة الجديدة",
+      "adminId": "معرف المدير",
+      "ipAddress": "عنوان IP",
+      "userAgent": "وكيل المستخدم",
+      "unknownAdmin": "مدير غير معروف",
+      "notAvailable": "غير متاح",
+      "pageInfo": "صفحة {{page}} من {{totalPages}}",
+      "previous": "السابق",
+      "next": "التالي",
+      "enabled": "مفعّل",
+      "disabled": "معطّل"
+    },
+    "circuitBreakers": {
+      "title": "القواطع والصحة",
+      "subtitle": "مراقبة صحة الخدمات وإدارة القواطع",
+      "history": "السجل",
+      "runChecks": "تشغيل الفحوصات",
+      "checking": "جاري الفحص...",
+      "overallStatus": "الحالة العامة للنظام",
+      "healthy": "سليم",
+      "degraded": "متدهور",
+      "down": "متوقف",
+      "total": "الإجمالي",
+      "latency": "زمن الاستجابة",
+      "lastCheck": "آخر فحص",
+      "circuit": "القاطع",
+      "open": "مفتوح",
+      "closed": "مغلق",
+      "openBlocking": "مفتوح (حظر)",
+      "closedNormal": "مغلق (عادي)",
+      "closeCircuit": "إغلاق القاطع (استعادة)",
+      "openCircuit": "فتح القاطع (حظر)",
+      "viewDetails": "عرض التفاصيل",
+      "changeHistory": "سجل تغييرات القواطع",
+      "noChanges": "لم يتم تسجيل تغييرات في القواطع",
+      "recentChanges": "التغييرات الأخيرة",
+      "byAdmin": "بواسطة المدير",
+      "circuitOpened": "تم فتح القاطع لـ {{name}} — تم حظر الحركة",
+      "circuitClosed": "تم إغلاق القاطع لـ {{name}} — تم استعادة الحركة",
+      "statusLabels": {
+        "healthy": "سليم",
+        "degraded": "متدهور",
+        "down": "متوقف",
+        "unknown": "غير معروف"
+      },
+      "services": {
+        "database": "قاعدة البيانات (Supabase)",
+        "databaseDesc": "قاعدة البيانات وواجهة البرمجة الرئيسية",
+        "storage": "خدمة التخزين",
+        "storageDesc": "تخزين الملفات (صور، مستندات)",
+        "auth": "خدمة المصادقة",
+        "authDesc": "المصادقة وإدارة الجلسات",
+        "realtime": "الوقت الفعلي (WebSockets)",
+        "realtimeDesc": "التحديثات والاشتراكات المباشرة",
+        "notifications": "خدمة الإشعارات",
+        "notificationsDesc": "الإشعارات والتنبيهات داخل التطبيق",
+        "orders": "خدمة الطلبات",
+        "ordersDesc": "معالجة وإدارة الطلبات"
+      }
+    },
+    "commissions": {
+      "title": "لوحة تحكم العمولات",
+      "subtitle": "تتبع أرباح المنصة (عمولة 3%)",
+      "totalCommissions": "إجمالي العمولات",
+      "thisMonth": "هذا الشهر",
+      "growth": "النمو",
+      "avgPerOrder": "المتوسط لكل طلب",
+      "commissionOverTime": "العمولات عبر الزمن",
+      "ordersOverTime": "الطلبات عبر الزمن",
+      "noDataYet": "لا توجد بيانات بعد",
+      "recentTransactions": "المعاملات الأخيرة",
+      "orderId": "معرف الطلب",
+      "user": "المستخدم",
+      "amount": "المبلغ",
+      "commission": "العمولة (3%)",
+      "vendorGets": "يحصل البائع",
+      "status": "الحالة",
+      "date": "التاريخ",
+      "noTransactionsYet": "لا توجد معاملات بعد"
+    },
+    "moderation": {
+      "title": "الإشراف على المحتوى",
+      "subtitle": "مراجعة ومعالجة تقارير المستخدمين",
+      "pending": "قيد الانتظار",
+      "reviewing": "قيد المراجعة",
+      "resolved": "تم الحل",
+      "dismissed": "مرفوض",
+      "pendingReports": "تقرير في الانتظار",
+      "noReports": "لم يتم العثور على تقارير",
+      "reporter": "المبلّغ",
+      "reported": "المبلّغ عنه",
+      "reportDetails": "تفاصيل التقرير",
+      "type": "النوع",
+      "priority": "الأولوية",
+      "status": "الحالة",
+      "description": "الوصف",
+      "evidence": "الأدلة",
+      "reportedUser": "المستخدم المبلّغ عنه",
+      "currentlySuspended": "معلق حالياً",
+      "actionTaken": "الإجراء المتخذ",
+      "adminNotes": "ملاحظات المدير",
+      "adminNotesLabel": "ملاحظات المدير",
+      "notesPlaceholder": "أضف ملاحظات المراجعة...",
+      "suspensionDuration": "مدة التعليق (ساعات)",
+      "hours24": "24 ساعة",
+      "days3": "3 أيام",
+      "week1": "أسبوع واحد",
+      "month1": "شهر واحد",
+      "startReview": "بدء المراجعة",
+      "issueWarning": "إصدار تحذير",
+      "removeContent": "إزالة المحتوى",
+      "suspendUser": "تعليق المستخدم ({{hours}}س)",
+      "permanentBan": "حظر دائم",
+      "dismissReport": "رفض التقرير",
+      "selectReport": "اختر تقريراً لمراجعته",
+      "newReport": "تقرير جديد: {{type}}",
+      "reportNotFound": "التقرير غير موجود",
+      "reportResolved": "تم حل التقرير بنجاح",
+      "resolveFailed": "فشل في حل التقرير",
+      "reportDismissed": "تم رفض التقرير",
+      "reportDismissedMsg": "تمت مراجعة تقرير ضدك ({{reportType}}) ورفضه. لم يتم اتخاذ أي إجراء.",
+      "dismissFailed": "فشل في رفض التقرير",
+      "reportMarkedReviewing": "تم وضع علامة قيد المراجعة على التقرير",
+      "startReviewFailed": "فشل في بدء المراجعة",
+      "loadReportsFailed": "فشل في تحميل التقارير",
+      "noViolation": "لم يتم العثور على انتهاك",
+      "accountSuspended": "تم تعليق الحساب",
+      "accountSuspendedMsg": "تم تعليق حسابك لمدة {{hours}} ساعات. السبب: {{reason}}. يرجى التواصل مع الدعم إذا كنت تعتقد أن هذا خطأ.",
+      "accountBanned": "تم حظر الحساب نهائياً",
+      "accountBannedMsg": "تم حظر حسابك نهائياً. السبب: {{reason}}. لا يمكن التراجع عن هذا الإجراء.",
+      "warningIssued": "تم إصدار تحذير",
+      "warningIssuedMsg": "لقد تلقيت تحذيراً بشأن {{reportType}} الخاص بك. {{notes}}",
+      "contentRemoved": "تم إزالة المحتوى",
+      "contentRemovedMsg": "تم إزالة المحتوى الخاص بك بسبب تقرير {{reportType}}. {{reason}}",
+      "violationGuidelines": "انتهاك إرشادات المجتمع",
+      "severeViolation": "انتهاك جسيم لإرشادات المجتمع",
+      "note": "ملاحظة",
+      "reason": "السبب",
+      "reviewGuidelines": "يرجى مراجعة والالتزام بإرشادات المجتمع.",
+      "reviewGuidelines2": "يرجى مراجعة إرشادات المجتمع."
+    },
+    "payouts": {
+      "title": "إدارة المدفوعات",
+      "subtitle": "إدارة مدفوعات وتسويات البائعين",
+      "exportCSV": "تصدير CSV",
+      "exportPDF": "تصدير PDF",
+      "dateRanges": {
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يوماً",
+        "3m": "آخر 3 أشهر",
+        "6m": "آخر 6 أشهر",
+        "all": "كل الوقت"
+      },
+      "filters": {
+        "dateRange": "نطاق التاريخ",
+        "status": "تصفية الحالة",
+        "all": "الكل"
+      },
+      "status": {
+        "pending": "قيد الانتظار",
+        "approved": "موافق عليه",
+        "processing": "قيد التنفيذ",
+        "completed": "مكتمل",
+        "rejected": "مرفوض",
+        "failed": "فشل"
+      },
+      "stats": {
+        "pendingPayouts": "المدفوعات المعلقة",
+        "requests": "{{count}} طلب",
+        "dualApprovalRequired": "{{count}} يتطلب موافقة مزدوجة",
+        "inTransit": "{{count}} قيد النقل",
+        "completed": "مكتملة",
+        "payouts": "{{count}} دفعة",
+        "totalVolume": "إجمالي الحجم",
+        "total": "{{count}} إجمالي"
+      },
+      "badges": {
+        "dualApprovalRequired": "يتطلب موافقة مزدوجة"
+      },
+      "table": {
+        "amount": "المبلغ",
+        "method": "الطريقة",
+        "orders": "الطلبات",
+        "created": "تاريخ الإنشاء",
+        "rejectionReason": "سبب الرفض"
+      },
+      "empty": {
+        "title": "لم يتم العثور على مدفوعات",
+        "description": "لا توجد مدفوعات تطابق التصفية الحالية"
+      },
+      "actions": {
+        "viewAuditTrail": "عرض سجل التدقيق",
+        "processing": "جاري التنفيذ...",
+        "approve1st": "موافقة (الأولى)",
+        "approve2nd": "موافقة (الثانية)",
+        "processTransfer": "معالجة التحويل",
+        "markCompleted": "وضع علامة مكتمل",
+        "reject": "رفض"
+      },
+      "toast": {
+        "firstApprovalRecorded": "تم تسجيل الموافقة الأولى. في انتظار الموافقة الثانية.",
+        "payoutApproved": "تمت الموافقة على الدفعة بنجاح!",
+        "secondApprovalRecorded": "تم تسجيل الموافقة الثانية. تمت الموافقة على الدفعة بالكامل!",
+        "payoutRejected": "تم رفض الدفعة",
+        "processingStarted": "بدأت معالجة الدفعة. المرجع: {{ref}}",
+        "payoutCompleted": "تم وضع علامة مكتمل على الدفعة",
+        "csvExported": "تم تصدير المدفوعات كـ CSV!",
+        "pdfExported": "تم تصدير المدفوعات كـ PDF!"
+      },
+      "errors": {
+        "loadFailed": "فشل في تحميل المدفوعات",
+        "approveFailed": "فشل في الموافقة على الدفعة",
+        "rejectFailed": "فشل في رفض الدفعة",
+        "rejectionReasonRequired": "يرجى تقديم سبب الرفض",
+        "processFailed": "فشل في معالجة الدفعة",
+        "completeFailed": "فشل في إكمال الدفعة",
+        "noDataExport": "لا توجد بيانات للتصدير",
+        "csvExportFailed": "فشل في تصدير CSV",
+        "pdfExportFailed": "فشل في تصدير PDF"
+      },
+      "rejectModal": {
+        "title": "رفض الدفعة",
+        "warning": "رفض دفعة بقيمة {{amount}} لـ {{vendor}}",
+        "reasonLabel": "سبب الرفض *",
+        "reasonPlaceholder": "قدم سبباً مفصلاً للرفض...",
+        "confirmReject": "تأكيد الرفض"
+      },
+      "auditModal": {
+        "title": "سجل التدقيق",
+        "payoutInfo": "الدفعة: {{amount}} | {{vendor}}",
+        "ref": "المرجع: {{ref}}",
+        "noLogs": "لم يتم العثور على سجلات تدقيق",
+        "performedBy": "بواسطة: {{name}} ({{role}})",
+        "reason": "السبب: {{reason}}"
+      }
+    },
+    "settings": {
+      "title": "إعدادات المنصة",
+      "subtitle": "إدارة تكوين المنصة العام",
+      "unsavedChanges": "لديك تغييرات غير محفوظة",
+      "tabs": {
+        "general": "عام",
+        "features": "الميزات",
+        "financial": "المالية",
+        "orders": "الطلبات والتوصيل",
+        "maintenance": "الصيانة"
+      },
+      "actions": {
+        "auditLog": "سجل التدقيق",
+        "reload": "إعادة تحميل",
+        "discardChanges": "تجاهل التغييرات",
+        "saving": "جاري الحفظ...",
+        "saveSettings": "حفظ الإعدادات"
+      },
+      "general": {
+        "title": "الإعدادات العامة",
+        "platformName": "اسم المنصة",
+        "supportEmail": "البريد الإلكتروني للدعم",
+        "supportPhone": "هاتف الدعم",
+        "language": "اللغة",
+        "currency": "العملة",
+        "currencyMAD": "درهم مغربي",
+        "currencyUSD": "دولار أمريكي",
+        "currencyEUR": "يورو",
+        "timezone": "المنطقة الزمنية"
+      },
+      "features": {
+        "title": "تبديل الميزات",
+        "vendorRegistration": "تسجيل البائعين",
+        "buyerOrders": "طلبات المشترين",
+        "driverDeliveries": "توصيلات السائقين",
+        "reviews": "التقييمات والمراجعات",
+        "returns": "طلبات الإرجاع",
+        "chat": "نظام الدردشة"
+      },
+      "financial": {
+        "title": "الإعدادات المالية",
+        "commissionRate": "نسبة العمولة (%)",
+        "commissionRateHelp": "النسبة المأخوذة من كل عملية بيع للبائع",
+        "minWithdrawal": "الحد الأدنى للسحب (MAD)",
+        "minWithdrawalHelp": "الحد الأدنى للمبلغ الذي يمكن للبائعين سحبه",
+        "maxOrderAmount": "الحد الأقصى للطلب (MAD)",
+        "maxOrderAmountHelp": "القيمة القصوى لطلب واحد"
+      },
+      "orders": {
+        "title": "إعدادات الطلبات والتوصيل",
+        "autoCancelHours": "الإلغاء التلقائي بعد (ساعات)",
+        "autoCancelHelp": "الطلبات التي يتم إلغاؤها تلقائياً إذا لم يتم تأكيدها",
+        "deliveryRadius": "نطاق التوصيل (كم)",
+        "deliveryRadiusHelp": "المسافة القصوى للتوصيل"
+      },
+      "maintenance": {
+        "title": "وضع الصيانة",
+        "modeLabel": "وضع الصيانة",
+        "modeDesc": "وضع المنصة في وضع الصيانة",
+        "messageLabel": "رسالة الصيانة",
+        "messagePlaceholder": "نقوم حالياً بإجراء أعمال صيانة. يرجى العودة لاحقاً...",
+        "messageHint": "سيتم عرض هذه الرسالة لجميع المستخدمين عندما يكون وضع الصيانة نشطاً."
+      },
+      "notifications": {
+        "settingsUpdatedByOther": "تم تحديث الإعدادات بواسطة مشرف آخر. جاري إعادة التحميل...",
+        "noChanges": "لا توجد تغييرات للحفظ",
+        "savedSuccess": "تم حفظ الإعدادات بنجاح!",
+        "changesDiscarded": "تم تجاهل التغييرات"
+      },
+      "errors": {
+        "loadFailed": "فشل في تحميل الإعدادات",
+        "saveFailed": "فشل في حفظ الإعدادات"
+      }
+    }
+  },
+  "profile": {
+    "title": "ملفي الشخصي",
+    "personalInfo": "المعلومات الشخصية",
+    "storeInfo": "معلومات المتجر",
+    "storeName": "اسم المتجر",
+    "storeDescription": "وصف المتجر",
+    "address": "العنوان",
+    "city": "المدينة",
+    "country": "الدولة",
+    "updateProfile": "تحديث الملف الشخصي"
+  },
+  "favorites": {
+    "title": "مفضلتي",
+    "subtitle": "{{count}} عناصر محفوظة",
+    "products": "المنتجات",
+    "vendors": "البائعين",
+    "noProducts": "لا توجد منتجات مفضلة بعد",
+    "noVendors": "لا يوجد بائعين مفضلين بعد",
+    "browseMarketplace": "تصفح السوق واضغط على أيقونة القلب لحفظ المنتجات",
+    "browseNow": "تصفح الآن",
+    "addToCart": "أضف إلى السلة",
+    "saveVendors": "احفظ البائعين المفضلين للوصول السريع",
+    "viewProducts": "عرض المنتجات",
+    "removeFavorite": "إزالة من المفضلة",
+    "addFavorite": "إضافة إلى المفضلة"
+  },
+  "chat": {
+    "title": "الدردشة",
+    "placeholder": "اكتب رسالة...",
+    "send": "إرسال",
+    "call": "اتصال",
+    "online": "متصل",
+    "noMessages": "لا توجد رسائل بعد. ابدأ المحادثة!",
+    "withVendor": "محادثة مع البائع",
+    "withDriver": "محادثة مع السائق",
+    "withBuyer": "محادثة مع المشتري"
+  },
+  "timeline": {
+    "title": "مخطط الطلب",
+    "orderPlaced": "تم تقديم الطلب",
+    "vendorAccepted": "تم قبول الطلب من البائع",
+    "vendorRejected": "تم رفض الطلب",
+    "driverAssigned": "تم تعيين سائق",
+    "driverAccepted": "قبل السائق التوصيلة",
+    "pickedUp": "تم الاستلام",
+    "onTheWay": "في الطريق",
+    "delivered": "تم التسليم",
+    "cancelled": "ملغي",
+    "waitingForDriver": "في انتظار سائق",
+    "deliveryCompleted": "تم التوصيل بنجاح",
+    "deliveryFailed": "فشل التوصيل"
+  },
+  "verification": {
+    "title": "التحقق",
+    "status": "حالة التحقق",
+    "verified": "موثق",
+    "pending": "قيد المراجعة",
+    "rejected": "مرفوض",
+    "uploadDocument": "رفع وثيقة",
+    "documentType": "نوع الوثيقة",
+    "idCard": "بطاقة الهوية",
+    "driverLicense": "رخصة القيادة",
+    "businessLicense": "السجل التجاري",
+    "vehicleRegistration": "تسجيل المركبة",
+    "insurance": "التأمين",
+    "uploadSuccess": "تم رفع الوثيقة بنجاح",
+    "uploadError": "فشل رفع الوثيقة",
+    "reviewPending": "الوثيقة قيد المراجعة",
+    "reviewApproved": "تمت الموافقة على الوثيقة",
+    "reviewRejected": "تم رفض الوثيقة"
+  },
+  "orderDetail": {
+    "loading": "جاري تحميل تفاصيل الطلب...",
+    "live": "مباشر",
+    "orderNumber": "الطلب #{{number}}",
+    "vendor": "البائع",
+    "vendorUnknown": "بائع غير معروف",
+    "deliveryAddress": "عنوان التوصيل",
+    "noAddress": "لم يتم توفير عنوان",
+    "deliveryNotes": "ملاحظات التوصيل",
+    "orderProgress": "تقدم الطلب",
+    "orderItems": "عناصر الطلب",
+    "items": "عناصر",
+    "unknownProduct": "منتج غير معروف",
+    "pricePerUnit": "{{price}} / {{unit}}",
+    "quantity": "الكمية",
+    "subtotal": "المجموع الفرعي",
+    "platformFee": "رسوم المنصة (3%)",
+    "shipping": "التوصيل",
+    "vendorCommission": "عمولة البائع (3%)",
+    "driverCommission": "عمولة السائق (2%)",
+    "totalPaid": "الإجمالي المدفوع",
+    "vendorReceives": "يستلم البائع",
+    "productNotePlaceholder": "أضف ملاحظة حول هذا المنتج...",
+    "status": {
+      "pending": "تم تقديم الطلب",
+      "confirmed": "تم التأكيد",
+      "payment_received": "تم تثبيت الدفع",
+      "preparing": "جاري التجهيز",
+      "shipped": "في الطريق",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغي",
+      "vendor_accepted": "قبله البائع",
+      "vendor_rejected": "رفضه البائع",
+      "driver_assigned": "تم تعيين سائق",
+      "driver_accepted": "قبل السائق",
+      "driver_picked_up": "تم الاستلام",
+      "awaiting_driver": "في انتظار سائق"
+    },
+    "timeline": {
+      "orderPlaced": "تم تقديم الطلب",
+      "confirmed": "تم التأكيد",
+      "preparing": "جاري التجهيز",
+      "shipped": "في الطريق",
+      "delivered": "تم التسليم"
+    },
+    "actions": {
+      "title": "إجراءات الطلب",
+      "call": "اتصال",
+      "callVendor": "اتصل بالبائع",
+      "chat": "دردشة",
+      "contactVendor": "تواصل مع البائع",
+      "rateProduct": "تقييم",
+      "rateOrder": "تقييم المنتجات",
+      "rateOrderDesc": "شارك تجربتك",
+      "addNote": "إضافة ملاحظة",
+      "hideNote": "إخفاء الملاحظة",
+      "return": "إرجاع / استبدال",
+      "returnDesc": "طلب إرجاع",
+      "reorder": "إعادة الطلب",
+      "reorderDesc": "أضف إلى السلة مرة أخرى",
+      "reorderSuccess": "تمت إضافة {{count}} عناصر إلى السلة",
+      "downloadInvoice": "تحميل الفاتورة",
+      "downloadInvoiceDesc": "إيصال PDF",
+      "share": "مشاركة الطلب",
+      "shareDesc": "مشاركة عبر التطبيقات",
+      "copyLink": "نسخ الرابط",
+      "copyLinkDesc": "نسخ رابط الطلب",
+      "backHome": "العودة للرئيسية"
+    },
+    "return": {
+      "title": "طلب إرجاع / استبدال",
+      "selectItems": "اختر العناصر للإرجاع",
+      "reason": "سبب الإرجاع",
+      "selectReason": "اختر سبباً",
+      "description": "تفاصيل إضافية",
+      "descriptionPlaceholder": "صف المشكلة بالتفصيل...",
+      "submit": "إرسال الطلب",
+      "reasons": {
+        "damaged": "تلف أثناء التوصيل",
+        "wrongItem": "استلمت منتج خاطئ",
+        "quality": "الجودة أقل من المتوقع",
+        "quantity": "الكمية غير صحيحة",
+        "late": "التوصيل متأخر جداً",
+        "other": "أخرى"
+      }
+    },
+    "rating": {
+      "title": "تقييم المنتج",
+      "yourRating": "تقييمك",
+      "comment": "مراجعتك (اختياري)",
+      "commentPlaceholder": "أخبرنا عن تجربتك مع هذا المنتج...",
+      "submit": "إرسال التقييم",
+      "excellent": "ممتاز!",
+      "great": "رائع!",
+      "good": "جيد",
+      "fair": "مقبول",
+      "poor": "سيء"
+    },
+    "chat": {
+      "title": "الدردشة مع البائع"
+    },
+    "share": {
+      "title": "طلبي في قطوف",
+      "text": "الطلب #{{orderNumber}} - {{total}}"
+    },
+    "notifications": {
+      "orderUpdated": "تم تحديث حالة الطلب!",
+      "ratingSubmitted": "تم إرسال التقييم بنجاح!",
+      "returnSubmitted": "تم إرسال طلب الإرجاع!",
+      "linkCopied": "تم نسخ الرابط!"
+    },
+    "errors": {
+      "loadFailed": "فشل تحميل تفاصيل الطلب",
+      "loadError": {
+        "title": "حدث خطأ ما",
+        "desc": "لم نتمكن من تحميل تفاصيل الطلب. يرجى المحاولة مرة أخرى."
+      },
+      "notFound": {
+        "title": "لم يتم العثور على الطلب",
+        "desc": "لم نتمكن من العثور على طلب بهذا الرقم. يرجى التحقق والمحاولة مرة أخرى."
+      },
+      "reorderFailed": "فشل إضافة العناصر إلى السلة",
+      "ratingFailed": "فشل إرسال التقييم",
+      "returnFailed": "فشل إرسال طلب الإرجاع",
+      "copyFailed": "فشل نسخ الرابط",
+      "selectRating": "يرجى اختيار تقييم",
+      "selectReason": "يرجى اختيار سبب"
+    }
+  },
+  "orderTracking": {
+    "title": "تتبع طلبك",
+    "subtitle": "أدخل رقم الطلب أو رقم الهاتف المسجل للتحقق من حالة التوصيل.",
+    "unknownProduct": "منتج غير معروف",
+    "form": {
+      "orderNumber": {
+        "label": "رقم الطلب",
+        "placeholder": "مثال: ORD-20240101-00001",
+        "hint": "تجد رقم الطلب في رسالة تأكيد البريد الإلكتروني"
+      },
+      "or": "أو",
+      "phone": {
+        "label": "رقم الهاتف",
+        "placeholder": "+212 6XX-XXXXXX",
+        "hint": "استخدم نفس رقم الهاتف الذي سجلت به عند الشراء"
+      },
+      "submit": "تتبع الطلب",
+      "searching": "جاري البحث...",
+      "recentSearches": "عمليات البحث الأخيرة",
+      "clearHistory": "مسح السجل"
+    },
+    "validation": {
+      "orderNumber": {
+        "min": "رقم الطلب قصير جداً",
+        "max": "رقم الطلب طويل جداً",
+        "format": "يمكن أن يحتوي رقم الطلب على أحرف وأرقام وشرطات فقط"
+      },
+      "phone": {
+        "min": "رقم الهاتف قصير جداً",
+        "max": "رقم الهاتف طويل جداً",
+        "format": "أدخل رقم هاتف مغربي صحيح (مثال: +212612345678)"
+      },
+      "atLeastOne": "يرجى إدخال رقم الطلب أو رقم الهاتف",
+      "xssDetected": "تم اكتشاف أحرف غير صالحة",
+      "sqlDetected": "تم اكتشاف أحرف غير صالحة"
+    },
+    "results": {
+      "searching": "جاري البحث عن طلبك...",
+      "found": {
+        "title": "تم العثور على الطلب!",
+        "orderDate": "تاريخ الطلب",
+        "total": "الإجمالي",
+        "city": "المدينة",
+        "items": "عناصر الطلب",
+        "viewFull": "عرض التتبع الكامل"
+      },
+      "notFound": {
+        "title": "لم يتم العثور على الطلب",
+        "desc": "لم نتمكن من العثور على طلب يطابق بحثك. يرجى التحقق من التفاصيل والمحاولة مرة أخرى.",
+        "searchedFor": "تم البحث عن",
+        "suggestions": "ما يمكنك تجربته",
+        "tips": {
+          "orderNumber": "تحقق من رقم الطلب في رسالة تأكيد البريد الإلكتروني",
+          "phone": "تأكد من استخدام نفس رقم الهاتف الذي سجلت به",
+          "email": "تحقق من بريدك الإلكتروني لتأكيد الطلب"
+        }
+      },
+      "error": {
+        "title": "فشل البحث",
+        "desc": "حدث خطأ أثناء البحث عن طلبك. يرجى المحاولة لاحقاً."
+      }
+    },
+    "actions": {
+      "trackAnother": "تتبع طلب آخر",
+      "tryAgain": "حاول مرة أخرى",
+      "contactSupport": "تواصل مع الدعم"
+    },
+    "help": {
+      "step1": {
+        "title": "أدخل رقم الطلب",
+        "desc": "تجده في رسالة تأكيد البريد الإلكتروني أو سجل الطلبات في حسابك"
+      },
+      "step2": {
+        "title": "أو استخدم رقم الهاتف",
+        "desc": "أدخل رقم الهاتف المغربي الذي استخدمته عند تقديم الطلب"
+      },
+      "step3": {
+        "title": "تتبع التوصيل",
+        "desc": "عرض الحالة المباشرة وتفاصيل التتبع الكاملة لطلبك"
+      }
+    },
+    "status": {
+      "pending": "تم تقديم الطلب",
+      "confirmed": "تم التأكيد",
+      "preparing": "جاري التجهيز",
+      "shipped": "في الطريق",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغي",
+      "vendor_accepted": "تم القبول",
+      "vendor_rejected": "تم الرفض",
+      "driver_assigned": "تم تعيين سائق",
+      "driver_accepted": "قبل السائق",
+      "driver_picked_up": "تم الاستلام",
+      "awaiting_driver": "في انتظار سائق"
+    },
+    "notifications": {
+      "found": "تم العثور على الطلب!"
+    },
+    "errors": {
+      "rateLimited": "محاولات كثيرة جداً. يرجى الانتظار {{minutes}} دقائق قبل المحاولة مرة أخرى.",
+      "searchFailed": "فشل البحث. يرجى المحاولة مرة أخرى."
+    }
+  },
+  "auth": {
+    "logout": "تسجيل الخروج",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "noAccount": "ليس لديك حساب؟",
+    "hasAccount": "لديك حساب بالفعل؟",
+    "signUp": "إنشاء حساب",
+    "signIn": "تسجيل الدخول",
+    "firstName": "الاسم الأول",
+    "lastName": "اسم العائلة",
+    "phone": "رقم الهاتف",
+    "role": "أنا...",
+    "buyer": "مشتري",
+    "vendor": "بائع/مزارع",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "loginSuccess": "مرحباً بعودتك!",
+    "registerSuccess": "تم إنشاء الحساب بنجاح!",
+    "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة",
+    "login": {
+      "welcomeBack": "مرحباً بعودتك",
+      "signUpLink": "ليس لديك حساب؟",
+      "signUp": "إنشاء حساب",
+      "continueWithGoogle": "متابعة مع Google",
+      "orContinueWithEmail": "أو المتابعة بالبريد الإلكتروني",
+      "emailAddress": "البريد الإلكتروني",
+      "emailPlaceholder": "Qotoof273@gmail.com",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "أدخل كلمة المرور",
+      "forgotPassword": "نسيت كلمة المرور؟",
+      "signIn": "تسجيل الدخول"
+    },
+    "register": {
+      "createAccount": "إنشاء حساب",
+      "signInLink": "لديك حساب بالفعل؟",
+      "signIn": "تسجيل الدخول",
+      "firstName": "الاسم الأول",
+      "firstNamePlaceholder": "أحمد",
+      "lastName": "اسم العائلة",
+      "lastNamePlaceholder": "المغربي",
+      "emailAddress": "البريد الإلكتروني",
+      "emailPlaceholder": "Qotoof273@gmail.com",
+      "phoneNumber": "رقم الهاتف",
+      "phonePlaceholder": "+212 6XX-XXXXXX",
+      "identityVerification": "التحقق من الهوية",
+      "cinDescription": "رقم تعريفك الوطني (CIN) مطلوب بموجب القانون المغربي للمعاملات B2B. يتم تشفيره ولا يتم مشاركته أبداً مع أطراف ثالثة.",
+      "password": "كلمة المرور",
+      "passwordPlaceholder": "8 أحرف على الأقل",
+      "passwordStrength": "قوة كلمة المرور",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "confirmPasswordPlaceholder": "أعد إدخال كلمة المرور",
+      "roleLabel": "أنا...",
+      "buyer": {
+        "label": "مشتري",
+        "description": "شراء منتجات بالجملة"
+      },
+      "vendor": {
+        "label": "بائع",
+        "description": "بيع منتجاتك"
+      },
+      "driver": {
+        "label": "سائق",
+        "description": "توصيل الطلبات"
+      },
+      "driverInfo": {
+        "title": "معلومات السائق",
+        "vehicleType": "نوع المركبة",
+        "vehiclePlate": "رقم لوحة المركبة",
+        "vehiclePlatePlaceholder": "ABC-1234"
+      },
+      "vehicleTypes": {
+        "motorcycle": "دراجة نارية",
+        "car": "سيارة",
+        "van": "شاحنة صغيرة",
+        "truck": "شاحنة"
+      },
+      "termsAgreement": "أوافق على",
+      "termsOfService": "شروط الخدمة",
+      "privacyPolicy": "سياسة الخصوصية",
+      "termsDescription": "بإنشاء حساب، فإنك تلتزم بتقديم معلومات دقيقة والامتثال لجميع قواعد المنصة والقوانين المغربية.",
+      "createAccountButton": "إنشاء حساب",
+      "errors": {
+        "tooManyAttempts": "محاولات كثيرة جداً. يرجى الانتظار {{minutes}} دقيقة قبل المحاولة مرة أخرى.",
+        "vehiclePhotoRequired": "صورة المركبة مطلوبة لتسجيل السائق",
+        "termsRequired": "يجب قبول شروط الخدمة وسياسة الخصوصية لإنشاء حساب"
+      }
+    },
+    "resetPassword": {
+      "validatingToken": "جاري التحقق من رابط إعادة التعيين...",
+      "invalidResetLink": "رابط إعادة التعيين غير صالح",
+      "requestNewLink": "طلب رابط جديد",
+      "passwordUpdated": "تم تحديث كلمة المرور!",
+      "passwordUpdatedDesc": "تم تحديث كلمة المرور بنجاح.",
+      "sessionWarning": "🔒 تم تسجيل الخروج من جميع الجلسات الأخرى لسلامتك.",
+      "redirecting": "جاري التوجيه إلى صفحة الدخول...",
+      "goToLogin": "الانتقال إلى تسجيل الدخول",
+      "resetPasswordTitle": "إعادة تعيين كلمة المرور",
+      "resetPasswordDesc": "أدخل كلمة المرور الجديدة أدناه.",
+      "newPassword": "كلمة المرور الجديدة",
+      "newPasswordPlaceholder": "أدخل كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "confirmPasswordPlaceholder": "تأكيد كلمة المرور الجديدة",
+      "updatePassword": "تحديث كلمة المرور",
+      "passwordStrength": "قوة كلمة المرور",
+      "errors": {
+        "invalidPassword": "كلمة المرور غير صالحة"
+      }
+    },
+    "errors": {
+      "fillAllFields": "يرجى ملء جميع الحقول",
+      "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح",
+      "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+      "invalidCredentials": "بريد إلكتروني أو كلمة مرور غير صحيحة. يرجى المحاولة مرة أخرى."
+    },
+    "forgotPassword": {
+      "errors": {
+        "emailRequired": "يرجى إدخال بريدك الإلكتروني",
+        "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح",
+        "rateLimited": "محاولات كثيرة جداً. يرجى الانتظار قبل المحاولة مرة أخرى."
+      },
+      "successTitle": "تحقق من بريدك الإلكتروني",
+      "successMessage": "إذا كان هناك حساب مرتبط بـ {{email}}، ستتلقى رابط إعادة تعيين كلمة المرور قريباً. يرجى التحقق من صندوق الوارد.",
+      "backToLogin": "العودة إلى تسجيل الدخول",
+      "title": "إعادة تعيين كلمة المرور",
+      "subtitle": "أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.",
+      "emailLabel": "البريد الإلكتروني",
+      "emailPlaceholder": "Qotoof273@gmail.com",
+      "sending": "جاري الإرسال...",
+      "sendLink": "إرسال رابط إعادة التعيين",
+      "rememberPassword": "تتذكر كلمة المرور؟",
+      "signIn": "تسجيل الدخول"
+    },
+    "verifyEmail": {
+      "noPendingVerification": "لا يوجد تحقق معلق من البريد الإلكتروني. يرجى التسجيل أولاً.",
+      "resendCooldown": "يرجى الانتظار {{seconds}} ثانية قبل إعادة الإرسال.",
+      "rateLimited": "محاولات إعادة إرسال كثيرة جداً. يرجى الانتظار بضع دقائق قبل المحاولة مرة أخرى.",
+      "resendSuccess": "تم إعادة إرسال بريد التحقق! تحقق من صندوق الوارد.",
+      "resendFailed": "فشل إعادة إرسال بريد التحقق. يرجى المحاولة مرة أخرى.",
+      "verifiedTitle": "تم التحقق من البريد!",
+      "verifiedDescription": "تم التحقق من بريدك الإلكتروني بنجاح. جاري التوجيه إلى تسجيل الدخول...",
+      "title": "تحقق من بريدك الإلكتروني",
+      "description": "لقد أرسلنا رابط تحقق إلى",
+      "instructions": "انقر على الرابط في البريد الإلكتروني للتحقق من حسابك.",
+      "helpTitle": "لم تستلم البريد الإلكتروني؟",
+      "helpSpam": "تحقق من مجلد البريد العشوائي أو غير المرغوب فيه",
+      "helpCorrectEmail": "تأكد من إدخال البريد الإلكتروني الصحيح",
+      "helpWait": "انتظر بضع دقائق للاستلام",
+      "openEmailApp": "فتح تطبيق البريد",
+      "resendButton": "إعادة إرسال بريد التحقق",
+      "resendIn": "إعادة الإرسال خلال {{seconds}}ث",
+      "backToLogin": "العودة إلى تسجيل الدخول"
+    }
+  },
+  "buyerDashboard": {
+    "welcome": "مرحباً بعودتك، {{name}}! 👋",
+    "accountOverview": "إليك نظرة عامة على حسابك",
+    "startShopping": "ابدأ التسوق",
+    "actions": {
+      "orders": "الطلبات",
+      "favorites": "المفضلة",
+      "addresses": "العناوين",
+      "reorder": "إعادة الطلب",
+      "settings": "الإعدادات"
+    },
+    "stats": {
+      "totalOrders": "إجمالي الطلبات",
+      "pending": "قيد الانتظار",
+      "inTransit": "في الطريق",
+      "totalSpent": "إجمالي الإنفاق"
+    },
+    "recentOrders": {
+      "title": "الطلبات الأخيرة",
+      "viewAll": "عرض الكل",
+      "emptyTitle": "لا توجد طلبات بعد",
+      "emptyDesc": "تصفح السوق لوضع أول طلب لك"
+    },
+    "recommendations": {
+      "title": "موصى به لك"
+    },
+    "seasonal": {
+      "title": "عروض موسمية"
+    },
+    "stores": {
+      "title": "المتاجر الشائعة"
+    },
+    "seeAll": "عرض الكل",
+    "orderStatus": {
+      "pending": "قيد الانتظار",
+      "accepted": "قبل السائق طلبك — جاري التحضير للاستلام",
+      "picked_up": "استلم السائق طلبك — جاري التحضير للتوصيل",
+      "on_the_way": "طلبك في الطريق — التوصيل قريباً",
+      "default": "طلبك قيد المعالجة",
+      "vendor_accepted": "مقبول",
+      "vendor_rejected": "مرفوض",
+      "driver_assigned": "تم تعيين سائق",
+      "driver_accepted": "قبل السائق",
+      "driver_picked_up": "تم الاستلام",
+      "on_the_way_label": "في الطريق",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغي"
+    },
+    "errors": {
+      "noItems": "هذا الطلب لا يحتوي على عناصر",
+      "itemsAdded": "تمت إضافة {{count}} عنصر(عناصر) إلى السلة — جاهز للدفع!",
+      "itemsUnavailable": "تعذرت إضافة العناصر (قد تكون غير متوفرة)"
+    },
+    "seasonalBadge": "موسمي",
+    "visitStore": "زيارة المتجر"
+  },
+  "buyerOrders": {
+    "title": "طلباتي",
+    "subtitle": "تتبع وإدارة طلباتك",
+    "filters": {
+      "all": "جميع الطلبات",
+      "active": "قيد التنفيذ",
+      "delivered": "مكتملة",
+      "cancelled": "ملغية"
+    },
+    "paymentStatus": {
+      "all": "جميع المدفوعات",
+      "paid": "مدفوع",
+      "pending": "قيد الانتظار",
+      "cod": "الدفع عند الاستلام"
+    },
+    "searchPlaceholder": "البحث في الطلبات...",
+    "advancedFilters": "فلاتر متقدمة",
+    "clearFilters": "مسح الفلاتر",
+    "orderCount": "{{count}} طلب(طلبات)",
+    "noOrders": {
+      "all": "لا توجد طلبات بعد",
+      "active": "لا توجد طلبات نشطة",
+      "delivered": "لا توجد طلبات مكتملة",
+      "cancelled": "لا توجد طلبات ملغية",
+      "filtered": "لا توجد طلبات تطابق فلاترك"
+    },
+    "orderCard": {
+      "details": "التفاصيل",
+      "invoice": "الفاتورة",
+      "reorder": "إعادة الطلب",
+      "track": "تتبع",
+      "review": "تقييم",
+      "return": "إرجاع",
+      "contactSupport": "تواصل مع الدعم",
+      "copyOrderNumber": "انقر للنسخ",
+      "more": "أكثر",
+      "progress": "{{progress}}%"
+    },
+    "reviewModal": {
+      "title": "قيّم تجربتك",
+      "question": "كيف كان طلبك {{orderNumber}} من {{vendor}}؟",
+      "commentPlaceholder": "شارك تجربتك (اختياري)...",
+      "cancel": "إلغاء",
+      "submitting": "جاري الإرسال...",
+      "submit": "إرسال التقييم",
+      "error": "يرجى اختيار تقييم",
+      "failed": "فشل إرسال التقييم"
+    },
+    "returnModal": {
+      "title": "طلب إرجاع / استبدال",
+      "selectItems": "اختر العناصر للإرجاع",
+      "reason": "سبب الإرجاع",
+      "selectReason": "اختر سبباً",
+      "description": "تفاصيل إضافية",
+      "descriptionPlaceholder": "صف المشكلة بالتفصيل...",
+      "submit": "إرسال الطلب",
+      "reasons": {
+        "damaged": "تلف أثناء التوصيل",
+        "wrongItem": "استلمت منتج خاطئ",
+        "quality": "الجودة أقل من المتوقع",
+        "quantity": "الكمية غير صحيحة",
+        "late": "التوصيل متأخر جداً",
+        "other": "أخرى"
+      }
+    },
+    "invoice": {
+      "title": "فاتورة",
+      "orderInfo": "معلومات الطلب",
+      "date": "التاريخ",
+      "status": "الحالة",
+      "payment": "الدفع",
+      "vendor": "البائع",
+      "deliveryAddress": "عنوان التوصيل",
+      "orderItems": "عناصر الطلب",
+      "product": "المنتج",
+      "qty": "الكمية",
+      "price": "السعر",
+      "total": "الإجمالي",
+      "subtotal": "المجموع الفرعي",
+      "platformFee": "رسوم المنصة",
+      "shipping": "التوصيل",
+      "totalPaid": "الإجمالي المدفوع",
+      "footer": "شكراً لتسوقك مع قطوف!",
+      "availableIn": "متاح حصرياً في المغرب",
+      "generatedOn": "تم الإنشاء في"
+    },
+    "notifications": {
+      "orderNumberCopied": "تم نسخ رقم الطلب!",
+      "failedToCopy": "فشل النسخ",
+      "reorderSuccess": "تمت إضافة {{count}} عنصر(عناصر) إلى السلة",
+      "reorderFailed": "تعذرت إضافة العناصر (قد تكون غير متوفرة)"
+    }
+  },
+  "buyerSettings": {
+    "title": "الإعدادات",
+    "subtitle": "إدارة تفضيلات الإشعارات والخصوصية",
+    "backToDashboard": "العودة إلى لوحة التحكم",
+    "notifications": {
+      "saved": "تم حفظ الإعدادات بنجاح",
+      "failed": "فشل حفظ الإعدادات"
+    },
+    "whatToNotify": {
+      "title": "ماذا تريد أن تُبلغ",
+      "orderUpdates": "تحديثات الطلبات",
+      "orderUpdatesDesc": "تغييرات حالة طلباتك",
+      "deliveryUpdates": "تحديثات التوصيل",
+      "deliveryUpdatesDesc": "تحديثات موقع السائق والوقت المتوقع",
+      "promotional": "العروض الترويجية",
+      "promotionalDesc": "القسائم والعروض الموسمية"
+    },
+    "privacy": {
+      "title": "الخصوصية",
+      "showPhone": "إظهار الهاتف للبائعين",
+      "showPhoneDesc": "يمكن للبائعين رؤية رقم هاتفك",
+      "showEmail": "إظهار البريد الإلكتروني للبائعين",
+      "showEmailDesc": "يمكن للبائعين رؤية بريدك الإلكتروني"
+    },
+    "quickLinks": {
+      "title": "روابط سريعة",
+      "addresses": "إدارة العناوين",
+      "security": "إعدادات الأمان",
+      "coupons": "قسائمي",
+      "privacySettings": "إعدادات الخصوصية"
+    },
+    "save": {
+      "saving": "جاري الحفظ...",
+      "saved": "حفظ الإعدادات"
+    }
+  },
+  "buyerAddresses": {
+    "title": "عناويني",
+    "subtitle": "{{count}} عنوان(عناوين) محفوظة",
+    "backToDashboard": "العودة إلى لوحة التحكم",
+    "addAddress": "إضافة عنوان",
+    "emptyTitle": "لا توجد عناوين محفوظة",
+    "emptyDesc": "أضف أول عنوان توصيل لك لتسريع عملية الدفع",
+    "form": {
+      "addTitle": "إضافة عنوان جديد",
+      "editTitle": "تعديل العنوان",
+      "type": "نوع العنوان",
+      "label": "التسمية (اختياري)",
+      "labelPlaceholder": "مثال: بيت أمي",
+      "street": "عنوان الشارع",
+      "streetPlaceholder": "اسم الشارع، رقم المبنى",
+      "city": "المدينة",
+      "cityPlaceholder": "الدار البيضاء",
+      "region": "الجهة",
+      "regionPlaceholder": "الدار البيضاء-سطات",
+      "postalCode": "الرمز البريدي",
+      "postalCodePlaceholder": "20000",
+      "country": "البلد",
+      "deliveryInstructions": "تعليمات التوصيل (اختياري)",
+      "deliveryInstructionsPlaceholder": "مثال: اضغط على جرس الباب، الطابق الثالث",
+      "setDefault": "تعيين كعنوان افتراضي",
+      "cancel": "إلغاء",
+      "save": "حفظ العنوان",
+      "update": "تحديث العنوان"
+    },
+    "addressTypes": {
+      "home": "المنزل",
+      "work": "العمل",
+      "other": "أخرى"
+    },
+    "default": "افتراضي",
+    "setDefault": "تعيين كافتراضي",
+    "notifications": {
+      "added": "تمت إضافة العنوان بنجاح",
+      "updated": "تم تحديث العنوان بنجاح",
+      "deleted": "تم حذف العنوان",
+      "defaultUpdated": "تم تحديث العنوان الافتراضي",
+      "saveFailed": "فشل حفظ العنوان",
+      "deleteFailed": "فشل حذف العنوان",
+      "defaultFailed": "فشل تحديث العنوان الافتراضي",
+      "loadFailed": "فشل تحميل العناوين",
+      "fillRequired": "يرجى ملء العنوان والمدينة"
+    }
+  },
+  "buyerSecurity": {
+    "passwordUpdated": "تم تحديث كلمة المرور بنجاح! تم تسجيل الخروج من جميع الجلسات الأخرى.",
+    "errors": {
+      "passwordTooShort": "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
+      "passwordTooLong": "يجب أن تكون كلمة المرور أقل من 128 حرفاً",
+      "passwordNeedsUppercase": "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل",
+      "passwordNeedsLowercase": "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل",
+      "passwordNeedsNumber": "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل",
+      "passwordNeedsSpecial": "يجب أن تحتوي كلمة المرور على حرف خاص واحد على الأقل",
+      "passwordTooCommon": "كلمة المرور شائعة جداً",
+      "allFieldsRequired": "جميع الحقول مطلوبة",
+      "passwordsNotMatch": "كلمتا المرور غير متطابقتين",
+      "passwordMustDiffer": "يجب أن تكون كلمة المرور الجديدة مختلفة عن القديمة",
+      "incorrectPassword": "كلمة المرور الحالية غير صحيحة",
+      "passwordUpdateFailed": "فشل تحديث كلمة المرور"
+    }
+  },
+  "notFound": {
+    "title": "الصفحة غير موجودة",
+    "description": "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
+    "backHome": "العودة إلى الرئيسية"
+  },
+  "orderConfirmation": {
+    "redirecting": "جاري التوجيه...",
+    "title": "تم تأكيد الطلب!",
+    "orderPrefix": "الطلب",
+    "orderPlaced": "تم تقديم طلبك بنجاح",
+    "whatsNext": "ما التالي؟",
+    "step1Title": "تأكيد الطلب",
+    "step1Desc": "ستتلقى تأكيداً عبر البريد الإلكتروني قريباً",
+    "step2Title": "البائع يجهز الطلب",
+    "step2Desc": "سيقوم البائع بتجهيز منتجاتك",
+    "step3Title": "التوصيل",
+    "step3Desc": "سيقوم سائق بالتوصيل إلى عنوانك",
+    "viewOrders": "عرض طلباتي",
+    "continueShopping": "متابعة التسوق"
+  },
+  "contact": {
+    "title": "اتصل بنا",
+    "subtitle": "لديك سؤال أو ملاحظة؟ يسعدنا أن نسمع منك.",
+    "email": "البريد الإلكتروني",
+    "phone": "الهاتف",
+    "phoneHours": "الإثنين-الجمعة، 9ص-6م",
+    "address": "العنوان",
+    "addressValue": "الدار البيضاء، المغرب",
+    "formTitle": "أرسل لنا رسالة",
+    "form": {
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "subject": "الموضوع",
+      "message": "الرسالة",
+      "sending": "جاري الإرسال...",
+      "send": "إرسال الرسالة"
+    },
+    "success": "تم إرسال رسالتك بنجاح! سنرد عليك قريباً.",
+    "error": "حدث خطأ أثناء إرسال الرسالة. حاول مرة أخرى.",
+    "errors": {
+      "invalidEmail": "يرجى إدخال بريد إلكتروني صحيح"
+    }
+  },
+  "faq": {
+    "title": "الأسئلة الشائعة",
+    "subtitle": "اعثر على إجابات للأسئلة الشائعة حول قطوف",
+    "q1": {
+      "question": "كيف أنشئ حساباً؟",
+      "answer": "انقر على \"إنشاء حساب\" في الزاوية العلوية اليمنى، املأ بياناتك واختر دورك (مشتري، بائع، أو سائق). ستتلقى بريداً إلكترونياً للتحقق لتفعيل حسابك."
+    },
+    "q2": {
+      "question": "كيف أصبح بائعاً؟",
+      "answer": "بعد إنشاء حساب، انتقل إلى صفحة \"كن بائعاً\"، املأ تفاصيل متجرك وسيتم ترقية حسابك إلى حساب بائع فوراً."
+    },
+    "q3": {
+      "question": "ما هي طرق الدفع المتاحة؟",
+      "answer": "ندعم حالياً الدفع عند الاستلام وبطاقات الائتمان/الخصم. سيتم إضافة خيارات دفع أخرى قريباً."
+    },
+    "q4": {
+      "question": "كيف يعمل التوصيل؟",
+      "answer": "بمجرد تأكيد البائع لطلبك، يتم تعيين سائق لتوصيله إلى عنوانك. يمكنك تتبع طلبك في الوقت الفعلي عبر صفحة التتبع."
+    },
+    "q5": {
+      "question": "هل يمكنني إرجاع منتج؟",
+      "answer": "نعم، يمكنك طلب الإرجاع خلال 24 ساعة من التوصيل إذا لم يستوفِ المنتج معايير الجودة. انتقل إلى صفحة طلباتك واختر \"طلب إرجاع\"."
+    },
+    "q6": {
+      "question": "كيف أتتبع طلبي؟",
+      "answer": "انتقل إلى صفحة \"طلباتي\" أو استخدم صفحة التتبع العامة. أدخل رقم طلبك لمعرفة الحالة الحالية والوقت المتوقع للتوصيل."
+    },
+    "q7": {
+      "question": "هل هناك حد أدنى للطلب؟",
+      "answer": "كل منتج له حد أدنى خاص يحدده البائع. تحقق من صفحة المنتج للتفاصيل."
+    },
+    "q8": {
+      "question": "كيف أتواصل مع الدعم؟",
+      "answer": "يمكنك التواصل معنا عبر صفحة الاتصال، أو عبر البريد الإلكتروني Qotoof273@gmail.com، أو الاتصال على +212 674 841 248 خلال ساعات العمل."
+    },
+    "stillQuestions": {
+      "title": "لا تزال لديك أسئلة؟",
+      "desc": "لم تجد ما تبحث عنه؟ تواصل مع فريق الدعم لدينا.",
+      "contactUs": "اتصل بنا"
+    }
+  },
+  "privacy": {
+    "title": "سياسة الخصوصية",
+    "lastUpdated": "آخر تحديث: أبريل 2026",
+    "section1": {
+      "title": "1. المعلومات التي نجمعها",
+      "intro": "نجمع المعلومات التي تقدمها مباشرة، بما في ذلك:",
+      "items": {
+        "identity": {
+          "label": "الهوية الشخصية:",
+          "desc": "الاسم والبريد الإلكتروني ورقم الهاتف"
+        },
+        "addresses": {
+          "label": "العناوين:",
+          "desc": "عناوين الشحن والفوترة"
+        },
+        "payment": {
+          "label": "معلومات الدفع:",
+          "desc": "تُعالج بأمان من قبل مزودين خارجيين (لا نخزن تفاصيل البطاقة)"
+        },
+        "profile": {
+          "label": "معلومات الملف الشخصي:",
+          "desc": "تفاصيل المتجر والتفضيلات والمعلومات التجارية"
+        },
+        "transaction": {
+          "label": "بيانات المعاملات:",
+          "desc": "سجل الطلبات وسجلات الشراء"
+        },
+        "location": {
+          "label": "بيانات الموقع:",
+          "desc": "مواقع التوصيل وإحداثيات GPS للسائقين"
+        },
+        "device": {
+          "label": "معلومات الجهاز:",
+          "desc": "عنوان IP ونوع المتصفح ومعرفات الجهاز"
+        }
+      }
+    },
+    "section2": {
+      "title": "2. كيف نستخدم معلوماتك",
+      "intro": "نستخدم المعلومات المجمعة لـ:",
+      "items": {
+        "orders": {
+          "label": "معالجة الطلبات:",
+          "desc": "تنفيذ وتوصيل مشترياتك"
+        },
+        "connect": {
+          "label": "ربط المستخدمين:",
+          "desc": "ربط المشترين بالبائعين والسائقين لمعاملات سلسة"
+        },
+        "updates": {
+          "label": "إرسال التحديثات:",
+          "desc": "تأكيدات الطلبات وإشعارات الشحن وحالة التوصيل"
+        },
+        "improve": {
+          "label": "تحسين الخدمات:",
+          "desc": "تعزيز تجربة المستخدم وتحليل أنماط الاستخدام وتطوير ميزات جديدة"
+        },
+        "legal": {
+          "label": "الامتثال القانوني:",
+          "desc": "الوفاء بالمتطلبات التنظيمية وحل النزاعات وإنفاذ الشروط"
+        },
+        "security": {
+          "label": "الأمان:",
+          "desc": "منع الاحتيال والتحقق من الهوية وحماية سلامة المنصة"
+        },
+        "communication": {
+          "label": "التواصل:",
+          "desc": "الرد على الاستفسارات وإرسال محتوى ترويجي (بموافقتك)"
+        }
+      }
+    },
+    "section3": {
+      "title": "3. مشاركة المعلومات",
+      "intro": "نشارك معلوماتك فقط مع مستخدمي المنصة الآخرين اللازمين لإتمام المعاملات:",
+      "items": {
+        "vendors": "يتلقى البائعون عناوين شحن المشترين لأغراض التوصيل",
+        "drivers": "يتلقى السائقون مواقع الاستلام والتوصيل",
+        "payment": "يتلقى معالجو الدفع تفاصيل المعاملات (لا نخزن بيانات البطاقة)"
+      },
+      "noSell": "لا نبيع معلوماتك الشخصية لأطراف ثالثة."
+    },
+    "section4": {
+      "title": "4. أمن البيانات",
+      "intro": "نطبق تدابير أمنية بمعايير الصناعة لحماية معلوماتك الشخصية:",
+      "items": {
+        "encryption": "تشفير البيانات الحساسة أثناء النقل والتخزين",
+        "servers": "خوادم آمنة مع تدقيقات أمنية منتظمة",
+        "mfa": "المصادقة متعددة العوامل للوصول إلى الحساب",
+        "rls": "سياسات أمان على مستوى الصفوف في جميع جداول قاعدة البيانات",
+        "ratelimit": "تحديد المعدل لمنع محاولات الوصول غير المصرح بها",
+        "testing": "اختبارات الاختراق وتقييمات الثغرات الأمنية المنتظمة"
+      }
+    },
+    "section5": {
+      "title": "5. حقوقك",
+      "intro": "لديك الحق في:",
+      "items": {
+        "access": {
+          "label": "الوصول:",
+          "desc": "طلب نسخة من بياناتك الشخصية"
+        },
+        "correction": {
+          "label": "التصحيح:",
+          "desc": "تحديث المعلومات غير الدقيقة أو غير المكتملة"
+        },
+        "deletion": {
+          "label": "الحذف:",
+          "desc": "طلب حذف بياناتك (خاضع لمتطلبات الاحتفاظ القانونية)"
+        },
+        "export": {
+          "label": "التصدير:",
+          "desc": "تنزيل بياناتك بتنسيق قابل للنقل"
+        },
+        "optout": {
+          "label": "الانسحاب:",
+          "desc": "إلغاء الاشتراك من الاتصالات التسويقية في أي وقت"
+        },
+        "restrict": {
+          "label": "تقييد المعالجة:",
+          "desc": "الحد من كيفية استخدام بياناتك في ظروف معينة"
+        }
+      },
+      "exercise": "لممارسة هذه الحقوق، قم بزيارة",
+      "privacySettings": "إعدادات الخصوصية",
+      "orContact": "أو تواصل معنا أدناه."
+    },
+    "section6": {
+      "title": "6. ملفات تعريف الارتباط",
+      "content": "نستخدم ملفات تعريف الارتباط وتقنيات مماثلة لتحسين تجربتك وتحليل الاستخدام وتقديم محتوى موجه. يمكنك إدارة تفضيلات ملفات الارتباط من خلال شريط ملفات الارتباط في أسفل الصفحة أو إعدادات متصفحك."
+    },
+    "section7": {
+      "title": "7. الاحتفاظ بالبيانات",
+      "content": "نحتفظ ببياناتك الشخصية طالما أن حسابك نشط أو حسب الحاجة لتقديم الخدمات. قد نحتفظ ببيانات معينة للامتثال القانوني أو حل النزاعات أو منع الاحتيال. يتم حذف بيانات تتبع موقع السائقين تلقائياً بعد 7 أيام."
+    },
+    "section8": {
+      "title": "8. التواصل",
+      "intro": "للأسئلة المتعلقة بالخصوصية أو لممارسة حقوقك، تواصل معنا على:",
+      "emailLabel": "البريد الإلكتروني:",
+      "addressLabel": "العنوان:",
+      "addressValue": "الدار البيضاء، المغرب"
+    }
+  },
+  "shipping": {
+    "title": "الشحن والتوصيل",
+    "howItWorks": {
+      "title": "كيف يعمل التوصيل",
+      "step1": {
+        "title": "1. تم تقديم الطلب",
+        "desc": "يؤكد البائع ويجهز طلبك"
+      },
+      "step2": {
+        "title": "2. تم تعيين سائق",
+        "desc": "يقوم سائق قريب باستلام توصيلتك"
+      },
+      "step3": {
+        "title": "3. تم التسليم",
+        "desc": "يتم توصيل الطلب إلى باب منزلك"
+      }
+    },
+    "deliveryTimes": {
+      "title": "أوقات التوصيل",
+      "location": "الموقع",
+      "estimatedTime": "الوقت المتوقع",
+      "sameCity": "نفس المدينة",
+      "sameCityTime": "2-4 ساعات",
+      "nearbyCities": "مدن قريبة",
+      "nearbyCitiesTime": "نفس اليوم",
+      "otherRegions": "مناطق أخرى",
+      "otherRegionsTime": "1-2 يوم عمل"
+    },
+    "deliveryFees": {
+      "title": "رسوم التوصيل"
+    },
+    "fees": {
+      "under500": "طلبات أقل من 500 درهم",
+      "under500Amount": "30 درهم",
+      "500to1000": "طلبات من 500 إلى 1000 درهم",
+      "500to1000Amount": "20 درهم",
+      "over1000": "طلبات أكثر من 1000 درهم",
+      "over1000Amount": "مجاناً"
+    },
+    "tracking": {
+      "title": "تتبع طلبك",
+      "description": "بمجرد تأكيد طلبك، ستتلقى رابط تتبع عبر البريد الإلكتروني. يمكنك أيضاً تتبع طلبك من صفحة \"طلباتي\".",
+      "button": "تتبع الطلب"
+    }
+  },
+  "returns": {
+    "title": "سياسة الإرجاع والاسترداد",
+    "submitRequest": "تقديم طلب إرجاع",
+    "policy": {
+      "title": "سياسة الإرجاع",
+      "description": "نريدك أن تكون راضياً تماماً عن شرائك. إذا لم تكن راضياً عن طلبك، يمكنك طلب الإرجاع خلال",
+      "timeframe": "24 ساعة",
+      "descriptionAfter": "من التوصيل.",
+      "freeReturns": "الإرجاع مجاني ويتم معالجة الاسترداد خلال 3-5 أيام عمل بعد الموافقة."
+    },
+    "eligible": {
+      "title": "مؤهل للإرجاع",
+      "item1": "المنتجات التالفة أو الفاسدة عند التوصيل",
+      "item2": "العناصر التي لا تطابق وصف المنتج",
+      "item3": "تم توصيل عناصر خاطئة",
+      "item4": "عناصر مفقودة من الطلب"
+    },
+    "notEligible": {
+      "title": "غير مؤهل للإرجاع",
+      "item1": "العناصر القابلة للتلف بعد 24 ساعة من التوصيل",
+      "item2": "العناصر التالفة بسبب التخزين غير السليم من المشتري",
+      "item3": "الطلبات الخاصة أو المخصصة"
+    },
+    "howTo": {
+      "title": "كيف تطلب إرجاعاً"
+    },
+    "steps": {
+      "step1": "اذهب إلى طلباتي",
+      "step1Desc": "اعثر على الطلب الذي تريد إرجاعه",
+      "step2": "انقر على \"طلب إرجاع\"",
+      "step2Desc": "اختر العناصر وسبب الإرجاع",
+      "step3": "ارفع صوراً",
+      "step3Desc": "أضف صوراً كدليل على المشكلة",
+      "step4": "انتظر المراجعة",
+      "step4Desc": "يراجع البائع ويوافق/يرفض خلال 24 ساعة"
+    },
+    "refundTimeline": {
+      "title": "جدول الاسترداد",
+      "review": "مراجعة الإرجاع",
+      "reviewTime": "خلال 24 ساعة",
+      "processing": "معالجة الاسترداد",
+      "processingTime": "3-5 أيام عمل",
+      "method": "طريقة الاسترداد",
+      "methodValue": "طريقة الدفع الأصلية أو رصيد المحفظة"
+    }
+  },
+  "terms": {
+    "title": "شروط الخدمة",
+    "lastUpdated": "آخر تحديث: 6 أبريل 2025",
+    "section1": {
+      "title": "1. قبول الشروط",
+      "content": "بالوصول إلى قطوف (\"المنصة\") واستخدامها، فإنك توافق على الالتزام بشروط الخدمة هذه. إذا لم توافق على هذه الشروط، يرجى عدم استخدام المنصة."
+    },
+    "section2": {
+      "title": "2. وصف الخدمة",
+      "content": "قطوف هي سوق جملة B2B تربط المشترين والبائعين والسائقين لتجارة النباتات والخضروات والفواكه في المغرب. تسهل المنصة المعاملات بين أطراف مستقلة."
+    },
+    "section3": {
+      "title": "3. حسابات المستخدمين",
+      "intro": "يجب عليك:",
+      "item1": "أن يكون عمرك 18 عاماً على الأقل",
+      "item2": "تقديم معلومات تسجيل دقيقة وكاملة",
+      "item3": "الحفاظ على أمان بيانات حسابك",
+      "item4": "إخطارنا فوراً بأي وصول غير مصرح به",
+      "item5": "قبول المسؤولية عن جميع الأنشطة تحت حسابك"
+    },
+    "section4": {
+      "title": "4. رسوم وعمولات المنصة",
+      "intro": "تفرض قطوف:",
+      "item1": "عمولة 3% على كل معاملة تتم عبر المنصة",
+      "item2": "رسوم معالجة الدفع حسب الاقتضاء",
+      "item3": "رسوم توصيل يحددها السائقون بناءً على المسافة والوقت",
+      "outro": "يتم عرض جميع الرسوم بشفافية قبل تأكيد الطلب."
+    },
+    "section5": {
+      "title": "5. الطلبات والمدفوعات",
+      "intro": "الطلبات المقدمة عبر المنصة هي عقود ملزمة بين المشترين والبائعين. تشمل طرق الدفع:",
+      "item1": "الدفع عند الاستلام",
+      "item2": "التحويل البنكي",
+      "item3": "مستقبلاً: مدفوعات بطاقات الائتمان/الخصم"
+    },
+    "section6": {
+      "title": "6. التزامات البائعين",
+      "intro": "يجب على البائعين:",
+      "item1": "تقديم أوصاف وأسعار دقيقة للمنتجات",
+      "item2": "الحفاظ على مخزون كافٍ للمنتجات المدرجة",
+      "item3": "تنفيذ الطلبات ضمن الإطار الزمني المتفق عليه",
+      "item4": "الامتثال لجميع القوانين واللوائح المغربية المعمول بها"
+    },
+    "section7": {
+      "title": "7. التزامات السائقين",
+      "intro": "يجب على السائقين:",
+      "item1": "توصيل الطلبات ضمن وقت التوصيل المقدر",
+      "item2": "الحفاظ على تتبع الموقع الدقيق أثناء التوصيلات",
+      "item3": "التعامل مع المنتجات بعناية",
+      "item4": "حيازة رخص قيادة وتأمين مركبة سارية المفعول"
+    },
+    "section8": {
+      "title": "8. السلوك المحظور",
+      "intro": "الأفعال التالية محظورة تماماً وقد تؤدي إلى تعليق أو إنهاء الحساب فوراً:",
+      "illegal": {
+        "title": "8.1 الأنشطة غير القانونية",
+        "item1": "استخدام المنصة لأي غرض غير قانوني بموجب القانون المغربي",
+        "item2": "بيع المنتجات المحظورة أو المقلدة أو المسروقة",
+        "item3": "غسل الأموال أو الاحتيال أو الجرائم المالية",
+        "item4": "انتهاك حقوق الملكية الفكرية",
+        "item5": "المشاركة في أنشطة تنتهك العقوبات التجارية الدولية"
+      },
+      "falseInfo": {
+        "title": "8.2 معلومات كاذبة أو مضللة",
+        "item1": "نشر أوصاف أو أسعار أو توفر خاطئ للمنتجات",
+        "item2": "استخدام صور منتجات معدلة أو مضللة",
+        "item3": "إساءة تمثيل أصل المنتج أو جودته أو شهاداته",
+        "item4": "إنشاء تقييمات أو تقييمات مزيفة",
+        "item5": "تقديم معلومات هوية أو نشاط تجاري خاطئة أثناء التسجيل"
+      },
+      "circumvent": {
+        "title": "8.3 التحايل على رسوم المنصة",
+        "item1": "محاولة إجراء معاملات خارج المنصة لتجنب عمولة 3%",
+        "item2": "استخدام حسابات وهمية أو متعددة للتهرب من الرسوم",
+        "item3": "التلاعب بمبالغ الطلبات أو تقسيمها لتقليل العمولة",
+        "item4": "تشجيع المشترين أو البائعين على التعامل مباشرة خارج المنصة",
+        "item5": "استخدام ثغرات تقنية للتحايل على أنظمة الدفع"
+      },
+      "harassment": {
+        "title": "8.4 التحرش والإساءة",
+        "item1": "مضايقة أو تهديد أو تخويف المستخدمين الآخرين",
+        "item2": "استخدام خطاب تمييزي أو عنصري أو يحض على الكراهية",
+        "item3": "إرسال رسائل أو إعلانات غير مرغوب فيها",
+        "item4": "انتحال شخصية مستخدمين آخرين أو موظفين أو سلطات",
+        "item5": "مشاركة المعلومات الشخصية لمستخدمين آخرين دون موافقتهم"
+      },
+      "security": {
+        "title": "8.5 التدخل في الأمان",
+        "item1": "محاولة اختراق أو استغلال أو التحايل على إجراءات أمان المنصة",
+        "item2": "استخدام بوتات أو نصوص آلية لكشط البيانات أو التلاعب بالمنصة",
+        "item3": "محاولة الوصول إلى حسابات أو بيانات مستخدمين آخرين",
+        "item4": "التدخل في المصادقة الثنائية أو إدارة الجلسات أو تسجيل التدقيق",
+        "item5": "الهندسة العكسية أو إلغاء التجميع أو تعديل برمجيات المنصة"
+      }
+    },
+    "section9": {
+      "title": "9. الملكية الفكرية",
+      "content": "جميع المحتويات على المنصة، بما في ذلك النصوص والرسومات والشعارات والبرمجيات، هي ملك لقطوف ومحمية بموجب قوانين الملكية الفكرية المغربية والدولية."
+    },
+    "section10": {
+      "title": "10. تحديد المسؤولية",
+      "content": "تعمل قطوف كوسيط ولا تتحمل مسؤولية جودة أو سلامة أو شرعية المنتجات المدرجة أو المباعة. لا نضمن خدمة دون انقطاع أو خالية من الأخطاء."
+    },
+    "section11": {
+      "title": "11. الإنهاء",
+      "content": "نحتفظ بالحق في تعليق أو إنهاء الحسابات التي تنتهك هذه الشروط دون إشعار مسبق. يمكن للمستخدمين إنهاء حساباتهم في أي وقت عبر صفحة الإعدادات."
+    },
+    "section12": {
+      "title": "12. القانون الحاكم",
+      "content": "تخضع هذه الشروط لقوانين المملكة المغربية. يتم حل أي نزاعات أمام المحاكم المختصة في الدار البيضاء."
+    },
+    "section13": {
+      "title": "13. التواصل",
+      "intro": "للأسئلة حول هذه الشروط، تواصل معنا على:",
+      "email": "البريد الإلكتروني: Qotoof273@gmail.com",
+      "phone": "الهاتف: +212 674 841 248",
+      "address": "العنوان: الدار البيضاء، المغرب"
+    },
+    "backToPrivacy": "العودة إلى سياسة الخصوصية"
+  },
+  "driver": {
+    "available": {
+      "title": "التوصيلات المتاحة",
+      "welcome": "!مرحباً، {{name}}",
+      "overview": "نظرة عامة على توصيلاتك",
+      "history": "سجل التوصيلات",
+      "active": "نشطة",
+      "available": "متاحة",
+      "completed": "مكتملة",
+      "earnings": "الأرباح",
+      "subtitle": "توصيلات في انتظار قبولك",
+      "noDeliveries": "لا توجد توصيلات متاحة حالياً",
+      "checkBack": "تحقق لاحقاً لفرص توصيل جديدة",
+      "accept": "قبول التوصيلة",
+      "accepted": "مقبولة",
+      "distance": "المسافة",
+      "pickup": "الاستلام",
+      "dropoff": "التسليم",
+      "acceptSuccess": "!تم قبول التوصيلة بنجاح",
+      "acceptFailed": "فشل قبول التوصيلة"
+    },
+    "earnings": {
+      "title": "الأرباح",
+      "overview": "نظرة عامة على الأرباح",
+      "totalEarnings": "إجمالي الأرباح",
+      "completeDeliveries": "أكمل التوصيلات لبدء الكسب",
+      "todayEarnings": "أرباح اليوم",
+      "weeklyEarnings": "هذا الأسبوع",
+      "monthlyEarnings": "هذا الشهر",
+      "perDelivery": "لكل توصيلة",
+      "deliveriesCompleted": "التوصيلات المكتملة",
+      "noEarningsYet": "لا توجد أرباح بعد",
+      "withdraw": "سحب الأرباح",
+      "withdrawSuccess": "تم طلب السحب بنجاح",
+      "withdrawFailed": "فشل طلب السحب",
+      "availableBalance": "الرصيد المتاح",
+      "pendingBalance": "الرصيد المعلق"
+    },
+    "profile": {
+      "title": "ملف السائق",
+      "profileTab": "الملف والمركبة",
+      "verificationTab": "الوثائق والتحقق",
+      "personalInfo": "المعلومات الشخصية",
+      "vehicleInfo": "معلومات المركبة",
+      "phone": "الهاتف",
+      "phonePlaceholder": "+212 6XX XXX XXX",
+      "vehicleType": "نوع المركبة",
+      "motorcycle": "دراجة نارية",
+      "car": "سيارة",
+      "van": "شاحنة صغيرة",
+      "truck": "شاحنة",
+      "licensePlate": "رقم اللوحة",
+      "licensePlatePlaceholder": "ABC-1234",
+      "saveChanges": "حفظ التغييرات",
+      "saving": "جاري الحفظ...",
+      "saveSuccess": "تم تحديث الملف بنجاح",
+      "saveFailed": "فشل تحديث الملف"
+    },
+    "security": {
+      "title": "إعدادات الأمان",
+      "subtitle": "إدارة أمان حسابك وخصوصيتك كسائق",
+      "driverInfo": "معلومات السائق",
+      "name": "الاسم",
+      "email": "البريد الإلكتروني",
+      "phone": "رقم الهاتف",
+      "vehicleType": "نوع المركبة",
+      "licensePlate": "رقم اللوحة",
+      "locationTracking": "تتبع الموقع",
+      "locationDesc": "يتم مشاركة موقعك فقط أثناء التوصيلات النشطة",
+      "showDetails": "عرض التفاصيل",
+      "hideDetails": "إخفاء التفاصيل",
+      "latitude": "خط العرض",
+      "longitude": "خط الطول",
+      "lastUpdate": "آخر تحديث",
+      "twoFactorAuth": "المصادقة الثنائية",
+      "enabled": "مفعّلة",
+      "disabled": "معطلة",
+      "accountProtected": "حسابك محمي",
+      "using": "باستخدام",
+      "emailMethod": "البريد الإلكتروني",
+      "authenticatorApp": "تطبيق المصادقة",
+      "disabling": "جاري التعطيل...",
+      "disableMFA": "تعطيل المصادقة الثنائية",
+      "enableMFA": "تفعيل المصادقة الثنائية",
+      "enableMFADesc": "حماية حسابك مهمة خاصة لأنك تتعامل مع طلبات العملاء",
+      "activeSessions": "الجلسات النشطة",
+      "manageSessions": "إدارة جلساتك النشطة",
+      "viewAll": "عرض الكل",
+      "sessionCount": "لديك {{count}} جلسة نشطة",
+      "revokeOther": "تسجيل الخروج من الأجهزة الأخرى",
+      "revokeConfirm": "تسجيل الخروج من جميع الأجهزة الأخرى؟",
+      "revokeSuccess": "تم تسجيل الخروج من جميع الأجهزة",
+      "revokeFailed": "فشل تسجيل الخروج",
+      "recentActivity": "النشاط الأخير",
+      "loading": "جاري التحميل...",
+      "noActivity": "لا يوجد نشاط",
+      "disableMFAConfirm": "هل أنت متأكد من تعطيل المصادقة الثنائية؟",
+      "mfaDisabled": "تم تعطيل المصادقة الثنائية",
+      "mfaDisableFailed": "فشل تعطيل المصادقة الثنائية"
+    },
+    "pricing": {
+      "title": "تسعير التوصيل",
+      "subtitle": "حدد أسعار التوصيل بناءً على المسافة والوقت",
+      "basePricing": "التسعير الأساسي",
+      "basePrice": "السعر الأساسي (درهم)",
+      "basePriceDesc": "رسوم ثابتة لكل توصيلة",
+      "pricePerKm": "السعر لكل كيلومتر (درهم)",
+      "pricePerKmDesc": "رسوم إضافية لكل كيلومتر",
+      "minPrice": "الحد الأدنى للسعر (درهم)",
+      "maxPrice": "الحد الأقصى للسعر (درهم)",
+      "maxDistance": "أقصى مسافة (كم)",
+      "rushHour": "تسعير ساعة الذروة",
+      "multiplier": "المضاعف",
+      "rushHourDesc": "مثال: 1.5x = 50% أكثر",
+      "startTime": "وقت البدء",
+      "endTime": "وقت الانتهاء",
+      "evening": "تسعير المساء/الليل",
+      "save": "حفظ إعدادات التسعير",
+      "saving": "جاري الحفظ...",
+      "saveSuccess": "تم حفظ إعدادات التسعير!",
+      "saveFailed": "فشل حفظ التسعير",
+      "calculator": "حاسبة الأسعار",
+      "distance": "المسافة (كم)",
+      "deliveryTime": "وقت التوصيل",
+      "calculate": "حساب السعر",
+      "priceBreakdown": "تفصيل السعر",
+      "base": "السعر الأساسي",
+      "distanceLabel": "المسافة",
+      "timeMultiplier": "مضاعف الوقت",
+      "total": "الإجمالي",
+      "howPricingWorks": "كيف يعمل التسعير:",
+      "rule1": "السعر الأساسي + (المسافة × السعر/كم)",
+      "rule2": "ساعة الذروة: أسعار أعلى أثناء الأوقات المزدحمة",
+      "rule3": "المساء: رسوم إضافية لتوصيلات الليل",
+      "rule4": "الحد الأدنى/الأقصى يضمن تسعيراً عادلاً"
+    },
+    "deliveryPickup": {
+      "title": "استلام الطلب",
+      "pickupLocation": "موقع الاستلام",
+      "vendor": "البائع",
+      "callVendor": "اتصل بالبائع",
+      "orderDetails": "تفاصيل الطلب",
+      "orderNumber": "رقم الطلب",
+      "totalValue": "القيمة الإجمالية",
+      "deliverTo": "التسليم إلى",
+      "confirmPickup": "تأكيد الاستلام",
+      "pickupSuccess": "تم تحديد الطلب كمستلم!",
+      "pickupFailed": "فشل تحديث الحالة",
+      "loadFailed": "فشل تحميل التوصيلة"
+    },
+    "deliveryComplete": {
+      "title": "إكمال التوصيل",
+      "deliveryLocation": "موقع التسليم",
+      "callBuyer": "اتصل بالمشتري",
+      "deliveryProof": "إثبات التوصيل",
+      "proofRequired": "مطلوب",
+      "uploading": "جاري الرفع...",
+      "proofUploaded": "تم رفع الإثبات!",
+      "takePhoto": "انقر لالتقاط صورة (مطلوب)",
+      "photoSizeError": "يجب أن يكون حجم الصورة أقل من 10 ميجابايت",
+      "uploadFailed": "فشل رفع الإثبات",
+      "proofMandatory": "صورة إثبات التوصيل إلزامية. يرجى التقاط صورة قبل إكمال التوصيل.",
+      "completeDelivery": "إكمال التوصيل",
+      "completeSuccess": "تم إكمال التوصيل بنجاح!",
+      "completeFailed": "فشل إكمال التوصيل",
+      "loadFailed": "فشل تحميل التوصيلة"
+    },
+    "tracking": {
+      "liveMap": "خريطة التوصيل الحية"
+    }
+  },
+  "buyer": {
+    "orders": {
+      "title": "طلباتي",
+      "ordersTotal": "{{count}} طلب(طلبات) إجمالي",
+      "product": "منتج",
+      "status": {
+        "pending": "قيد الانتظار",
+        "vendor_accepted": "قبله البائع",
+        "vendor_rejected": "رفضه البائع",
+        "driver_assigned": "تم تعيين سائق",
+        "driver_accepted": "قبل السائق",
+        "driver_picked_up": "تم الاستلام",
+        "on_the_way": "في الطريق",
+        "delivered": "تم التسليم",
+        "cancelled": "ملغي"
+      },
+      "time": {
+        "justNow": "الآن",
+        "minutesAgo": "د",
+        "hoursAgo": "س",
+        "daysAgo": "ي"
+      },
+      "filters": {
+        "all": "جميع الطلبات",
+        "active": "قيد التنفيذ",
+        "delivered": "مكتملة",
+        "cancelled": "ملغية",
+        "dateRange": "نطاق التاريخ",
+        "from": "من",
+        "to": "إلى",
+        "priceRange": "نطاق السعر (درهم)",
+        "min": "الحد الأدنى",
+        "max": "الحد الأقصى",
+        "paymentStatus": "حالة الدفع"
+      },
+      "paymentStatus": {
+        "all": "جميع المدفوعات",
+        "paid": "مدفوع",
+        "pending": "قيد الانتظار",
+        "cod": "الدفع عند الاستلام"
+      },
+      "orderCard": {
+        "progress": "{{progress}}%",
+        "copyOrderNumber": "انقر للنسخ",
+        "more": "أكثر",
+        "details": "التفاصيل",
+        "invoice": "الفاتورة",
+        "reorder": "إعادة الطلب",
+        "track": "تتبع",
+        "review": "تقييم",
+        "return": "إرجاع",
+        "contactSupport": "تواصل مع الدعم"
+      },
+      "reviewModal": {
+        "title": "قيّم تجربتك",
+        "question": "كيف كان طلبك {{orderNumber}} من {{vendor}}؟",
+        "star": "نجمة",
+        "commentPlaceholder": "شارك تجربتك (اختياري)...",
+        "cancel": "إلغاء",
+        "submitting": "جاري الإرسال...",
+        "submit": "إرسال التقييم",
+        "error": "يرجى اختيار تقييم",
+        "failed": "فشل إرسال التقييم"
+      },
+      "returnModal": {
+        "title": "طلب إرجاع",
+        "description": "يجب طلب الإرجاع خلال 24 ساعة من التوصيل.",
+        "reasonLabel": "سبب الإرجاع",
+        "reasonPlaceholder": "صف المشكلة في طلبك...",
+        "cancel": "إلغاء",
+        "submitting": "جاري الإرسال...",
+        "submit": "إرسال الإرجاع",
+        "error": "يرجى تقديم سبب للإرجاع",
+        "submitted": "تم إرسال طلب الإرجاع بنجاح",
+        "failed": "فشل إرسال طلب الإرجاع"
+      },
+      "notifications": {
+        "orderNumberCopied": "تم نسخ رقم الطلب!",
+        "failedToCopy": "فشل النسخ",
+        "loadFailed": "فشل تحميل الطلبات",
+        "reorderNoItems": "هذا الطلب لا يحتوي على عناصر لإعادة الطلب",
+        "reorderSuccess": "تمت إضافة {{count}} عنصر(عناصر) إلى السلة",
+        "reorderFailed": "تعذرت إضافة العناصر (قد تكون غير متوفرة)",
+        "reviewSubmitted": "تم إرسال التقييم بنجاح!",
+        "invoiceDownloaded": "تم تحميل الفاتورة!",
+        "invoiceFailed": "فشل تحميل الفاتورة"
+      },
+      "emptyState": {
+        "noOrdersYet": "لا توجد طلبات بعد",
+        "browseMarketplace": "تصفح السوق لوضع أول طلب لك",
+        "startShopping": "ابدأ التسوق",
+        "noMatch": "لا توجد طلبات مطابقة",
+        "tryAdjusting": "حاول تعديل معايير البحث أو التصفية"
+      },
+      "searchPlaceholder": "البحث برقم الطلب أو البائع أو المنتج...",
+      "advancedFilters": "فلاتر",
+      "clearFilters": "مسح الكل",
+      "orderCount": "عرض {{count}} طلب(طلبات)",
+      "liveDeliveryTracking": "تتبع التوصيل المباشر",
+      "orderOnTheWay": "الطلب {{orderNumber}} في الطريق!",
+      "trackLive": "تتبع مباشر",
+      "track": "تتبع",
+      "callDriver": "اتصل بالسائق",
+      "selectionCount": "طلب(طلبات) محددة",
+      "clearSelection": "مسح التحديد",
+      "selectAll": "تحديد الكل",
+      "loadMore": "تحميل المزيد من الطلبات",
+      "showingCount": "عرض {{shown}} من {{total}} طلب(طلبات)"
+    },
+    "coupons": {
+      "title": "قسائمي",
+      "subtitle": "{{count}} قسيمة(قسائم) متاحة",
+      "subtitle_one": "قسيمة واحدة متاحة",
+      "availableSection": "القسائم المتاحة",
+      "expiredSection": "منتهية ومُستخدمة",
+      "emptyTitle": "لا توجد قسائم متاحة",
+      "emptyDesc": "تصفح المتاجر للعثور على قسائم وعروض متاحة",
+      "browseMarketplace": "تصفح السوق",
+      "vendorFallback": "قطوف",
+      "titleFallback": "عرض خاص",
+      "minLabel": "الحد الأدنى",
+      "usedLabel": "مُستخدمة",
+      "copyAriaLabel": "نسخ رمز القسيمة",
+      "notifications": {
+        "loadFailed": "فشل تحميل القسائم",
+        "copied": "تم نسخ رمز القسيمة!",
+        "copyFailed": "فشل النسخ"
+      }
+    },
+    "returns": {
+      "title": "طلبات الإرجاع",
+      "subtitle": "{{count}} إرجاع(إرجاعات)",
+      "subtitle_one": "إرجاع واحد",
+      "emptyTitle": "لا توجد طلبات إرجاع",
+      "emptyDesc": "لم تطلب أي إرجاعات بعد",
+      "viewOrders": "عرض الطلبات",
+      "returnLabel": "إرجاع",
+      "orderLabel": "الطلب",
+      "requestedLabel": "مطلوب",
+      "refundedLabel": "مُسترد",
+      "adminResponse": "رد الدعم:",
+      "status": {
+        "pending": "قيد المراجعة",
+        "approved": "موافق عليه",
+        "rejected": "مرفوض",
+        "refunded": "مُسترد"
+      }
+    },
+    "loyalty": {
+      "title": "برنامج الولاء",
+      "subtitle": "اكسب نقاطاً مع كل عملية شراء",
+      "pointsBalance": "رصيد نقاطك",
+      "lifetimeSpent": "إجمالي الإنفاق",
+      "tierMember": "عضو {{tier}}",
+      "pointsToNext": "{{points}} / {{nextMin}} نقطة إلى {{nextTier}}",
+      "currentBadge": "الحالي",
+      "historyTitle": "سجل النقاط",
+      "emptyHistory": "لم تكسب نقاطاً بعد. ابدأ التسوق لكسب نقاط الولاء!",
+      "pointsEarned": "نقاط مكتسبة",
+      "tiers": {
+        "bronze": "برونزي",
+        "silver": "فضي",
+        "gold": "ذهبي",
+        "platinum": "بلاتيني"
+      }
+    },
+    "reports": {
+      "title": "تقارير الإنفاق",
+      "subtitle": "تحليلات ورؤى مشترياتك",
+      "emptyTitle": "لا توجد بيانات بعد",
+      "emptyDesc": "قدم بعض الطلبات لرؤية تحليلات إنفاقك",
+      "totalOrders": "إجمالي الطلبات",
+      "totalSpent": "إجمالي الإنفاق",
+      "avgOrder": "متوسط الطلب",
+      "delivered": "تم تسليمها",
+      "monthlySpending": "الإنفاق الشهري",
+      "topVendors": "أفضل البائعين بالإنفاق",
+      "vendorLabel": "بائع"
+    },
+    "shoppingLists": {
+      "title": "قوائم التسوق",
+      "subtitle": "احفظ وأعد استخدام طلباتك المفضلة",
+      "newList": "قائمة جديدة",
+      "placeholder": "مثال: خضروات أسبوعية",
+      "emptyTitle": "لا توجد قوائم تسوق",
+      "emptyDesc": "أنشئ قوائم للطلبات المتكررة لتوفير الوقت",
+      "createFirst": "أنشئ أول قائمة لك",
+      "itemCount": "{{count}} عنصر(عناصر)",
+      "itemCount_one": "عنصر واحد",
+      "updatedLabel": "تم التحديث",
+      "moreLabel": "أكثر",
+      "estLabel": "تقديري",
+      "addAllToCart": "إضافة الكل إلى السلة",
+      "productFallback": "منتج",
+      "notifications": {
+        "nameRequired": "يرجى إدخال اسم القائمة",
+        "listCreated": "تم إنشاء القائمة",
+        "createFailed": "فشل إنشاء القائمة",
+        "listDeleted": "تم حذف القائمة",
+        "deleteFailed": "فشل حذف القائمة",
+        "itemsAdded": "تمت إضافة {{count}} عنصر(عناصر) إلى السلة"
+      }
+    }
+  },
+  "returnRequest": {
+    "title": "طلب إرجاع",
+    "policy": {
+      "title": "سياسة الإرجاع",
+      "rule1": "يمكنك طلب الإرجاع خلال {{hours}} ساعة من استلام الطلب",
+      "rule2": "يجب أن يكون المنتج في حالته الأصلية",
+      "rule3": "سيتم مراجعة الطلب من قبل البائع خلال 24 ساعة",
+      "rule4": "يتم استرداد المبلغ خلال 3-5 أيام عمل بعد الموافقة",
+      "rule5": "لا يمكن تقديم أكثر من طلب إرجاع لنفس الطلب"
+    },
+    "step1": {
+      "title": "الخطوة 1: اختر الطلب",
+      "noOrders": "لا توجد طلبات مؤهلة للإرجاع",
+      "noOrdersHint": "يجب أن يكون الطلب في حالة \"تم التسليم\" وخلال {{hours}} ساعة",
+      "store": "متجر",
+      "itemCount": "{{count}} منتج",
+      "itemCount_one": "منتج واحد",
+      "hoursRemaining": "متبقي {{hours}} ساعة",
+      "expiringToday": "ينتهي اليوم"
+    },
+    "step2": {
+      "title": "الخطوة 2: اختر المنتجات المراد إرجاعها",
+      "product": "منتج",
+      "quantity": "الكمية: {{qty}} {{unit}}"
+    },
+    "step3": {
+      "title": "الخطوة 3: سبب الإرجاع",
+      "descriptionLabel": "وصف إضافي (اختياري)",
+      "descriptionPlaceholder": "اشرح المشكلة بمزيد من التفاصيل...",
+      "charCount": "{{count}}/1000"
+    },
+    "step4": {
+      "title": "الخطوة 4: صور المنتج (اختياري — حد أقصى {{max}} صور، {{size}}MB لكل صورة)",
+      "imageAlt": "صورة إرجاع {{index}}"
+    },
+    "existingReturn": {
+      "title": "طلب إرجاع موجود",
+      "message": "يوجد طلب إرجاع سابق لهذا الطلب بحالة {{status}}.",
+      "pending": " يرجى الانتظار حتى يتم مراجعته.",
+      "approved": " تمت الموافقة على الطلب وسيتم استرداد المبلغ.",
+      "rejected": " تم رفض الطلب. يمكنك التواصل مع الدعم."
+    },
+    "reasons": {
+      "damaged": "منتج تالف",
+      "wrong_item": "منتج خاطئ",
+      "poor_quality": "جودة سيئة",
+      "not_as_described": "لا يطابق الوصف",
+      "late_delivery": "تأخر في التوصيل",
+      "other": "سبب آخر"
+    },
+    "submit": {
+      "submitting": "جاري الإرسال...",
+      "send": "إرسال طلب الإرجاع"
+    },
+    "success": {
+      "submitted": "تم إرسال طلب الإرجاع بنجاح"
+    },
+    "errors": {
+      "loadOrders": "حدث خطأ أثناء تحميل الطلبات",
+      "unsupportedFileType": "نوع الملف غير مدعوم: {{name}}. الأنواع المدعومة: JPEG, PNG, WebP, GIF",
+      "fileTooLarge": "حجم الملف كبير جداً: {{name}}. الحد الأقصى: 5MB",
+      "maxImages": "يمكنك رفع {{max}} صور كحد أقصى ({{remaining}} متبقية)",
+      "selectOrder": "الرجاء اختيار طلب",
+      "existingReturn": "يوجد طلب إرجاع سابق لهذا الطلب (الحالة: {{status}})",
+      "selectItems": "الرجاء اختيار منتج واحد على الأقل",
+      "selectReason": "الرجاء اختيار سبب الإرجاع",
+      "uploadFailed": "فشل رفع الصورة: {{name}}",
+      "submitFailed": "حدث خطأ أثناء إرسال طلب الإرجاع"
+    }
+  },
+  "privacySettings": {
+    "title": "إعدادات الخصوصية",
+    "subtitle": "أدر بياناتك وتفضيلات الخصوصية الخاصة بك",
+    "yourData": "بياناتك",
+    "viewMyData": "عرض بياناتي",
+    "exportMyData": "تصدير بياناتي (JSON)",
+    "communicationPreferences": "تفضيلات التواصل",
+    "emailNotifications": "إشعارات البريد الإلكتروني",
+    "emailNotificationsDesc": "استلم تأكيدات الطلبات والتحديثات",
+    "orderUpdates": "تحديثات الطلبات",
+    "orderUpdatesDesc": "احصل على إشعارات بتغييرات حالة الطلب",
+    "marketingEmails": "رسائل التسويق",
+    "marketingEmailsDesc": "استلم العروض والأخبار الترويجية",
+    "dataSharing": "مشاركة البيانات",
+    "dataSharingDesc": "السماح بتحليلات الاستخدام المجهولة",
+    "saving": "جاري الحفظ...",
+    "savePreferences": "حفظ التفضيلات",
+    "cookieSettings": "إعدادات ملفات تعريف الارتباط",
+    "cookieSettingsDesc": "يمكنك إدارة تفضيلات ملفات تعريف الارتباط في أي وقت باستخدام شريط الإشعارات أسفل الصفحة.",
+    "resetCookieConsent": "إعادة تعيين موافقة ملفات تعريف الارتباط",
+    "deleteAccount": "حذف الحساب",
+    "deleteAccountDesc": "احذف حسابك وجميع البيانات المرتبطة به نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+    "deleteWarning1": "سيتم حذف جميع بياناتك الشخصية",
+    "deleteWarning2": "سيتم إخفاء هوية طلباتك",
+    "deleteWarning3": "سيتم حذف مفضلاتك",
+    "deleteWarning4": "سيتم إنهاء جميع الجلسات النشطة",
+    "deleteMyAccount": "حذف حسابي",
+    "gdprRights": "حقوقك بموجب اللائحة العامة لحماية البيانات",
+    "gdprRight1": "حق الوصول إلى بياناتك الشخصية",
+    "gdprRight2": "حق التصحيح (التعديل)",
+    "gdprRight3": "حق الحذف (المسح)",
+    "gdprRight4": "حق نقل البيانات (التصدير)",
+    "gdprRight5": "حق الاعتراض على المعالجة",
+    "gdprRight6": "حق سحب الموافقة",
+    "gdprContact": "لممارسة أي من هذه الحقوق، تواصل معنا على Qotoof273@gmail.com",
+    "deleteAccountQuestion": "حذف حسابك؟",
+    "permanently": "نهائياً",
+    "deleteAccountWarning1": "سيتم",
+    "deleteAccountWarning2": "حذف حسابك وجميع البيانات المرتبطة به. هذا الإجراء",
+    "cannotBeUndone": "لا يمكن التراجع عنه",
+    "confirmDeletion": "تأكيد الحذف",
+    "typeToDelete": "اكتب",
+    "toConfirm": "للتأكيد",
+    "typeDeletePlaceholder": "اكتب \"DELETE\" هنا",
+    "finalConfirmation": "التأكيد النهائي",
+    "aboutToDelete": "أنت على وشك حذف حسابك نهائياً",
+    "whatWillBeDeleted": "ما سيتم حذفه:",
+    "deleteItem1": "الملف الشخصي والبيانات الشخصية",
+    "deleteItem2": "سجل الطلبات (مجهول الهوية)",
+    "deleteItem3": "المفضلات والتفضيلات",
+    "deleteItem4": "الجلسات النشطة وإعدادات المصادقة الثنائية",
+    "deleteItem5": "الرسائل والمحادثات",
+    "deleting": "جاري الحذف...",
+    "deleteForever": "حذف نهائياً",
+    "dataExported": "تم تصدير البيانات بنجاح!",
+    "exportFailed": "فشل تصدير البيانات",
+    "loadDataFailed": "فشل تحميل البيانات",
+    "preferencesNotAvailable": "ستكون تفضيلات الخصوصية متاحة في التحديث القادم",
+    "preferencesSaved": "تم حفظ تفضيلات الخصوصية!",
+    "savePreferencesFailed": "فشل حفظ التفضيلات",
+    "cookieConsentReset": "تمت إعادة تعيين موافقة ملفات تعريف الارتباط. حدّث الصفحة لرؤية الشريط.",
+    "accountDeleted": "تم حذف حسابك نهائياً",
+    "deleteAccountFailed": "فشل حذف الحساب",
+    "typeDeleteConfirm": "الرجاء كتابة \"DELETE\" تماماً (بأحرف كبيرة) للتأكيد"
+  },
+  "unauthorized": {
+    "title": "تم رفض الوصول",
+    "description": "ليس لديك صلاحية للوصول إلى هذه الصفحة.",
+    "details": "تتطلب هذه المنطقة صلاحيات مختلفة أو دور مستخدم مختلف.",
+    "goBack": "الرجوع",
+    "backHome": "العودة للرئيسية",
+    "needHelp": "تحتاج مساعدة؟",
+    "helpText": "إذا كنت تعتقد أن هذا خطأ، يرجى",
+    "contactSupport": "التواصل مع الدعم"
+  },
+  "becomeVendor": {
+    "title": "كن بائعاً",
+    "subtitle": "ابدأ البيع على قطوف",
+    "success": "مرحباً! تم ترقية حسابك إلى بائع",
+    "submit": "كن بائعاً",
+    "benefits": {
+      "title": "مزايا البائع",
+      "unlimited": "قوائم منتجات غير محدودة",
+      "storePage": "صفحة متجر مخصصة",
+      "dashboard": "لوحة إدارة الطلبات",
+      "analytics": "تحليلات وتقارير المبيعات",
+      "communication": "تواصل مباشر مع العملاء"
+    },
+    "form": {
+      "storeName": "اسم المتجر",
+      "storeNamePlaceholder": "مثال: مزرعة عضوية طازجة",
+      "description": "وصف المتجر",
+      "descriptionPlaceholder": "أخبر العملاء عن عملك...",
+      "businessType": "نوع النشاط",
+      "selectType": "اختر النوع",
+      "types": {
+        "farmer": "مزارع",
+        "wholesaler": "تاجر جملة",
+        "retailer": "تاجر تجزئة",
+        "cooperative": "تعاونية"
+      },
+      "experience": "سنوات الخبرة",
+      "city": "المدينة",
+      "cityPlaceholder": "الدار البيضاء",
+      "phone": "الهاتف",
+      "phonePlaceholder": "+212 6XX XXX XXX"
+    },
+    "errors": {
+      "phoneRequired": "رقم الهاتف مطلوب",
+      "phoneInvalid": "أدخل رقم هاتف مغربي صحيح (+212 أو 06/07...)",
+      "storeNameShort": "يجب أن يكون اسم المتجر 3 أحرف على الأقل",
+      "storeNameLong": "يجب أن يكون اسم المتجر أقل من 100 حرف",
+      "descLong": "يجب أن يكون الوصف أقل من 2000 حرف",
+      "expInvalid": "يجب أن تكون الخبرة رقماً موجباً",
+      "expUnrealistic": "الخبرة تبدو غير واقعية (حد أقصى 80 سنة)",
+      "cityRequired": "المدينة مطلوبة",
+      "cityLong": "اسم المدينة طويل جداً",
+      "guidelinesRequired": "يرجى قبول إرشادات البائع للمتابعة",
+      "fixErrors": "يرجى تصحيح الأخطاء في النموذج",
+      "storeNameTaken": "اسم المتجر مستخدم بالفعل. يرجى اختيار اسم مختلف.",
+      "storeNameTakenShort": "اسم المتجر هذا مستخدم بالفعل",
+      "upgradeFailed": "فشل ترقية الحساب"
+    }
+  },
+  "helpCenter": {
+    "title": "مركز المساعدة",
+    "subtitle": "اعثر على إجابات أو تواصل مع الدعم",
+    "contact": {
+      "ticket": "تذكرة دعم",
+      "ticketDesc": "إرسال تذكرة",
+      "call": "اتصل بنا",
+      "email": "البريد الإلكتروني"
+    },
+    "ticketForm": {
+      "title": "إرسال تذكرة دعم",
+      "subject": "الموضوع",
+      "subjectPlaceholder": "وصف موجز لمشكلتك",
+      "description": "الوصف",
+      "descriptionPlaceholder": "صف مشكلتك بالتفصيل...",
+      "submit": "إرسال التذكرة",
+      "submitting": "جاري الإرسال..."
+    },
+    "faq": {
+      "title": "الأسئلة الشائعة"
+    },
+    "errors": {
+      "fillFields": "يرجى ملء جميع الحقول"
+    },
+    "ticketSuccess": "تم إرسال تذكرة الدعم! سنرد خلال 24 ساعة.",
+    "ticketError": "فشل إرسال التذكرة"
+  },
+  "productComparison": {
+    "title": "مقارنة المنتجات",
+    "selected": "{{count}}/4 منتجات محددة",
+    "addProduct": "إضافة منتج",
+    "searchPlaceholder": "ابحث عن منتجات للمقارنة...",
+    "empty": {
+      "title": "لا توجد منتجات للمقارنة",
+      "description": "ابحث وأضف منتجات لمقارنتها جنباً إلى جنب",
+      "browseMarketplace": "تصفح السوق"
+    },
+    "table": {
+      "price": "السعر",
+      "category": "الفئة",
+      "vendor": "البائع",
+      "location": "الموقع",
+      "minOrder": "الحد الأدنى",
+      "available": "متوفر",
+      "na": "غير متاح",
+      "unlimited": "غير محدود"
+    },
+    "errors": {
+      "maxProducts": "يمكن مقارنة 4 منتجات كحد أقصى",
+      "alreadyAdded": "المنتج موجود بالفعل في المقارنة",
+      "addFailed": "فشل إضافة المنتج",
+      "removeFailed": "فشل إزالة المنتج"
+    }
+  },
+  "messages": {
+    "inbox": {
+      "title": "الرسائل",
+      "conversationCount": "{{count}} محادثة",
+      "searchPlaceholder": "البحث في المحادثات...",
+      "empty": {
+        "title": "لا توجد رسائل بعد",
+        "description": "ابدأ محادثة مع بائع من صفحة متجره",
+        "browseStores": "تصفح المتاجر"
+      }
+    },
+    "conversation": {
+      "vendorLabel": "بائع",
+      "emptyText": "لا توجد رسائل بعد. ابدأ المحادثة!",
+      "typeMessage": "اكتب رسالة..."
+    },
+    "timeAgo": {
+      "now": "الآن",
+      "minutes": "د",
+      "hours": "س",
+      "days": "ي"
+    },
+    "errors": {
+      "loadFailed": "فشل تحميل الرسائل",
+      "loadConversation": "فشل تحميل المحادثة",
+      "sendFailed": "فشل إرسال الرسالة"
+    }
+  }
+  ,
+  "marketplaceFeatures": {
+    "common": {
+      "unknownOrder": "طلب غير معروف",
+      "unknownStore": "متجر غير معروف"
+    },
+    "commissionDashboard": {
+      "title": "لوحة عمولات 3%",
+      "refresh": "تحديث",
+      "statusLabels": {
+        "active": "نشط",
+        "pending": "بانتظار الدفع",
+        "overdue": "متأخر",
+        "paid": "مدفوع",
+        "frozen": "مجمّد"
+      },
+      "paymentMethods": {
+        "bankTransfer": "تحويل بنكي",
+        "cash": "إيداع نقدي",
+        "check": "شيك"
+      },
+      "errors": {
+        "loadSummary": "تعذر جلب ملخص عمولات الشهر الحالي",
+        "loadHistory": "تعذر جلب سجل العمولات",
+        "loadData": "حدث خطأ أثناء تحميل بيانات العمولات",
+        "noOpenInvoice": "لا يوجد ملف عمولة مفتوح لإرسال إشعار الدفع",
+        "paymentReferenceRequired": "مرجع العملية مطلوب لإرسال الإشعار",
+        "submitNotice": "فشل إرسال إشعار الدفع",
+        "sendNotice": "تعذر إرسال إشعار الدفع"
+      },
+      "success": {
+        "noticeSent": "تم إرسال إشعار الدفع عن {{monthLabel}}"
+      },
+      "banners": {
+        "overdueTitle": "يوجد ملف عمولة متأخر ويتطلب معالجة فورية",
+        "openTitle": "يوجد ملف عمولة مفتوح بانتظار التسوية",
+        "period": "الفترة",
+        "currentDue": "المستحق الحالي",
+        "dueDate": "آخر موعد",
+        "lastReportedReference": "آخر مرجع مبلّغ",
+        "notifyAdmin": "إبلاغ الإدارة بالدفع",
+        "noPendingTitle": "لا توجد عليك عمولة معلّقة حالياً",
+        "lastPaidPeriod": "آخر فترة مسددة",
+        "settledAt": "تمت التسوية في",
+        "counterTitle": "عداد العمولة لهذا الشهر يعمل بشكل طبيعي",
+        "counterDescription": "يتم احتساب 3% فقط عند تسجيل عملية بيع مؤكدة عبر زر \"تم استلام الدفع\"، ثم يُغلق الشهر تلقائياً مع إنشاء الاستحقاق عند نهاية الشهر."
+      },
+      "cards": {
+        "totalSales": "إجمالي المبيعات",
+        "thisMonth": "الشهر الحالي",
+        "accumulatedCommission": "عمولة 3% المتراكمة",
+        "balanceDue": "الرصيد الواجب تسويته",
+        "accountStatus": "حالة الحساب",
+        "noOpenDue": "لا يوجد استحقاق مفتوح حالياً"
+      },
+      "chips": {
+        "status": "الحالة",
+        "undefinedStatus": "غير محددة",
+        "paymentDue": "موعد الدفع",
+        "remainingDays": "الأيام المتبقية"
+      },
+      "currentTransactions": {
+        "title": "معاملات الشهر الحالي",
+        "count": "{{count}} عملية",
+        "order": "الطلب",
+        "date": "التاريخ",
+        "saleValue": "قيمة البيع",
+        "commission": "العمولة",
+        "noTransactions": "لا توجد معاملات مؤكدة بعد"
+      },
+      "previousMonths": {
+        "title": "الفترات السابقة",
+        "subtitle": "ملفات الأشهر المغلقة وسجل التسوية",
+        "period": "الفترة",
+        "sales": "المبيعات",
+        "due": "المستحق",
+        "paid": "المدفوع",
+        "action": "الإجراء",
+        "sendPaymentNotice": "إرسال إشعار الدفع",
+        "noAction": "لا يوجد إجراء",
+        "noHistory": "لا يوجد سجل لفترات سابقة"
+      },
+      "modal": {
+        "title": "إشعار دفع العمولة",
+        "openPeriod": "الفترة المفتوحة",
+        "paymentMethod": "طريقة الدفع",
+        "paymentReference": "مرجع العملية",
+        "paymentReferencePlaceholder": "أدخل رقم الحوالة أو مرجع الإيداع",
+        "paymentNote": "ملاحظة إضافية",
+        "paymentNotePlaceholder": "أضف ملاحظة اختيارية للإدارة",
+        "hint": "سيصل هذا الإشعار إلى الإدارة مع طريقة الدفع والمرجع الذي أدخلته.",
+        "cancel": "إلغاء",
+        "submitting": "جارٍ الإرسال...",
+        "submit": "إرسال الإشعار"
+      }
+    },
+    "commissionManagement": {
+      "title": "إدارة العمولات",
+      "subtitle": "متابعة ملفات عمولات الباعة وتأكيدها وإعادة تفعيل الحسابات عند الحاجة",
+      "searchPlaceholder": "ابحث بالمتجر أو البريد أو المدينة",
+      "refresh": "تحديث",
+      "exporting": "جارٍ التصدير...",
+      "exportCsv": "تصدير CSV",
+      "statusLabels": {
+        "active": "نشط",
+        "pending": "بانتظار الدفع",
+        "overdue": "متأخر",
+        "paid": "مدفوع",
+        "frozen": "مجمّد"
+      },
+      "paymentMethods": {
+        "bankTransfer": "تحويل بنكي",
+        "cash": "نقداً",
+        "check": "شيك"
+      },
+      "filters": {
+        "allStatuses": "كل الحالات",
+        "allPeriods": "كل الفترات",
+        "allCities": "كل المدن"
+      },
+      "summary": {
+        "needsAttention": "ملفات تحتاج متابعة",
+        "totalUnpaid": "إجمالي غير مسدد",
+        "frozenAccounts": "الحسابات المجمدة",
+        "actualOverdue": "المتأخر فعلياً",
+        "totalPaid": "إجمالي المدفوع"
+      },
+      "table": {
+        "vendor": "البائع",
+        "city": "المدينة",
+        "period": "الفترة",
+        "sales": "المبيعات",
+        "due": "المستحق",
+        "paid": "المدفوع",
+        "status": "الحالة",
+        "paymentReference": "مرجع الدفع",
+        "account": "الحساب",
+        "dueDate": "الاستحقاق",
+        "action": "الإجراء",
+        "noEmail": "بدون بريد",
+        "notDeclared": "غير مصرّح به",
+        "confirmPayment": "تأكيد الدفع",
+        "noPendingPayment": "لا يوجد دفع معلّق",
+        "unfreeze": "رفع التجميد",
+        "noResults": "لا توجد نتائج مطابقة"
+      },
+      "paymentModal": {
+        "title": "تأكيد دفع العمولة",
+        "description": "تأكيد استلام دفعة {{period}} الخاصة بالمتجر {{vendor}}",
+        "amount": "المبلغ",
+        "method": "طريقة الدفع",
+        "reference": "مرجع العملية",
+        "referencePlaceholder": "أدخل المرجع البنكي أو رقم الإيصال",
+        "confirm": "تأكيد الدفع"
+      },
+      "unfreezeModal": {
+        "title": "رفع التجميد مؤقتاً",
+        "description": "سيتم رفع التجميد مؤقتاً عن {{vendor}} مع تمديد مهلة ملف {{period}}",
+        "internalNote": "ملاحظة داخلية",
+        "notePlaceholder": "اشرح سبب رفع التجميد المؤقت",
+        "processing": "جارٍ المعالجة...",
+        "confirm": "رفع التجميد"
+      },
+      "common": {
+        "cancel": "إلغاء",
+        "saving": "جارٍ الحفظ..."
+      },
+      "errors": {
+        "loadFailed": "فشل تحميل بيانات العمولات",
+        "paymentReferenceRequired": "المرجع المالي مطلوب",
+        "confirmPaymentFailed": "فشل تأكيد دفع العمولة",
+        "confirmPaymentAction": "حدث خطأ أثناء تأكيد الدفع",
+        "unfreezeNoteRequired": "يجب كتابة ملاحظة داخلية قبل رفع التجميد",
+        "unfreezeFailed": "فشل رفع التجميد",
+        "unfreezeAction": "تعذر رفع التجميد يدوياً",
+        "exportFailed": "تعذر تصدير الملف"
+      },
+      "success": {
+        "paymentConfirmed": "تم تأكيد الدفع وتفعيل حساب البائع بنجاح",
+        "unfrozenUntil": "تم رفع التجميد مؤقتاً حتى {{date}}",
+        "exported": "تم تصدير الملف بنجاح"
+      }
+    },
+    "findDriver": {
+      "defaultMessage": "مرحباً {{name}}، أرغب في ربط متجري معك كسائق مفضل للطلبات القادمة.",
+      "title": "البحث عن سائق",
+      "subtitle": "ابحث عن السائق المناسب لمدينتك أو لنوع المركبة المطلوبة، ثم أرسل طلب شراكة مباشر.",
+      "noResults": "لا يوجد سائقون مطابقون لهذه الفلاتر",
+      "actions": {
+        "editPreferences": "تعديل التفضيلات",
+        "dashboard": "لوحة التحكم"
+      },
+      "filters": {
+        "freeSearch": "بحث حر",
+        "searchPlaceholder": "ابحث بالاسم أو المدينة أو نوع المركبة",
+        "city": "المدينة",
+        "cityPlaceholder": "مثال: الدار البيضاء",
+        "vehicleType": "نوع المركبة",
+        "allTypes": "كل الأنواع",
+        "minRating": "أقل تقييم",
+        "noLimit": "بدون حد أدنى",
+        "availableOnly": "المتاحون فقط"
+      },
+      "requestStatus": {
+        "pending": "طلب معلّق",
+        "accepted": "تمت الشراكة",
+        "incoming": "طلب وارد"
+      },
+      "card": {
+        "unknownDriver": "سائق بدون اسم",
+        "unknownCity": "مدينة غير محددة",
+        "available": "متاح",
+        "unavailable": "غير متاح",
+        "vehicleUnspecified": "وسيلة غير محددة",
+        "noPlate": "بدون لوحة مدخلة",
+        "ratingOutOfFive": "{{rating}} من 5",
+        "completedDeliveries": "عمليات التوصيل المكتملة: {{count}}",
+        "currentPreferred": "السائق المفضل الحالي",
+        "alreadyLinked": "تم ربط الشراكة بالفعل",
+        "incomingRequest": "لديك طلب وارد منه",
+        "pendingRequest": "الطلب قيد الانتظار",
+        "sendRequest": "إرسال طلب شراكة"
+      },
+      "common": {
+        "cancel": "إلغاء",
+        "sending": "جارٍ الإرسال..."
+      },
+      "errors": {
+        "loadFailed": "تعذر تحميل قائمة السائقين",
+        "sendFailed": "تعذر إرسال طلب الشراكة"
+      },
+      "success": {
+        "alreadyLinked": "هذا السائق مرتبط بك بالفعل",
+        "reversePending": "يوجد طلب وارد من هذا السائق بالفعل. افتح الطلبات الواردة للرد عليه.",
+        "alreadyPending": "تم إرسال الطلب مسبقاً وهو بانتظار الرد.",
+        "sent": "تم إرسال طلب الشراكة إلى السائق"
+      },
+      "modal": {
+        "title": "إرسال طلب شراكة",
+        "description": "أرسل رسالة تمهيدية إلى {{driver}} {{city}}",
+        "selectedDriver": "السائق المحدد",
+        "inCity": "في {{city}}",
+        "message": "رسالة الطلب",
+        "messagePlaceholder": "اكتب رسالة موجزة وواضحة لطلب الشراكة",
+        "send": "إرسال الطلب"
+      }
+    },
+    "findVendor": {
+      "defaultMessage": "مرحباً {{store}}، أرغب في التعاون معكم كسائق مفضل لطلباتكم القادمة.",
+      "title": "البحث عن بائع",
+      "subtitle": "ابحث عن متاجر تحتاج إلى سائق مفضل، ثم أرسل لها طلب شراكة مباشر.",
+      "noResults": "لا يوجد بائعون مطابقون لهذه الفلاتر",
+      "actions": {
+        "editPreferences": "تعديل التفضيلات",
+        "dashboard": "لوحة التحكم"
+      },
+      "filters": {
+        "freeSearch": "بحث حر",
+        "searchPlaceholder": "ابحث باسم المتجر أو المدينة أو الفئة",
+        "city": "المدينة",
+        "cityPlaceholder": "مثال: الرباط",
+        "category": "الفئة",
+        "categoryPlaceholder": "مثال: خضروات",
+        "minRating": "أقل تقييم",
+        "noLimit": "بدون حد أدنى",
+        "lookingOnly": "المتاجر الباحثة عن سائق فقط"
+      },
+      "requestStatus": {
+        "pending": "طلب معلّق",
+        "accepted": "تمت الشراكة",
+        "incoming": "طلب وارد"
+      },
+      "card": {
+        "unknownVendor": "بائع بدون اسم",
+        "unknownCity": "مدينة غير محددة",
+        "hasDriver": "لديه سائق خاص",
+        "lookingForDriver": "يبحث عن سائق",
+        "notSpecified": "غير محددة",
+        "ratingOutOfFive": "{{rating}} من 5",
+        "weeklyOrders": "الطلبات الأسبوعية: {{count}}",
+        "noCategories": "لا توجد فئات معلنة",
+        "currentPreferred": "البائع المفضل الحالي",
+        "alreadyLinked": "تم ربط الشراكة بالفعل",
+        "incomingRequest": "لديك طلب وارد منه",
+        "pendingRequest": "الطلب قيد الانتظار",
+        "sendRequest": "إرسال طلب شراكة"
+      },
+      "common": {
+        "cancel": "إلغاء",
+        "sending": "جارٍ الإرسال..."
+      },
+      "errors": {
+        "loadFailed": "تعذر تحميل قائمة البائعين",
+        "sendFailed": "تعذر إرسال طلب الشراكة"
+      },
+      "success": {
+        "alreadyLinked": "هذا البائع مرتبط بك بالفعل",
+        "reversePending": "يوجد طلب وارد من هذا البائع بالفعل. افتح الطلبات الواردة للرد عليه.",
+        "alreadyPending": "تم إرسال الطلب مسبقاً وهو بانتظار الرد.",
+        "sent": "تم إرسال طلب الشراكة إلى البائع"
+      },
+      "modal": {
+        "title": "إرسال طلب شراكة",
+        "description": "أرسل رسالة تمهيدية إلى {{vendor}} {{city}}",
+        "selectedVendor": "البائع المحدد",
+        "inCity": "في {{city}}",
+        "message": "رسالة الطلب",
+        "messagePlaceholder": "اكتب رسالة موجزة وواضحة لطلب الشراكة",
+        "send": "إرسال الطلب"
+      }
+    },
+    "partnershipRequests": {
+      "common": {
+        "user": "مستخدم",
+        "refresh": "تحديث",
+        "noMessage": "لا توجد رسالة مرفقة."
+      },
+      "status": {
+        "pending": "بانتظار الرد",
+        "accepted": "مقبول",
+        "rejected": "مرفوض",
+        "cancelled": "ملغي"
+      },
+      "success": {
+        "accepted": "تم قبول طلب الشراكة",
+        "rejected": "تم رفض طلب الشراكة",
+        "cancelled": "تم إلغاء الطلب المرسل"
+      },
+      "errors": {
+        "loadFailed": "تعذر تحميل طلبات الشراكة",
+        "respondFailed": "حدث خطأ أثناء معالجة الطلب",
+        "cancelFailed": "تعذر إلغاء الطلب"
+      },
+      "incoming": {
+        "title": "الطلبات الواردة",
+        "subtitle": "طلبات الشراكة التي تحتاج إلى ردك.",
+        "pendingBadge": "{{count}} بانتظار الرد",
+        "empty": "لا توجد طلبات واردة حالياً.",
+        "updatedAt": "تم تحديث الحالة في {{date}}"
+      },
+      "outgoing": {
+        "title": "الطلبات الصادرة",
+        "subtitle": "تابع حالة الطلبات التي أرسلتها.",
+        "empty": "لم ترسل أي طلبات شراكة بعد.",
+        "to": "إلى",
+        "lastUpdate": "آخر تحديث: {{date}}"
+      },
+      "roles": {
+        "vendor": "بائع",
+        "driver": "سائق"
+      },
+      "actions": {
+        "accept": "قبول",
+        "reject": "رفض",
+        "cancel": "إلغاء"
+      }
+    },
+    "orderDetailTracking": {
+      "errors": {
+        "actionNotAllowed": "لا يمكنك تنفيذ هذا الإجراء على هذا الطلب",
+        "saleAmountMissing": "تعذر تحديد مبلغ البيع المؤكد لهذا الطلب",
+        "commissionRegistrationFailed": "فشل تسجيل البيع ضمن نظام العمولات",
+        "confirmPaymentFailed": "تعذر تأكيد استلام الدفع",
+        "startNotAllowed": "لا يمكنك بدء البث الحي لهذا الطلب",
+        "liveLocationUpdateFailed": "فشل تحديث الموقع الحي",
+        "startTrackingFailed": "تعذر بدء البث الحي",
+        "stopTrackingFailed": "تعذر إيقاف البث الحي"
+      },
+      "success": {
+        "paymentConfirmed": "تم تثبيت الدفع وتحديث عمولة الشهر. الإجمالي الحالي: {{total}}",
+        "selfDeliveryStarted": "تم بدء البث الحي للتوصيل الذاتي",
+        "broadcastCompleted": "تم إنهاء البث الحي بعد اكتمال التسليم",
+        "broadcastStopped": "تم إيقاف البث الحي"
+      },
+      "liveMap": {
+        "vendorTitle": "خريطة التوصيل الذاتي المباشرة",
+        "driverTitle": "خريطة السائق المباشرة"
+      },
+      "card": {
+        "title": "البث الحي للتوصيل الذاتي",
+        "description": "يمكنك بث موقعك مباشرة للمشتري أثناء تنفيذ الطلب بنفسك.",
+        "broadcastOn": "البث مفعل الآن",
+        "broadcastOff": "البث غير مفعل",
+        "lastPing": "آخر تحديث: {{time}}",
+        "starting": "جارٍ البدء...",
+        "startBroadcast": "بدء البث المباشر",
+        "stopping": "جارٍ الإيقاف...",
+        "stopBroadcast": "إيقاف البث"
+      },
+      "paymentAction": {
+        "title": "تم استلام الدفع",
+        "description": "تسجيل البيع واحتساب عمولة 3%"
+      },
+      "paymentModal": {
+        "title": "تأكيد استلام الدفع",
+        "intro": "عند التأكيد سيتم:",
+        "recordSale": "تسجيل عملية البيع ضمن مبيعاتك الشهرية.",
+        "applyCommission": "احتساب عمولة المنصة بنسبة 3% تلقائياً.",
+        "keepDeliveryStatus": "تثبيت حالة الدفع في الطلب دون كسر مسار التوصيل الحالي.",
+        "saleValue": "قيمة البيع المعتمدة",
+        "cancel": "إلغاء",
+        "confirm": "تأكيد الاستلام"
+      }
+    }
+  }
+}

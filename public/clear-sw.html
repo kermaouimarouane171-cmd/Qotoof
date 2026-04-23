@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مسح Service Worker</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #1a202c;
+      margin-bottom: 16px;
+      font-size: 28px;
+    }
+    p {
+      color: #4a5568;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .status {
+      background: #f7fafc;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .status.success { border-color: #48bb78; background: #f0fff4; }
+    .status.error { border-color: #f56565; background: #fff5f5; }
+    .status.info { border-color: #4299e1; background: #ebf8ff; }
+    button {
+      background: #4299e1;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 8px 4px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #3182ce;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(66, 153, 225, 0.4);
+    }
+    button:active {
+      transform: translateY(0);
+    }
+    button.danger {
+      background: #f56565;
+    }
+    button.danger:hover {
+      background: #e53e3e;
+      box-shadow: 0 4px 12px rgba(245, 101, 101, 0.4);
+    }
+    button.success {
+      background: #48bb78;
+    }
+    button.success:hover {
+      background: #38a169;
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+    }
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .checklist {
+      list-style: none;
+      margin: 20px 0;
+    }
+    .checklist li {
+      padding: 8px 0;
+      color: #4a5568;
+    }
+    .checklist li:before {
+      content: '☐ ';
+      color: #a0aec0;
+    }
+    .checklist li.done:before {
+      content: '✓ ';
+      color: #48bb78;
+    }
+    code {
+      background: #edf2f7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 أداة مسح Service Worker</h1>
+    <p>هذه الأداة تساعدك في مسح Service Worker القديم وإعادة تحميل التطبيق بشكل نظيف.</p>
+
+    <div id="status" class="status info">
+      اضغط على الأزرار أدناه لتنظيف Service Worker
+    </div>
+
+    <div class="actions">
+      <button onclick="unregisterSW()">1️⃣ إلغاء تسجيل Service Worker</button>
+      <button onclick="clearCache()">2️⃣ مسح جميع الـ Caches</button>
+      <button class="danger" onclick="clearAll()">3️⃣ مسح كل شيء</button>
+      <button class="success" onclick="reloadApp()">🚀 إعادة تحميل التطبيق</button>
+    </div>
+
+    <h3 style="margin-top: 30px; margin-bottom: 12px;">✅ قائمة التحقق:</h3>
+    <ul class="checklist" id="checklist">
+      <li id="step1">إلغاء تسجيل Service Worker القديم</li>
+      <li id="step2">مسح جميع الـ Caches</li>
+      <li id="step3">إعادة تحميل التطبيق</li>
+    </ul>
+
+    <p style="font-size: 14px; color: #718096; margin-top: 20px;">
+      💡 <strong>نصيحة:</strong> بعد المسح، اضغط <code>Ctrl+Shift+R</code> لإعادة تحميل قوية.
+    </p>
+  </div>
+
+  <script>
+    const statusEl = document.getElementById('status')
+    const checklist = {
+      step1: document.getElementById('step1'),
+      step2: document.getElementById('step2'),
+      step3: document.getElementById('step3')
+    }
+
+    function setStatus(message, type = 'info') {
+      statusEl.textContent = message
+      statusEl.className = `status ${type}`
+    }
+
+    function markDone(stepId) {
+      checklist[stepId].classList.add('done')
+    }
+
+    async function unregisterSW() {
+      try {
+        setStatus('جاري إلغاء تسجيل Service Worker...', 'info')
+        
+        if ('serviceWorker' in navigator) {
+          const registrations = await navigator.serviceWorker.getRegistrations()
+          
+          if (registrations.length === 0) {
+            setStatus('لا يوجد Service Worker مسجل', 'success')
+            markDone('step1')
+            return
+          }
+
+          for (const registration of registrations) {
+            await registration.unregister()
+            console.log('Unregistered:', registration.scope)
+          }
+
+          setStatus(`تم إلغاء تسجيل ${registrations.length} Service Worker بنجاح ✓`, 'success')
+          markDone('step1')
+        } else {
+          setStatus('المتصفح لا يدعم Service Worker', 'error')
+        }
+      } catch (error) {
+        setStatus('خطأ: ' + error.message, 'error')
+        console.error(error)
+      }
+    }
+
+    async function clearCache() {
+      try {
+        setStatus('جاري مسح جميع الـ Caches...', 'info')
+        
+        if ('caches' in window) {
+          const cacheNames = await caches.keys()
+          
+          if (cacheNames.length === 0) {
+            setStatus('لا توجد Caches لمسحها', 'success')
+            markDone('step2')
+            return
+          }
+
+          for (const cacheName of cacheNames) {
+            await caches.delete(cacheName)
+            console.log('Deleted cache:', cacheName)
+          }
+
+          setStatus(`تم مسح ${cacheNames.length} Cache بنجاح ✓`, 'success')
+          markDone('step2')
+        } else {
+          setStatus('المتصفح لا يدعم Cache API', 'error')
+        }
+      } catch (error) {
+        setStatus('خطأ: ' + error.message, 'error')
+        console.error(error)
+      }
+    }
+
+    async function clearAll() {
+      try {
+        setStatus('جاري مسح كل شيء...', 'info')
+        
+        await unregisterSW()
+        await clearCache()
+        
+        // Clear localStorage and sessionStorage
+        localStorage.clear()
+        sessionStorage.clear()
+        
+        setStatus('تم مسح كل شيء بنجاح ✓', 'success')
+        markDone('step1')
+        markDone('step2')
+      } catch (error) {
+        setStatus('خطأ: ' + error.message, 'error')
+        console.error(error)
+      }
+    }
+
+    function reloadApp() {
+      markDone('step3')
+      setStatus('جاري إعادة تحميل التطبيق...', 'success')
+      
+      // Small delay to ensure SW is unregistered
+      setTimeout(() => {
+        window.location.href = '/'
+      }, 500)
+    }
+
+    // Auto-check on load
+    window.addEventListener('load', async () => {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        if (registrations.length > 0) {
+          setStatus(`يوجد ${registrations.length} Service Worker مسجل. اضغط على الأزرار للمسح.`, 'info')
+        } else {
+          setStatus('لا يوجد Service Worker مسجل. التطبيق نظيف ✓', 'success')
+          markDone('step1')
+        }
+      }
+
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        if (cacheNames.length > 0) {
+          setStatus(`يوجد ${cacheNames.length} Cache. اضغط على الأزرار للمسح.`, 'info')
+        } else {
+          setStatus('لا توجد Caches. التطبيق نظيف ✓', 'success')
+          markDone('step2')
+        }
+      }
+    })
+  </script>
+</body>
+</html>
