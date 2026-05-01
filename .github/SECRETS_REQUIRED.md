@@ -16,6 +16,9 @@
 # VITE_FIREBASE_STORAGE_BUCKET
 # VITE_FIREBASE_MESSAGING_SENDER_ID
 # VITE_FIREBASE_APP_ID
+# FIREBASE_DEPLOY_PROJECT_ID  — Firebase project/site target for GitHub deploys
+# FIREBASE_TOKEN              — refresh token or CI token for firebase-tools deploys
+#                              (alternative to FIREBASE_SERVICE_ACCOUNT)
 # FIREBASE_SERVICE_ACCOUNT   — JSON content of the Firebase service account key
 #                              (generate at Firebase Console → Project Settings → Service accounts)
 #
