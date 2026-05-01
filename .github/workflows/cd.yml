@@ -10,12 +10,30 @@ concurrency:
   cancel-in-progress: false   # never cancel an in-flight deploy
 
 jobs:
+  deployment-readiness:
+    name: Check Deployment Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate deployment secret availability
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] || [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            echo "Supabase deploy secrets are missing. Edge-function deploy will be skipped."
+          else
+            echo "Supabase deploy secrets detected."
+          fi
+
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ] || [ -z "${{ secrets.VITE_FIREBASE_PROJECT_ID }}" ]; then
+            echo "Firebase deploy secrets are missing. Hosting deploy will be skipped."
+          else
+            echo "Firebase deploy secrets detected."
+          fi
   # ──────────────────────────────────────────────────────────────────────────
   # 1. Build the production bundle
   # ──────────────────────────────────────────────────────────────────────────
   build:
     name: Build for Production
     runs-on: ubuntu-latest
+    needs: deployment-readiness
     env:
       VITE_SUPABASE_URL:          ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY:     ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -47,6 +65,7 @@ jobs:
     name: Deploy Edge Functions
     runs-on: ubuntu-latest
     needs: build
+    if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Install Supabase CLI
@@ -67,6 +86,7 @@ jobs:
     name: Deploy to Firebase Hosting
     runs-on: ubuntu-latest
     needs: [build, deploy-functions]
+    if: ${{ always() && needs.build.result == 'success' && (needs.deploy-functions.result == 'success' || needs.deploy-functions.result == 'skipped') && secrets.FIREBASE_SERVICE_ACCOUNT != '' && secrets.VITE_FIREBASE_PROJECT_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
