@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { Button, Input, LoadingSpinner, MoroccoNotice, Recaptcha } from '@/components/ui'
+import { Button, Input, LoadingSpinner, MoroccoNotice } from '@/components/ui'
+import Recaptcha, { isRecaptchaSiteKeyConfigured } from '@/components/ui/Recaptcha'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 const LoginPage = () => {
@@ -11,13 +12,16 @@ const LoginPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn, signInWithGoogle, loading, user, profile } = useAuthStore()
-  const recaptchaRef = useRef(null)
-
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
-  const [recaptchaToken, setRecaptchaToken] = useState(null)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const recaptchaRef = useRef(null)
+  const recaptchaSiteKey = typeof import.meta.env.VITE_RECAPTCHA_SITE_KEY === 'string'
+    ? import.meta.env.VITE_RECAPTCHA_SITE_KEY.trim()
+    : ''
+  const captchaRequired = isRecaptchaSiteKeyConfigured(recaptchaSiteKey)
 
   // Validate redirect target is a safe internal path (prevents Open Redirect attacks)
   const isSafeRedirect = (url) => {
@@ -42,20 +46,14 @@ const LoginPage = () => {
     return re.test(email) && email.length <= 254
   }
 
+  const resetCaptcha = () => {
+    setCaptchaToken(null)
+    recaptchaRef.current?.reset?.()
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
-    // reCAPTCHA check in production
-    const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
-    if (recaptchaSiteKey && import.meta.env.PROD) {
-      const token = recaptchaRef.current?.getValue()
-      if (!token) {
-        setError(t('auth.errors.recaptchaRequired', 'Please complete the reCAPTCHA verification'))
-        return
-      }
-      setRecaptchaToken(token)
-    }
 
     if (!email || !password) {
       setError(t('auth.errors.fillAllFields', 'Please fill in all fields'))
@@ -73,16 +71,29 @@ const LoginPage = () => {
       return
     }
 
-    const result = await signIn(email, password)
+    if (captchaRequired && !captchaToken) {
+      setError(t('auth.errors.captchaRequired', 'Please complete the security verification before continuing.'))
+      return
+    }
+
+    const result = await signIn(email, password, captchaToken)
 
     if (result.success) {
       // Use the redirect_to parameter, fallback to role dashboard
       navigate(result.redirect || from)
     } else if (result.error?.includes('Email not confirmed') || result.error?.includes('not confirmed')) {
+      if (captchaRequired) {
+        resetCaptcha()
+      }
+
       // User hasn't verified email yet
       sessionStorage.setItem('pendingVerificationEmail', email)
       navigate('/verify-email')
     } else {
+      if (captchaRequired) {
+        resetCaptcha()
+      }
+
       // GENERIC ERROR - Never reveal if email exists or password is wrong
       setError(t('auth.errors.invalidCredentials', 'Invalid email or password. Please try again.'))
     }
@@ -195,18 +206,19 @@ const LoginPage = () => {
           </div>
         </div>
 
+        {captchaRequired && (
+          <div className="flex justify-center pt-2">
+            <Recaptcha
+              ref={recaptchaRef}
+              siteKey={recaptchaSiteKey}
+              onChange={setCaptchaToken}
+            />
+          </div>
+        )}
+
         <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading}>
           {t('auth.login.signIn', 'Sign In')}
         </Button>
-
-        {/* reCAPTCHA */}
-        <div className="flex justify-center">
-          <Recaptcha
-            ref={recaptchaRef}
-            siteKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-            onChange={(token) => setRecaptchaToken(token)}
-          />
-        </div>
       </form>
     </div>
   )

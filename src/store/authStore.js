@@ -219,6 +219,7 @@ export const useAuthStore = create((set, get) => ({
         case 'SIGNED_OUT':
           // Stop auto logout
           autoLogoutService.stop()
+          auditLogger.clearQueue()
 
           set({
             user: null,
@@ -449,7 +450,7 @@ export const useAuthStore = create((set, get) => ({
   // ============================================
   // ENHANCED SIGN IN WITH RATE LIMITING & MFA
   // ============================================
-  signIn: async (email, password) => {
+  signIn: async (email, password, captchaToken = null) => {
     try {
       set({ loading: true, _signingInProgress: true })
 
@@ -459,6 +460,7 @@ export const useAuthStore = create((set, get) => ({
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: captchaToken ? { captchaToken } : undefined,
       })
 
       if (error) {
@@ -615,6 +617,11 @@ export const useAuthStore = create((set, get) => ({
       // Stop auto logout
       autoLogoutService.stop()
 
+      // Log sign out before revoking the active auth session.
+      if (user) {
+        await auditLogger.logAuthAction('SIGNED_OUT', user.id)
+      }
+
       // Revoke all sessions
       if (sessionService?.revokeAllOtherSessions) {
         await sessionService.revokeAllOtherSessions()
@@ -622,11 +629,6 @@ export const useAuthStore = create((set, get) => ({
 
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-
-      // Log sign out
-      if (user) {
-        await auditLogger.logAuthAction('SIGNED_OUT', user.id)
-      }
 
       set({
         user: null,
@@ -660,20 +662,26 @@ export const useAuthStore = create((set, get) => ({
   // ============================================
   // SIGN UP (unchanged)
   // ============================================
-  signUp: async (email, password, userData) => {
+  signUp: async (email, password, userData, captchaToken = null) => {
     try {
       set({ loading: true, _signingInProgress: true })
+      const signUpOptions = {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          role: userData.role,
+          referral_code_used: userData.referralCode || null,
+        }
+      }
+
+      if (captchaToken) {
+        signUpOptions.captchaToken = captchaToken
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            role: userData.role,
-            referral_code_used: userData.referralCode || null,
-          }
-        }
+        options: signUpOptions
       })
 
       if (error) throw error

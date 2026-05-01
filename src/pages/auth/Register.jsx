@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { Button, Input, CINInput, TrustBadges, VehiclePhotoUpload, MoroccoNotice, Recaptcha } from '@/components/ui'
+import { Button, Input, CINInput, TrustBadges, VehiclePhotoUpload, MoroccoNotice } from '@/components/ui'
+import Recaptcha, { isRecaptchaSiteKeyConfigured } from '@/components/ui/Recaptcha'
 import { EyeIcon, EyeSlashIcon, ShieldCheckIcon, LockClosedIcon, TruckIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 import { validateCIN } from '@/utils/cinValidation'
 import { sanitizeText, sanitizeEmail } from '@/utils/sanitization'
@@ -16,8 +17,6 @@ const RegisterPage = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { signUp, loading } = useAuthStore()
-  const recaptchaRef = useRef(null)
-
   const defaultRole = searchParams.get('role') || 'buyer'
 
   const [formData, setFormData] = useState({
@@ -40,6 +39,12 @@ const RegisterPage = () => {
   const [vehiclePhotoError, setVehiclePhotoError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [agreeTerms, setAgreeTerms] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const recaptchaRef = useRef(null)
+  const recaptchaSiteKey = typeof import.meta.env.VITE_RECAPTCHA_SITE_KEY === 'string'
+    ? import.meta.env.VITE_RECAPTCHA_SITE_KEY.trim()
+    : ''
+  const captchaRequired = isRecaptchaSiteKeyConfigured(recaptchaSiteKey)
   
   const validateEmail = (email) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -69,6 +74,11 @@ const RegisterPage = () => {
 
   const passwordStrength = getPasswordStrength(formData.password)
 
+  const resetCaptcha = () => {
+    setCaptchaToken(null)
+    recaptchaRef.current?.reset?.()
+  }
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -86,16 +96,6 @@ const RegisterPage = () => {
     setCINError('')
     setVehiclePhotoError('')
     setFieldErrors({})
-
-    // reCAPTCHA check in production
-    const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
-    if (recaptchaSiteKey && import.meta.env.PROD) {
-      const token = recaptchaRef.current?.getValue()
-      if (!token) {
-        setError(t('auth.errors.recaptchaRequired', 'Please complete the reCAPTCHA verification'))
-        return
-      }
-    }
 
     // 1. Check rate limit
     const rateResult = checkSignupRate(formData.email.toLowerCase())
@@ -164,11 +164,21 @@ const RegisterPage = () => {
       return
     }
 
+    if (captchaRequired && !captchaToken) {
+      setError(t('auth.errors.captchaRequired', 'Please complete the security verification before continuing.'))
+      return
+    }
+
     // 7. Submit with sanitized data
     const result = await signUp(sanitizedData.email, formData.password, {
       ...sanitizedData,
       cin: cinResult.cin,
-    })
+    }, captchaToken)
+
+    if (!result.success && captchaRequired) {
+      resetCaptcha()
+    }
+
     if (result.success) {
       if (result.requiresPhoneVerification && result.userId && result.phone) {
         setPendingPhoneVerification({
@@ -454,19 +464,19 @@ const RegisterPage = () => {
           </div>
         )}
         
+        {captchaRequired && (
+          <div className="flex justify-center pt-2">
+            <Recaptcha
+              ref={recaptchaRef}
+              siteKey={recaptchaSiteKey}
+              onChange={setCaptchaToken}
+            />
+          </div>
+        )}
+
         <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading}>
           {t('auth.register.createAccountButton', 'Create Account')}
         </Button>
-
-        {/* reCAPTCHA */}
-        <div className="flex justify-center">
-          <Recaptcha
-            ref={recaptchaRef}
-            siteKey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
-            onChange={(token) => {}}
-          />
-        </div>
-
         {/* Terms & Conditions Checkbox */}
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <label className="flex items-start gap-3 cursor-pointer">

@@ -50,3 +50,20 @@ supabase/.temp/
 
 # Firebase hosting cache
 .firebase/*.cache
+
+# Supabase secrets
+supabase/.env
+supabase/functions/**/.env
+
+# Build artifacts / source maps that expose internals
+dist/
+build/
+*.map
+
+# Security: never commit real key files or service-account JSON
+*.pem
+*.key
+*.p12
+*service-account*.json
+*serviceaccount*.json
+firebase-adminsdk*.json

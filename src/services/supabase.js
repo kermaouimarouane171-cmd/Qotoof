@@ -4,8 +4,11 @@ import { logger } from '@/utils/logger.js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
+const hasTemplateSupabaseUrl = typeof supabaseUrl === 'string'
+  && /placeholder|your-project/i.test(supabaseUrl)
+
 const isConfigured = supabaseUrl && supabaseAnonKey &&
-  !supabaseUrl.includes('placeholder') &&
+  !hasTemplateSupabaseUrl &&
   !supabaseAnonKey.includes('placeholder')
 
 // ============================================
@@ -33,9 +36,6 @@ class SupabaseHealthMonitor {
       this.isOnline = false
       this.healthStatus = 'unhealthy'
     })
-    
-    // Start periodic health checks
-    this.startHealthChecks()
   }
 
   /**
@@ -165,9 +165,24 @@ const healthMonitor = new SupabaseHealthMonitor()
 // CREATE SUPABASE CLIENT
 // ============================================
 
+if (!isConfigured) {
+  const missingOrInvalidVars = []
+
+  if (!supabaseUrl || hasTemplateSupabaseUrl) {
+    missingOrInvalidVars.push('VITE_SUPABASE_URL')
+  }
+  if (!supabaseAnonKey || supabaseAnonKey.includes('placeholder')) {
+    missingOrInvalidVars.push('VITE_SUPABASE_ANON_KEY')
+  }
+
+  const configErrorMessage = `Supabase is not configured correctly. Missing/invalid env vars: ${missingOrInvalidVars.join(', ')}. Restart the dev server after updating .env.`
+  logger.error(configErrorMessage)
+  throw new Error(configErrorMessage)
+}
+
 export const supabase = createClient(
-  isConfigured ? supabaseUrl : 'https://placeholder.supabase.co',
-  isConfigured ? supabaseAnonKey : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjAxNTU3NjAwMH0.placeholder',
+  supabaseUrl,
+  supabaseAnonKey,
   {
     auth: {
       autoRefreshToken: true,
