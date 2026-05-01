@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global console, process */
 
 /**
  * فحص ما قبل النشر على Vercel
@@ -7,7 +8,6 @@
  */
 
 import { readFileSync, existsSync } from 'fs'
-import { resolve } from 'path'
 
 const GREEN  = '\x1b[32m'
 const RED    = '\x1b[31m'

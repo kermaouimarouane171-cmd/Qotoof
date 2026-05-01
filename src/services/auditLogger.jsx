@@ -28,6 +28,47 @@ class AuditLogger {
     setInterval(() => this.flush(), this.flushInterval)
   }
 
+  enqueue(auditLog) {
+    this.queue.push(auditLog)
+
+    if (this.queue.length > this.maxQueueSize) {
+      this.queue.shift()
+    }
+  }
+
+  requeue(logs) {
+    this.queue.unshift(...logs)
+
+    if (this.queue.length > this.maxQueueSize) {
+      this.queue = this.queue.slice(0, this.maxQueueSize)
+    }
+  }
+
+  shouldRetry(error) {
+    if (!error) return true
+
+    const message = String(error.message || '').toLowerCase()
+
+    if (error.code === 'PGRST204' || error.code === '42501') {
+      return false
+    }
+
+    if (
+      message.includes('row-level security') ||
+      message.includes('jwt') ||
+      message.includes('permission denied') ||
+      message.includes('not authenticated')
+    ) {
+      return false
+    }
+
+    return true
+  }
+
+  clearQueue() {
+    this.queue = []
+  }
+
   normalizeLog(log) {
     if (!log) return log
 
@@ -94,13 +135,7 @@ class AuditLogger {
       if (this.isOnline) {
         await this.sendToServer(auditLog)
       } else {
-        // Queue for later
-        this.queue.push(auditLog)
-        
-        // Prevent queue overflow
-        if (this.queue.length > this.maxQueueSize) {
-          this.queue.shift() // Remove oldest entry
-        }
+        this.enqueue(auditLog)
       }
 
       return true
@@ -120,16 +155,11 @@ class AuditLogger {
         .from('audit_logs')
         .insert(auditLog)
 
-      if (error) {
-        // Silently fail - audit logging should not break the app
-        // Queue for retry only if it's a network error
-        if (error.code !== 'PGRST204') {
-          this.queue.push(auditLog)
-        }
+      if (error && this.shouldRetry(error)) {
+        this.enqueue(auditLog)
       }
     } catch (_error) {
-      // Silently fail - don't break the app
-      this.queue.push(auditLog)
+      this.enqueue(auditLog)
     }
   }
 
@@ -143,8 +173,9 @@ class AuditLogger {
 
     this.isFlushing = true
 
+    let logsToSend = []
     try {
-      const logsToSend = [...this.queue]
+      logsToSend = [...this.queue]
       this.queue = []
 
       const { error } = await supabase
@@ -152,17 +183,12 @@ class AuditLogger {
         .insert(logsToSend)
 
       if (error) {
-        // Silently fail - put back in queue
-        if (error.code !== 'PGRST204') {
-          this.queue.unshift(...logsToSend)
-        }
-        // Prevent queue overflow
-        if (this.queue.length > this.maxQueueSize) {
-          this.queue = this.queue.slice(0, this.maxQueueSize)
+        if (this.shouldRetry(error)) {
+          this.requeue(logsToSend)
         }
       }
     } catch (_error) {
-      // Silently fail
+      this.requeue(logsToSend)
     } finally {
       this.isFlushing = false
     }
@@ -178,13 +204,13 @@ class AuditLogger {
     offset = 0
   } = {}) {
     try {
-      const buildBaseQuery = (orderColumn) => supabase
+      const buildBaseQuery = () => supabase
         .from('audit_logs')
         .select('*', { count: 'exact' })
-        .order(orderColumn, { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(limit)
 
-      let query = buildBaseQuery('timestamp')
+      let query = buildBaseQuery()
 
       if (entityType) {
         query = query.eq('entity_type', entityType)
@@ -194,24 +220,7 @@ class AuditLogger {
         query = query.eq('action', action)
       }
 
-      let { data, error, count } = await query
-
-      if (error?.message?.includes('timestamp')) {
-        query = buildBaseQuery('created_at')
-
-        if (entityType) {
-          query = query.eq('entity_type', entityType)
-        }
-
-        if (action) {
-          query = query.eq('action', action)
-        }
-
-        const fallbackResult = await query
-        data = fallbackResult.data
-        error = fallbackResult.error
-        count = fallbackResult.count
-      }
+      const { data, error, count } = await query
 
       if (error) throw error
 
@@ -242,21 +251,8 @@ class AuditLogger {
         .select(baseSelect)
         .eq('entity_type', entityType)
         .eq('entity_id', entityId)
-        .order('timestamp', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(limit)
-
-      if (error?.message?.includes('timestamp')) {
-        const fallbackResult = await supabase
-          .from('audit_logs')
-          .select(baseSelect)
-          .eq('entity_type', entityType)
-          .eq('entity_id', entityId)
-          .order('created_at', { ascending: false })
-          .limit(limit)
-
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
 
       if (error) throw error
 
@@ -517,6 +513,12 @@ import { useState, useEffect, useCallback } from 'react'
  * React hook to fetch and display audit logs
  */
 export const useAuditLogs = (options = {}) => {
+  const {
+    entityType = null,
+    action = null,
+    limit = 50,
+    offset = 0,
+  } = options
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -527,7 +529,12 @@ export const useAuditLogs = (options = {}) => {
       setLoading(true)
       setError(null)
       
-      const result = await auditLogger.getUserLogs(options)
+      const result = await auditLogger.getUserLogs({
+        entityType,
+        action,
+        limit,
+        offset,
+      })
       
       setLogs(result.logs)
       setTotal(result.total)
@@ -537,7 +544,7 @@ export const useAuditLogs = (options = {}) => {
     } finally {
       setLoading(false)
     }
-  }, [options])
+  }, [action, entityType, limit, offset])
 
   useEffect(() => {
     fetchLogs()

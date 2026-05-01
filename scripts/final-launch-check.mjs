@@ -1,4 +1,4 @@
-/* global process */
+/* global process, console */
 
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -318,7 +318,7 @@ const main = async () => {
   })
   const docPlaceholderMatches = scannedFiles
     .filter((file) => file.endsWith('.md') || file.endsWith('.eslint-current.json'))
-    .filter((file, index) => {
+    .filter((file) => {
       const contentIndex = scannedFiles.indexOf(file)
       const content = sanitizeContentForPlaceholderScan(file, scannedContents[contentIndex])
       return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(content))
