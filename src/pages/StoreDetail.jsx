@@ -214,7 +214,7 @@ const StoreDetail = () => {
 
       const script = document.createElement('script')
       script.type = 'application/ld+json'
-      script.innerHTML = JSON.stringify(jsonLd)
+      script.textContent = JSON.stringify(jsonLd)
       document.head.appendChild(script)
 
       return () => { script.remove() }

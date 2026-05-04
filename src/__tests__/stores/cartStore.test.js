@@ -80,7 +80,7 @@ describe('cartStore', () => {
 
       getTotal() {
         const subtotal = this.getSubtotal()
-        const tax = subtotal * 0.2 // 20% TVA
+        const tax = subtotal * 0 // 0% TVA — fresh agricultural products are TVA-exempt in Morocco
         const discount = state.couponDiscount
         return subtotal + tax - discount
       },

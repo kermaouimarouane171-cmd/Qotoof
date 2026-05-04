@@ -80,6 +80,8 @@ const EMPTY_ANALYTICS = {
   rawOrders: [],
   rawProducts: [],
   rawReviews: [],
+  topCustomers: [],
+  prevKeyMetrics: { totalRevenue: null, totalOrders: null, avgOrderValue: null },
   activeRangeLabel: '',
 }
 
@@ -180,7 +182,12 @@ const VendorAnalytics = () => {
   const currentPreset = DATE_RANGES.find((range) => range.id === selectedRange)
 
   const loadAnalytics = useCallback(async () => {
-    if (!user) return
+    if (!user?.id) {
+      setAnalytics(EMPTY_ANALYTICS)
+      setLoading(false)
+      return
+    }
+
     if (isCustomRange && (!appliedCustomRange.from || !appliedCustomRange.to)) {
       setLoading(false)
       return
@@ -249,6 +256,46 @@ const VendorAnalytics = () => {
       const orders = ordersResult.data || []
       const products = productsResult.data || []
       const reviews = reviewsResult.data || []
+
+      // --- Previous period (same duration, shifted back) for delta comparison ---
+      const duration = resolvedRange.endDate.getTime() - resolvedRange.startDate.getTime()
+      const prevStartDate = new Date(resolvedRange.startDate.getTime() - duration)
+      const prevEndDate = resolvedRange.startDate
+
+      const { data: prevOrders } = await supabase
+        .from('orders')
+        .select('id, total, status, vendor_amount')
+        .eq('vendor_id', user.id)
+        .gte('created_at', prevStartDate.toISOString())
+        .lte('created_at', prevEndDate.toISOString())
+
+      const prevMetrics = calculateVendorAnalyticsMetrics({ orders: prevOrders || [], reviews: [], products })
+
+      // --- Top customers by revenue ---
+      const customerRevMap = {}
+      for (const order of orders) {
+        if (!order.buyer_id) continue
+        customerRevMap[order.buyer_id] = (customerRevMap[order.buyer_id] || 0) + (order.vendor_amount || order.total || 0)
+      }
+      const topCustomerIds = Object.entries(customerRevMap)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([id, revenue]) => ({ id, revenue }))
+
+      let topCustomers = topCustomerIds
+      if (topCustomerIds.length > 0) {
+        const { data: buyerProfiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', topCustomerIds.map((c) => c.id))
+        topCustomers = topCustomerIds.map((c, idx) => {
+          const profile = buyerProfiles?.find((p) => p.id === c.id)
+          const name = profile
+            ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || `عميل ${idx + 1}`
+            : `عميل ${idx + 1}`
+          return { ...c, name }
+        })
+      }
       const { buckets, labels } = buildTimeBuckets({
         startDate: resolvedRange.startDate,
         endDate: resolvedRange.endDate,
@@ -298,6 +345,12 @@ const VendorAnalytics = () => {
         rawOrders: orders,
         rawProducts: products,
         rawReviews: reviews,
+        topCustomers,
+        prevKeyMetrics: {
+          totalRevenue: prevMetrics.totalRevenue,
+          totalOrders: prevMetrics.totalOrders,
+          avgOrderValue: prevMetrics.avgOrderValue,
+        },
         activeRangeLabel: resolvedRange.labelAr,
       })
     } catch (error) {
@@ -306,7 +359,7 @@ const VendorAnalytics = () => {
     } finally {
       setLoading(false)
     }
-  }, [user, isCustomRange, appliedCustomRange.from, appliedCustomRange.to, selectedRange, t])
+  }, [user?.id, isCustomRange, appliedCustomRange.from, appliedCustomRange.to, selectedRange, t])
 
   useEffect(() => {
     loadAnalytics()
@@ -410,6 +463,21 @@ const VendorAnalytics = () => {
     return <LoadingSpinner size="lg" />
   }
 
+  const calcDelta = (current, prev) => {
+    if (prev === null || prev === 0) return null
+    return Math.round(((current - prev) / prev) * 100)
+  }
+
+  const DeltaBadge = ({ delta }) => {
+    if (delta === null) return null
+    const positive = delta >= 0
+    return (
+      <span className={`text-xs font-medium ${positive ? 'text-green-600' : 'text-red-500'}`}>
+        {positive ? '▲' : '▼'} {Math.abs(delta)}%
+      </span>
+    )
+  }
+
   return (
     <div>
       <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between mb-8 gap-4">
@@ -480,12 +548,18 @@ const VendorAnalytics = () => {
         <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
           <p className="text-sm text-green-600 mb-1">إجمالي الإيرادات</p>
           <p className="text-2xl font-bold text-green-900">{formatPrice(analytics.keyMetrics.totalRevenue)}</p>
-          <p className="text-xs text-green-500 mt-1">{analytics.keyMetrics.totalOrders} طلب</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-green-500">{analytics.keyMetrics.totalOrders} طلب</p>
+            <DeltaBadge delta={calcDelta(analytics.keyMetrics.totalRevenue, analytics.prevKeyMetrics.totalRevenue)} />
+          </div>
         </Card>
 
         <Card className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
           <p className="text-sm text-blue-600 mb-1">متوسط قيمة الطلب</p>
           <p className="text-2xl font-bold text-blue-900">{formatPrice(analytics.keyMetrics.avgOrderValue)}</p>
+          <div className="flex justify-end mt-1">
+            <DeltaBadge delta={calcDelta(analytics.keyMetrics.avgOrderValue, analytics.prevKeyMetrics.avgOrderValue)} />
+          </div>
         </Card>
 
         <Card className="p-4 bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200">
@@ -554,7 +628,7 @@ const VendorAnalytics = () => {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">إشارات تجربة العملاء</h3>
           <div className="space-y-3">
@@ -607,6 +681,25 @@ const VendorAnalytics = () => {
               </div>
             )) : (
               <p className="text-sm text-gray-500">لا توجد بيانات مبيعات كافية لعرض أفضل المنتجات</p>
+            )}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">أفضل العملاء بالإيراد</h3>
+          <div className="space-y-3">
+            {analytics.topCustomers.length > 0 ? analytics.topCustomers.map((customer, index) => (
+              <div key={customer.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="w-6 h-6 flex items-center justify-center bg-green-100 text-green-700 text-xs font-bold rounded-full flex-shrink-0">
+                    {index + 1}
+                  </span>
+                  <span className="text-sm font-medium text-gray-900 truncate">{customer.name}</span>
+                </div>
+                <span className="text-xs text-green-600 font-semibold flex-shrink-0 ml-2">{formatPrice(customer.revenue)}</span>
+              </div>
+            )) : (
+              <p className="text-sm text-gray-500">لا توجد بيانات كافية لعرض أفضل العملاء</p>
             )}
           </div>
         </Card>

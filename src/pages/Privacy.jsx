@@ -96,7 +96,7 @@ const Privacy = () => {
           </h2>
           <ul className="list-disc list-inside text-gray-600 space-y-1">
             <li>{pick({ ar: 'يتم تخزين بيانات المنصة التشغيلية والملفات ذات الصلة في Supabase والبنية المرتبطة به.', fr: 'Platform operational data and related files are stored in Supabase and its associated infrastructure.', en: 'Platform operational data and related files are stored in Supabase and its associated infrastructure.' })}</li>
-            <li>{pick({ ar: 'قد نستخدم Stripe او CMI لمعالجة المدفوعات وResend لارسال الرسائل البريدية، مع مشاركة الحد الادنى الضروري من البيانات فقط.', fr: 'We may use Stripe or CMI for payment processing and Resend for email delivery, sharing only the minimum necessary data.', en: 'We may use Stripe or CMI for payment processing and Resend for email delivery, sharing only the minimum necessary data.' })}</li>
+            <li>{pick({ ar: 'قد نستخدم PayPal او CMI لمعالجة المدفوعات وResend لارسال الرسائل البريدية، مع مشاركة الحد الادنى الضروري من البيانات فقط.', fr: 'We may use PayPal or CMI for payment processing and Resend for email delivery, sharing only the minimum necessary data.', en: 'We may use PayPal or CMI for payment processing and Resend for email delivery, sharing only the minimum necessary data.' })}</li>
             <li>{pick({ ar: 'لا يتم بيع البيانات الشخصية لاي طرف ثالث، ولا يتم كشفها خارج غرض المعاملة او الامتثال او النزاع المشروع.', fr: 'Personal data is not sold to third parties and is not disclosed beyond the transaction, compliance, or legitimate dispute scope.', en: 'Personal data is not sold to third parties and is not disclosed beyond the transaction, compliance, or legitimate dispute scope.' })}</li>
           </ul>
         </section>

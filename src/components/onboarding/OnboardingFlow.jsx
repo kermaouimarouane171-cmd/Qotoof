@@ -155,7 +155,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
   }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${theme.background} px-4 py-8 sm:px-6 lg:px-8`}>
+    <div data-testid={`onboarding-${role}`} className={`min-h-screen bg-gradient-to-br ${theme.background} px-4 py-8 sm:px-6 lg:px-8`}>
       <div className={`mx-auto max-w-4xl rounded-[2rem] ${theme.glow} blur-3xl h-28`} />
 
       <div className="relative mx-auto -mt-20 max-w-2xl">
@@ -220,6 +220,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
               {currentStep > 0 ? (
                 <button
                   type="button"
+                  data-testid="onboarding-secondary-action"
                   onClick={handlePrevious}
                   disabled={saving}
                   className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-5 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
@@ -230,6 +231,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
 
               <button
                 type="button"
+                data-testid="onboarding-primary-action"
                 onClick={handleNext}
                 disabled={saving}
                 className={`inline-flex items-center justify-center rounded-2xl px-6 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.primaryButton}`}

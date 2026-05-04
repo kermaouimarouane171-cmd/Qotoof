@@ -56,12 +56,12 @@ const TermsPage = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('terms.section4.title', '4. Platform Fees and Commissions')}</h2>
           <p className="text-gray-600 leading-relaxed mb-4">{t('terms.section4.intro', 'Qotoof charges:')}</p>
           <ul className="list-disc pl-6 text-gray-600 space-y-2">
-            <li>{t('terms.section4.item1', 'A commission of 3% on each transaction processed through the Platform')}</li>
+            <li>{pick({ ar: 'عمولة منصة ثابتة بنسبة 3% على المبيعات المؤكدة الخاصة بالبائعين.', fr: 'Une commission plateforme fixe de 3% sur les ventes confirmees des vendeurs.', en: 'A fixed 3% platform commission on confirmed vendor sales.' })}</li>
             <li>{t('terms.section4.item2', 'Payment processing fees as applicable')}</li>
             <li>{t('terms.section4.item3', 'Delivery fees set by drivers based on distance and time')}</li>
           </ul>
           <p className="text-gray-600 leading-relaxed mt-4">
-            {t('terms.section4.outro', 'All fees are displayed transparently before order confirmation.')}
+            {pick({ ar: 'تظهر جميع الرسوم بشكل شفاف قبل تأكيد الطلب، ولا تُستحق عمولة 3% إلا بعد تأكيد البيع واعتماد العملية داخل المنصة.', fr: 'Tous les frais sont affiches en toute transparence avant la confirmation de la commande, et la commission de 3% ne devient due qu apres confirmation de la vente sur la plateforme.', en: 'All fees are displayed transparently before order confirmation, and the 3% commission becomes due only after the sale is confirmed on the platform.' })}
           </p>
         </section>
 
@@ -157,7 +157,7 @@ const TermsPage = () => {
                 {t('terms.section8.circumvent.title', '8.3 Circumventing Platform Fees')}
               </h3>
               <ul className="list-disc pl-6 text-yellow-800 space-y-1 text-sm">
-                <li>{t('terms.section8.circumvent.item1', 'Attempting to conduct transactions outside the Platform to avoid the 3% commission')}</li>
+                <li>{t('terms.section8.circumvent.item1', 'Attempting to conduct transactions outside the Platform to avoid the applicable commission')}</li>
                 <li>{t('terms.section8.circumvent.item2', 'Using fake accounts or multiple accounts to evade fees')}</li>
                 <li>{t('terms.section8.circumvent.item3', 'Manipulating order amounts or splitting orders to reduce commission')}</li>
                 <li>{t('terms.section8.circumvent.item4', 'Encouraging buyers or vendors to deal directly outside the Platform')}</li>

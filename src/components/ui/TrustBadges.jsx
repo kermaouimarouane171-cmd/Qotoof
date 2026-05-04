@@ -1,4 +1,4 @@
-import { ShieldCheckIcon, LockClosedIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import { ShieldCheckIcon, LockClosedIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 const TrustBadges = ({ variant = 'default' }) => {
   const badges = [

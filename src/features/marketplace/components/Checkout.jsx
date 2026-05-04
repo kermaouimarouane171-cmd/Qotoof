@@ -594,12 +594,18 @@ function PaymentStep({ form, onSubmit, onPrevious, isLoading }) {
   const { t } = useTranslation();
   const { register, handleSubmit, watch, formState: { errors } } = form;
   const paymentMethod = watch('paymentMethod');
+  const paymentLabels = {
+    paypal: 'PayPal',
+    cmi: 'CMI (المغرب)',
+    cod: 'الدفع عند الاستلام',
+    bank: 'تحويل بنكي',
+  }
 
   return (
     <Card title={t('checkout.paymentMethod')}>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-3">
-          {['cmi', 'cod', 'bank'].map((method) => (
+          {['paypal', 'cmi', 'cod', 'bank'].map((method) => (
             <label key={method} className="flex items-center p-4 border-2 border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-blue-500 dark:hover:border-blue-400"
               style={{ borderColor: paymentMethod === method ? '#3b82f6' : '' }}>
               <input
@@ -609,7 +615,7 @@ function PaymentStep({ form, onSubmit, onPrevious, isLoading }) {
                 className="w-4 h-4"
               />
               <span className="ml-3 font-medium text-gray-900 dark:text-white">
-                {t(`checkout.payment.${method}`)}
+                {paymentLabels[method] || method}
               </span>
             </label>
           ))}
@@ -744,36 +750,32 @@ function OrderSummary({ items, subtotal, tax, shipping, total }) {
 function PaymentModalComponent({ method, form, onClose, onConfirm }) {
   const { t } = useTranslation();
   const { register, formState: { errors } } = form;
+  const paymentLabels = {
+    paypal: 'PayPal',
+    cmi: 'CMI (المغرب)',
+    cod: 'الدفع عند الاستلام',
+    bank: 'تحويل بنكي',
+  }
 
   return (
     <Modal isOpen onClose={onClose}>
       <div className="p-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-          {t(`checkout.payment.${method}`)}
+          {paymentLabels[method] || t('checkout.payment')}
         </h2>
 
-        {method === 'stripe' && (
+        {method === 'paypal' && (
           <div className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-400">
+              سيتم تحويلك إلى PayPal لإكمال الدفع بأمان.
+            </p>
             <Input
-              label={t('checkout.cardNumber')}
-              {...register('cardNumber')}
-              error={errors.cardNumber?.message}
-              placeholder="1234 5678 9012 3456"
+              label="PayPal Email"
+              {...register('paypalEmail')}
+              error={errors.paypalEmail?.message}
+              placeholder="أدخل بريد حساب PayPal"
+              type="email"
             />
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={t('checkout.expiry')}
-                {...register('cardExpiry')}
-                error={errors.cardExpiry?.message}
-                placeholder="MM/YY"
-              />
-              <Input
-                label={t('checkout.cvc')}
-                {...register('cardCVC')}
-                error={errors.cardCVC?.message}
-                placeholder="123"
-              />
-            </div>
           </div>
         )}
 

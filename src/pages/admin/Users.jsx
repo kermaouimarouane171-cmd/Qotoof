@@ -137,17 +137,7 @@ const AdminUsers = () => {
         role: deletingUser.role,
       })
 
-      // Delete user via Supabase Admin API
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(deletingUser.id)
-
-      if (deleteError) {
-        // Fallback: soft delete by updating profile
-        logger.warn('Admin delete failed, falling back to profile deletion:', deleteError)
-        await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', deletingUser.id)
-      }
+      await usersApi.delete(deletingUser.id)
 
       toast.success(t('admin.users.notifications.deletedSuccess', 'User deleted successfully'))
       setDeleteModalOpen(false)

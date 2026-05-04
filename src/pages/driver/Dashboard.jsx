@@ -138,7 +138,7 @@ const DriverDashboard = () => {
   }
   
   return (
-    <div>
+    <div data-testid="page-loaded">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -193,7 +193,7 @@ const DriverDashboard = () => {
       <PartnershipRequests currentUserId={profile?.id} currentRole="driver" className="mb-6" />
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-testid="stats-cards">
         <Card className="p-5">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">

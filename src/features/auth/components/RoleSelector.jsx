@@ -213,7 +213,7 @@ function RoleSelectorContent() {
         <div className="flex gap-4 justify-center">
           <Button
             variant="outline"
-            onClick={() => navigate('/auth/login')}
+            onClick={() => navigate('/login')}
             className="px-8"
           >
             {t('auth.roleSelector.haveAccount')}

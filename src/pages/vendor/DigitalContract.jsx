@@ -9,6 +9,7 @@ import { Card, Input, LoadingSpinner } from '@/components/ui'
 import { supabase } from '@/services/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { MOROCCAN_BANKS } from '@/constants/banks'
+import { APP_CONFIG } from '@/config/appConfig'
 import toast from 'react-hot-toast'
 
 const DigitalContract = () => {
@@ -236,7 +237,7 @@ const DigitalContract = () => {
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 leading-8 text-gray-800 text-sm sm:text-base whitespace-pre-line">
 {`أنا ${form.full_name || '[اسم البائع]'}، أوافق على الشروط التالية:
 
-1. عمولة التطبيق: 3% من إجمالي مبيعاتي المؤكدة داخل التطبيق خلال كل شهر ميلادي.
+1. عمولة التطبيق: ${(APP_CONFIG.commissionRate * 100).toFixed(0)}% من إجمالي مبيعاتي المؤكدة داخل التطبيق خلال كل شهر ميلادي.
 
 2. موعد الدفع: يجب سداد العمولة خلال 7 أيام من نهاية كل شهر.
 

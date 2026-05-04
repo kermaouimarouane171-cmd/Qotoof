@@ -10,6 +10,8 @@
 /** @type {import('@sentry/react') | null} Lazily resolved Sentry module */
 let _sentry = null
 
+import { sentryDsnLooksIssued } from '@/utils/envValidators'
+
 /**
  * Initialize Sentry asynchronously.
  * Loads @sentry/react only when a DSN is configured and we're in production.
@@ -19,7 +21,7 @@ export const initSentry = async () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN
   const isProduction = import.meta.env.PROD
 
-  if (!dsn) {
+  if (!sentryDsnLooksIssued(dsn)) {
     console.warn('Sentry DSN not configured. Error monitoring disabled.')
     return
   }

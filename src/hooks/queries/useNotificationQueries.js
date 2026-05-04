@@ -33,7 +33,6 @@ export const useNotifications = (filters = {}, options = {}) => {
         .from('notifications')
         .select('*')
         .eq('user_id', session.user.id)
-        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (filters.category) {
@@ -70,10 +69,10 @@ export const useUnreadCount = (options = {}) => {
 
       const { count, error } = await supabase
         .from('notifications')
-        .select('id', { count: 'exact', head: true })
+        .select('id', { count: 'exact' })
         .eq('user_id', session.user.id)
-        .is('deleted_at', null)
         .is('read_at', null)
+        .range(0, 0)
 
       if (error) throw error
       return count || 0
@@ -96,7 +95,6 @@ export const useMarkAsRead = () => {
         .from('notifications')
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('id', notificationId)
-        .is('deleted_at', null)
 
       if (error) throw error
     },
@@ -117,7 +115,6 @@ export const useMarkAllAsRead = () => {
         .from('notifications')
         .update({ is_read: true, read_at: new Date().toISOString() })
         .eq('user_id', session.user.id)
-        .is('deleted_at', null)
         .is('read_at', null)
 
       if (error) throw error

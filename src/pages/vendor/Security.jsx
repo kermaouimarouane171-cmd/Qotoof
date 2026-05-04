@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -67,11 +67,15 @@ const VendorSecurityPage = () => {
     }
   }, [mfaEnforcementState, profile])
 
-  useEffect(() => {
-    loadSecurityData()
-  }, [])
+  const loadSecurityData = useCallback(async () => {
+    if (!user?.id) {
+      setMfaSettings(null)
+      setTrustScore(null)
+      setSessionCount(0)
+      setLoading(false)
+      return
+    }
 
-  const loadSecurityData = async () => {
     try {
       setLoading(true)
 
@@ -91,7 +95,11 @@ const VendorSecurityPage = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [getActiveSessions, getMFASettings, user?.id])
+
+  useEffect(() => {
+    loadSecurityData()
+  }, [loadSecurityData])
 
   // ============================================================
   // PASSWORD STRENGTH VALIDATION
@@ -120,6 +128,8 @@ const VendorSecurityPage = () => {
   // SEND SECURITY CHANGE EMAIL NOTIFICATION
   // ============================================================
   const sendSecurityEmail = async (action, details = '') => {
+    if (!user?.id) return
+
     try {
       // Create notification in database (will trigger email via Edge Function)
       await supabase.from('notifications').insert({
@@ -145,6 +155,11 @@ const VendorSecurityPage = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault()
     setPasswordError('')
+
+    if (!user?.email) {
+      setPasswordError('تعذر تحديد الحساب الحالي')
+      return
+    }
 
     if (!oldPassword || !newPassword || !confirmPassword) {
       setPasswordError(t('vendor.security.errors.allFieldsRequired', 'All fields are required'))
@@ -225,6 +240,11 @@ const VendorSecurityPage = () => {
   // DISABLE MFA WITH RE-AUTHENTICATION
   // ============================================================
   const handleDisableMFA = async () => {
+    if (!user?.email || !user?.id) {
+      toast.error('تعذر تحديد الحساب الحالي')
+      return
+    }
+
     // Require password confirmation before disabling MFA
     const password = prompt(t('vendor.security.enterPasswordDisableMFA', 'Please enter your password to disable two-factor authentication:'))
     if (!password) return
@@ -270,6 +290,11 @@ const VendorSecurityPage = () => {
   // REVOKE ALL SESSIONS WITH EMAIL NOTIFICATION
   // ============================================================
   const handleRevokeAllSessions = async () => {
+    if (!user?.id) {
+      toast.error('تعذر تحديد الحساب الحالي')
+      return
+    }
+
     if (!confirm(t('vendor.security.confirmRevokeSessions', 'Sign out all other devices?'))) {
       return
     }

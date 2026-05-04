@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { emailService } from '@/services/emailService'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
 import {
@@ -281,7 +282,6 @@ const RequestTab = ({ t, user, navigate }) => {
       }
 
       try {
-        const { emailService } = await import('@/services/emailService')
         const { data: profileData } = await supabase.from('profiles').select('first_name, last_name, email').eq('id', user.id).maybeSingle()
         if (profileData?.email) {
           await emailService.sendReturnRequestConfirmation(

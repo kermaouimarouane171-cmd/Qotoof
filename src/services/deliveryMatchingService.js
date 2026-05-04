@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { calculateDistance } from '@/services/shippingCalculator'
+import { calculateDistance as calculateGeoDistance } from '@/services/shippingCalculator'
 import { logger } from '@/utils/logger'
 
 export const CARGO_SIZE_OPTIONS = [
@@ -112,7 +112,7 @@ const calculateRouteDistance = ({ vendorLocation, deliveryLocation, deliveryDist
     return null
   }
 
-  const calculatedDistance = calculateDistance(
+  const calculatedDistance = calculateGeoDistance(
     normalizedVendorLocation.lat,
     normalizedVendorLocation.lng,
     normalizedDeliveryLocation.lat,
@@ -130,7 +130,7 @@ const calculateDriverPickupDistance = ({ driver, vendorLocation }) => {
     return null
   }
 
-  const calculatedDistance = calculateDistance(
+  const calculatedDistance = calculateGeoDistance(
     normalizedDriverLocation.lat,
     normalizedDriverLocation.lng,
     normalizedVendorLocation.lat,
@@ -348,13 +348,73 @@ export const getMatchingDeliveriesForDriver = async (driverId) => {
     })
 }
 
+export const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  return calculateGeoDistance(lat1, lon1, lat2, lon2)
+}
+
+export const calculateDeliveryFee = (distanceKm) => {
+  const BASE_FEE = parseFloat(import.meta.env.VITE_DELIVERY_BASE_FEE || '10')
+  const PER_KM = parseFloat(import.meta.env.VITE_DELIVERY_PER_KM_FEE || '5')
+  return parseFloat((BASE_FEE + (distanceKm * PER_KM)).toFixed(2))
+}
+
+export const isDriverEligibleForOrder = async (driverId, orderId) => {
+  if (!driverId || !orderId) return false
+
+  const { data: driver, error: driverError } = await supabase
+    .from('profiles')
+    .select(DRIVER_SELECT)
+    .eq('id', driverId)
+    .maybeSingle()
+
+  if (driverError) throw driverError
+  if (!driver) return false
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .select(`
+      id,
+      cargo_size,
+      delivery_distance_km,
+      driver_delivery_payment_method,
+      shipping_latitude,
+      shipping_longitude,
+      vendor:profiles!vendor_id(id, latitude, longitude)
+    `)
+    .eq('id', orderId)
+    .maybeSingle()
+
+  if (orderError) throw orderError
+  if (!order) return false
+
+  const match = doesDriverMatchDelivery({
+    driver,
+    cargoSize: order.cargo_size,
+    deliveryPaymentMethod: order.driver_delivery_payment_method,
+    vendorLocation: {
+      lat: order.vendor?.latitude,
+      lng: order.vendor?.longitude,
+    },
+    deliveryLocation: {
+      lat: order.shipping_latitude,
+      lng: order.shipping_longitude,
+    },
+    deliveryDistanceKm: order.delivery_distance_km,
+  })
+
+  return match.matches
+}
+
 const deliveryMatchingService = {
+  calculateDeliveryFee,
+  calculateDistance,
   doesDriverMatchDelivery,
   driverSupportsPaymentMethod,
   getDriverSupportedPaymentMethods,
   getAvailableDriversForCheckout,
   getCargoSizeLabel,
   getDriverDeliveryPaymentMethodLabel,
+  isDriverEligibleForOrder,
   getMatchingDeliveriesForDriver,
   normalizeCargoSize,
   normalizeDriverDeliveryPaymentMethod,

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatPrice } from '@/utils/currency'
 import { MapPinIcon, ShoppingCartIcon, HeartIcon as HeartOutline, FlagIcon, CheckIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import { StarIcon as StarIconSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid'
@@ -10,6 +10,7 @@ import { useState } from 'react'
 import toast from 'react-hot-toast'
 
 const ProductCard = ({ product }) => {
+  const navigate = useNavigate()
   const { addItem } = useCartStore()
   const { toggleProduct, isFavorited } = useFavoritesStore()
   const { user } = useAuthStore()
@@ -19,6 +20,17 @@ const ProductCard = ({ product }) => {
   const favorited = isFavorited(product.id)
   const rating = Number(product.average_rating ?? product.rating ?? 0)
   const reviewsCount = Number(product.reviews_count ?? 0)
+
+  const openProductDetails = () => {
+    navigate(`/product/${product.id}`)
+  }
+
+  const handleCardKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      openProductDetails()
+    }
+  }
 
   const handleQuickAdd = (e) => {
     e.preventDefault()
@@ -39,7 +51,14 @@ const ProductCard = ({ product }) => {
   }
 
   return (
-    <Link to={`/product/${product.id}`} className="group block">
+    <article
+      data-testid="product-card"
+      className="group block cursor-pointer"
+      onClick={openProductDetails}
+      onKeyDown={handleCardKeyDown}
+      role="link"
+      tabIndex={0}
+    >
       <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
         {/* Image */}
         <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
@@ -96,6 +115,7 @@ const ProductCard = ({ product }) => {
           {/* Quick Add Button */}
           {product.is_available && (
             <button
+              data-testid="add-to-cart-btn"
               onClick={handleQuickAdd}
               className="absolute bottom-3 right-3 w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
             >
@@ -212,7 +232,7 @@ const ProductCard = ({ product }) => {
         category="product"
         categoryId={product.id}
       />
-    </Link>
+    </article>
   )
 }
 

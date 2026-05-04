@@ -29,11 +29,13 @@ const ShoppingLists = () => {
   const [showForm, setShowForm] = useState(false)
   const [newListName, setNewListName] = useState('')
 
-  useEffect(() => {
-    loadLists()
-  }, [])
+  const loadLists = useCallback(async () => {
+    if (!user?.id) {
+      setLists([])
+      setLoading(false)
+      return
+    }
 
-  const loadLists = async () => {
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -52,7 +54,11 @@ const ShoppingLists = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id])
+
+  useEffect(() => {
+    loadLists()
+  }, [loadLists])
 
   const createList = async () => {
     if (!newListName.trim()) {

@@ -21,10 +21,12 @@ import {
   ShieldCheckIcon,
   BanknotesIcon,
   ClipboardDocumentListIcon,
+  BoltIcon,
   SunIcon,
   MoonIcon,
   TagIcon,
   MapPinIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline'
 
 const DashboardLayout = () => {
@@ -58,6 +60,8 @@ const DashboardLayout = () => {
     { to: '/vendor/orders', label: 'Orders', icon: ShoppingBagIcon },
     { to: '/vendor/analytics', label: 'Analytics', icon: ChartBarSquareIcon },
     { to: '/vendor/coupons', label: 'Coupons', icon: TagIcon },
+    { to: '/vendor/subscription', label: 'Premium', icon: BoltIcon },
+    { to: '/vendor/rfqs', label: 'RFQ Board', icon: DocumentTextIcon },
     { to: '/vendor/profile', label: 'Profile', icon: UserIcon },
   ]
 
@@ -80,7 +84,7 @@ const DashboardLayout = () => {
     { to: '/admin/products', label: 'Products', icon: CubeIcon },
     { to: '/admin/orders', label: 'Orders', icon: ShoppingBagIcon },
     { to: '/admin/reviews', label: 'Reviews', icon: StarIcon },
-    { to: '/admin/finance/payouts', label: 'Payouts', icon: BanknotesIcon },
+    { to: '/admin/payouts', label: 'Payouts', icon: BanknotesIcon },
     { to: '/admin/analytics', label: 'Analytics', icon: ChartBarSquareIcon },
     { to: '/admin/drivers', label: 'Drivers', icon: TruckIcon },
     { to: '/admin/security', label: 'Security', icon: ShieldCheckIcon },
@@ -94,6 +98,7 @@ const DashboardLayout = () => {
     { to: '/buyer/orders', label: 'Orders', icon: ShoppingBagIcon },
     { to: '/buyer/addresses', label: 'Addresses', icon: MapPinIcon },
     { to: '/buyer/shopping-lists', label: 'Shopping Lists', icon: ClipboardDocumentListIcon },
+    { to: '/buyer/rfq', label: 'My Requests', icon: DocumentTextIcon },
     { to: '/buyer/loyalty', label: 'Loyalty', icon: StarIcon },
     { to: '/buyer/settings', label: 'Settings', icon: Cog6ToothIcon },
   ]

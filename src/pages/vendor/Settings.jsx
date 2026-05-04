@@ -73,6 +73,11 @@ const VendorSettings = () => {
   /* eslint-enable react-hooks/exhaustive-deps */
 
   const loadSettings = async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       const { data, error } = await supabase

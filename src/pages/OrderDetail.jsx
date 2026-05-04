@@ -40,6 +40,7 @@ import cancellationService, { DEFAULT_VENDOR_CANCELLATION_POLICY, normalizeCance
 import reviewService from '@/services/reviewService'
 import invoiceService from '@/services/invoiceService'
 import { useAuthStore } from '@/store/authStore'
+import { useCartStore } from '@/store/cartStore'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
@@ -470,12 +471,10 @@ const OrderDetail = () => {
   const handleReorder = async () => {
     if (!order?.items?.length) return
     try {
-      const { cartStore } = await import('@/store/cartStore')
-
       let addedCount = 0
       for (const item of order.items) {
         if (item.product) {
-          cartStore.getState().addItem({
+          useCartStore.getState().addItem({
             id: item.product.id,
             name: item.product.name,
             price: item.unit_price,
@@ -1504,7 +1503,7 @@ const OrderDetail = () => {
               {platformFee > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">
-                    {t('orderDetail.platformFee', 'Platform Fee (3%)')}
+                  {t('orderDetail.platformFee', 'Platform Fee')}
                   </span>
                   <span className="font-medium text-gray-900">{formatPrice(platformFee)}</span>
                 </div>
@@ -1520,7 +1519,7 @@ const OrderDetail = () => {
               {order.commission > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">
-                    {t('orderDetail.vendorCommission', 'Vendor Commission (3%)')}
+                    {t('orderDetail.vendorCommission', 'Vendor Commission')}
                   </span>
                   <span className="font-medium text-red-600">- {formatPrice(order.commission)}</span>
                 </div>
@@ -1529,7 +1528,7 @@ const OrderDetail = () => {
               {order.driver_commission > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">
-                    {t('orderDetail.driverCommission', 'Driver Commission (2%)')}
+                    {t('orderDetail.driverCommission', 'Driver Commission')}
                   </span>
                   <span className="font-medium text-red-600">- {formatPrice(order.driver_commission)}</span>
                 </div>

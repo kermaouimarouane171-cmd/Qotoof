@@ -289,10 +289,65 @@ const resolveInBuyerFavor = async ({ disputeId, adminId, resolution, adminNotes 
   return updatedDispute
 }
 
+export const openDispute = async (orderId, vendorId, reason, files = []) => {
+  const dispute = await createDispute({
+    orderId,
+    vendorId,
+    description: reason,
+    disputeType: 'not_paid',
+    evidencePaths: [],
+  })
+
+  if (files.length > 0) {
+    const uploadedPaths = await uploadEvidenceFiles({
+      disputeId: dispute.id,
+      userId: vendorId,
+      files,
+    })
+
+    if (uploadedPaths.length > 0) {
+      const { data: updatedDispute, error } = await supabase
+        .from('payment_disputes')
+        .update({ evidence_urls: uploadedPaths })
+        .eq('id', dispute.id)
+        .select('*')
+        .single()
+
+      if (error) throw error
+      return updatedDispute
+    }
+  }
+
+  return dispute
+}
+
+export const releaseBuyerDataToVendor = async (disputeId, adminId) => {
+  return resolveInVendorFavor({
+    disputeId,
+    adminId,
+    resolution: 'release_buyer_data',
+    adminNotes: 'تم الإفراج عن بيانات المشتري بناءً على قرار الإدارة.',
+    releaseBuyerData: true,
+  })
+}
+
+export const applyDisputePenalty = async (buyerId, resolution = {}) => {
+  const penalty = Number(resolution?.penalty ?? DEFAULT_VENDOR_PENALTY)
+  const restrictionDays = Number(resolution?.restrictionDays ?? 45)
+
+  return trustScoreService.registerFailedPayment(buyerId, {
+    penalty,
+    restrictionDays,
+  })
+}
+
 const disputeService = {
+  applyDisputePenalty,
   createDispute,
   getDisputeById,
   getDisputes,
+  openDispute,
+  releaseBuyerDataToVendor,
   resolveInBuyerFavor,
   resolveInVendorFavor,
   uploadEvidenceFiles,

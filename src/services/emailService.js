@@ -9,7 +9,7 @@ import { logger } from '@/utils/logger'
 class EmailService {
   constructor() {
     this.enabled = import.meta.env.VITE_EMAIL_ENABLED === 'true'
-    this.fromEmail = import.meta.env.VITE_EMAIL_FROM || 'Qotoof273@gmail.com'
+    this.fromEmail = import.meta.env.VITE_EMAIL_FROM || 'support@qotoof.ma'
     this.appName = 'Qotoof'
   }
 

@@ -313,10 +313,10 @@ export const notificationsApi = {
   getUnreadCount: withRetry(async (userId) => {
     const { count, error } = await supabase
       .from('notifications')
-      .select('id', { count: 'exact', head: true })
+      .select('id', { count: 'exact' })
       .eq('user_id', userId)
-      .is('deleted_at', null)
       .is('read_at', null)
+      .range(0, 0)
 
     if (error) throw error
     return count || 0
@@ -328,7 +328,6 @@ export const notificationsApi = {
       .from('notifications')
       .update({ is_read: true, read_at: timestamp })
       .eq('id', notificationId)
-      .is('deleted_at', null)
       .select()
       .maybeSingle()
 
@@ -342,7 +341,6 @@ export const notificationsApi = {
       .from('notifications')
       .update({ is_read: true, read_at: timestamp })
       .eq('user_id', userId)
-      .is('deleted_at', null)
       .is('read_at', null)
 
     if (options.category) {
@@ -358,7 +356,6 @@ export const notificationsApi = {
       .from('notifications')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', notificationId)
-      .is('deleted_at', null)
       .select()
       .maybeSingle()
 
@@ -371,7 +368,6 @@ export const notificationsApi = {
       .from('notifications')
       .update({ deleted_at: new Date().toISOString() })
       .eq('user_id', userId)
-      .is('deleted_at', null)
       .not('read_at', 'is', null)
 
     if (error) throw error

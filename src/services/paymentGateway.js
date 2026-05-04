@@ -1,6 +1,7 @@
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/withRetry'
+import { getPayPalClientId as getConfiguredPayPalClientId } from '@/lib/config'
 
 /**
  * Payment Gateway Service
@@ -11,8 +12,8 @@ import { withRetry } from '@/utils/withRetry'
  */
 class PaymentGateway {
   constructor() {
-    this.stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY
-    // NOTE: Stripe secret key is handled server-side in Supabase Edge Functions only.
+    this.paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID
+    // NOTE: PayPal secret is handled server-side in Supabase Edge Functions only.
     // Never expose it in VITE_ env vars — it would be bundled into the client.
     this.cmiMerchantId = import.meta.env.VITE_CMI_MERCHANT_ID
     // NOTE: CMI store key is handled server-side in the 'create-cmi-session' Edge Function only.
@@ -22,12 +23,16 @@ class PaymentGateway {
     this.bankDetailsTtlMs = 5 * 60 * 1000
   }
 
+  getPayPalClientId() {
+    return getConfiguredPayPalClientId() || this.paypalClientId || import.meta.env.VITE_PAYPAL_CLIENT_ID || ''
+  }
+
   /**
    * Initialize payment
    * @param {Object} options - Payment options
    * @param {string} options.orderId - Order ID
    * @param {number} options.amount - Amount in MAD
-   * @param {string} options.method - Payment method (stripe, cm, cod, bank)
+  * @param {string} options.method - Payment method (paypal, cmi, cod, bank)
    * @param {string} options.currency - Currency (default: MAD)
    * @param {Object} options.customer - Customer info
    * @returns {Promise<Object>} Payment result
@@ -36,6 +41,8 @@ class PaymentGateway {
     return withRetry(
       async () => {
         switch (method) {
+          case 'paypal':
+            return await this.processPayPalPayment({ orderId, amount, currency, customer })
           case 'cmi':
             return await this.processCmiPayment({ orderId, amount, currency, customer })
           case 'cod':
@@ -51,21 +58,21 @@ class PaymentGateway {
   }
 
   /**
-   * Process Stripe payment
+   * Process PayPal payment
    */
-  async processStripePayment({ orderId, amount, currency, customer }) {
+  async processPayPalPayment({ orderId, amount, currency, customer }) {
     return withRetry(
       async () => {
-        if (!this.stripePublicKey) {
-          throw new Error('Stripe not configured')
+        if (!this.getPayPalClientId()) {
+          throw new Error('PayPal not configured')
         }
 
-        // Create payment intent on backend
-        const { data: paymentIntent, error } = await supabase.functions.invoke('create-payment-intent', {
+        // Create PayPal order on backend
+        const { data: paypalOrder, error } = await supabase.functions.invoke('create-paypal-order', {
           body: {
             orderId,
-            amount: Math.round(amount * 100), // Convert to cents
-            currency: currency.toLowerCase(),
+            amount,
+            currency,
             customer: {
               email: customer.email,
               name: customer.name,
@@ -79,11 +86,26 @@ class PaymentGateway {
 
         if (error) throw error
 
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            order_id: orderId,
+            amount,
+            method: 'paypal',
+            status: 'pending',
+            transaction_id: paypalOrder?.orderId || null,
+          })
+          .select()
+          .single()
+
+        if (paymentError) throw paymentError
+
         return {
-          method: 'stripe',
-          clientSecret: paymentIntent.clientSecret,
-          paymentIntentId: paymentIntent.id,
-          status: 'requires_confirmation',
+          method: 'paypal',
+          paymentId: payment.id,
+          orderId: paypalOrder?.orderId,
+          approvalUrl: paypalOrder?.approvalUrl,
+          status: paypalOrder?.approvalUrl ? 'redirecting' : 'requires_confirmation',
         }
       },
       { maxRetries: 2, baseDelay: 1000 }
@@ -247,41 +269,52 @@ class PaymentGateway {
   }
 
   /**
-   * Confirm Stripe payment
+   * Confirm PayPal payment
    */
-  async confirmStripePayment(clientSecret, paymentMethod) {
+  async confirmPayPalPayment(orderId) {
     return withRetry(
       async () => {
-        if (!this.stripePublicKey) {
-          throw new Error('Stripe not configured')
+        if (!this.getPayPalClientId()) {
+          throw new Error('PayPal not configured')
         }
 
-        // Load Stripe
-        const stripe = await this.loadStripe()
-
-        // Confirm payment
-        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: paymentMethod,
+        const { data: captureResult, error } = await supabase.functions.invoke('capture-paypal-order', {
+          body: { orderId },
         })
 
         if (error) {
-          logger.error('Stripe confirmation error:', error)
+          logger.error('PayPal confirmation error:', error)
           throw new Error(error.message)
         }
 
+        const status = captureResult?.status === 'COMPLETED' ? 'completed' : 'pending'
+
         // Update payment status in database
-        await supabase
+        const { data: payment, error: paymentUpdateError } = await supabase
           .from('payments')
           .update({
-            status: paymentIntent.status === 'succeeded' ? 'completed' : 'pending',
-            gateway_response: paymentIntent,
+            status,
+            gateway_response: captureResult,
             confirmed_at: new Date().toISOString(),
           })
-          .eq('payment_intent_id', paymentIntent.id)
+          .eq('transaction_id', orderId)
+          .select('id, order_id')
+          .single()
+
+        if (paymentUpdateError) {
+          throw paymentUpdateError
+        }
+
+        if (status === 'completed' && payment?.order_id) {
+          await supabase
+            .from('orders')
+            .update({ payment_status: 'paid' })
+            .eq('id', payment.order_id)
+        }
 
         return {
-          status: paymentIntent.status,
-          paymentIntentId: paymentIntent.id,
+          status,
+          orderId,
         }
       },
       { maxRetries: 2, baseDelay: 1000 }
@@ -381,8 +414,8 @@ class PaymentGateway {
 
         if (fetchError) throw fetchError
 
-        if (payment.method === 'stripe') {
-          return await this.refundStripePayment(payment, amount)
+        if (payment.method === 'paypal') {
+          return await this.refundPayPalPayment(payment, amount)
         } else if (payment.method === 'cmi') {
           return await this.refundCmiPayment(payment, amount)
         } else {
@@ -405,15 +438,15 @@ class PaymentGateway {
   }
 
   /**
-   * Refund Stripe payment
+   * Refund PayPal payment
    */
-  async refundStripePayment(payment, amount) {
+  async refundPayPalPayment(payment, amount) {
     return withRetry(
       async () => {
-        const { data, error } = await supabase.functions.invoke('refund-payment', {
+        const { data, error } = await supabase.functions.invoke('refund-paypal-payment', {
           body: {
-            paymentIntentId: payment.payment_intent_id,
-            amount: Math.round(amount * 100),
+            orderId: payment.transaction_id,
+            amount,
             reason: 'requested_by_customer',
           },
         })
@@ -477,21 +510,6 @@ class PaymentGateway {
   // All CMI signing is handled by the 'create-cmi-session' Edge Function.
 
   /**
-   * Load Stripe library
-   */
-  async loadStripe() {
-    if (window.Stripe) return window.Stripe(this.stripePublicKey)
-
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script')
-      script.src = 'https://js.stripe.com/v3/'
-      script.onload = () => resolve(window.Stripe(this.stripePublicKey))
-      script.onerror = reject
-      document.head.appendChild(script)
-    })
-  }
-
-  /**
    * Get available payment methods
    */
   getAvailableMethods() {
@@ -499,6 +517,10 @@ class PaymentGateway {
       { id: 'cod', name: 'الدفع عند الاستلام', icon: '💵', available: true },
       { id: 'bank', name: 'تحويل بنكي', icon: '🏦', available: true },
     ]
+
+    if (this.getPayPalClientId()) {
+      methods.push({ id: 'paypal', name: 'PayPal', icon: '🅿️', available: true })
+    }
 
     if (this.cmiMerchantId) {
       methods.push({ id: 'cmi', name: 'CMI (المغرب)', icon: '🇲🇦', available: true })

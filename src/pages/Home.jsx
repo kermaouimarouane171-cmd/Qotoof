@@ -15,6 +15,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'
+import { supabaseUrlLooksIssued } from '@/utils/envValidators'
 
 const HomePage = () => {
   const { t } = useTranslation()
@@ -94,7 +95,7 @@ const HomePage = () => {
     try {
       // Check if Supabase is configured
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+      if (!supabaseUrlLooksIssued(supabaseUrl)) {
         logger.warn('Supabase not configured - using demo stats')
         setStats({ products: 0, vendors: 0, orders: 0 })
         return
@@ -123,7 +124,7 @@ const HomePage = () => {
     try {
       // Check if Supabase is configured
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-      if (!supabaseUrl || supabaseUrl.includes('placeholder')) {
+      if (!supabaseUrlLooksIssued(supabaseUrl)) {
         logger.warn('Supabase not configured - no products to load')
         setProducts([])
         return
@@ -544,6 +545,7 @@ const HomePage = () => {
                 <li><Link to="/marketplace?category=plants" className="hover:text-white transition-colors">{t('home.footer.plants')}</Link></li>
                 <li><Link to="/marketplace?category=vegetables" className="hover:text-white transition-colors">{t('home.footer.vegetables')}</Link></li>
                 <li><Link to="/marketplace?category=fruits" className="hover:text-white transition-colors">{t('home.footer.fruits')}</Link></li>
+                <li><Link to="/marketplace/seasonal" className="hover:text-white transition-colors">📅 التقويم الموسمي</Link></li>
               </ul>
             </div>
 

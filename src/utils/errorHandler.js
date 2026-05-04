@@ -162,13 +162,13 @@ export const logErrorToService = async (error, context = {}) => {
 
   // Send to error tracking service
   try {
-    if (process.env.REACT_APP_SENTRY_DSN) {
+    if (import.meta.env.VITE_SENTRY_DSN) {
       // Sentry integration
       // Sentry.captureException() - already integrated in sentry.js
     }
 
     // Log to backend
-    if (process.env.NODE_ENV === 'production') {
+    if (import.meta.env.PROD) {
       await fetch('/api/logs/errors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -135,7 +135,7 @@ const AdminCommissionsPage = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('admin.commissions.title', 'Commissions Dashboard')}</h1>
-        <p className="text-gray-600">{t('admin.commissions.subtitle', 'Track your platform earnings (3% commission)')}</p>
+        <p className="text-gray-600">{t('admin.commissions.subtitle', 'Track your platform earnings from vendor commissions')}</p>
         <div className="mt-4 max-w-xs">
           <select
             value={period}
@@ -259,7 +259,7 @@ const AdminCommissionsPage = () => {
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.orderId', 'Order ID')}</th>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.user', 'User')}</th>
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.amount', 'Amount')}</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.commission', 'Commission (2%)')}</th>
+                <th className="text-right py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.commission', 'Commission')}</th>
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.vendorGets', 'Vendor Gets')}</th>
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.status', 'Status')}</th>
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">{t('admin.commissions.date', 'Date')}</th>

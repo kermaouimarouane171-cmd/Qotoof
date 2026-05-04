@@ -7,11 +7,26 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+const getPackageName = (id) => {
+  const modulePath = id.split('node_modules/')[1]
+  if (!modulePath) return ''
+
+  return modulePath.startsWith('@')
+    ? modulePath.split('/').slice(0, 2).join('/')
+    : modulePath.split('/')[0]
+}
+
+const matchesPackage = (packageName, packages) => packages.includes(packageName)
+
+const matchesPrefix = (packageName, prefixes) => (
+  prefixes.some((prefix) => packageName === prefix || packageName.startsWith(`${prefix}/`))
+)
+
 const securityHeaders = {
   'X-Frame-Options': 'DENY',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Content-Security-Policy': "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com blob:; font-src 'self' https://fonts.gstatic.com data:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+  'Content-Security-Policy': "default-src 'self'; connect-src 'self' https: wss:; img-src 'self' data: https: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com blob:; font-src 'self' https://fonts.gstatic.com data:; frame-src 'self' https://www.google.com https://www.gstatic.com; child-src 'self' https://www.google.com https://www.gstatic.com; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
 }
 
 export default defineConfig({
@@ -112,56 +127,94 @@ export default defineConfig({
       output: { comments: false },
     },
     sourcemap: false,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1100,
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
 
-          const modulePath = id.split('node_modules/')[1]
-          const packageName = modulePath.startsWith('@')
-            ? modulePath.split('/').slice(0, 2).join('/')
-            : modulePath.split('/')[0]
+          const packageName = getPackageName(id)
+          if (!packageName) return undefined
 
           // ── 1. React core ────────────────────────────────────────────────────────
-          if (
-            id.includes('/react/') ||
-            id.includes('/react-dom/') ||
-            id.includes('/scheduler/') ||
-            id.includes('/use-sync-external-store/')
-          ) return 'vendor-react'
+          if (matchesPackage(packageName, ['react', 'react-dom', 'scheduler', 'use-sync-external-store'])) {
+            return 'vendor-react'
+          }
 
           // ── 2. Router ────────────────────────────────────────────────────────────
-          if (id.includes('react-router') || id.includes('@remix-run')) return 'vendor-router'
+          if (matchesPackage(packageName, ['react-router', 'react-router-dom']) || matchesPrefix(packageName, ['@remix-run'])) {
+            return 'vendor-router'
+          }
 
           // ── 3. Supabase ──────────────────────────────────────────────────────────
-          if (
-            id.includes('@supabase') ||
-            id.includes('/ws/') ||
-            id.includes('cross-fetch')
-          ) return 'vendor-supabase'
+          if (matchesPrefix(packageName, ['@supabase']) || matchesPackage(packageName, ['ws', 'cross-fetch'])) {
+            return 'vendor-supabase'
+          }
 
           // ── 4. Packages with internal circular deps → each gets its own chunk ───
           // These MUST NOT be grouped together — TDZ errors result from shared init
-          if (id.includes('@react-pdf')) return 'chunk-react-pdf'
-          if (id.includes('mammoth')) return 'chunk-mammoth'
-          if (id.includes('xlsx') || id.includes('exceljs')) return 'chunk-excel'
-          if (id.includes('jspdf') || id.includes('html2canvas')) return 'chunk-pdf-export'
-          if (id.includes('@sentry')) return 'chunk-sentry'
-          if (id.includes('firebase')) return 'chunk-firebase'
+          if (matchesPrefix(packageName, ['@react-pdf']) || matchesPackage(packageName, ['fontkit', 'unicode-properties', 'dfa', 'clone', 'yoga-layout', 'bidi-js'])) {
+            return 'chunk-react-pdf'
+          }
+          if (matchesPackage(packageName, ['mammoth'])) return 'chunk-mammoth'
+          if (matchesPackage(packageName, ['xlsx', 'exceljs', 'jszip'])) return 'chunk-excel'
+          if (matchesPackage(packageName, ['jspdf', 'html2canvas', 'canvg', 'stackblur-canvas', 'rgbcolor', 'svg-pathdata', 'abs-svg-path', 'parse-svg-path', 'normalize-svg-path', 'svg-arc-to-cubic-bezier'])) {
+            return 'chunk-pdf-export'
+          }
+          if (matchesPrefix(packageName, ['@sentry', '@sentry-internal'])) return 'chunk-sentry'
+          if (matchesPackage(packageName, ['firebase']) || matchesPrefix(packageName, ['@firebase'])) return 'chunk-firebase'
 
           // ── 5. Split remaining ecosystem dependencies by domain ─────────────────
-          if (['chart.js', 'react-chartjs-2', 'recharts'].includes(packageName)) return 'vendor-charts'
-          if (['leaflet', 'react-leaflet'].includes(packageName)) return 'vendor-maps'
-          if (['i18next', 'react-i18next', 'i18next-browser-languagedetector'].includes(packageName)) return 'vendor-i18n'
-          if (['react-hook-form', '@hookform/resolvers'].includes(packageName)) return 'vendor-forms'
-          if (packageName === '@tanstack/react-query') return 'vendor-query'
-          if (['@heroicons/react', '@headlessui/react'].includes(packageName)) return 'vendor-ui-kit'
-          if (['date-fns', 'zod', 'clsx', 'tailwind-merge'].includes(packageName)) return 'vendor-utils'
-          if (['axios', 'algoliasearch', 'papaparse'].includes(packageName)) return 'vendor-data'
+          if (
+            matchesPackage(packageName, ['chart.js', 'react-chartjs-2', 'recharts', 'recharts-scale', 'victory-vendor', 'internmap', '@kurkle/color']) ||
+            packageName.startsWith('d3-')
+          ) return 'vendor-charts'
 
-          // ── 6. Package-level fallback to avoid oversized generic vendor chunks ──
-          return `vendor-${packageName.replace('@', '').replace('/', '-')}`
+          if (matchesPackage(packageName, ['leaflet', 'react-leaflet', '@react-leaflet/core'])) return 'vendor-maps'
+
+          if (matchesPackage(packageName, ['i18next', 'react-i18next', 'i18next-browser-languagedetector'])) return 'vendor-i18n'
+
+          if (matchesPackage(packageName, ['react-hook-form', '@hookform/resolvers'])) return 'vendor-forms'
+
+          if (matchesPrefix(packageName, ['@tanstack'])) return 'vendor-query'
+
+          if (
+            matchesPackage(packageName, ['react-transition-group', 'dom-helpers', 'tabbable', 'react-aria', 'react-stately']) ||
+            matchesPrefix(packageName, ['@heroicons', '@headlessui', '@floating-ui', '@react-aria', '@react-stately'])
+          ) return 'vendor-ui-kit'
+
+          if (matchesPackage(packageName, ['zustand'])) return 'vendor-state'
+
+          if (
+            matchesPackage(packageName, [
+              'goober',
+              'react-hot-toast',
+              'react-helmet-async',
+              'react-error-boundary',
+              'react-google-recaptcha',
+              'react-async-script',
+              'react-infinite-scroll-component',
+              'react-fast-compare',
+              'invariant',
+              'shallowequal',
+              'hoist-non-react-statics',
+              'prop-types',
+              'react-is',
+              'iceberg-js',
+              'dompurify'
+            ])
+          ) return 'vendor-client'
+
+          if (matchesPackage(packageName, ['date-fns', 'zod', 'clsx', 'tailwind-merge', 'lodash', 'underscore', 'tslib', 'void-elements', 'html-parse-stringify', 'is-url', 'emoji-regex'])) {
+            return 'vendor-utils'
+          }
+
+          if (matchesPackage(packageName, ['axios', 'algoliasearch', 'papaparse']) || matchesPrefix(packageName, ['@algolia'])) {
+            return 'vendor-data'
+          }
+
+          // ── 6. Keep the remainder together to avoid a long tail of empty vendor chunks ──
+          return 'vendor-misc'
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',

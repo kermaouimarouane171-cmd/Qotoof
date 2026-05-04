@@ -1,14 +1,15 @@
 import { serve } from 'https://deno.land/std@0.200.0/http/server.ts'
 
 // Get public config for frontend (safe values only)
-// NEVER return secrets like SERVICE_ROLE_KEY or STRIPE_SECRET_KEY
+// NEVER return secrets like SERVICE_ROLE_KEY or PAYPAL_CLIENT_SECRET
 const PUBLIC_CONFIG = {
   supabase: {
     url: Deno.env.get('VITE_SUPABASE_URL') || '',
     anonKey: Deno.env.get('VITE_SUPABASE_ANON_KEY') || '',
   },
-  stripe: {
-    publishableKey: Deno.env.get('VITE_STRIPE_PUBLIC_KEY') || '',
+  paypal: {
+    clientId: Deno.env.get('VITE_PAYPAL_CLIENT_ID') || '',
+    settlementCurrency: Deno.env.get('VITE_PAYPAL_SETTLEMENT_CURRENCY') || Deno.env.get('PAYPAL_SETTLEMENT_CURRENCY') || 'EUR',
   },
   recaptcha: {
     siteKey: Deno.env.get('VITE_RECAPTCHA_SITE_KEY') || '',
@@ -24,7 +25,7 @@ const PUBLIC_CONFIG = {
 
 console.log('✅ Public config loaded:', {
   supabaseUrl: !!PUBLIC_CONFIG.supabase.url,
-  stripeKey: !!PUBLIC_CONFIG.stripe.publishableKey,
+  paypalClientId: !!PUBLIC_CONFIG.paypal.clientId,
 })
 
 serve(async (req) => {
@@ -34,7 +35,7 @@ serve(async (req) => {
     headers.set('Content-Type', 'application/json')
     headers.set('Access-Control-Allow-Origin', '*')
     headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS')
-    headers.set('Access-Control-Allow-Headers', 'Content-Type')
+    headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type')
     headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=600')
 
     if (req.method === 'OPTIONS') {

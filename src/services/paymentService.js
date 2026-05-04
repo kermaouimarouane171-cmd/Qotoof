@@ -28,7 +28,7 @@ import { PAYMENT_STATUS } from '@/constants/payment'
  * @param {Object} params
  * @param {number}  params.amount   - Amount in MAD
  * @param {string}  params.currency - Currency code (default 'MAD')
- * @param {string}  params.method   - 'cmi' | 'cod' | 'bank'
+ * @param {string}  params.method   - 'paypal' | 'cmi' | 'cod' | 'bank'
  * @param {string}  [params.orderId]
  * @param {Object}  [params.customer]
  * @returns {Promise<Object>} Intent data (clientSecret, redirectUrl, etc.)
@@ -50,22 +50,22 @@ export const createPaymentIntent = async ({ amount, currency = 'MAD', method, or
 }
 
 // ============================================================
-// 2. PROCESS STRIPE PAYMENT
+// 2. PROCESS PAYPAL PAYMENT
 // ============================================================
 
 /**
- * Process a Stripe card payment for an order.
+ * Process a PayPal payment for an order.
  *
  * @param {Object} params
  * @param {string} params.orderId        - Order ID
  * @param {number} params.amount         - Amount in MAD
  * @param {string} [params.currency]     - Currency code (default 'MAD')
  * @param {Object} [params.customer]     - { email, name }
- * @returns {Promise<Object>} Stripe payment intent result
+ * @returns {Promise<Object>} PayPal order initialization result
  */
-export const processStripePayment = async ({ orderId, amount, currency = 'MAD', customer = {} }) => {
+export const processPayPalPayment = async ({ orderId, amount, currency = 'MAD', customer = {} }) => {
   try {
-    const result = await paymentGateway.processStripePayment({
+    const result = await paymentGateway.processPayPalPayment({
       orderId,
       amount,
       currency,
@@ -73,10 +73,13 @@ export const processStripePayment = async ({ orderId, amount, currency = 'MAD', 
     })
     return { success: true, data: result }
   } catch (error) {
-    logger.error('[paymentService] processStripePayment error:', error)
+    logger.error('[paymentService] processPayPalPayment error:', error)
     return { success: false, error: error.message }
   }
 }
+
+// Backward compatibility for any legacy import that still references Stripe naming.
+export const processStripePayment = processPayPalPayment
 
 // ============================================================
 // 3. PROCESS CMI PAYMENT

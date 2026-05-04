@@ -106,14 +106,15 @@ const resolveAvailablePaymentTypes = ({ vendorPolicies = [], codEligibility }) =
   }
 }
 
-const buildPaymentPlan = ({ paymentType, payableAmount }) => {
+const buildPaymentPlan = ({ paymentType, payableAmount, paymentMethod = 'bank' }) => {
   const totalAmount = roundAmount(payableAmount)
+  const selectedMethod = paymentMethod === 'paypal' ? 'paypal' : 'bank'
 
   if (paymentType === 'split') {
     const firstPaymentAmount = roundAmount(totalAmount / 2)
     return {
       paymentType: 'split',
-      paymentMethod: 'bank',
+      paymentMethod: selectedMethod,
       firstPaymentAmount,
       firstPaymentStatus: 'pending',
       secondPaymentAmount: roundAmount(totalAmount - firstPaymentAmount),
@@ -136,7 +137,7 @@ const buildPaymentPlan = ({ paymentType, payableAmount }) => {
 
   return {
     paymentType: 'full',
-    paymentMethod: 'bank',
+    paymentMethod: selectedMethod,
     firstPaymentAmount: totalAmount,
     firstPaymentStatus: 'pending',
     secondPaymentAmount: 0,

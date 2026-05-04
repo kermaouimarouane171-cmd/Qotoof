@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import Navbar from '@/components/Navbar';
 import NotificationLink from '@/components/notifications/NotificationLink';
 import {
@@ -88,10 +89,12 @@ export const DefaultLayout = () => <Outlet />;
  * MainLayout - Full public layout with Navbar + Footer
  */
 export const MainLayout = () => {
+  const { t } = useTranslation();
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-950">
       <Navbar />
-      <a id="main-content" className="sr-only" href="#main" tabIndex={-1} aria-hidden="true">skip</a>
+      <a id="main-content" className="sr-only" href="#main" tabIndex={-1} aria-hidden="true">{t('layout.main.skipToContent', 'Skip to main content')}</a>
       <main className="flex-1">
         <Outlet />
       </main>
@@ -105,33 +108,33 @@ export const MainLayout = () => {
                 </div>
                 <span className="font-bold text-gray-900 dark:text-white">قطوف</span>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">سوق الجملة الأول في المغرب للنباتات والخضروات والفواكه</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('home.footer.description', "Morocco's leading B2B wholesale marketplace for fresh produce.")}</p>
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">روابط سريعة</h4>
+              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('layout.main.quickLinks', 'Quick Links')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><Link to="/marketplace" className="hover:text-green-600">السوق</Link></li>
-                <li><Link to="/stores" className="hover:text-green-600">المتاجر</Link></li>
-                <li><Link to="/cart" className="hover:text-green-600">السلة</Link></li>
+                <li><Link to="/marketplace" className="hover:text-green-600">{t('nav.marketplace', 'Marketplace')}</Link></li>
+                <li><Link to="/stores" className="hover:text-green-600">{t('nav.stores', 'Stores')}</Link></li>
+                <li><Link to="/cart" className="hover:text-green-600">{t('nav.cart', 'Cart')}</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">للبائعين</h4>
+              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('layout.main.forVendors', 'For Vendors')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><Link to="/register?role=vendor" className="hover:text-green-600">انضم كبائع</Link></li>
-                <li><Link to="/vendor/dashboard" className="hover:text-green-600">لوحة التحكم</Link></li>
+                <li><Link to="/register?role=vendor" className="hover:text-green-600">{t('home.footer.becomeVendor', 'Become a Vendor')}</Link></li>
+                <li><Link to="/vendor/dashboard" className="hover:text-green-600">{t('nav.dashboard', 'Dashboard')}</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">الدعم</h4>
+              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('home.footer.support', 'Support')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><a href="/help" className="hover:text-green-600">مركز المساعدة</a></li>
-                <li><a href="/contact" className="hover:text-green-600">تواصل معنا</a></li>
+                <li><a href="/help" className="hover:text-green-600">{t('home.footer.helpCenter', 'Help Center')}</a></li>
+                <li><a href="/contact" className="hover:text-green-600">{t('layout.main.contactUs', 'Contact Us')}</a></li>
               </ul>
             </div>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 pt-4 text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">© 2024 قطوف - Qotoof. جميع الحقوق محفوظة.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('home.footer.copyright', { year: new Date().getFullYear() })}</p>
           </div>
         </div>
       </footer>
@@ -177,7 +180,7 @@ export const AdminLayout = () => {
     { to: '/admin/moderation', icon: ShieldCheckIcon, label: 'الإشراف' },
     { to: '/admin/fraud-reports', icon: FlagIcon, label: 'بلاغات الاحتيال' },
     { to: '/admin/commissions', icon: CurrencyDollarIcon, label: 'العمولات' },
-    { to: '/admin/commission-management', icon: CurrencyDollarIcon, label: 'إدارة عمولات 3%' },
+    { to: '/admin/commission-management', icon: CurrencyDollarIcon, label: 'إدارة العمولات' },
     { to: '/admin/disputes', icon: ExclamationTriangleIcon, label: 'نزاعات الدفع' },
     { to: '/admin/payouts', icon: CurrencyDollarIcon, label: 'المدفوعات' },
     { to: '/admin/reviews', icon: StarIcon, label: 'التقييمات' },

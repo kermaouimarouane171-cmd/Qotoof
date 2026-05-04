@@ -23,14 +23,14 @@ const getVendorRefundPolicy = async (vendorId) => {
     .from('refund_policies')
     .select('*')
     .eq('vendor_id', vendorId)
-    .single()
-
-  if (error?.code === 'PGRST116') {
-    return { ...DEFAULT_REFUND_POLICY }
-  }
+    .maybeSingle()
 
   if (error) {
     throw error
+  }
+
+  if (!data) {
+    return { ...DEFAULT_REFUND_POLICY }
   }
 
   return normalizePolicy(data)

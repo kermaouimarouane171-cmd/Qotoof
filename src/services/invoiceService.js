@@ -153,4 +153,19 @@ const invoiceService = {
   },
 }
 
+export const generateInvoice = async (orderId) => {
+  if (!orderId) {
+    throw new Error('رقم الطلب مطلوب لإنشاء الفاتورة')
+  }
+
+  const { data: order, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', orderId)
+    .single()
+
+  if (error) throw error
+  return invoiceService.ensureInvoiceRecord(order)
+}
+
 export default invoiceService

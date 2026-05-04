@@ -48,7 +48,7 @@ const CookieConsent = () => {
       try {
         const parsed = JSON.parse(consent)
         setPreferences(parsed)
-      } catch (e) {
+      } catch {
         setShowBanner(true)
       }
     }
@@ -81,6 +81,7 @@ const CookieConsent = () => {
     setShowBanner(false)
   }
 
+  // eslint-disable-next-line no-unused-vars
   const resetConsent = () => {
     safeLocalStorage.removeItem('cookie_consent')
     setShowBanner(true)

@@ -149,7 +149,7 @@ export default function Login() {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="Qotoof273@gmail.com"
+                placeholder="أدخل بريدك الإلكتروني"
                 className={`w-full pl-3 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
                   errors.email
                     ? 'border-red-500 focus:ring-red-500'

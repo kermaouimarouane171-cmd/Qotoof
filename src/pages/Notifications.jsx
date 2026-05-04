@@ -340,7 +340,10 @@ const Notifications = () => {
   }, [user?.id])
 
   const loadNotifications = useCallback(async (pageNumber = 1, append = false) => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
 
     try {
       if (append) {

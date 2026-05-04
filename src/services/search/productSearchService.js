@@ -120,7 +120,6 @@ const searchProductsViaSupabase = async (filters) => {
     .from('products')
     .select(PRODUCT_SELECT, { count: 'exact' })
     .eq('approval_status', 'approved')
-    .is('deleted_at', null)
     .eq('is_available', true)
 
   if (filters.category) {
@@ -208,7 +207,6 @@ const getSearchSuggestionsViaSupabase = async (query, { hitsPerPage = 6, categor
     .from('products')
     .select('id, name, category, subcategory, price_per_unit, average_rating, product_images(url, is_primary)')
     .eq('approval_status', 'approved')
-    .is('deleted_at', null)
     .eq('is_available', true)
     .range(0, hitsPerPage - 1)
 

@@ -110,7 +110,7 @@ const ProductDetailPage = () => {
       // Add new JSON-LD
       const script = document.createElement('script')
       script.type = 'application/ld+json'
-      script.innerHTML = JSON.stringify(jsonLd)
+      script.textContent = JSON.stringify(jsonLd)
       document.head.appendChild(script)
 
       // Cleanup on unmount

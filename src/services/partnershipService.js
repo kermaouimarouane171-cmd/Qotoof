@@ -228,7 +228,6 @@ export const partnershipService = {
         avatar_url,
         vehicle_type,
         vehicle_plate,
-        vehicle_year,
         rating,
         is_available_for_delivery,
         is_active

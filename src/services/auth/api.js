@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/services/supabase';
+import { authAdminOps } from '@/services/authAdminOps';
 import { authSchemas } from '../../utils/validators';
 import { ApiError } from '../../utils/errorHandler';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../../constants/apiEndpoints';
@@ -65,8 +66,17 @@ export const registerUser = async (data) => {
       .single();
 
     if (profileError) {
-      // Clean up auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      if (authData.user?.id) {
+        try {
+          await authAdminOps.cleanupPendingSignup({
+            userId: authData.user.id,
+            email: validated.email,
+          });
+        } catch {
+          // Preserve the original profile creation error even if cleanup fails.
+        }
+      }
+
       throw new ApiError(profileError.message, HTTP_STATUS.BAD_REQUEST, [], profileError);
     }
 
@@ -152,39 +162,17 @@ export const verifyEmail = async (data) => {
     // Validate input
     const validated = await authSchemas.verifyEmail.parseAsync(data);
 
-    // Verify OTP (simplified - in production use proper OTP service)
-    const { data: otpRecord, error: otpError } = await supabase
-      .from('otp_tokens')
-      .select('*')
-      .eq('email', validated.email)
-      .eq('token', validated.otp)
-      .gt('expires_at', new Date().toISOString())
-      .single();
-
-    if (otpError || !otpRecord) {
-      throw new ApiError('Invalid or expired OTP', HTTP_STATUS.BAD_REQUEST);
-    }
-
-    // Update user email_confirmed_at
-    const { data: user } = await supabase.auth.admin.getUserById(otpRecord.user_id);
-    await supabase.auth.admin.updateUserById(user.id, { email_confirmed_at: new Date().toISOString() });
-
-    // Delete used OTP
-    await supabase.from('otp_tokens').delete().eq('id', otpRecord.id);
-
-    // Get updated profile
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', otpRecord.user_id)
-      .single();
+    const result = await authAdminOps.confirmEmail({
+      email: validated.email,
+      otp: validated.otp,
+    });
 
     return {
       success: true,
       message: 'Email verified successfully',
       data: {
         verified: true,
-        profile,
+        profile: result.profile,
       },
     };
   } catch (error) {
@@ -307,9 +295,13 @@ export const setupTwoFA = async (data) => {
     // Validate input
     const validated = await authSchemas.setupTwoFA.parseAsync(data);
 
-    // Get user
-    const { data: user } = await supabase.auth.admin.getUserById(validated.userId);
-    if (!user) {
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('id', validated.userId)
+      .single();
+
+    if (userProfileError || !userProfile) {
       throw new ApiError('User not found', HTTP_STATUS.NOT_FOUND);
     }
 
@@ -335,7 +327,7 @@ export const setupTwoFA = async (data) => {
     }
 
     // Generate QR code
-    const qrCode = `otpauth://totp/GreenMarket:${user.email}?secret=${secret}&issuer=GreenMarket`;
+  const qrCode = `otpauth://totp/GreenMarket:${userProfile.email || validated.userId}?secret=${secret}&issuer=GreenMarket`;
 
     return {
       success: true,

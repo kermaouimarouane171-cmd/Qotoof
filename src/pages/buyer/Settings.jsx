@@ -63,6 +63,11 @@ const BuyerSettings = () => {
 
   // ── Load both settings on mount ────────────────────────────────
   const loadSettings = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       const { data } = await supabase
@@ -88,9 +93,11 @@ const BuyerSettings = () => {
     } finally {
       setLoading(false)
     }
-  }, [user.id])
+  }, [user?.id])
 
   const loadPrivacyPrefs = useCallback(async () => {
+    if (!user?.id) return
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -110,7 +117,7 @@ const BuyerSettings = () => {
     } catch (error) {
       logger.error('Error loading privacy preferences:', error)
     }
-  }, [user.id])
+  }, [user?.id])
 
   useEffect(() => {
     loadSettings()
@@ -285,7 +292,7 @@ const BuyerSettings = () => {
   }
 
   return (
-    <div>
+    <div data-testid="settings-form">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
@@ -499,7 +506,7 @@ const BuyerSettings = () => {
             ))}
           </ul>
           <p className="text-xs text-blue-700 mt-4">
-            {t('privacySettings.gdprContact', 'To exercise any of these rights, contact us at Qotoof273@gmail.com')}
+            {t('privacySettings.gdprContact', 'To exercise any of these rights, contact us at support@qotoof.ma')}
           </p>
         </Card>
 

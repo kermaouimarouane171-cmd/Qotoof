@@ -33,8 +33,44 @@ const VendorOrders = () => {
   const [chatReceiver, setChatReceiver] = useState(null)
   const [processingOrder, setProcessingOrder] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
+
+  const loadOrders = useCallback(async () => {
+    if (!profile?.id) {
+      setOrders([])
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          buyer:profiles!buyer_id(first_name, last_name, phone),
+          items:order_items(*, product:products(name)),
+          deliveries:deliveries(
+            id,
+            driver_id,
+            status,
+            driver:profiles!driver_id(first_name, last_name, phone),
+            current_latitude,
+            current_longitude,
+            delivery_latitude,
+            delivery_longitude
+          )
+        `)
+        .eq('vendor_id', profile.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setOrders(data || [])
+    } catch (error) {
+      logger.error('Error loading orders:', error)
+    }
+  }, [profile?.id])
   
   useEffect(() => {
+    if (!profile?.id) return
+
     loadOrders()
 
     // Subscribe to real-time updates with notification
@@ -57,38 +93,14 @@ const VendorOrders = () => {
     )
 
     return () => channel.unsubscribe()
-  }, [loadOrders, profile.id, t])
-  
-  const loadOrders = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          buyer:profiles!buyer_id(first_name, last_name, phone),
-          items:order_items(*, product:products(name)),
-          deliveries:deliveries(
-            id,
-            driver_id,
-            status,
-            driver:profiles!driver_id(first_name, last_name, phone),
-            current_latitude,
-            current_longitude,
-            delivery_latitude,
-            delivery_longitude
-          )
-        `)
-        .eq('vendor_id', profile.id)
-        .order('created_at', { ascending: false })
-      
-      if (error) throw error
-      setOrders(data || [])
-    } catch (error) {
-      logger.error('Error loading orders:', error)
-    }
-  }, [profile.id])
+  }, [loadOrders, profile?.id, t])
 
   const loadAvailableDrivers = async () => {
+    if (!profile) {
+      setDrivers([])
+      return
+    }
+
     try {
       const driversList = await deliveriesApi.getAvailableDrivers(
         profile.latitude || 33.5731,

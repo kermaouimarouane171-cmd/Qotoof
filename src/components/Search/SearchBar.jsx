@@ -7,6 +7,23 @@ import { logger } from '@/utils/logger'
 
 const DEBOUNCE_MS = 300
 
+const HighlightText = ({ text, query }) => {
+  if (!query?.trim()) return <span>{text}</span>
+
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = String(text || '').split(new RegExp(`(${escapedQuery})`, 'gi'))
+
+  return (
+    <span>
+      {parts.map((part, i) => (
+        part.toLowerCase() === query.toLowerCase()
+          ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-800">{part}</mark>
+          : <span key={i}>{part}</span>
+      ))}
+    </span>
+  )
+}
+
 const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearch, initialValue = '' }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -106,6 +123,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
           onKeyDown={handleKeyDown}
           onFocus={() => query.length >= 2 && setOpen(true)}
           placeholder={placeholder || t('search.placeholder', 'ابحث عن منتجات...')}
+          data-testid="search-bar-input"
           className="flex-1 bg-transparent text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 outline-none"
           aria-label={t('search.label', 'بحث')}
           autoComplete="off"
@@ -120,6 +138,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
         )}
         <button
           onClick={() => handleSubmit()}
+          data-testid="search-bar-submit"
           className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-colors shrink-0"
         >
           {t('search.search', 'بحث')}
@@ -145,11 +164,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
               }`}
             >
               <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 shrink-0" />
-              <span
-                dangerouslySetInnerHTML={{
-                  __html: hit._highlightResult?.name?.value || hit.name
-                }}
-              />
+              <HighlightText text={hit.name} query={query} />
               {hit.category && (
                 <span className="text-xs text-gray-400 ml-auto shrink-0">{hit.category}</span>
               )}

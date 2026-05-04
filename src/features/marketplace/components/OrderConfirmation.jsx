@@ -466,7 +466,7 @@ ${order.transactionId ? `Transaction ID: ${order.transactionId}` : ''}
 
 ════════════════════════════════════════
 Thank you for shopping at QOTOOF!
-Support: support@qotoof.com
+Support: support@qotoof.ma
 Website: www.qotoof.com
 ════════════════════════════════════════
   `;

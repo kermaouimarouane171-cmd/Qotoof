@@ -24,6 +24,8 @@
     "hash:backup-codes": "node database/scripts/hash-backup-codes.js",
     "db:verify": "node database/verify-database-complete.js",
     "db:seed": "node database/seed-complete.js",
+    "db:smoke": "node scripts/supabase-critical-smoke-check.mjs",
+    "db:push": "node scripts/supabase-db-push.mjs",
     "db:setup": "npm run db:verify && npm run db:seed",
     "prelaunch:check": "node scripts/pre-launch-check.js",
     "final:launch:check": "node scripts/final-launch-check.mjs",
@@ -35,6 +37,9 @@
     "deploy:check": "node scripts/pre-deploy-check.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/cli": "^7.6.2",
+    "@capacitor/core": "^8.3.1",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.2",
@@ -48,6 +53,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
     "dompurify": "^3.3.3",
+    "exceljs": "^4.4.0",
     "i18next": "^23.14.0",
     "i18next-browser-languagedetector": "^8.2.1",
     "leaflet": "^1.9.4",
@@ -102,7 +108,11 @@
     "tailwindcss": "^3.4.10",
     "vite": "^6.0.0",
     "vite-plugin-pwa": "^1.2.0",
-    "workbox-window": "^7.3.0",
-    "xlsx": "^0.18.5"
+    "workbox-window": "^7.3.0"
+  },
+  "overrides": {
+    "@xmldom/xmldom": "0.8.13",
+    "@rollup/plugin-terser": "1.0.0",
+    "serialize-javascript": "7.0.5"
   }
 }

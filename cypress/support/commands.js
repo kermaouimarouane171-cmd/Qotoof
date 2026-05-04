@@ -10,6 +10,21 @@
 /**
  * Login with email and password
  */
+const completeOnboardingIfNeeded = () => {
+  cy.location('pathname').then((pathname) => {
+    if (!pathname.startsWith('/onboarding/')) {
+      return
+    }
+
+    cy.get('[data-testid="onboarding-primary-action"]').click()
+    cy.location('pathname').then((nextPath) => {
+      if (nextPath.startsWith('/onboarding/')) {
+        completeOnboardingIfNeeded()
+      }
+    })
+  })
+}
+
 Cypress.Commands.add('login', (email, password) => {
   cy.session([email, password], () => {
     cy.visit('/login')
@@ -17,6 +32,7 @@ Cypress.Commands.add('login', (email, password) => {
     cy.get('input[type="password"]').type(password)
     cy.contains('button', /sign in|login/i).click()
     cy.url().should('not.include', '/login')
+    completeOnboardingIfNeeded()
   })
 })
 
@@ -24,8 +40,8 @@ Cypress.Commands.add('login', (email, password) => {
  * Login as vendor
  */
 Cypress.Commands.add('loginAsVendor', () => {
-  const email = Cypress.env('VENDOR_EMAIL') || 'vendor@example.com'
-  const password = Cypress.env('VENDOR_PASSWORD') || 'Vendor123!'
+  const email = Cypress.env('VENDOR_EMAIL') || 'vendor@greenmarket.test'
+  const password = Cypress.env('VENDOR_PASSWORD') || 'Test@123456'
   cy.login(email, password)
 })
 
@@ -33,8 +49,8 @@ Cypress.Commands.add('loginAsVendor', () => {
  * Login as buyer
  */
 Cypress.Commands.add('loginAsBuyer', () => {
-  const email = Cypress.env('BUYER_EMAIL') || 'buyer@example.com'
-  const password = Cypress.env('BUYER_PASSWORD') || 'Buyer123!'
+  const email = Cypress.env('BUYER_EMAIL') || 'buyer@greenmarket.test'
+  const password = Cypress.env('BUYER_PASSWORD') || 'Test@123456'
   cy.login(email, password)
 })
 
@@ -42,8 +58,8 @@ Cypress.Commands.add('loginAsBuyer', () => {
  * Login as admin
  */
 Cypress.Commands.add('loginAsAdmin', () => {
-  const email = Cypress.env('ADMIN_EMAIL') || 'admin@example.com'
-  const password = Cypress.env('ADMIN_PASSWORD') || 'Admin123!'
+  const email = Cypress.env('ADMIN_EMAIL') || 'admin@greenmarket.test'
+  const password = Cypress.env('ADMIN_PASSWORD') || 'Test@123456'
   cy.login(email, password)
 })
 
@@ -51,8 +67,8 @@ Cypress.Commands.add('loginAsAdmin', () => {
  * Login as driver
  */
 Cypress.Commands.add('loginAsDriver', () => {
-  const email = Cypress.env('DRIVER_EMAIL') || 'driver@example.com'
-  const password = Cypress.env('DRIVER_PASSWORD') || 'Driver123!'
+  const email = Cypress.env('DRIVER_EMAIL') || 'driver@greenmarket.test'
+  const password = Cypress.env('DRIVER_PASSWORD') || 'Test@123456'
   cy.login(email, password)
 })
 

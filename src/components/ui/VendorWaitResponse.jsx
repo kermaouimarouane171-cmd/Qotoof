@@ -28,7 +28,6 @@ const VendorWaitResponse = ({ notificationId, orderId, productId, buyerId, produ
   const [vendorMessage, setVendorMessage] = useState('')
   const [responding, setResponding] = useState(false)
   const [response, setResponse] = useState(null) // 'accepted' | 'rejected' | 'high_demand'
-  const [useHighDemandMessage, setUseHighDemandMessage] = useState(false)
 
   const handleRespond = async (status) => {
     setResponding(true)

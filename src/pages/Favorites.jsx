@@ -186,7 +186,8 @@ const FavoritesPage = () => {
                 
                 const isOutOfStock = product.is_available === false
                 const isLowStock = product.available_quantity !== null && product.available_quantity <= 5
-                const primaryImage = product.images?.find(img => img.is_primary) || product.images?.[0]
+                const productImages = product.product_images || product.images || []
+                const primaryImage = productImages.find(img => img.is_primary) || productImages[0]
 
                 return (
                   <div

@@ -13,7 +13,7 @@ const ExportButtons = memo(function ExportButtons({
   title = '',
   previewElementId = null
 }) {
-  const { t } = useTranslation()
+  useTranslation()
   const [loading, setLoading] = useState(null)
 
   const handleExport = async (type) => {
@@ -23,7 +23,7 @@ const ExportButtons = memo(function ExportButtons({
       if (type === 'csv') {
         csvExport.exportToCSV(rows, `${filename}.csv`)
       } else if (type === 'excel') {
-        excelExport.exportToExcel(rows, `${filename}.xlsx`)
+        await excelExport.exportToExcel(rows, `${filename}.xlsx`)
       } else if (type === 'pdf') {
         if (previewElementId) {
           await pdfExport.exportElementToPDF(previewElementId, `${filename}.pdf`, title)

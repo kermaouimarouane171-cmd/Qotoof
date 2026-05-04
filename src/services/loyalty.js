@@ -749,4 +749,36 @@ export const loyaltyApi = {
   }, { maxRetries: 2, baseDelay: 1000 }),
 }
 
+export const addLoyaltyPoints = async (userId, event, points) => {
+  return loyaltyApi.awardPoints(userId, Number(points || 0), event)
+}
+
+export const generateReferralCode = async (userId) => {
+  const { data: existingProfile, error: readError } = await supabase
+    .from('profiles')
+    .select('id, referral_code')
+    .eq('id', userId)
+    .single()
+
+  if (readError) throw readError
+  if (existingProfile?.referral_code) return existingProfile.referral_code
+
+  const code = `QOTOOF-${Math.random().toString(36).slice(2, 8).toUpperCase()}`
+
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ referral_code: code })
+    .eq('id', userId)
+
+  if (updateError) throw updateError
+  return code
+}
+
+export const processReferral = async (referralCode, newUserId) => {
+  return loyaltyApi.attachReferralCode({
+    userId: newUserId,
+    referralCode,
+  })
+}
+
 export default loyaltyApi

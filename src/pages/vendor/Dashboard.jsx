@@ -202,14 +202,15 @@ const VendorDashboard = () => {
       // ---- 1. Products count ----
       const { count: productCount } = await supabase
         .from('products')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact' })
         .eq('vendor_id', profile.id)
+        .range(0, 0)
 
       // ---- 2. Low stock products (< threshold units, default 10) ----
       const lowStockThreshold = profile?.low_stock_threshold || 10
       const { data: lowStock } = await supabase
         .from('products')
-        .select('id, name, available_quantity, image_url, category')
+        .select('id, name, available_quantity')
         .eq('vendor_id', profile.id)
         .eq('is_available', true)
         .lte('available_quantity', lowStockThreshold)
@@ -222,7 +223,7 @@ const VendorDashboard = () => {
       // ---- 3. Out of stock products ----
       const { data: outOfStock } = await supabase
         .from('products')
-        .select('id, name, available_quantity, image_url, category')
+        .select('id, name, available_quantity')
         .eq('vendor_id', profile.id)
         .eq('is_available', true)
         .eq('available_quantity', 0)
@@ -326,7 +327,7 @@ const VendorDashboard = () => {
             id,
             quantity,
             unit_price,
-            product:products(id, name, image_url)
+            product:products(id, name)
           )
         `)
         .eq('vendor_id', profile.id)

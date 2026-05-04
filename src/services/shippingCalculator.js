@@ -11,10 +11,115 @@ import { logger } from '../utils/logger.js'
  */
 
 // Default pricing if no zone/driver found
-const DEFAULT_BASE_PRICE = 15.0 // MAD
-const DEFAULT_PRICE_PER_KM = 2.0 // MAD per km
+const DEFAULT_BASE_PRICE = 12.0 // MAD
+const DEFAULT_PRICE_PER_KM = 1.6 // MAD per km
 const DEFAULT_MIN_PRICE = 10.0 // MAD
-const DEFAULT_MAX_PRICE = 200.0 // MAD
+const DEFAULT_MAX_PRICE = 60.0 // MAD
+const DEFAULT_MAX_DISTANCE_KM = 35.0
+const INCLUDED_DISTANCE_KM = 3.0
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max)
+}
+
+function roundCurrency(value) {
+  return parseFloat(Number(value || 0).toFixed(2))
+}
+
+function normalizeBasePrice(basePrice, pricingSource) {
+  const numericBasePrice = Number(basePrice || DEFAULT_BASE_PRICE)
+  const maxBasePrice = pricingSource === 'driver' ? 18 : 14
+  return roundCurrency(clamp(numericBasePrice, 8, maxBasePrice))
+}
+
+function normalizePricePerKm(pricePerKm, pricingSource) {
+  const numericPricePerKm = Number(pricePerKm || DEFAULT_PRICE_PER_KM)
+  const maxPricePerKm = pricingSource === 'driver' ? 2.5 : 2.0
+  return roundCurrency(clamp(numericPricePerKm, 0.8, maxPricePerKm))
+}
+
+function getDistanceBandCap(distanceKm, maxDistanceKm) {
+  if (distanceKm === null || distanceKm === undefined) return DEFAULT_MAX_PRICE
+  if (distanceKm <= 5) return 18
+  if (distanceKm <= 10) return 25
+  if (distanceKm <= 20) return 35
+  if (distanceKm <= 30) return 45
+  if (distanceKm <= Math.min(maxDistanceKm || 50, 50)) return 60
+  return 75
+}
+
+function calculateTieredDistanceFee(distanceKm, pricePerKm) {
+  if (!distanceKm || distanceKm <= 0) return 0
+
+  const billableDistanceKm = Math.max(distanceKm - INCLUDED_DISTANCE_KM, 0)
+  const firstTierKm = Math.min(billableDistanceKm, 7)
+  const secondTierKm = Math.min(Math.max(billableDistanceKm - 7, 0), 10)
+  const thirdTierKm = Math.max(billableDistanceKm - 17, 0)
+
+  return roundCurrency(
+    (firstTierKm * pricePerKm * 0.85) +
+    (secondTierKm * pricePerKm * 0.55) +
+    (thirdTierKm * pricePerKm * 0.35)
+  )
+}
+
+export function buildShippingQuote({
+  distanceKm = null,
+  basePrice = DEFAULT_BASE_PRICE,
+  pricePerKm = DEFAULT_PRICE_PER_KM,
+  minPrice = DEFAULT_MIN_PRICE,
+  maxPrice = DEFAULT_MAX_PRICE,
+  maxDistanceKm = DEFAULT_MAX_DISTANCE_KM,
+  pricingSource = 'default',
+  timeMultiplier = 1.0,
+}) {
+  const normalizedMaxDistanceKm = Number(maxDistanceKm || DEFAULT_MAX_DISTANCE_KM)
+
+  if (distanceKm !== null && normalizedMaxDistanceKm > 0 && distanceKm > normalizedMaxDistanceKm) {
+    return {
+      available: false,
+      cost: 0,
+      maxDistanceKm: normalizedMaxDistanceKm,
+      blockingReason: `التوصيل غير متاح لهذه المسافة حالياً. الحد الأقصى لهذه المنطقة هو ${normalizedMaxDistanceKm.toFixed(0)} كم.`,
+      breakdown: {
+        base: 0,
+        distance: 0,
+        timeMultiplier: null,
+        includedDistanceKm: INCLUDED_DISTANCE_KM,
+        capApplied: null,
+      },
+    }
+  }
+
+  const normalizedBasePrice = normalizeBasePrice(basePrice, pricingSource)
+  const normalizedPricePerKm = normalizePricePerKm(pricePerKm, pricingSource)
+  const normalizedMinPrice = roundCurrency(clamp(Number(minPrice || DEFAULT_MIN_PRICE), 8, 18))
+  const effectiveMaxPrice = roundCurrency(
+    Math.max(
+      normalizedMinPrice,
+      Math.min(Number(maxPrice || DEFAULT_MAX_PRICE), getDistanceBandCap(distanceKm, normalizedMaxDistanceKm))
+    )
+  )
+  const distanceFee = calculateTieredDistanceFee(distanceKm, normalizedPricePerKm)
+
+  let shippingCost = (normalizedBasePrice + distanceFee) * Number(timeMultiplier || 1)
+  shippingCost = roundCurrency(Math.max(normalizedMinPrice, Math.min(effectiveMaxPrice, shippingCost)))
+
+  return {
+    available: true,
+    cost: shippingCost,
+    basePrice: normalizedBasePrice,
+    pricePerKm: normalizedPricePerKm,
+    maxDistanceKm: normalizedMaxDistanceKm,
+    breakdown: {
+      base: normalizedBasePrice,
+      distance: distanceFee,
+      timeMultiplier: timeMultiplier > 1 ? Number(timeMultiplier.toFixed(2)) : null,
+      includedDistanceKm: INCLUDED_DISTANCE_KM,
+      capApplied: shippingCost === effectiveMaxPrice ? effectiveMaxPrice : null,
+    },
+  }
+}
 
 /**
  * Calculate distance between two coordinates using Haversine formula
@@ -108,26 +213,26 @@ export async function getDriverPricing(driverId) {
  * Calculate time-based multiplier
  * @returns {number} Multiplier (1.0, 1.3, 1.5, etc.)
  */
-export function getTimeMultiplier() {
-  const now = new Date()
+export function getTimeMultiplier(date = new Date()) {
+  const now = date
   const hours = now.getHours()
   const minutes = now.getMinutes()
   const currentTime = hours * 60 + minutes
 
-  // Rush hour: 12:00 - 14:00 (1.5x)
+  // Midday pressure: 12:00 - 14:00
   const rushStart = 12 * 60 // 720
   const rushEnd = 14 * 60 // 840
 
-  // Evening: 20:00 - 06:00 (1.3x)
+  // Late evening / early morning: 20:00 - 06:00
   const eveningStart = 20 * 60 // 1200
   const eveningEnd = 6 * 60 // 360 (next day)
 
   if (currentTime >= rushStart && currentTime <= rushEnd) {
-    return 1.5
+    return 1.1
   }
 
   if (currentTime >= eveningStart || currentTime <= eveningEnd) {
-    return 1.3
+    return 1.05
   }
 
   return 1.0
@@ -158,6 +263,7 @@ export async function calculateShippingCost({
   let pricePerKm = DEFAULT_PRICE_PER_KM
   let minPrice = DEFAULT_MIN_PRICE
   let maxPrice = DEFAULT_MAX_PRICE
+  let maxDistanceKm = DEFAULT_MAX_DISTANCE_KM
   let timeMultiplier = 1.0
   let distance = null
   let zone = null
@@ -169,7 +275,7 @@ export async function calculateShippingCost({
   if (zone) {
     basePrice = parseFloat(zone.base_price)
     pricePerKm = parseFloat(zone.price_per_km)
-    maxPrice = parseFloat(zone.max_distance_km > 50 ? 200 : zone.max_distance_km * 4)
+    maxDistanceKm = parseFloat(zone.max_distance_km || DEFAULT_MAX_DISTANCE_KM)
     pricingSource = 'zone'
   }
 
@@ -181,6 +287,7 @@ export async function calculateShippingCost({
       pricePerKm = parseFloat(driverPricing.price_per_km)
       minPrice = parseFloat(driverPricing.min_price)
       maxPrice = parseFloat(driverPricing.max_price)
+      maxDistanceKm = parseFloat(driverPricing.max_distance_km || maxDistanceKm)
       pricingSource = 'driver'
     }
   }
@@ -193,38 +300,33 @@ export async function calculateShippingCost({
   // Step 4: Calculate time multiplier
   timeMultiplier = getTimeMultiplier()
 
-  // Step 5: Calculate final cost
-  let shippingCost = basePrice
-
-  if (distance !== null) {
-    shippingCost += distance * pricePerKm
-  }
-
-  // Apply time multiplier
-  shippingCost *= timeMultiplier
-
-  // Apply min/max constraints
-  shippingCost = Math.max(minPrice, Math.min(maxPrice, shippingCost))
-
-  // Round to 2 decimal places
-  shippingCost = parseFloat(shippingCost.toFixed(2))
-
-  return {
-    cost: shippingCost,
-    distance,
+  // Step 5: Calculate final cost using consumer-friendly distance tiers.
+  const quote = buildShippingQuote({
+    distanceKm: distance,
     basePrice,
     pricePerKm,
+    minPrice,
+    maxPrice,
+    maxDistanceKm,
+    pricingSource,
+    timeMultiplier,
+  })
+
+  return {
+    cost: quote.cost,
+    distance,
+    basePrice: quote.basePrice,
+    pricePerKm: quote.pricePerKm,
+    available: quote.available,
+    maxDistanceKm,
+    blockingReason: quote.blockingReason || null,
     timeMultiplier,
     pricingSource,
     zone: zone ? {
       name: zone.zone_name,
       code: zone.zone_code,
     } : null,
-    breakdown: {
-      base: basePrice,
-      distance: distance !== null ? parseFloat((distance * pricePerKm).toFixed(2)) : 0,
-      timeMultiplier: timeMultiplier > 1 ? timeMultiplier : null,
-    }
+    breakdown: quote.breakdown,
   }
 }
 

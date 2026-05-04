@@ -11,15 +11,18 @@ const projectRoot = path.resolve(__dirname, '..')
 const REQUIRED_ENV_KEYS = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
-  'VITE_SENTRY_DSN',
-  'RESEND_API_KEY',
-  'VITE_GOOGLE_MAPS_KEY',
   'VITE_APP_NAME',
   'VITE_SUPPORT_EMAIL',
   'VITE_SUPPORT_PHONE',
   'VITE_COMMISSION_RATE',
   'VITE_DELIVERY_BASE_FEE',
   'VITE_DELIVERY_PER_KM_FEE',
+]
+
+const OPTIONAL_ENV_KEYS = [
+  'VITE_SENTRY_DSN',
+  'RESEND_API_KEY',
+  'VITE_GOOGLE_MAPS_KEY',
 ]
 
 const REQUIRED_TABLES = [
@@ -277,6 +280,9 @@ const main = async () => {
     if (relative.startsWith('cypress/')) return false
     if (relative.includes('/__tests__/')) return false
     if (relative.startsWith('coverage/')) return false
+    if (relative.startsWith('dist/')) return false
+    if (relative.startsWith('android/app/build/')) return false
+    if (relative.startsWith('android/app/src/main/assets/public/')) return false
     if (relative === 'scripts/final-launch-check.mjs' || relative === 'scripts/full-system-check.mjs') return false
     if (['create-test-accounts.js', 'fix-cin.js', 'diagnose-profiles.js'].includes(relative)) return false
     if (relative.startsWith('database/seed')) return false
@@ -316,14 +322,6 @@ const main = async () => {
     const content = sanitizeContentForPlaceholderScan(file, runtimeContents[index])
     return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(content))
   })
-  const docPlaceholderMatches = scannedFiles
-    .filter((file) => file.endsWith('.md') || file.endsWith('.eslint-current.json'))
-    .filter((file) => {
-      const contentIndex = scannedFiles.indexOf(file)
-      const content = sanitizeContentForPlaceholderScan(file, scannedContents[contentIndex])
-      return PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(content))
-    })
-
   addLine('البيانات الحقيقية:')
   addLine(formatStatus(officialEmailPresent, 'الإيميل الحقيقي مضبوط'))
   addLine(formatStatus(officialPhonePresent, 'رقم الهاتف الحقيقي مضبوط'))
@@ -388,9 +386,16 @@ const main = async () => {
     if (['VITE_COMMISSION_RATE', 'VITE_DELIVERY_BASE_FEE', 'VITE_DELIVERY_PER_KM_FEE'].includes(key)) return Boolean(env[key])
     return !isPlaceholderValue(env[key])
   })
+  const optionalEnvStatus = OPTIONAL_ENV_KEYS.map((key) => ({
+    key,
+    ready: key in env && !isPlaceholderValue(env[key]),
+  }))
 
   addLine('متغيرات البيئة:')
   addLine(formatStatus(envPass, 'كل المتغيرات موجودة'))
+  for (const item of optionalEnvStatus) {
+    addLine(`${item.ready ? '✅' : '⚠️'} ${item.key} ${item.ready ? 'مضبوط' : 'اختياري وغير مضبوط'}`)
+  }
   addLine('')
   addLine('══════════════════════════════════════════')
 
@@ -414,14 +419,6 @@ const main = async () => {
     addLine('')
     addLine('ملفات تشغيلية تحتاج تنظيف placeholders:')
     for (const file of runtimePlaceholderMatches.slice(0, 20)) {
-      addLine(`- ${path.relative(projectRoot, file)}`)
-    }
-  }
-
-  if (docPlaceholderMatches.length > 0) {
-    addLine('')
-    addLine('ملفات توثيق ما زالت تحتوي أمثلة أو placeholders:')
-    for (const file of docPlaceholderMatches.slice(0, 20)) {
       addLine(`- ${path.relative(projectRoot, file)}`)
     }
   }

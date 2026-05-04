@@ -479,7 +479,7 @@ const CartPage = () => {
 
   if (items.length === 0 && !validating) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center" data-testid="cart-empty-state">
         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <ShoppingCartIcon className="w-12 h-12 text-gray-400" />
         </div>
@@ -499,7 +499,7 @@ const CartPage = () => {
   // ============================================
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 lg:pb-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 lg:pb-8" data-testid="cart-page">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -542,6 +542,8 @@ const CartPage = () => {
               return (
                 <div
                   key={item.id}
+                  data-testid="cart-item"
+                  data-product-id={item.id}
                   className={`bg-white border rounded-xl overflow-hidden transition-all ${
                     inputError ? 'border-red-300 shadow-sm shadow-red-100' : 'border-gray-200'
                   }`}
@@ -604,6 +606,7 @@ const CartPage = () => {
                           {/* Remove */}
                           <button
                             onClick={() => setPendingRemove({ id: item.id, name: item.name })}
+                            data-testid="cart-item-remove"
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
                             aria-label={`Remove ${item.name}`}
                           >
@@ -630,6 +633,7 @@ const CartPage = () => {
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handleDecrement(item)}
+                              data-testid="cart-item-decrement"
                               className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                               aria-label="Decrease quantity"
                             >
@@ -645,6 +649,7 @@ const CartPage = () => {
                                 onChange={(e) => handleInputChange(item, e.target.value)}
                                 onBlur={() => handleInputBlur(item)}
                                 onKeyDown={(e) => handleInputKeyDown(item, e)}
+                                data-testid="cart-item-quantity-input"
                                 className={`w-20 text-center text-base font-medium py-1.5 rounded-lg border transition-colors ${
                                   inputError
                                     ? 'border-red-300 bg-red-50 text-red-700 focus:ring-red-500 focus:border-red-500'
@@ -660,6 +665,7 @@ const CartPage = () => {
                             <button
                               onClick={() => handleIncrement(item)}
                               disabled={isAtMax}
+                              data-testid="cart-item-increment"
                               className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
                                 isAtMax
                                   ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
@@ -678,7 +684,7 @@ const CartPage = () => {
                           </p>
 
                           {/* Item Subtotal */}
-                          <div className="text-right sm:min-w-[100px]">
+                          <div className="text-right sm:min-w-[100px]" data-testid="cart-item-total">
                             <p className="text-lg font-bold text-gray-900">
                               {formatPrice(itemTotal)}
                             </p>
@@ -702,7 +708,7 @@ const CartPage = () => {
 
           {/* ===== Order Summary (Desktop Sidebar) ===== */}
           <div className="hidden lg:block lg:col-span-1">
-            <div className="card p-6 sticky top-24 bg-white border border-gray-200 rounded-xl">
+            <div className="card p-6 sticky top-24 bg-white border border-gray-200 rounded-xl" data-testid="cart-summary">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
 
               <div className="space-y-3 mb-6">
@@ -710,10 +716,12 @@ const CartPage = () => {
                   <span>Subtotal ({items.length} items)</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
-                <div className="flex justify-between text-gray-600">
-                  <span>VAT (20%)</span>
-                  <span>{formatPrice(tax)}</span>
-                </div>
+                {tax > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>VAT</span>
+                    <span>{formatPrice(tax)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-600">
                   <span>Shipping</span>
                   <span className="text-gray-400 text-sm">Calculated at checkout</span>
@@ -737,7 +745,7 @@ const CartPage = () => {
                   </div>
                 )}
                 <hr className="border-gray-200" />
-                <div className="flex justify-between text-xl font-bold text-gray-900">
+                <div className="flex justify-between text-xl font-bold text-gray-900" data-testid="cart-total">
                   <span>Total</span>
                   <span className="text-green-600">{formatPrice(total)}</span>
                 </div>
@@ -746,6 +754,7 @@ const CartPage = () => {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || minimumOrderStatus.hasViolations}
+                data-testid="cart-checkout-btn"
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {checkoutLoading ? (
@@ -795,7 +804,7 @@ const CartPage = () => {
               <div>
                 <p className="text-xs text-gray-500">Total ({items.length} items)</p>
                 <p className="text-2xl font-bold text-gray-900">{formatPrice(total)}</p>
-                {tax > 0 && <p className="text-xs text-gray-400">incl. {formatPrice(tax)} VAT (20%)</p>}
+                {tax > 0 && <p className="text-xs text-gray-400">incl. {formatPrice(tax)} VAT</p>}
                 {minimumOrderStatus.hasViolations && (
                   <p className="text-xs text-amber-700 mt-1">استوفِ الحد الأدنى للطلب لكل بائع قبل المتابعة.</p>
                 )}
@@ -803,6 +812,7 @@ const CartPage = () => {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || minimumOrderStatus.hasViolations}
+                data-testid="cart-checkout-btn"
                 className="btn-primary flex items-center gap-2 px-8 py-3 text-base disabled:opacity-60"
               >
                 {checkoutLoading ? (
@@ -828,6 +838,7 @@ const CartPage = () => {
       {pendingRemove && (
         <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          data-testid="cart-remove-dialog"
           role="dialog"
           aria-modal="true"
           aria-labelledby="remove-dialog-title"
@@ -853,6 +864,7 @@ const CartPage = () => {
               </button>
               <button
                 onClick={confirmRemoveItem}
+                data-testid="cart-remove-confirm"
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
               >
                 Remove

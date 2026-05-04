@@ -64,10 +64,11 @@ const VendorProducts = () => {
     if (profile?.id) {
       if (!profile.latitude || !profile.longitude) {
         setNeedsLocation(true)
+      } else {
+        setNeedsLocation(false)
       }
-      loadProducts()
     }
-  }, [profile?.id, profile?.latitude, profile?.longitude, loadProducts])
+  }, [profile?.id, profile?.latitude, profile?.longitude])
   
   // Load products from Supabase
   const loadProducts = useCallback(async () => {
@@ -292,19 +293,6 @@ const VendorProducts = () => {
         })))
       
       if (error) logger.error('Error inserting images:', error)
-
-      // Keep compatibility with pages that read products.image_url directly.
-      const primaryImage = uploadedUrls[0]?.url
-      if (primaryImage) {
-        const { error: updateProductError } = await supabase
-          .from('products')
-          .update({ image_url: primaryImage })
-          .eq('id', productId)
-
-        if (updateProductError) {
-          logger.warn('تعذر تحديث image_url للمنتج:', updateProductError)
-        }
-      }
     }
   }
 

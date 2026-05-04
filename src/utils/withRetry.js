@@ -32,7 +32,9 @@ export const withRetry = (fn, options = {}) => {
         lastError = error
 
         if (attempt === maxRetries || !shouldRetry(error)) {
-          logger.error(`Failed after ${attempt + 1} attempts:`, error)
+          const message = error?.message || error?.error_description || 'Unknown error'
+          const status = error?.status || error?.code || 'N/A'
+          logger.error(`Failed after ${attempt + 1} attempts: ${message} (status/code: ${status})`)
           throw error
         }
 

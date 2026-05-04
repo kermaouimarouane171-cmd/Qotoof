@@ -44,7 +44,7 @@ describe('Internationalization', () => {
       cy.get('[data-testid="language-selector"]').click()
       cy.get('[data-testid="lang-option-ar"]').click()
       cy.wait(500)
-      cy.login('buyer@example.com', 'Buyer123!')
+      cy.login(Cypress.env('BUYER_EMAIL'), Cypress.env('BUYER_PASSWORD'))
       cy.visit('/buyer/dashboard')
       cy.get('html').should('have.attr', 'lang', 'ar')
     })
@@ -74,7 +74,7 @@ describe('Internationalization', () => {
     })
 
     it('should display buyer dashboard in Arabic', () => {
-      cy.login('buyer@example.com', 'Buyer123!')
+      cy.login(Cypress.env('BUYER_EMAIL'), Cypress.env('BUYER_PASSWORD'))
       cy.visit('/buyer/dashboard')
       cy.get('[data-testid="page-loaded"]').should('exist')
       cy.get('[data-testid="stats-cards"]').should('have.length.greaterThan', 0)
@@ -114,7 +114,7 @@ describe('Internationalization', () => {
     })
 
     it('should display dates in correct locale format', () => {
-      cy.login('buyer@example.com', 'Buyer123!')
+      cy.login(Cypress.env('BUYER_EMAIL'), Cypress.env('BUYER_PASSWORD'))
       cy.get('[data-testid="language-selector"]').click()
       cy.get('[data-testid="lang-option-fr"]').click()
       cy.wait(500)
@@ -126,7 +126,7 @@ describe('Internationalization', () => {
       cy.get('[data-testid="language-selector"]').click()
       cy.get('[data-testid="lang-option-ar"]').click()
       cy.wait(500)
-      cy.login('buyer@example.com', 'Buyer123!')
+      cy.login(Cypress.env('BUYER_EMAIL'), Cypress.env('BUYER_PASSWORD'))
       cy.visit('/buyer/dashboard')
       cy.get('[data-testid="stats-cards"]').should('have.length.greaterThan', 0)
     })
@@ -177,7 +177,7 @@ describe('Internationalization', () => {
     })
 
     it('should have no missing translation keys on buyer dashboard', () => {
-      cy.login('buyer@example.com', 'Buyer123!')
+      cy.login(Cypress.env('BUYER_EMAIL'), Cypress.env('BUYER_PASSWORD'))
       cy.visit('/buyer/dashboard')
       cy.get('[data-testid="language-selector"]').click()
       cy.get('[data-testid="lang-option-ar"]').click()

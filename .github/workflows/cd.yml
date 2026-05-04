@@ -31,8 +31,19 @@ jobs:
             echo "Supabase deploy secrets are missing. Edge-function deploy will be skipped."
             echo "supabase_ready=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Supabase deploy secrets detected."
-            echo "supabase_ready=true" >> "$GITHUB_OUTPUT"
+            echo "Supabase deploy secrets detected. Validating project access..."
+            supabase_status_code="$(curl -sS -o /tmp/supabase-project-check.json -w '%{http_code}' \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              -H "Content-Type: application/json" \
+              "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF")"
+
+            if [ "$supabase_status_code" = "200" ]; then
+              echo "Supabase access token can access project $SUPABASE_PROJECT_REF."
+              echo "supabase_ready=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Supabase access token cannot access project $SUPABASE_PROJECT_REF (HTTP $supabase_status_code). Edge-function deploy will be skipped."
+              echo "supabase_ready=false" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
           if [ -z "$FIREBASE_DEPLOY_PROJECT_ID" ]; then
@@ -63,6 +74,14 @@ jobs:
       VITE_SUPABASE_URL:          ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY:     ${{ secrets.VITE_SUPABASE_ANON_KEY }}
       VITE_RECAPTCHA_SITE_KEY:    ${{ secrets.VITE_RECAPTCHA_SITE_KEY }}
+      VITE_SENTRY_DSN:            ${{ secrets.VITE_SENTRY_DSN }}
+      VITE_GOOGLE_MAPS_KEY:       ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
+      VITE_APP_NAME:              ${{ secrets.VITE_APP_NAME }}
+      VITE_SUPPORT_EMAIL:         ${{ secrets.VITE_SUPPORT_EMAIL }}
+      VITE_SUPPORT_PHONE:         ${{ secrets.VITE_SUPPORT_PHONE }}
+      VITE_COMMISSION_RATE:       ${{ secrets.VITE_COMMISSION_RATE }}
+      VITE_DELIVERY_BASE_FEE:     ${{ secrets.VITE_DELIVERY_BASE_FEE }}
+      VITE_DELIVERY_PER_KM_FEE:   ${{ secrets.VITE_DELIVERY_PER_KM_FEE }}
       VITE_FIREBASE_API_KEY:      ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN:  ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_PROJECT_ID:   ${{ secrets.VITE_FIREBASE_PROJECT_ID }}

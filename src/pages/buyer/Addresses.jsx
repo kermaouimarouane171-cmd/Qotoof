@@ -48,6 +48,12 @@ const BuyerAddresses = () => {
   })
 
   const loadAddresses = useCallback(async () => {
+    if (!user?.id) {
+      setAddresses([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -65,7 +71,7 @@ const BuyerAddresses = () => {
     } finally {
       setLoading(false)
     }
-  }, [t, user.id])
+  }, [t, user?.id])
 
   useEffect(() => {
     loadAddresses()
@@ -195,7 +201,7 @@ const BuyerAddresses = () => {
   }
 
   return (
-    <div>
+    <div data-testid="page-loaded">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
@@ -411,6 +417,7 @@ const BuyerAddresses = () => {
             return (
               <Card
                 key={addr.id}
+                data-testid="address-card"
                 className={`p-5 border-2 transition-all hover:shadow-md ${
                   addr.is_default ? 'border-green-300 bg-green-50/30' : 'border-gray-200'
                 }`}

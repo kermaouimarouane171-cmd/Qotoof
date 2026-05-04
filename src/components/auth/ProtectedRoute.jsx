@@ -62,7 +62,7 @@ export const ProtectedRoute = ({ children, requiredRole, allowedRoles, redirectT
       return <Navigate to={redirectPath} state={{ from: location }} replace />;
     } else {
       // إعادة التوجيه إلى صفحة تسجيل الدخول
-      return <Navigate to="/auth/login" state={{ from: location }} replace />;
+      return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }
 
@@ -83,7 +83,7 @@ export const AuthenticatedRoute = ({ children }) => {
   }
 
   if (!profile) {
-    return <Navigate to="/auth/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   return children;

@@ -17,20 +17,24 @@ import './index.css'
 
 import { logger } from './utils/logger.js'
 import { logError } from './services/sentry'
+import { sentryDsnLooksIssued } from './utils/envValidators'
+import { initConfig } from './lib/config'
 
 logger.log('[ENTRY] main.jsx loaded — starting app initialization')
+
+const RootMode = import.meta.env.DEV ? React.Fragment : StrictMode
 
 const sentryDsn = typeof import.meta.env.VITE_SENTRY_DSN === 'string'
   ? import.meta.env.VITE_SENTRY_DSN.trim()
   : ''
 
-const hasValidSentryDsn = /^https?:\/\/[^\s@]+@[^\s/]+\/\d+/i.test(sentryDsn)
+const hasValidSentryDsn = sentryDsnLooksIssued(sentryDsn)
 
 if (hasValidSentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
     environment: import.meta.env.MODE,
-    tracesSampleRate: 1.0,
+    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
     enabled: import.meta.env.PROD,
   })
 } else if (sentryDsn && import.meta.env.DEV) {
@@ -72,59 +76,69 @@ if (import.meta.env.DEV) {
 // RENDER APPLICATION
 // ============================================
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <HelmetProvider>
-    <BrowserRouter>
-      <ErrorBoundary>
-        {/* Skip Link for keyboard users */}
-        <SkipLink target="#main-content" />
+const renderApp = async () => {
+  try {
+    await initConfig()
+  } catch (error) {
+    logger.warn('Failed to initialize public config before render, continuing with fallbacks:', error)
+  }
 
-        <Sentry.ErrorBoundary fallback={<p className="p-4 text-red-600">حدث خطأ غير متوقع. حاول تحديث الصفحة.</p>}>
-          <App />
-        </Sentry.ErrorBoundary>
+  ReactDOM.createRoot(document.getElementById('root')).render(
+    <RootMode>
+      <HelmetProvider>
+      <BrowserRouter>
+        <ErrorBoundary>
+          {/* Skip Link for keyboard users */}
+          <SkipLink target="#main-content" />
 
-        {/* Global Toast Notifications */}
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#fff',
-              color: '#374151',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-              maxWidth: '500px',
-            },
-            success: {
-              iconTheme: {
-                primary: '#16a34a',
-                secondary: '#fff',
+          <Sentry.ErrorBoundary fallback={<p className="p-4 text-red-600">حدث خطأ غير متوقع. حاول تحديث الصفحة.</p>}>
+            <App />
+          </Sentry.ErrorBoundary>
+
+          {/* Global Toast Notifications */}
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#fff',
+                color: '#374151',
+                borderRadius: '12px',
+                padding: '12px 16px',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                maxWidth: '500px',
               },
-              duration: 2000,
-            },
-            error: {
-              iconTheme: {
-                primary: '#dc2626',
-                secondary: '#fff',
+              success: {
+                iconTheme: {
+                  primary: '#16a34a',
+                  secondary: '#fff',
+                },
+                duration: 2000,
               },
-              duration: 4000,
-            },
-            warning: {
-              iconTheme: {
-                primary: '#f59e0b',
-                secondary: '#fff',
+              error: {
+                iconTheme: {
+                  primary: '#dc2626',
+                  secondary: '#fff',
+                },
+                duration: 4000,
               },
-              duration: 3500,
-            },
-          }}
-        />
-      </ErrorBoundary>
-    </BrowserRouter>
-    </HelmetProvider>
-  </StrictMode>,
-)
+              warning: {
+                iconTheme: {
+                  primary: '#f59e0b',
+                  secondary: '#fff',
+                },
+                duration: 3500,
+              },
+            }}
+          />
+        </ErrorBoundary>
+      </BrowserRouter>
+      </HelmetProvider>
+    </RootMode>,
+  )
+}
+
+renderApp()
 
 // 🚨 GLOBAL ERROR & REJECTION HANDLERS — for terminal visibility
 if (import.meta.env.DEV) {
@@ -143,15 +157,3 @@ if (import.meta.env.DEV) {
   })
 }
 
-// ⚠️ DEV-ONLY: Log lazy loading failures (safe implementation)
-if (import.meta.env.DEV) {
-  const originalLazy = React.lazy
-  React.lazy = function (factory) {
-    return originalLazy(() =>
-      factory().catch((err) => {
-        console.error('[LAZY IMPORT FAILED]', factory.toString().match(/\.(\w+\.jsx?|\w+\.tsx?)/)?.[1] || 'unknown', err)
-        throw err
-      })
-    )
-  }
-}

@@ -260,11 +260,13 @@ export const useCartStore = create(
       },
 
       /**
-       * Calculate tax (20% TVA for Morocco)
+       * Calculate tax — fresh agricultural products are TVA-exempt (0%) in Morocco
+       * (Article 92 CGI — exonération produits agricoles bruts)
        */
       getTax: () => {
         const subtotal = get().getSubtotal()
-        return subtotal * 0.20 // 20% TVA (Morocco standard rate)
+        const taxRate = Number(import.meta.env.VITE_TAX_RATE ?? 0)
+        return subtotal * taxRate
       },
 
       /**

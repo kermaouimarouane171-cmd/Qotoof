@@ -32,6 +32,8 @@ const OrderSummary = ({
   appliedCoupon,
   showDriverDeliveryPayment = true,
 }) => {
+  const shippingUnavailable = shippingInfoData?.available === false
+
   return (
     <Card className="p-6 sticky top-24">
       <h2 className="font-semibold text-gray-900 mb-4">ملخص الطلب</h2>
@@ -103,14 +105,26 @@ const OrderSummary = ({
           </span>
           {shippingLoading ? (
             <span className="text-gray-400">جاري الحساب...</span>
-          ) : shippingCost > 0 ? (
-            <span>{formatPrice(shippingCost)}</span>
+          ) : shippingUnavailable ? (
+            <span className="text-red-600">غير متاح</span>
+          ) : shippingInfoData ? (
+            shippingCost > 0 ? (
+              <span>{formatPrice(shippingCost)}</span>
+            ) : (
+              <span className="text-green-600">مجاني</span>
+            )
           ) : (
-            <span className="text-green-600">مجاني</span>
+            <span className="text-gray-400">بعد تحديد العنوان</span>
           )}
         </div>
 
-        {estimatedDeliveryTime && (
+        {shippingUnavailable && shippingInfoData?.blockingReason && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 leading-6">
+            {shippingInfoData.blockingReason}
+          </div>
+        )}
+
+        {estimatedDeliveryTime && !shippingUnavailable && (
           <div className="flex justify-between text-xs text-gray-500">
             <span className="flex items-center gap-1">
               <ClockIcon className="w-3 h-3" />
@@ -152,7 +166,11 @@ const OrderSummary = ({
 
         <div className="flex justify-between text-base font-semibold text-gray-900 border-t pt-3">
           <span>الإجمالي النهائي</span>
-          <span>{formatPrice(grandTotal)}</span>
+          {shippingUnavailable ? (
+            <span className="text-red-600 text-sm">يتطلب عنواناً أقرب</span>
+          ) : (
+            <span>{formatPrice(grandTotal)}</span>
+          )}
         </div>
 
         <div className="border-t pt-3">

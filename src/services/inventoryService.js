@@ -300,4 +300,75 @@ const inventoryService = {
   },
 }
 
+export const decreaseStock = async (productId, qty, orderId = null) => {
+  const quantity = Number(qty)
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error('الكمية غير صالحة لتقليل المخزون')
+  }
+
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('id, vendor_id, stock_quantity, available_quantity')
+    .eq('id', productId)
+    .single()
+
+  if (error) throw error
+
+  const currentQuantity = Number(product.stock_quantity ?? product.available_quantity ?? 0)
+  const nextQuantity = Math.max(0, currentQuantity - quantity)
+
+  return inventoryService.updateProductStock({
+    productId,
+    vendorId: product.vendor_id,
+    nextQuantity,
+    reason: orderId
+      ? `خصم مخزون بسبب الطلب ${orderId}`
+      : 'خصم مخزون بسبب عملية بيع',
+    changeType: 'order_decrease',
+  })
+}
+
+export const restockProduct = async (productId, qty, vendorId, note = '') => {
+  const quantity = Number(qty)
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    throw new Error('الكمية غير صالحة لإعادة التخزين')
+  }
+
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('id, stock_quantity, available_quantity, name')
+    .eq('id', productId)
+    .eq('vendor_id', vendorId)
+    .single()
+
+  if (error) throw error
+
+  const currentQuantity = Number(product.stock_quantity ?? product.available_quantity ?? 0)
+  const nextQuantity = currentQuantity + quantity
+
+  return inventoryService.updateProductStock({
+    productId,
+    vendorId,
+    nextQuantity,
+    reason: note?.trim() || 'إعادة تخزين المنتج',
+    changeType: 'restock',
+  })
+}
+
+export const notifyWaitlistOnRestock = async (productId) => {
+  const { data: product, error } = await supabase
+    .from('products')
+    .select('id, name, available_quantity')
+    .eq('id', productId)
+    .single()
+
+  if (error) throw error
+
+  return inventoryService.notifyWaitlistUsers({
+    productId,
+    productName: product.name,
+    availableQuantity: Number(product.available_quantity ?? 0),
+  })
+}
+
 export default inventoryService

@@ -1,15 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/utils/logger.js'
+import { supabaseAnonKeyLooksIssued, supabaseUrlLooksIssued } from '@/utils/envValidators'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const hasTemplateSupabaseUrl = typeof supabaseUrl === 'string'
-  && /placeholder|your-project/i.test(supabaseUrl)
-
 const isConfigured = supabaseUrl && supabaseAnonKey &&
-  !hasTemplateSupabaseUrl &&
-  !supabaseAnonKey.includes('placeholder')
+  supabaseUrlLooksIssued(supabaseUrl) &&
+  supabaseAnonKeyLooksIssued(supabaseAnonKey)
 
 // ============================================
 // HEALTH CHECK & RETRY LOGIC
@@ -168,10 +166,10 @@ const healthMonitor = new SupabaseHealthMonitor()
 if (!isConfigured) {
   const missingOrInvalidVars = []
 
-  if (!supabaseUrl || hasTemplateSupabaseUrl) {
+  if (!supabaseUrlLooksIssued(supabaseUrl)) {
     missingOrInvalidVars.push('VITE_SUPABASE_URL')
   }
-  if (!supabaseAnonKey || supabaseAnonKey.includes('placeholder')) {
+  if (!supabaseAnonKeyLooksIssued(supabaseAnonKey)) {
     missingOrInvalidVars.push('VITE_SUPABASE_ANON_KEY')
   }
 

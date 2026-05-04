@@ -1,8 +1,9 @@
 import clsx from 'clsx'
 
-const Card = ({ children, className, hover = false, onClick }) => {
+const Card = ({ children, className, hover = false, onClick, ...props }) => {
   return (
     <div
+      {...props}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(e) } : undefined}

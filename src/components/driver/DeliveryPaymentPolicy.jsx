@@ -18,10 +18,10 @@ const DeliveryPaymentPolicy = ({
       </h2>
 
       <div className="space-y-3">
-        <label className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
+        <label htmlFor="payment-cash" className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
           <input
+            id="payment-cash"
             type="checkbox"
-            checked={driverDeliveryPaymentCash}
             onChange={(event) => onCashChange(event.target.checked)}
             className="mt-1 h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
           />
@@ -31,10 +31,10 @@ const DeliveryPaymentPolicy = ({
           </div>
         </label>
 
-        <label className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
+        <label htmlFor="payment-transfer" className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
           <input
+            id="payment-transfer"
             type="checkbox"
-            checked={driverDeliveryPaymentTransfer}
             onChange={(event) => onTransferChange(event.target.checked)}
             className="mt-1 h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
           />

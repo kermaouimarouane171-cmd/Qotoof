@@ -171,7 +171,7 @@ const LocationPicker = ({
   }, [city, locationSelected])
 
   return (
-    <div className={`space-y-4 ${className}`}>
+    <div className={`space-y-4 ${className}`} data-testid="location-picker">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -200,6 +200,7 @@ const LocationPicker = ({
             value={searchQuery}
             onChange={handleSearchInput}
             placeholder="ابحث عن عنوانك (شارع، حي، مدينة)..."
+            data-testid="location-search-input"
             className="flex-1 outline-none text-sm bg-transparent text-gray-700 placeholder-gray-400"
             dir="rtl"
           />
@@ -223,6 +224,7 @@ const LocationPicker = ({
               <li key={r.place_id} role="option" aria-selected="false">
                 <button
                   type="button"
+                  data-testid="location-search-result"
                   className="w-full text-right px-4 py-3 text-sm text-gray-700 hover:bg-green-50 hover:text-green-800 flex items-start gap-2 transition-colors"
                   onClick={() => handleSelectResult(r)}
                 >
@@ -240,6 +242,7 @@ const LocationPicker = ({
         type="button"
         onClick={detectMyLocation}
         disabled={detecting}
+        data-testid="location-detect-btn"
         className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border-2 text-sm transition-all ${
           detecting
             ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed'
@@ -291,7 +294,7 @@ const LocationPicker = ({
 
       {/* Selected location chip */}
       {locationSelected && value?.address && (
-        <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg" data-testid="location-selected-state">
           <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
           <div className="text-sm text-green-800 min-w-0">
             <p className="font-medium">الموقع المحدد</p>

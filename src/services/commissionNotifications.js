@@ -97,8 +97,8 @@ export const commissionNotifications = {
   },
 
   async paymentConfirmed({ vendorId, paidAmount, monthlySaleId }) {
-    const title = '✅ تم استلام دفعتك'
-    const message = `✅ تم استلام دفعتك ${formatMad(paidAmount)}. حسابك نشط الآن — شكراً!`
+    const title = 'تم دفع ضريبة التطبيق Qotoof بنجاح'
+    const message = 'تم دفع ضريبة التطبيق Qotoof بنجاح'
 
     await Promise.allSettled([
       sendInAppNotification(vendorId, title, message, { event: 'paid_confirmed', monthly_sale_id: monthlySaleId }),

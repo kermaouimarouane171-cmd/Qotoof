@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { authAdminOps } from './authAdminOps'
 import { useAuthStore } from '@/store/authStore'
 import { withRetry } from '@/utils/withRetry'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
@@ -101,7 +102,7 @@ export const productsApi = {
     }, { maxRetries: 2, baseDelay: 1000 })()
   },
 
-  // Soft delete instead of hard delete
+  // Secure hard delete through the server-side admin function
   delete: async (id) => {
     return withRetry(async () => {
       const { data, error } = await supabase
@@ -584,7 +585,6 @@ export const usersApi = {
   // Soft delete instead of hard delete
   delete: async (id) => {
     return withRetry(async () => {
-      // Get user email first for audit log
       const { data: userData, error: userError } = await supabase
         .from('profiles')
         .select('email, first_name, last_name')
@@ -593,13 +593,7 @@ export const usersApi = {
 
       if (userError) throw userError
 
-      // Soft delete: set deleted_at instead of deleting via admin API
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-
-      if (updateError) throw updateError
+      await authAdminOps.deleteUser(id)
 
       return userData
     }, { maxRetries: 1, baseDelay: 500 })()

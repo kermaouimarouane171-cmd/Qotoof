@@ -6,6 +6,7 @@ import { Card, LoadingSpinner, Input, VendorGuidelines } from '@/components/ui'
 import { BuildingStorefrontIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
+import { emailService } from '@/services/emailService'
 import { logger } from '@/utils/logger'
 import { storeSchema } from '@/utils/validationSchemas'
 
@@ -151,7 +152,6 @@ const BecomeVendor = () => {
 
       // Send welcome email to new vendor
       try {
-        const { emailService } = await import('@/services/emailService')
         await emailService.sendWelcomeEmail({
           name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Vendor',
           email: profile?.email || user.email,

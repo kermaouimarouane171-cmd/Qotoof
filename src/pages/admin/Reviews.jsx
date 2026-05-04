@@ -50,7 +50,7 @@ const AdminReviews = () => {
           *,
           buyer:profiles!reviews_user_id_fkey(id, first_name, last_name, email, avatar_url),
           vendor:profiles!reviews_vendor_id_fkey(id, first_name, last_name, email),
-          product:products(id, name, image_url)
+          product:products(id, name)
         `, { count: 'exact' })
         .is('deleted_at', null)
         .order('created_at', { ascending: false })

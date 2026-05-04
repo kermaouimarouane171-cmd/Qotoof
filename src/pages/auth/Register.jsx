@@ -254,7 +254,7 @@ const RegisterPage = () => {
             type="email"
             value={formData.email}
             onChange={handleChange}
-            placeholder={t('auth.register.emailPlaceholder', 'Qotoof273@gmail.com')}
+            placeholder={t('auth.register.emailPlaceholder', 'Enter your email address')}
             required
           />
           {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}

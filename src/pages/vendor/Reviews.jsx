@@ -34,7 +34,14 @@ const VendorReviews = () => {
   // ============================================
 
   const loadReviews = useCallback(async (pageNum = 1) => {
-    if (!user) return
+    if (!user?.id) {
+      setReviews([])
+      setTotalCount(0)
+      setHasMore(false)
+      setAverageRating(0)
+      setLoading(false)
+      return
+    }
 
     try {
       setLoading(true)
@@ -57,7 +64,7 @@ const VendorReviews = () => {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [user?.id])
 
   useEffect(() => {
     loadReviews(1)
@@ -68,6 +75,11 @@ const VendorReviews = () => {
   // ============================================
 
   const handleReply = async (reviewId) => {
+    if (!user?.id) {
+      toast.error('تعذر تحديد حساب البائع الحالي')
+      return
+    }
+
     if (!replyText.trim()) {
       toast.error('يرجى كتابة رد قبل الإرسال')
       return

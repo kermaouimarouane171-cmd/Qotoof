@@ -45,6 +45,12 @@ const VendorCoupons = () => {
   })
 
   const loadCoupons = useCallback(async () => {
+    if (!user?.id) {
+      setCoupons([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -55,20 +61,29 @@ const VendorCoupons = () => {
 
       if (error) throw error
 
-      const couponsWithStats = await Promise.all(
-        (data || []).map(async (coupon) => {
-          const { count } = await supabase
-            .from('coupon_redemptions')
-            .select('*', { count: 'exact', head: true })
-            .eq('coupon_id', coupon.id)
+      const couponIds = (data || []).map((coupon) => coupon.id)
+      let redemptionCounts = new Map()
 
-          return {
-            ...coupon,
-            total_uses: count || 0,
-            is_expired: coupon.expires_at ? new Date(coupon.expires_at) < new Date() : false,
-          }
-        })
-      )
+      if (couponIds.length > 0) {
+        const { data: redemptionRows, error: redemptionError } = await supabase
+          .from('coupon_redemptions')
+          .select('coupon_id')
+          .in('coupon_id', couponIds)
+
+        if (redemptionError) throw redemptionError
+
+        redemptionCounts = (redemptionRows || []).reduce((counts, redemption) => {
+          const key = redemption.coupon_id
+          counts.set(key, (counts.get(key) || 0) + 1)
+          return counts
+        }, new Map())
+      }
+
+      const couponsWithStats = (data || []).map((coupon) => ({
+        ...coupon,
+        total_uses: redemptionCounts.get(coupon.id) || 0,
+        is_expired: coupon.expires_at ? new Date(coupon.expires_at) < new Date() : false,
+      }))
 
       setCoupons(couponsWithStats)
     } catch (error) {
@@ -77,7 +92,7 @@ const VendorCoupons = () => {
     } finally {
       setLoading(false)
     }
-  }, [t, user.id])
+  }, [t, user?.id])
 
   useEffect(() => {
     loadCoupons()

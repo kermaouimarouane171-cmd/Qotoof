@@ -530,4 +530,20 @@ class DriverLocationService {
 
 export const driverLocationService = new DriverLocationService()
 
+export const startLocationBroadcast = (driverId, orderId) => {
+  return driverLocationService.startBrowserTracking({
+    driverId,
+    orderId,
+    broadcastStatus: 'active',
+  })
+}
+
+export const subscribeToDriverLocation = (orderId, callback) => {
+  return driverLocationService.subscribeToTrackedLocation({ orderId }, callback)
+}
+
+export const getLastKnownLocation = async (orderId) => {
+  return driverLocationService.getCurrentTrackedLocation({ orderId })
+}
+
 export default driverLocationService

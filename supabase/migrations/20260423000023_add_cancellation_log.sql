@@ -5,6 +5,9 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS cancelled_by UUID REFERENCES public.profiles(id),
   ADD COLUMN IF NOT EXISTS buyer_cancellation_reason TEXT;
 
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
+
 CREATE TABLE IF NOT EXISTS public.cancellation_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
@@ -51,7 +54,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF COALESCE(NEW.status, '') <> 'cancelled' AND NEW.cancelled_at IS NULL THEN
+  IF (NEW.status IS NULL OR NEW.status::text <> 'cancelled') AND NEW.cancelled_at IS NULL THEN
     RETURN NEW;
   END IF;
 
@@ -74,7 +77,7 @@ BEGIN
     COALESCE(NEW.cancelled_at, NOW()),
     jsonb_build_object(
       'status', NEW.status,
-      'payment_status', NEW.payment_status,
+      'payment_status', COALESCE(to_jsonb(NEW) ->> 'payment_status', 'pending'),
       'order_number', NEW.order_number
     )
   )
@@ -120,12 +123,12 @@ SELECT
   COALESCE(orders.cancelled_at, orders.updated_at, orders.created_at, NOW()),
   jsonb_build_object(
     'status', orders.status,
-    'payment_status', orders.payment_status,
+    'payment_status', COALESCE(to_jsonb(orders) ->> 'payment_status', 'pending'),
     'order_number', orders.order_number
   )
 FROM public.orders
-WHERE COALESCE(orders.status, '') = 'cancelled'
-   OR orders.cancelled_at IS NOT NULL
+WHERE orders.status::text = 'cancelled'
+  OR orders.cancelled_at IS NOT NULL
 ON CONFLICT (order_id) DO NOTHING;
 
 ALTER TABLE public.cancellation_log ENABLE ROW LEVEL SECURITY;

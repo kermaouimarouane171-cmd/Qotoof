@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { XMarkIcon, FlagIcon } from '@heroicons/react/24/outline'
+import { XMarkIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '../utils/logger.js'
 
@@ -72,7 +72,7 @@ const ReportAbuseModal = ({ isOpen, onClose, reportedUserId = null, reportType =
     try {
       setLoading(true)
 
-      const { data, error } = await supabase.rpc('create_user_report', {
+      const { error } = await supabase.rpc('create_user_report', {
         p_reporter_id: user.id,
         p_reported_user_id: reportedUserId,
         p_report_type: selectedType,

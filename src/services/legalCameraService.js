@@ -321,3 +321,89 @@ export const saveProductConditionCapture = async ({
     signed_url: await createSignedStorageUrl(storagePath),
   }
 }
+
+export const drawWatermark = (ctx, canvas, data = {}) => {
+  const watermarkLines = buildLegalWatermarkText({
+    orderNumber: data.orderNumber || data.orderId,
+    captureStage: data.stage || data.captureStage,
+    actorRole: data.userRole || data.actorRole,
+    capturedAt: data.capturedAt || new Date().toISOString(),
+    latitude: data.latitude,
+    longitude: data.longitude,
+    address: data.address,
+  })
+
+  const fontSize = Math.max(20, Math.round(canvas.width * 0.018))
+  const lineHeight = fontSize + 8
+  const overlayHeight = Math.max(140, watermarkLines.length * lineHeight + 28)
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)'
+  ctx.fillRect(0, canvas.height - overlayHeight, canvas.width, overlayHeight)
+
+  ctx.fillStyle = '#ffffff'
+  ctx.font = `600 ${fontSize}px sans-serif`
+  ctx.textBaseline = 'top'
+
+  watermarkLines.forEach((line, index) => {
+    ctx.fillText(line, 24, canvas.height - overlayHeight + 18 + index * lineHeight)
+  })
+
+  return watermarkLines
+}
+
+export const captureLegalPhoto = async ({
+  userId,
+  userName,
+  userRole,
+  orderId,
+  stage,
+  videoElement,
+  deliveryId = null,
+  vendorId = null,
+  driverId = null,
+  buyerId = null,
+  notes = '',
+}) => {
+  if (!videoElement) {
+    throw new Error('videoElement مطلوب لالتقاط الصورة القانونية.')
+  }
+
+  const geo = await getCurrentGeoPosition()
+  const capturedAt = new Date().toISOString()
+  const address = await reverseGeocodePosition(geo)
+  const watermarkLines = buildLegalWatermarkText({
+    orderNumber: orderId,
+    captureStage: stage,
+    actorRole: userRole,
+    capturedAt,
+    latitude: geo.latitude,
+    longitude: geo.longitude,
+    address,
+  })
+
+  const blob = await renderWatermarkedCapture({
+    videoElement,
+    watermarkLines,
+  })
+
+  return saveProductConditionCapture({
+    orderId,
+    deliveryId,
+    vendorId,
+    driverId,
+    buyerId,
+    capturedBy: userId,
+    actorRole: userRole,
+    captureStage: stage,
+    blob,
+    capturedAt,
+    latitude: geo.latitude,
+    longitude: geo.longitude,
+    address,
+    watermarkText: watermarkLines,
+    notes: notes || (userName ? `Captured by ${userName}` : ''),
+    metadata: {
+      user_name: userName || null,
+    },
+  })
+}

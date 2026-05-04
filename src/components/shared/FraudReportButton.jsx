@@ -171,16 +171,16 @@ const FraudReportButton = ({
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="input-label">نوع الاحتيال</label>
-              <select value={reportType} onChange={(event) => setReportType(event.target.value)} className="input">
+              <label htmlFor="fraud-report-type" className="input-label">نوع الاحتيال</label>
+              <select id="fraud-report-type" value={reportType} onChange={(event) => setReportType(event.target.value)} className="input">
                 {FRAUD_REPORT_TYPES.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="input-label">الأولوية</label>
-              <select value={priority} onChange={(event) => setPriority(event.target.value)} className="input">
+              <label htmlFor="fraud-priority" className="input-label">الأولوية</label>
+              <select id="fraud-priority" value={priority} onChange={(event) => setPriority(event.target.value)} className="input">
                 {FRAUD_PRIORITY_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
@@ -189,8 +189,8 @@ const FraudReportButton = ({
           </div>
 
           <div>
-            <label className="input-label">الطرف المبلّغ ضده</label>
-            <select value={reportedUserId} onChange={(event) => setReportedUserId(event.target.value)} className="input">
+            <label htmlFor="fraud-reported-user" className="input-label">الطرف المبلّغ ضده</label>
+            <select id="fraud-reported-user" value={reportedUserId} onChange={(event) => setReportedUserId(event.target.value)} className="input">
               <option value="">بدون تحديد مباشر</option>
               {reportedCandidates.map((candidate) => (
                 <option key={candidate.id} value={candidate.id}>
@@ -201,8 +201,9 @@ const FraudReportButton = ({
           </div>
 
           <div>
-            <label className="input-label">الوصف القانوني للواقعة</label>
+            <label htmlFor="fraud-description" className="input-label">الوصف القانوني للواقعة</label>
             <textarea
+              id="fraud-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               className="input min-h-32 resize-y"
@@ -211,8 +212,9 @@ const FraudReportButton = ({
           </div>
 
           <div>
-            <label className="input-label">التوصية أو الطلب من الإدارة</label>
+            <label htmlFor="fraud-recommendation" className="input-label">التوصية أو الطلب من الإدارة</label>
             <textarea
+              id="fraud-recommendation"
               value={legalRecommendation}
               onChange={(event) => setLegalRecommendation(event.target.value)}
               className="input min-h-24 resize-y"
@@ -223,9 +225,10 @@ const FraudReportButton = ({
           <div>
             <div className="flex items-center gap-2 mb-3">
               <PaperClipIcon className="h-4 w-4 text-slate-500" />
-              <label className="font-medium text-slate-900">إرفاق أدلة إضافية</label>
+              <label htmlFor="fraud-evidence-files" className="font-medium text-slate-900">إرفاق أدلة إضافية</label>
             </div>
             <input
+              id="fraud-evidence-files"
               type="file"
               multiple
               accept="image/*,application/pdf"

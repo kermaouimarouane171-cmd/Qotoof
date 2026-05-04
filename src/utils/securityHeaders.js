@@ -21,9 +21,10 @@ export const generateCSP = (env = 'production') => {
       "'unsafe-inline'", // Required for React in production
       "'unsafe-eval'", // Required for Vite HMR in dev
       'blob:',
-      'https://www.google.com/recaptcha/',
-      'https://www.gstatic.com/recaptcha/',
-      'https://js.stripe.com', // Future payment integration
+      'https://www.google.com',
+      'https://www.gstatic.com',
+      'https://www.paypal.com',
+      'https://www.paypalobjects.com',
       'https://unpkg.com', // Leaflet, etc.
       'https://*.sentry.io',
     ],
@@ -59,8 +60,11 @@ export const generateCSP = (env = 'production') => {
       'wss://*.supabase.co',
       'https://*.firebaseio.com',
       'https://*.googleapis.com',
-      'https://www.google.com/recaptcha/',
-      'https://*.stripe.com',
+      'https://nominatim.openstreetmap.org',
+      'https://www.google.com',
+      'https://www.gstatic.com',
+      'https://*.paypal.com',
+      'https://*.paypalobjects.com',
       'ws://localhost:*', // Vite HMR
       'ws://127.0.0.1:*', // Vite HMR
     ],
@@ -68,8 +72,17 @@ export const generateCSP = (env = 'production') => {
     // Only allow frames from these sources
     'frame-src': [
       "'self'",
-      'https://www.google.com/recaptcha/',
-      'https://js.stripe.com',
+      'https://www.google.com',
+      'https://www.gstatic.com',
+      'https://www.paypal.com',
+    ],
+
+    // Keep child-src aligned for engines that still fall back to it for frames
+    'child-src': [
+      "'self'",
+      'https://www.google.com',
+      'https://www.gstatic.com',
+      'https://www.paypal.com',
     ],
 
     // Only allow media from self

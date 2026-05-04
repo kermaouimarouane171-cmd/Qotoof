@@ -1,55 +1,24 @@
-import React, { Component } from 'react'
-import { render, screen, fireEvent } from '@testing-library/react'
+import React from 'react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 
-// Simulated ErrorBoundary component (isolated, no real imports)
-class ErrorBoundary extends Component {
-  constructor(props) {
-    super(props)
-    this.state = { hasError: false, error: null, errorInfo: null }
-  }
+import ErrorBoundary, {
+  ErrorFallback,
+  withErrorBoundary,
+} from '@/components/ErrorBoundary'
+import { logger } from '@/utils/logger'
 
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error }
-  }
+jest.mock('@/utils/logger', () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}))
 
-  componentDidCatch(error, errorInfo) {
-    this.setState({ errorInfo })
-    console.error('ErrorBoundary caught:', error)
-  }
-
-  handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null })
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div data-testid="error-fallback">
-          <h1>Something went wrong</h1>
-          <p>{this.state.error?.message || 'An error occurred'}</p>
-          <button onClick={this.handleReset} data-testid="reset-btn">Try Again</button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
-// Child component that throws
-const ThrowError = ({ shouldThrow }) => {
-  if (shouldThrow) {
-    throw new Error('Test error')
-  }
-  return <div data-testid="child">Child Content</div>
-}
+const CHUNK_RELOAD_STORAGE_KEY = 'qotoof_chunk_reload_attempted'
 
 describe('ErrorBoundary Component', () => {
   beforeEach(() => {
-    jest.spyOn(console, 'error').mockImplementation(() => {})
-  })
-
-  afterEach(() => {
-    console.error.mockRestore()
+    jest.clearAllMocks()
+    sessionStorage.clear()
   })
 
   it('renders children when there is no error', () => {
@@ -58,65 +27,75 @@ describe('ErrorBoundary Component', () => {
         <div data-testid="child">Hello</div>
       </ErrorBoundary>
     )
+
     expect(screen.getByTestId('child')).toBeInTheDocument()
-    expect(screen.queryByTestId('error-fallback')).not.toBeInTheDocument()
+    expect(screen.queryByText('حدث خطأ ما')).not.toBeInTheDocument()
   })
 
-  it('shows fallback UI when child throws an error', () => {
+  it('renders the fallback details for non-chunk errors', () => {
     render(
-      <ErrorBoundary>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      <ErrorFallback
+        error={new Error('Test error')}
+        resetErrorBoundary={jest.fn()}
+      />
     )
-    expect(screen.getByTestId('error-fallback')).toBeInTheDocument()
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+
+    expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument()
+    expect(screen.getByText('عذراً، حدث خطأ غير متوقع في التطبيق.')).toBeInTheDocument()
+    expect(screen.getByText(/الخطأ:/)).toBeInTheDocument()
+    expect(screen.getAllByText(/Test error/)).toHaveLength(2)
+    expect(logger.error).toHaveBeenCalledWith('Error caught by ErrorBoundary:', expect.any(Error))
   })
 
-  it('displays the error message in the fallback', () => {
+  it('renders the chunk-specific message when the error looks like a chunk load failure', () => {
+    sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, '1')
+
     render(
-      <ErrorBoundary>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      <ErrorFallback
+        error={new Error('ChunkLoadError: Loading chunk 12 failed')}
+        resetErrorBoundary={jest.fn()}
+      />
     )
-    expect(screen.getByText('Test error')).toBeInTheDocument()
+
+    expect(screen.getByText('جاري محاولة تحديث التطبيق تلقائياً. إذا استمرت المشكلة، أعد تحميل الصفحة يدوياً.')).toBeInTheDocument()
   })
 
-  it('resets state and re-renders children when reset button is clicked', () => {
-    // Use a toggleable error child
-    let shouldThrow = true
-    const ToggleError = () => {
-      if (shouldThrow) throw new Error('Test error')
-      return <div data-testid="child">Child Content</div>
-    }
+  it('clears the chunk reload marker after a repeated chunk load failure', async () => {
+    sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, '1')
 
     render(
-      <ErrorBoundary>
-        <ToggleError />
-      </ErrorBoundary>
+      <ErrorFallback
+        error={new Error('ChunkLoadError: Loading chunk 12 failed')}
+        resetErrorBoundary={jest.fn()}
+      />
     )
-    expect(screen.getByTestId('error-fallback')).toBeInTheDocument()
 
-    // Toggle error off before reset
-    shouldThrow = false
-    fireEvent.click(screen.getByTestId('reset-btn'))
-    expect(screen.queryByTestId('error-fallback')).not.toBeInTheDocument()
-    expect(screen.getByTestId('child')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY)).toBeNull()
+    })
   })
 
-  it('calls componentDidCatch with error and errorInfo when error occurs', () => {
-    const componentDidCatchSpy = jest.spyOn(ErrorBoundary.prototype, 'componentDidCatch')
+  it('calls resetErrorBoundary when the retry button is clicked', () => {
+    const resetErrorBoundary = jest.fn()
 
     render(
-      <ErrorBoundary>
-        <ThrowError shouldThrow={true} />
-      </ErrorBoundary>
+      <ErrorFallback
+        error={new Error('Test error')}
+        resetErrorBoundary={resetErrorBoundary}
+      />
     )
 
-    expect(componentDidCatchSpy).toHaveBeenCalled()
-    const callArgs = componentDidCatchSpy.mock.calls[0]
-    expect(callArgs[0]).toBeInstanceOf(Error)
-    expect(callArgs[0].message).toBe('Test error')
+    fireEvent.click(screen.getByRole('button', { name: 'حاول مرة أخرى' }))
 
-    componentDidCatchSpy.mockRestore()
+    expect(resetErrorBoundary).toHaveBeenCalledTimes(1)
+  })
+
+  it('wraps components with the exported HOC', () => {
+    const PlainComponent = ({ label }) => <div>{label}</div>
+    const WrappedComponent = withErrorBoundary(PlainComponent)
+
+    render(<WrappedComponent label="Wrapped content" />)
+
+    expect(screen.getByText('Wrapped content')).toBeInTheDocument()
   })
 })

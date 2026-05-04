@@ -7,6 +7,9 @@
 # VITE_SUPABASE_ANON_KEY     — public anon key (safe to expose in the browser)
 # SUPABASE_ACCESS_TOKEN      — personal access token for deploying Edge Functions
 #                              (generate at https://supabase.com/dashboard/account/tokens)
+#                              IMPORTANT: create it from the same Supabase account/org that can open
+#                              the project in the dashboard. A token from a different account will be
+#                              treated as unauthorized and Edge Function deploys will be skipped.
 # SUPABASE_PROJECT_REF       — project ref ID, e.g. oyaiiyekfkflesdmcvvo
 #
 # ─── Firebase ────────────────────────────────────────────────────────────────

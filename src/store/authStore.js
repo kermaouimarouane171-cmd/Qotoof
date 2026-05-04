@@ -3,6 +3,9 @@ import { supabase } from '@/services/supabase'
 import toast from 'react-hot-toast'
 import { mfaService, sessionService, autoLogoutService } from '@/services/authServices'
 import { auditLogger } from '@/services/auditLogger'
+import { emailService } from '@/services/emailService'
+import { useCartStore } from '@/store/cartStore'
+import { useFavoritesStore } from '@/store/favoritesStore'
 import { generateDeviceFingerprint, secureStorage, clearSupabaseLocalStorage } from '@/utils/encryption'
 import { checkLoginRate, checkPasswordResetRate, enforceRateLimit } from '@/utils/rateLimiter'
 import { logger } from '../utils/logger.js'
@@ -648,8 +651,6 @@ export const useAuthStore = create((set, get) => ({
       clearSupabaseLocalStorage()
 
       // Clear cart and favorites on logout
-      const { useCartStore } = await import('@/store/cartStore')
-      const { useFavoritesStore } = await import('@/store/favoritesStore')
       useCartStore.getState().clearCart()
       useFavoritesStore.getState().clearFavorites()
 
@@ -695,6 +696,7 @@ export const useAuthStore = create((set, get) => ({
           email: data.user.email,
           role: userData.role,
           phone: userData.phone || null,
+          cin: userData.cin || null,
         }
 
         // Add driver-specific fields
@@ -1083,14 +1085,11 @@ export const useAuthStore = create((set, get) => ({
       secureStorage.clear()
 
       // Clear cart and favorites
-      const { useCartStore } = await import('@/store/cartStore')
-      const { useFavoritesStore } = await import('@/store/favoritesStore')
       useCartStore.getState().clearCart()
       useFavoritesStore.getState().clearFavorites()
 
       // Send deletion confirmation email (non-blocking)
       try {
-        const { emailService } = await import('@/services/emailService')
         if (profile?.email) {
           // Queue email before auth is fully cleared
           emailService.queueEmail({

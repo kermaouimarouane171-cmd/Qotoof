@@ -21,33 +21,43 @@ const VendorProfilePublic = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true)
+      try {
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, store_name, city, phone, email, rating, store_type, delivery_option, active_products_count, preferred_driver_id, partnership_status')
+          .eq('id', id)
+          .eq('role', 'vendor')
+          .single()
 
-      const { data: vendorData } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, store_name, city, phone, email, rating, store_type, delivery_option, active_products_count, preferred_driver_id, partnership_status')
-        .eq('id', id)
-        .eq('role', 'vendor')
-        .single()
+        if (vendorError && vendorError.code !== 'PGRST116') {
+          // PGRST116 = row not found → handled by null check below
+          throw vendorError
+        }
 
-      setVendor(vendorData || null)
+        setVendor(vendorData || null)
 
-      if (!user?.id || !vendorData?.id) {
+        if (!user?.id || !vendorData?.id) {
+          setCanSeeContact(false)
+          return
+        }
+
+        const { data: confirmedOrder } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('buyer_id', user.id)
+          .eq('vendor_id', vendorData.id)
+          .in('status', ['confirmed', 'preparing', 'shipped', 'payment_received', 'delivered'])
+          .limit(1)
+          .maybeSingle()
+
+        setCanSeeContact(Boolean(confirmedOrder?.id) || user.id === vendorData.id)
+      } catch (err) {
+        // Network / DB error — show "not found" state rather than crashing
+        setVendor(null)
         setCanSeeContact(false)
+      } finally {
         setLoading(false)
-        return
       }
-
-      const { data: confirmedOrder } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('buyer_id', user.id)
-        .eq('vendor_id', vendorData.id)
-        .in('status', ['confirmed', 'preparing', 'shipped', 'payment_received', 'delivered'])
-        .limit(1)
-        .maybeSingle()
-
-      setCanSeeContact(Boolean(confirmedOrder?.id) || user.id === vendorData.id)
-      setLoading(false)
     }
 
     load()

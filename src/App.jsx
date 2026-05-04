@@ -120,6 +120,7 @@ const BankAccountPage = lazy(() => import('@/pages/BankAccount'));
 const ChatPage = lazy(() => import('@/pages/Chat'));
 const SearchResultsPage = lazy(() => import('@/pages/SearchResults'));
 const ActivityLogPage = lazy(() => import('@/pages/ActivityLog'));
+const SeasonalPage = lazy(() => import('@/pages/Seasonal'));
 
 // Auth Callback
 const AuthCallbackPage = lazy(() => import('@/pages/auth/AuthCallback'));
@@ -133,6 +134,7 @@ const BuyerCoupons = lazy(() => import('@/pages/buyer/Coupons'));
 const BuyerLoyalty = lazy(() => import('@/pages/buyer/Loyalty'));
 const BuyerSecurity = lazy(() => import('@/pages/buyer/Security'));
 const BuyerShoppingLists = lazy(() => import('@/pages/buyer/ShoppingLists'));
+const BuyerRFQ = lazy(() => import('@/pages/buyer/RFQ'));
 
 // Vendor Extra Pages
 const VendorReviews = lazy(() => import('@/pages/vendor/Reviews'));
@@ -146,6 +148,8 @@ const VendorPublicProfile = lazy(() => import('@/pages/vendor/VendorProfile'));
 const VendorDriverPreferenceSetup = lazy(() => import('@/pages/vendor/DriverPreferenceSetup'));
 const VendorFindDriver = lazy(() => import('@/pages/vendor/FindDriver'));
 const VendorDeliveryOptionSetup = lazy(() => import('@/pages/vendor/DeliveryOptionSetup'));
+const VendorSubscription = lazy(() => import('@/pages/vendor/Subscription'));
+const VendorRFQs = lazy(() => import('@/pages/vendor/RFQs'));
 
 // Admin Extra Pages
 const AdminVendors = lazy(() => import('@/pages/admin/Vendors'));
@@ -394,16 +398,20 @@ function App() {
             <Route path="shipping" element={<SuspenseRoute><ShippingPage /></SuspenseRoute>} />
             <Route path="tracking" element={<SuspenseRoute><TrackingPage /></SuspenseRoute>} />
             <Route path="activity-log" element={<SuspenseRoute><ActivityLogPage /></SuspenseRoute>} />
+            <Route path="marketplace/seasonal" element={<SuspenseRoute><SeasonalPage /></SuspenseRoute>} />
             <Route path="vendor/public/:id" element={<SuspenseRoute><VendorPublicProfile /></SuspenseRoute>} />
             {/* Buyer Dashboard */}
-            <Route path="buyer/dashboard" element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
-            <Route path="buyer/orders" element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
-            <Route path="buyer/addresses" element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
-            <Route path="buyer/settings" element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
-            <Route path="buyer/coupons" element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
-            <Route path="buyer/loyalty" element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
-            <Route path="buyer/security" element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
-            <Route path="buyer/shopping-lists" element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
+            <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.BUYER]} />}>
+              <Route path="buyer/dashboard" element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
+              <Route path="buyer/orders" element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
+              <Route path="buyer/addresses" element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
+              <Route path="buyer/settings" element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
+              <Route path="buyer/coupons" element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
+              <Route path="buyer/loyalty" element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
+              <Route path="buyer/security" element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
+              <Route path="buyer/shopping-lists" element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
+              <Route path="buyer/rfq" element={<SuspenseRoute><BuyerRFQ /></SuspenseRoute>} />
+            </Route>
           </Route>
 
           {/* ============================================ */}
@@ -431,12 +439,14 @@ function App() {
             <Route path="reviews" element={<SuspenseRoute><VendorReviews /></SuspenseRoute>} />
             <Route path="settings" element={<SuspenseRoute><VendorSettings /></SuspenseRoute>} />
             <Route path="coupons" element={<SuspenseRoute><VendorCoupons /></SuspenseRoute>} />
+            <Route path="subscription" element={<SuspenseRoute><VendorSubscription /></SuspenseRoute>} />
             <Route path="schedules" element={<SuspenseRoute><VendorSchedules /></SuspenseRoute>} />
             <Route path="security" element={<SuspenseRoute><VendorSecurity /></SuspenseRoute>} />
             <Route path="location" element={<SuspenseRoute><VendorLocation /></SuspenseRoute>} />
             <Route path="driver-preferences" element={<SuspenseRoute><VendorDriverPreferenceSetup /></SuspenseRoute>} />
             <Route path="find-driver" element={<SuspenseRoute><VendorFindDriver /></SuspenseRoute>} />
             <Route path="digital-contract" element={<SuspenseRoute><VendorDigitalContract /></SuspenseRoute>} />
+            <Route path="rfqs" element={<SuspenseRoute><VendorRFQs /></SuspenseRoute>} />
           </Route>
 
           {/* ============================================ */}
@@ -506,6 +516,7 @@ function App() {
             <Route path="disputes" element={<SuspenseRoute><AdminDisputeManagement /></SuspenseRoute>} />
             <Route path="fraud-reports" element={<SuspenseRoute><AdminFraudReports /></SuspenseRoute>} />
             <Route path="support-tickets" element={<SuspenseRoute><AdminSupportTickets /></SuspenseRoute>} />
+            <Route path="support" element={<Navigate to="/admin/support-tickets" replace />} />
           </Route>
 
           {/* ============================================ */}

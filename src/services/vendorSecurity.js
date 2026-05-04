@@ -16,6 +16,94 @@ import { withRetry } from '@/utils/withRetry'
 // Re-export from authServices.js for backward compatibility
 export { mfaService, sessionService, autoLogoutService } from '@/services/authServices'
 
+let isVendorTrustScoreRpcAvailable = false
+
+const resolveVendorTrustLevel = (score) => {
+  if (score >= 90) return 'platinum'
+  if (score >= 75) return 'gold'
+  if (score >= 60) return 'silver'
+  if (score >= 40) return 'bronze'
+  return 'new'
+}
+
+const getVendorTrustScoreFallback = async (vendorId) => {
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('created_at, is_verified, is_approved')
+    .eq('id', vendorId)
+    .single()
+
+  if (profileError || !profile) {
+    if (profileError) {
+      logger.error('Vendor trust score fallback profile error:', profileError)
+    }
+    return null
+  }
+
+  const [{ data: reviews, error: reviewsError }, { data: orders, error: ordersError }] = await Promise.all([
+    supabase
+      .from('reviews')
+      .select('rating')
+      .eq('vendor_id', vendorId)
+      .is('deleted_at', null),
+    supabase
+      .from('orders')
+      .select('status')
+      .eq('vendor_id', vendorId)
+  ])
+
+  if (reviewsError) {
+    logger.error('Vendor trust score fallback reviews error:', reviewsError)
+    return null
+  }
+
+  if (ordersError) {
+    logger.error('Vendor trust score fallback orders error:', ordersError)
+    return null
+  }
+
+  const reviewRows = reviews || []
+  const orderRows = orders || []
+  const totalReviews = reviewRows.length
+  const totalOrders = orderRows.length
+  const completedOrders = orderRows.filter((order) => ['completed', 'delivered'].includes(order.status)).length
+  const averageRating = totalReviews > 0
+    ? Number((reviewRows.reduce((sum, review) => sum + Number(review.rating || 0), 0) / totalReviews).toFixed(2))
+    : 0
+
+  const memberDays = profile.created_at
+    ? Math.max(0, Math.floor((Date.now() - new Date(profile.created_at).getTime()) / (1000 * 60 * 60 * 24)))
+    : 0
+
+  let score = 0
+  score += (averageRating / 5) * 30
+  score += Math.min(totalReviews / 10, 10)
+
+  if (totalOrders > 0) {
+    score += (completedOrders / totalOrders) * 25
+  }
+
+  if (profile.is_verified) {
+    score += 20
+  } else if (profile.is_approved) {
+    score += 10
+  }
+
+  score += Math.min((memberDays / 365) * 15, 15)
+
+  return {
+    score: Number(score.toFixed(1)),
+    level: resolveVendorTrustLevel(score),
+    avg_rating: averageRating,
+    total_reviews: totalReviews,
+    total_orders: totalOrders,
+    completed_orders: completedOrders,
+    member_days: memberDays,
+    is_verified: Boolean(profile.is_verified),
+    is_approved: Boolean(profile.is_approved),
+  }
+}
+
 // ============================================
 // 1. TRUST SCORE SERVICE
 // ============================================
@@ -30,11 +118,20 @@ export const trustScoreService = {
       const id = vendorId || user?.id
       if (!id) return null
 
+      if (!isVendorTrustScoreRpcAvailable) {
+        return getVendorTrustScoreFallback(id)
+      }
+
       const { data, error } = await supabase.rpc('calculate_vendor_trust_score', {
         vendor_id: id
       })
 
       if (error) {
+        if (error.code === 'PGRST202' || String(error.message || '').includes('calculate_vendor_trust_score')) {
+          isVendorTrustScoreRpcAvailable = false
+          return getVendorTrustScoreFallback(id)
+        }
+
         logger.error('Get trust score error:', error)
         return null
       }

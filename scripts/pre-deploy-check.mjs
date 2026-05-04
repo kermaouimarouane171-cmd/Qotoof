@@ -92,8 +92,8 @@ if (existsSync('.env')) {
   ]
 
   const optionalVars = [
-    'VITE_STRIPE_PUBLIC_KEY',
-    'STRIPE_SECRET_KEY',
+    'VITE_PAYPAL_CLIENT_ID',
+    'PAYPAL_CLIENT_SECRET',
     'VITE_SENTRY_DSN'
   ]
 

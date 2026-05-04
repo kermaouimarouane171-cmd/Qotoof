@@ -8,6 +8,8 @@
  * @module constants/payment
  */
 
+import { getPayPalClientId } from '@/lib/config'
+
 // ============================================================
 // PAYMENT METHODS
 // ============================================================
@@ -18,6 +20,7 @@
 export const PAYMENT_METHOD = {
   CASH: 'cod',
   BANK_TRANSFER: 'bank',
+  PAYPAL: 'paypal',
   CMI: 'cmi',
 }
 
@@ -45,6 +48,18 @@ export const PAYMENT_METHODS = [
     available: true,
     requiresRedirect: false,
     descriptionAr: 'حوّل المبلغ إلى حساب بنكي مغربي معتمد',
+  },
+  {
+    id: PAYMENT_METHOD.PAYPAL,
+    label: 'PayPal',
+    labelFr: 'PayPal',
+    labelEn: 'PayPal',
+    icon: '🅿️',
+    get available() {
+      return Boolean(getPayPalClientId() || import.meta.env.VITE_PAYPAL_CLIENT_ID)
+    },
+    requiresRedirect: true,
+    descriptionAr: 'ادفع عبر بوابة PayPal الآمنة',
   },
   {
     id: PAYMENT_METHOD.CMI,

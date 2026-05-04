@@ -86,7 +86,7 @@ git push
    - Add all variables from `.env.example`:
      - `VITE_SUPABASE_URL`
      - `VITE_SUPABASE_ANON_KEY`
-     - `VITE_STRIPE_PUBLIC_KEY`
+    - `VITE_PAYPAL_CLIENT_ID`
      - `VITE_SENTRY_DSN`
      - `RESEND_API_KEY`
      - `VITE_GOOGLE_MAPS_KEY`

@@ -7,12 +7,40 @@
 
 import React from 'react';
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
+import { logger } from '@/utils/logger';
+
+const CHUNK_RELOAD_STORAGE_KEY = 'qotoof_chunk_reload_attempted'
+
+const isChunkLoadError = (error) => {
+  const message = String(error?.message || '').toLowerCase()
+  return (
+    message.includes('failed to fetch dynamically imported module')
+    || message.includes('loading chunk')
+    || message.includes('chunkloaderror')
+  )
+}
 
 /**
  * مكون Fallback UI - يعرض عند حدوث خطأ
  */
 export const ErrorFallback = ({ error, resetErrorBoundary }) => {
-  console.error('Error caught by ErrorBoundary:', error);
+  logger.error('Error caught by ErrorBoundary:', error);
+
+  const chunkError = isChunkLoadError(error)
+
+  React.useEffect(() => {
+    if (!chunkError) return
+
+    const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY) === '1'
+    if (!alreadyReloaded) {
+      sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, '1')
+      window.location.reload()
+      return
+    }
+
+    // Avoid permanent reload loops if the new bundle is still unavailable.
+    sessionStorage.removeItem(CHUNK_RELOAD_STORAGE_KEY)
+  }, [chunkError])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-red-50 px-4">
@@ -42,11 +70,13 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
 
           {/* Error Message */}
           <p className="mt-2 text-sm text-gray-500">
-            عذراً، حدث خطأ غير متوقع في التطبيق.
+            {chunkError
+              ? 'جاري محاولة تحديث التطبيق تلقائياً. إذا استمرت المشكلة، أعد تحميل الصفحة يدوياً.'
+              : 'عذراً، حدث خطأ غير متوقع في التطبيق.'}
           </p>
 
           {/* Error Details (في بيئة Development فقط) */}
-          {process.env.NODE_ENV === 'development' && (
+          {import.meta.env.DEV && (
             <div className="mt-4 p-4 bg-gray-100 rounded text-left">
               <p className="text-xs font-mono text-gray-700 break-words">
                 <strong>الخطأ:</strong> {error.message}
@@ -87,14 +117,14 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
  * معالج الأخطاء - يتم استدعاؤه عند التقاط خطأ
  */
 const handleError = (error, errorInfo) => {
-  console.error('=== ErrorBoundary Caught Error ===');
-  console.error('Message:', error.message);
-  console.error('Component Stack:', errorInfo.componentStack);
-  console.error('Full Stack:', error.stack);
+  logger.error('=== ErrorBoundary Caught Error ===');
+  logger.error('Message:', error.message);
+  logger.error('Component Stack:', errorInfo.componentStack);
+  logger.error('Full Stack:', error.stack);
 
   // في بيئة Production، يمكنك إرسال الخطأ إلى خادم logging
   // مثل: Sentry, Logstash, إلخ
-  if (process.env.NODE_ENV === 'production') {
+  if (import.meta.env.PROD) {
     // sendErrorToServer(error, errorInfo);
   }
 };
@@ -108,8 +138,7 @@ export const ErrorBoundary = ({ children }) => {
       FallbackComponent={ErrorFallback}
       onError={handleError}
       onReset={() => {
-        // يمكن إضافة منطق إضافي هنا إذا لزم الأمر
-        window.location.href = '/';
+        // Let the boundary retry rendering in place.
       }}
     >
       {children}

@@ -1,4 +1,4 @@
-import { StarIcon as StarIconSolid, StarIcon as StarIconOutline } from '@heroicons/react/24/solid'
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid'
 import { StarIcon as StarIconOutline2 } from '@heroicons/react/24/outline'
 
 const StarRating = ({ rating, maxRating = 5, size = 'md', showValue = false, onRate }) => {

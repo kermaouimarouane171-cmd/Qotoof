@@ -165,7 +165,7 @@ const BuyerDashboard = () => {
         // Favorite/recently visited stores
         supabase
           .from('profiles')
-          .select('id, first_name, last_name, store_name, store_logo, city, description, is_verified')
+          .select('id, first_name, last_name, store_name, avatar_url, city, is_verified')
           .eq('role', 'vendor')
           .order('created_at', { ascending: false })
           .limit(4),
@@ -181,7 +181,11 @@ const BuyerDashboard = () => {
       }
 
       if (storesResult.status === 'fulfilled' && !storesResult.value.error) {
-        setFavoriteStores(storesResult.value.data || [])
+        setFavoriteStores((storesResult.value.data || []).map((store) => ({
+          ...store,
+          store_logo: store.store_logo || store.avatar_url || null,
+          description: store.description || '',
+        })))
       }
     } catch (error) {
       logger.error('Error loading recommendations:', error)
@@ -350,7 +354,7 @@ const BuyerDashboard = () => {
   // ============================================
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-testid="page-loaded">
       {/* ===== Welcome Header ===== */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -408,7 +412,7 @@ const BuyerDashboard = () => {
       )}
 
       {/* ===== Stats Grid ===== */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-testid="stats-cards">
         <StatCard
           icon={ShoppingBagIcon}
           value={stats.totalOrders}
@@ -462,6 +466,7 @@ const BuyerDashboard = () => {
                 <button
                   type="button"
                   key={order.id}
+                  data-testid="order-card"
                   className="w-full text-left p-4 flex items-center justify-between hover:bg-gray-50 cursor-pointer transition-colors"
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >

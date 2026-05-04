@@ -155,7 +155,7 @@ const reviewService = {
         approved_at,
         admin_notes,
         buyer:profiles!reviews_user_id_fkey(id, first_name, last_name, avatar_url, email),
-        product:products(id, name, image_url)
+        product:products(id, name)
       `, { count: 'exact' })
       .eq('vendor_id', vendorId)
       .is('deleted_at', null)

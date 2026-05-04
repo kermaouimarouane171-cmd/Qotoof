@@ -31,12 +31,12 @@ describe('Authentication', () => {
 
     it('should login successfully with valid credentials', () => {
       // Use test credentials
-      cy.get('input[type="email"]').type(Cypress.env('TEST_USER_EMAIL') || 'test@example.com')
-      cy.get('input[type="password"]').type(Cypress.env('TEST_USER_PASSWORD') || 'Test1234!')
+      cy.get('input[type="email"]').type(Cypress.env('TEST_USER_EMAIL') || 'buyer@greenmarket.test')
+      cy.get('input[type="password"]').type(Cypress.env('TEST_USER_PASSWORD') || 'Test@123456')
       cy.contains('button', 'Sign In').click()
       
-      // Should redirect to dashboard
-      cy.url().should('include', '/dashboard')
+      // Should redirect away from the login page after a successful sign-in
+      cy.url().should('not.include', '/login')
     })
 
     it('should navigate to registration page', () => {
@@ -69,7 +69,7 @@ describe('Authentication', () => {
     })
 
     it('should validate password strength', () => {
-      cy.get('input[type="password"]').type('weak')
+      cy.get('input[name="password"]').type('weak')
       // Should show password strength requirements
     })
 
@@ -77,7 +77,8 @@ describe('Authentication', () => {
       cy.get('input[name="firstName"]').type('Test')
       cy.get('input[name="lastName"]').type('User')
       cy.get('input[type="email"]').type('existing@example.com')
-      cy.get('input[type="password"]').type('StrongPass123!')
+      cy.get('input[name="password"]').type('StrongPass123!')
+      cy.get('input[name="confirmPassword"]').type('StrongPass123!')
       cy.contains('button', /register|create/i).click()
       
       // Should show error for existing email

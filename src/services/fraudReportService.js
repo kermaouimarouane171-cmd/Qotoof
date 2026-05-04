@@ -222,11 +222,30 @@ export const updateFraudReport = async ({ reportId, adminId, updates }) => {
   return freshReport
 }
 
+export const submitFraudReport = async ({
+  reporterId,
+  reportedId,
+  orderId,
+  reportType,
+  description,
+  evidenceFiles = [],
+}) => {
+  return createFraudReport({
+    orderId,
+    reporterId,
+    reportedUserId: reportedId,
+    reportType,
+    description,
+    files: evidenceFiles,
+  })
+}
+
 const fraudReportService = {
   createFraudReport,
   getFraudEvidenceLinks,
   getFraudReportById,
   listFraudReportsForAdmin,
+  submitFraudReport,
   updateFraudReport,
 }
 

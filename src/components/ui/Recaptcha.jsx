@@ -1,15 +1,9 @@
 import { forwardRef } from 'react'
 import ReCAPTCHA from 'react-google-recaptcha'
+import { recaptchaSiteKeyLooksIssued } from '@/utils/envValidators'
 
 export const isRecaptchaSiteKeyConfigured = (siteKey) => {
-  const normalizedKey = siteKey?.trim() || ''
-
-  return !(
-    !normalizedKey ||
-    normalizedKey === 'recaptcha-site-key-placeholder' ||
-    normalizedKey === 'your-recaptcha-v2-site-key' ||
-    normalizedKey.includes('...')
-  )
+  return recaptchaSiteKeyLooksIssued(siteKey)
 }
 
 const Recaptcha = forwardRef(({ onChange, siteKey }, ref) => {

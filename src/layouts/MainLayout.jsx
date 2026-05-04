@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { useLanguageStore } from '@/store/languageStore'
 import { useDarkMode } from '@/hooks/useDarkMode'
+import { useTranslation } from 'react-i18next'
 import {
   Bars3Icon,
   XMarkIcon,
@@ -30,6 +31,7 @@ import { useFavoritesStore } from '@/store/favoritesStore'
 import { APP_CONFIG } from '@/config/appConfig'
 
 const MainLayout = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
@@ -84,8 +86,9 @@ const MainLayout = () => {
               <div className="relative w-full">
                 <MagnifyingGlassIcon className="absolute left-4 rtl:left-auto rtl:right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                 <input
+                  data-testid="search-input"
                   type="text"
-                  placeholder="Search plants, vegetables, fruits..."
+                  placeholder={t('layout.main.searchPlaceholder', 'Search plants, vegetables, fruits...')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-12 pr-4 rtl:pl-4 rtl:pr-12 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-2xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:bg-white dark:focus:bg-gray-700 transition-all placeholder:text-gray-400 dark:placeholder:text-gray-500"
@@ -99,7 +102,7 @@ const MainLayout = () => {
               <button
                 onClick={toggleDarkMode}
                 className="p-2.5 rounded-xl text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-colors"
-                aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+                aria-label={isDark ? t('layout.main.switchToLightMode', 'Switch to light mode') : t('layout.main.switchToDarkMode', 'Switch to dark mode')}
               >
                 {isDark ? (
                   <SunIcon className="w-5 h-5" />
@@ -111,6 +114,7 @@ const MainLayout = () => {
               {/* Language Selector */}
               <div className="relative hidden sm:block">
                 <button
+                  data-testid="language-selector"
                   onClick={() => setLanguageMenuOpen(!languageMenuOpen)}
                   className="p-2.5 rounded-xl text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                 >
@@ -121,7 +125,7 @@ const MainLayout = () => {
                   <>
                     <button
                       type="button"
-                      aria-label="Close language menu"
+                      aria-label={t('layout.main.closeLanguageMenu', 'Close language menu')}
                       className="fixed inset-0 z-10"
                       onClick={() => setLanguageMenuOpen(false)}
                     />
@@ -129,6 +133,7 @@ const MainLayout = () => {
                       {languages.map((lang) => (
                         <button
                           key={lang.code}
+                          data-testid={`lang-option-${lang.code}`}
                           onClick={() => {
                             setLanguage(lang.code)
                             setLanguageMenuOpen(false)
@@ -195,7 +200,7 @@ const MainLayout = () => {
                     <>
                       <button
                         type="button"
-                        aria-label="Close user menu"
+                        aria-label={t('layout.main.closeUserMenu', 'Close user menu')}
                         className="fixed inset-0 z-10"
                         onClick={() => setUserMenuOpen(false)}
                       />
@@ -211,17 +216,17 @@ const MainLayout = () => {
                           onClick={() => setUserMenuOpen(false)}
                         >
                           <UserIcon className="w-4 h-4" />
-                          Profile
+                          {t('nav.profile', 'Profile')}
                         </Link>
 
                         {profile?.role === 'buyer' && (
                           <Link
-                            to="/buyer/orders"
+                            to="/buyer/dashboard"
                             className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <ChartBarSquareIcon className="w-4 h-4" />
-                            My Orders
+                            {t('layout.main.buyerDashboard', 'Buyer Dashboard')}
                           </Link>
                         )}
 
@@ -232,7 +237,7 @@ const MainLayout = () => {
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <ChartBarSquareIcon className="w-4 h-4" />
-                            Vendor Dashboard
+                            {t('layout.main.vendorDashboard', 'Vendor Dashboard')}
                           </Link>
                         )}
 
@@ -243,7 +248,7 @@ const MainLayout = () => {
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <ChartBarSquareIcon className="w-4 h-4" />
-                            Driver Dashboard
+                            {t('layout.main.driverDashboard', 'Driver Dashboard')}
                           </Link>
                         )}
 
@@ -254,7 +259,7 @@ const MainLayout = () => {
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <ChartBarSquareIcon className="w-4 h-4" />
-                            Admin Panel
+                            {t('layout.main.adminPanel', 'Admin Panel')}
                           </Link>
                         )}
 
@@ -268,7 +273,7 @@ const MainLayout = () => {
                           className="w-full px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center rtl:flex-row-reverse gap-3 transition-colors"
                         >
                           <ArrowRightOnRectangleIcon className="w-4 h-4 rtl-flip" />
-                          Sign Out
+                          {t('layout.main.signOut', 'Sign Out')}
                         </button>
                       </div>
                     </>
@@ -276,7 +281,7 @@ const MainLayout = () => {
                 </div>
               ) : (
                 <Link to="/login" className="hidden sm:flex btn-primary rounded-xl dark:from-green-600 dark:to-emerald-600">
-                  Sign In
+                  {t('auth.login.signIn', 'Sign In')}
                 </Link>
               )}
               
@@ -304,8 +309,9 @@ const MainLayout = () => {
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-4 rtl:left-auto rtl:right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
                   <input
+                    data-testid="search-input"
                     type="text"
-                    placeholder="Search..."
+                    placeholder={t('layout.main.searchShortPlaceholder', 'Search...')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-12 pr-4 rtl:pl-4 rtl:pr-12 py-3 bg-gray-100 dark:bg-gray-800 border-0 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500/50 dark:placeholder:text-gray-500"
@@ -323,7 +329,7 @@ const MainLayout = () => {
                 }`}
               >
                 <HomeIcon className="w-5 h-5" />
-                Home
+                {t('nav.home', 'Home')}
               </Link>
               <Link
                 to="/marketplace"
@@ -335,7 +341,7 @@ const MainLayout = () => {
                 }`}
               >
                 <BuildingStorefrontIcon className="w-5 h-5" />
-                Marketplace
+                {t('nav.marketplace', 'Marketplace')}
               </Link>
               <Link
                 to="/stores"
@@ -347,7 +353,7 @@ const MainLayout = () => {
                 }`}
               >
                 <BuildingStorefrontIcon className="w-5 h-5" />
-                Stores
+                {t('layout.main.stores', 'Stores')}
               </Link>
               <Link
                 to="/tracking"
@@ -355,12 +361,12 @@ const MainLayout = () => {
                 className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
                 <ShoppingBagIcon className="w-5 h-5" />
-                Track Order
+                {t('layout.main.trackOrder', 'Track Order')}
               </Link>
               
               {/* Mobile Language Selector */}
               <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 px-4">Language</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-3 px-4">{t('common.language', 'Language')}</p>
                 <div className="flex gap-2 px-4">
                   {languages.map((lang) => (
                     <button
@@ -387,15 +393,15 @@ const MainLayout = () => {
                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
                   >
                     <UserIcon className="w-5 h-5" />
-                    Profile
+                    {t('nav.profile', 'Profile')}
                   </Link>
                   <Link
-                    to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/orders'}
+                    to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/dashboard'}
                     onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
                   >
                     <ChartBarSquareIcon className="w-5 h-5" />
-                    Dashboard
+                    {t('nav.dashboard', 'Dashboard')}
                   </Link>
                   <button
                     onClick={() => {
@@ -405,7 +411,7 @@ const MainLayout = () => {
                     className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl"
                   >
                     <ArrowRightOnRectangleIcon className="w-5 h-5 rtl-flip" />
-                    Sign Out
+                    {t('layout.main.signOut', 'Sign Out')}
                   </button>
                 </>
               )}
@@ -419,8 +425,8 @@ const MainLayout = () => {
               </div>
 
               <div className="grid grid-cols-3 gap-2 px-4 pb-4">
-                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-center py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">About</Link>
-                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-center py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">Contact</Link>
+                <Link to="/about" onClick={() => setMobileMenuOpen(false)} className="text-center py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">{t('layout.main.about', 'About')}</Link>
+                <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className="text-center py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">{t('layout.main.contact', 'Contact')}</Link>
                 <Link to="/help#faq" onClick={() => setMobileMenuOpen(false)} className="text-center py-2 text-xs text-gray-500 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400">FAQ</Link>
               </div>
             </div>
@@ -447,7 +453,7 @@ const MainLayout = () => {
                 <span className="text-xl font-bold">Qotoof</span>
               </Link>
               <p className="text-gray-400 text-sm mb-4">
-                Morocco's premier B2B wholesale marketplace for fresh produce.
+                {t('home.footer.description', "Morocco's premier B2B wholesale marketplace for fresh produce.")}
               </p>
               <div className="space-y-2 text-sm text-gray-400">
                 <div className="flex items-center gap-2">
@@ -460,56 +466,56 @@ const MainLayout = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPinIcon className="w-4 h-4 text-green-500" />
-                  <span>Casablanca, Morocco</span>
+                  <span>{t('layout.main.casablancaMorocco', 'Casablanca, Morocco')}</span>
                 </div>
               </div>
             </div>
 
             {/* Marketplace */}
             <div>
-              <h4 className="font-semibold mb-4 text-white">Marketplace</h4>
+              <h4 className="font-semibold mb-4 text-white">{t('nav.marketplace', 'Marketplace')}</h4>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li><Link to="/marketplace" className="hover:text-green-400 transition-colors">All Products</Link></li>
-                <li><Link to="/stores" className="hover:text-green-400 transition-colors">All Stores</Link></li>
-                <li><Link to="/marketplace?category=plants" className="hover:text-green-400 transition-colors">Plants & Trees</Link></li>
-                <li><Link to="/marketplace?category=vegetables" className="hover:text-green-400 transition-colors">Vegetables</Link></li>
-                <li><Link to="/marketplace?category=fruits" className="hover:text-green-400 transition-colors">Fruits</Link></li>
+                <li><Link to="/marketplace" className="hover:text-green-400 transition-colors">{t('home.footer.allProducts', 'All Products')}</Link></li>
+                <li><Link to="/stores" className="hover:text-green-400 transition-colors">{t('layout.main.allStores', 'All Stores')}</Link></li>
+                <li><Link to="/marketplace?category=plants" className="hover:text-green-400 transition-colors">{t('home.footer.plants', 'Plants & Trees')}</Link></li>
+                <li><Link to="/marketplace?category=vegetables" className="hover:text-green-400 transition-colors">{t('home.footer.vegetables', 'Vegetables')}</Link></li>
+                <li><Link to="/marketplace?category=fruits" className="hover:text-green-400 transition-colors">{t('home.footer.fruits', 'Fruits')}</Link></li>
               </ul>
             </div>
 
             {/* For Buyers */}
             <div>
-              <h4 className="font-semibold mb-4 text-white">For Buyers</h4>
+              <h4 className="font-semibold mb-4 text-white">{t('layout.main.forBuyers', 'For Buyers')}</h4>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li><Link to="/cart" className="hover:text-green-400 transition-colors">Shopping Cart</Link></li>
-                <li><Link to="/checkout" className="hover:text-green-400 transition-colors">Checkout</Link></li>
-                <li><Link to="/tracking" className="hover:text-green-400 transition-colors">Track Order</Link></li>
-                <li><Link to="/returns" className="hover:text-green-400 transition-colors">Returns</Link></li>
-                <li><Link to="/shipping" className="hover:text-green-400 transition-colors">Shipping Info</Link></li>
+                <li><Link to="/cart" className="hover:text-green-400 transition-colors">{t('nav.cart', 'Shopping Cart')}</Link></li>
+                <li><Link to="/checkout" className="hover:text-green-400 transition-colors">{t('cart.checkout', 'Checkout')}</Link></li>
+                <li><Link to="/tracking" className="hover:text-green-400 transition-colors">{t('layout.main.trackOrder', 'Track Order')}</Link></li>
+                <li><Link to="/returns" className="hover:text-green-400 transition-colors">{t('layout.main.returns', 'Returns')}</Link></li>
+                <li><Link to="/shipping" className="hover:text-green-400 transition-colors">{t('layout.main.shippingInfo', 'Shipping Info')}</Link></li>
               </ul>
             </div>
 
             {/* For Vendors */}
             <div>
-              <h4 className="font-semibold mb-4 text-white">For Vendors</h4>
+              <h4 className="font-semibold mb-4 text-white">{t('layout.main.forVendors', 'For Vendors')}</h4>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li><Link to="/become-vendor" className="hover:text-green-400 transition-colors">Become a Vendor</Link></li>
-                <li><Link to="/vendor/dashboard" className="hover:text-green-400 transition-colors">Vendor Dashboard</Link></li>
-                <li><Link to="/vendor/products" className="hover:text-green-400 transition-colors">Manage Products</Link></li>
+                <li><Link to="/become-vendor" className="hover:text-green-400 transition-colors">{t('home.footer.becomeVendor', 'Become a Vendor')}</Link></li>
+                <li><Link to="/vendor/dashboard" className="hover:text-green-400 transition-colors">{t('layout.main.vendorDashboard', 'Vendor Dashboard')}</Link></li>
+                <li><Link to="/vendor/products" className="hover:text-green-400 transition-colors">{t('layout.main.manageProducts', 'Manage Products')}</Link></li>
                 <li><Link to="/help#faq" className="hover:text-green-400 transition-colors">FAQ</Link></li>
               </ul>
             </div>
 
             {/* Company */}
             <div>
-              <h4 className="font-semibold mb-4 text-white">Company</h4>
+              <h4 className="font-semibold mb-4 text-white">{t('home.footer.company', 'Company')}</h4>
               <ul className="space-y-2.5 text-sm text-gray-400">
-                <li><Link to="/about" className="hover:text-green-400 transition-colors">About Us</Link></li>
-                <li><Link to="/contact" className="hover:text-green-400 transition-colors">Contact Us</Link></li>
+                <li><Link to="/about" className="hover:text-green-400 transition-colors">{t('home.footer.aboutUs', 'About Us')}</Link></li>
+                <li><Link to="/contact" className="hover:text-green-400 transition-colors">{t('layout.main.contactUs', 'Contact Us')}</Link></li>
                 <li><Link to="/help#faq" className="hover:text-green-400 transition-colors">FAQ</Link></li>
-                <li><Link to="/terms" className="hover:text-green-400 transition-colors">Terms of Service</Link></li>
-                <li><Link to="/privacy" className="hover:text-green-400 transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/returns" className="hover:text-green-400 transition-colors">Return Policy</Link></li>
+                <li><Link to="/terms" className="hover:text-green-400 transition-colors">{t('home.footer.terms', 'Terms of Service')}</Link></li>
+                <li><Link to="/privacy" className="hover:text-green-400 transition-colors">{t('home.footer.privacy', 'Privacy Policy')}</Link></li>
+                <li><Link to="/returns" className="hover:text-green-400 transition-colors">{t('layout.main.returnPolicy', 'Return Policy')}</Link></li>
               </ul>
             </div>
           </div>
@@ -518,18 +524,18 @@ const MainLayout = () => {
         {/* Bottom Bar */}
         <div className="border-t border-gray-800">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-sm text-gray-400">&copy; {new Date().getFullYear()} Qotoof. All rights reserved.</p>
+            <p className="text-sm text-gray-400">{t('layout.main.copyright', { year: new Date().getFullYear() })}</p>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <MapPinIcon className="w-4 h-4 text-green-500" />
-              <span>Available exclusively in</span>
-              <span className="text-white font-medium">🇲🇦 Morocco</span>
+              <span>{t('layout.main.availableExclusivelyIn', 'Available exclusively in')}</span>
+              <span className="text-white font-medium">🇲🇦 {t('layout.main.morocco', 'Morocco')}</span>
             </div>
             <div className="flex items-center gap-6 text-sm text-gray-400">
-              <Link to="/terms" className="hover:text-green-400 transition-colors">Terms</Link>
-              <Link to="/privacy" className="hover:text-green-400 transition-colors">Privacy</Link>
-              <Link to="/contact" className="hover:text-green-400 transition-colors">Contact</Link>
-              <Link to="/shipping" className="hover:text-green-400 transition-colors">Shipping</Link>
-              <Link to="/returns" className="hover:text-green-400 transition-colors">Returns</Link>
+              <Link to="/terms" className="hover:text-green-400 transition-colors">{t('layout.main.terms', 'Terms')}</Link>
+              <Link to="/privacy" className="hover:text-green-400 transition-colors">{t('layout.main.privacy', 'Privacy')}</Link>
+              <Link to="/contact" className="hover:text-green-400 transition-colors">{t('layout.main.contact', 'Contact')}</Link>
+              <Link to="/shipping" className="hover:text-green-400 transition-colors">{t('layout.main.shipping', 'Shipping')}</Link>
+              <Link to="/returns" className="hover:text-green-400 transition-colors">{t('layout.main.returns', 'Returns')}</Link>
             </div>
           </div>
         </div>
@@ -540,11 +546,11 @@ const MainLayout = () => {
         <div className="flex items-center justify-around py-2 px-2">
           <Link to="/" className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-colors ${isActive('/') ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
             <HomeIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">Home</span>
+            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('nav.home', 'Home')}</span>
           </Link>
           <Link to="/marketplace" className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-colors ${isActive('/marketplace') ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
             <BuildingStorefrontIcon className="w-6 h-6" />
-            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">Browse</span>
+            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('layout.main.browse', 'Browse')}</span>
           </Link>
           <Link to="/cart" className="relative flex flex-col items-center py-1.5 px-3 rounded-xl text-gray-400 dark:text-gray-500">
             <div className="relative">
@@ -555,11 +561,11 @@ const MainLayout = () => {
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">Cart</span>
+            <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('nav.cart', 'Cart')}</span>
           </Link>
           {user ? (
             <Link
-              to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/orders'}
+                    to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/dashboard'}
               className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-colors ${
                 location.pathname.includes('/dashboard') || location.pathname.includes('/vendor') || location.pathname.includes('/admin') || location.pathname.includes('/driver') || location.pathname.includes('/buyer')
                   ? 'text-green-600 dark:text-green-400'
@@ -567,12 +573,12 @@ const MainLayout = () => {
               }`}
             >
               <ChartBarSquareIcon className="w-6 h-6" />
-              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">Dashboard</span>
+              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('nav.dashboard', 'Dashboard')}</span>
             </Link>
           ) : (
             <Link to="/login" className="flex flex-col items-center py-1.5 px-3 rounded-xl text-gray-400 dark:text-gray-500">
               <UserIcon className="w-6 h-6" />
-              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">Sign In</span>
+              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('auth.login.signIn', 'Sign In')}</span>
             </Link>
           )}
         </div>

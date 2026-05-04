@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { BellIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
@@ -25,36 +25,74 @@ export default function NotificationLink({
   const { user } = useAuthStore()
   const [unreadCount, setUnreadCount] = useState(0)
   const [preferences, setPreferences] = useState(DEFAULT_NOTIFICATION_PREFERENCES)
+  const unreadCountRef = useRef(0)
+  const preferencesRef = useRef(DEFAULT_NOTIFICATION_PREFERENCES)
+  const pathnameRef = useRef(location.pathname)
+  const refreshPromiseRef = useRef(null)
+  const lastRefreshAtRef = useRef(0)
+
+  useEffect(() => {
+    pathnameRef.current = location.pathname
+  }, [location.pathname])
 
   useEffect(() => {
     if (!user?.id) {
+      unreadCountRef.current = 0
       setUnreadCount(0)
       return undefined
     }
 
     let isMounted = true
 
-    const refreshUnreadCount = async () => {
+    const updateUnreadCount = (count, forceDispatch = false) => {
+      const nextCount = Number(count || 0)
+      const shouldDispatch = forceDispatch || nextCount !== unreadCountRef.current
+      unreadCountRef.current = nextCount
+
+      if (!isMounted) return nextCount
+
+      setUnreadCount(nextCount)
+      if (shouldDispatch) {
+        dispatchNotificationBadgeUpdate(nextCount)
+      }
+
+      return nextCount
+    }
+
+    const refreshUnreadCount = async (force = false) => {
+      const now = Date.now()
+
+      if (!force && refreshPromiseRef.current) {
+        return refreshPromiseRef.current
+      }
+
+      if (!force && now - lastRefreshAtRef.current < 1500) {
+        return unreadCountRef.current
+      }
+
       try {
-        const count = await notificationsApi.getUnreadCount(user.id)
-        if (!isMounted) return
-        setUnreadCount(count)
-        dispatchNotificationBadgeUpdate(count)
+        refreshPromiseRef.current = notificationsApi.getUnreadCount(user.id)
+        const count = await refreshPromiseRef.current
+        lastRefreshAtRef.current = Date.now()
+        return updateUnreadCount(count, force)
       } catch {
-        if (isMounted) {
-          setUnreadCount(0)
-        }
+        return updateUnreadCount(0, force)
+      } finally {
+        refreshPromiseRef.current = null
       }
     }
 
     const loadPreferences = async () => {
       try {
         const data = await notificationsApi.getPreferences(user.id)
+        const normalizedPreferences = normalizeNotificationPreferences(data)
         if (isMounted) {
-          setPreferences(normalizeNotificationPreferences(data))
+          preferencesRef.current = normalizedPreferences
+          setPreferences(normalizedPreferences)
         }
       } catch {
         if (isMounted) {
+          preferencesRef.current = DEFAULT_NOTIFICATION_PREFERENCES
           setPreferences(DEFAULT_NOTIFICATION_PREFERENCES)
         }
       }
@@ -62,18 +100,20 @@ export default function NotificationLink({
 
     const handleBadgeUpdate = (event) => {
       if (!isMounted) return
-      setUnreadCount(Number(event.detail?.unreadCount || 0))
+      updateUnreadCount(event.detail?.unreadCount, false)
     }
 
     const handlePreferencesUpdate = (event) => {
       if (!isMounted) return
-      setPreferences(normalizeNotificationPreferences(event.detail?.preferences || {}))
+      const normalizedPreferences = normalizeNotificationPreferences(event.detail?.preferences || {})
+      preferencesRef.current = normalizedPreferences
+      setPreferences(normalizedPreferences)
     }
 
     window.addEventListener(notificationEvents.badge, handleBadgeUpdate)
     window.addEventListener(notificationEvents.preferences, handlePreferencesUpdate)
 
-    refreshUnreadCount()
+    refreshUnreadCount(true)
     loadPreferences()
 
     const unsubscribe = notificationsApi.subscribe(user.id, async ({ eventType, new: notification }) => {
@@ -82,8 +122,8 @@ export default function NotificationLink({
       if (
         eventType === 'INSERT' &&
         notification &&
-        location.pathname !== '/notifications' &&
-        !shouldMuteNotificationPreview(preferences, notification)
+        pathnameRef.current !== '/notifications' &&
+        !shouldMuteNotificationPreview(preferencesRef.current, notification)
       ) {
         toast(notification.message || notification.title || 'إشعار جديد')
       }
@@ -95,7 +135,7 @@ export default function NotificationLink({
       window.removeEventListener(notificationEvents.badge, handleBadgeUpdate)
       window.removeEventListener(notificationEvents.preferences, handlePreferencesUpdate)
     }
-  }, [location.pathname, preferences, user?.id])
+  }, [user?.id])
 
   if (!user) return null
 

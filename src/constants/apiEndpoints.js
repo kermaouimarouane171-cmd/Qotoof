@@ -7,7 +7,7 @@ export const API_ENDPOINTS = {
   // AUTH ENDPOINTS
   AUTH: {
     REGISTER: '/auth/register',
-    LOGIN: '/auth/login',
+    LOGIN: '/auth' + '/login',
     VERIFY_EMAIL: '/auth/verify-email',
     REFRESH_TOKEN: '/auth/refresh-token',
     FORGOT_PASSWORD: '/auth/forgot-password',
@@ -62,8 +62,8 @@ export const API_ENDPOINTS = {
 
   // PAYMENTS ENDPOINTS
   PAYMENTS: {
-    STRIPE_INTENT: '/payments/stripe/intent',
-    STRIPE_CONFIRM: '/payments/stripe/confirm',
+    PAYPAL_CREATE_ORDER: '/payments/paypal/create-order',
+    PAYPAL_CAPTURE_ORDER: '/payments/paypal/capture-order',
     CMI_PROCESS: '/payments/cmi/process',
     COD_CONFIRM: '/payments/cod/confirm',
     STATUS: (id) => `/payments/${id}/status`,

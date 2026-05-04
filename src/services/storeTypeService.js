@@ -308,4 +308,21 @@ export const storeTypeService = {
   },
 }
 
+export const getStoreTypeInfo = async (vendorId) => {
+  return storeTypeService.getVendorStoreSetup(vendorId)
+}
+
+export const saveDeliveryOption = async (vendorId, option) => {
+  return storeTypeService.updateDeliveryOption(vendorId, option)
+}
+
+export const checkDeliveryOptionNeeded = async (vendorId) => {
+  const setup = await storeTypeService.getVendorStoreSetup(vendorId)
+  return {
+    needed: (setup?.allowedDeliveryOptions?.length || 0) > 1,
+    currentOption: setup?.deliveryOption || null,
+    allowedOptions: setup?.allowedDeliveryOptions || [],
+  }
+}
+
 export default storeTypeService

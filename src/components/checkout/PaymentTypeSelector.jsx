@@ -3,11 +3,13 @@ import {
   BanknotesIcon,
   BuildingLibraryIcon,
   CheckCircleIcon,
+  CreditCardIcon,
   ExclamationTriangleIcon,
   ShieldCheckIcon,
   TruckIcon,
 } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/utils/currency'
+import { getPayPalSettlementCurrency } from '@/lib/config'
 
 const BANK_OPTIONS = [
   { name: 'Attijariwafa Bank', color: '#F37021' },
@@ -78,6 +80,10 @@ const PaymentTypeSelector = ({
   availablePaymentTypes,
   paymentType,
   onPaymentTypeChange,
+  selectedPaymentMethod,
+  onPaymentMethodChange,
+  paypalEnabled = false,
+  paypalUnavailableReason = '',
   selectedBank,
   onBankChange,
   termsAccepted,
@@ -87,6 +93,7 @@ const PaymentTypeSelector = ({
   disabled = false,
 }) => {
   const selectedWarning = warningCopyByType[paymentType] || warningCopyByType.full
+  const paypalSettlementCurrency = getPayPalSettlementCurrency()
 
   const paymentBreakdown = useMemo(() => {
     const total = Number(totalAmount || 0)
@@ -176,6 +183,7 @@ const PaymentTypeSelector = ({
               type="button"
               onClick={() => isAvailable && onPaymentTypeChange(type)}
               disabled={!isAvailable || disabled}
+              data-testid={`payment-type-${type}`}
               className={`rounded-2xl border p-4 text-left transition-all ${config.accent} ${isSelected ? 'ring-2 ring-offset-2 ring-green-400' : ''} ${isAvailable ? 'hover:shadow-sm' : 'opacity-70 cursor-not-allowed'}`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -229,36 +237,85 @@ const PaymentTypeSelector = ({
         <div className="space-y-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
           <div>
             <h3 className="font-semibold text-blue-900 flex items-center gap-2">
-              <BuildingLibraryIcon className="h-5 w-5" />
-              اختر بنك التحويل
+              <CreditCardIcon className="h-5 w-5" />
+              وسيلة دفع المبلغ الآن
             </h3>
-            <p className="mt-1 text-sm text-blue-800">سترفع إيصال التحويل بعد إنشاء الطلب مباشرة، وسيتم إخطار البائع لمراجعته.</p>
+            <p className="mt-1 text-sm text-blue-800">يمكنك اختيار PayPal أو التحويل البنكي حسب المتاح.</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {BANK_OPTIONS.map((bank) => (
-              <button
-                key={bank.name}
-                type="button"
-                onClick={() => onBankChange(bank.name)}
-                className={`rounded-lg border-2 px-2 py-2 text-xs font-medium transition-all ${selectedBank === bank.name ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700 hover:border-blue-300'}`}
-              >
-                <div className="mx-auto mb-1 h-2 w-2 rounded-full" style={{ backgroundColor: bank.color }}></div>
-                <span className="text-[10px]">{bank.name}</span>
-              </button>
-            ))}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => onPaymentMethodChange('paypal')}
+              disabled={!paypalEnabled || disabled}
+              data-testid="payment-method-paypal"
+              className={`rounded-xl border px-3 py-3 text-left transition-colors ${selectedPaymentMethod === 'paypal' ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700'} ${(!paypalEnabled || disabled) ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-300'}`}
+            >
+              <p className="text-sm font-semibold">PayPal</p>
+              <p className="text-xs mt-1">دفع آمن عبر صفحة PayPal الرسمية بعملة {paypalSettlementCurrency}</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onPaymentMethodChange('bank')}
+              disabled={disabled}
+              data-testid="payment-method-bank"
+              className={`rounded-xl border px-3 py-3 text-left transition-colors ${selectedPaymentMethod === 'bank' ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700'} ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-300'}`}
+            >
+              <p className="text-sm font-semibold">تحويل بنكي</p>
+              <p className="text-xs mt-1">رفع إيصال التحويل بعد إنشاء الطلب</p>
+            </button>
           </div>
 
-          {selectedBank && (
-            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-              ✓ البنك المحدد: <strong>{selectedBank}</strong>
+          {!paypalEnabled && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {paypalUnavailableReason || 'PayPal غير متاح حالياً لهذا الطلب.'}
             </div>
           )}
 
-          {errors.selectedBank && (
+          {errors.paymentMethod && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {errors.selectedBank}
+              {errors.paymentMethod}
             </div>
+          )}
+
+          {selectedPaymentMethod === 'bank' && (
+            <>
+              <div>
+                <h3 className="font-semibold text-blue-900 flex items-center gap-2">
+                  <BuildingLibraryIcon className="h-5 w-5" />
+                  اختر بنك التحويل
+                </h3>
+                <p className="mt-1 text-sm text-blue-800">سترفع إيصال التحويل بعد إنشاء الطلب مباشرة، وسيتم إخطار البائع لمراجعته.</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {BANK_OPTIONS.map((bank) => (
+                  <button
+                    key={bank.name}
+                    type="button"
+                    onClick={() => onBankChange(bank.name)}
+                    data-testid="payment-bank-option"
+                    className={`rounded-lg border-2 px-2 py-2 text-xs font-medium transition-all ${selectedBank === bank.name ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700 hover:border-blue-300'}`}
+                  >
+                    <div className="mx-auto mb-1 h-2 w-2 rounded-full" style={{ backgroundColor: bank.color }}></div>
+                    <span className="text-[10px]">{bank.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {selectedBank && (
+                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                  ✓ البنك المحدد: <strong>{selectedBank}</strong>
+                </div>
+              )}
+
+              {errors.selectedBank && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {errors.selectedBank}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
@@ -280,6 +337,7 @@ const PaymentTypeSelector = ({
             type="checkbox"
             checked={termsAccepted}
             onChange={(event) => onTermsAcceptedChange(event.target.checked)}
+            data-testid="payment-terms-checkbox"
             className="mt-1 h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500"
             disabled={disabled}
           />

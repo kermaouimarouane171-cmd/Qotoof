@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { TruckIcon, ClockIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'

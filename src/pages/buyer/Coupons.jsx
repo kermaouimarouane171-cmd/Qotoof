@@ -25,11 +25,13 @@ const BuyerCoupons = () => {
   const [coupons, setCoupons] = useState([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadCoupons()
-  }, [])
+  const loadCoupons = useCallback(async () => {
+    if (!user?.id) {
+      setCoupons([])
+      setLoading(false)
+      return
+    }
 
-  const loadCoupons = async () => {
     setLoading(true)
     try {
       const { data } = await couponsApi.getAvailableCoupons(user.id, { limit: 100 })
@@ -40,7 +42,11 @@ const BuyerCoupons = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [t, user?.id])
+
+  useEffect(() => {
+    loadCoupons()
+  }, [loadCoupons])
 
   const handleCopyCode = async (code) => {
     try {

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  ShieldCheckIcon,
   ScaleIcon,
   ClockIcon,
   CubeIcon,
@@ -182,8 +181,9 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
 
       {/* Acceptance */}
       <div className="p-6 border-t border-gray-200 bg-gray-50">
-        <label className="flex items-start gap-3 cursor-pointer">
+        <label htmlFor="vendor-guidelines-agree" className="flex items-start gap-3 cursor-pointer">
           <input
+            id="vendor-guidelines-agree"
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}

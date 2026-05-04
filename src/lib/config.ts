@@ -12,8 +12,9 @@ export interface PublicConfig {
     url: string
     anonKey: string
   }
-  stripe: {
-    publishableKey: string
+  paypal: {
+    clientId: string
+    settlementCurrency: string
   }
   recaptcha: {
     siteKey: string
@@ -33,8 +34,9 @@ const DEFAULT_CONFIG: PublicConfig = {
     url: 'https://placeholder-project.supabase.co',
     anonKey: 'placeholder-anon-key',
   },
-  stripe: {
-    publishableKey: 'pk_live_placeholder',
+  paypal: {
+    clientId: 'paypal-client-id-placeholder',
+    settlementCurrency: 'EUR',
   },
   recaptcha: {
     siteKey: 'recaptcha-site-key-placeholder',
@@ -52,6 +54,35 @@ const DEFAULT_CONFIG: PublicConfig = {
 let config: PublicConfig | null = null
 let isFetching = false
 let fetchPromise: Promise<PublicConfig> | null = null
+
+const PUBLIC_CONFIG_PATH = '/functions/v1/get-public-config'
+
+function getPublicConfigUrl(): string {
+  const supabaseUrl =
+    typeof import.meta.env.VITE_SUPABASE_URL === 'string'
+      ? import.meta.env.VITE_SUPABASE_URL.trim().replace(/\/+$/, '')
+      : ''
+
+  return supabaseUrl ? `${supabaseUrl}${PUBLIC_CONFIG_PATH}` : PUBLIC_CONFIG_PATH
+}
+
+function getPublicConfigHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+
+  const anonKey =
+    typeof import.meta.env.VITE_SUPABASE_ANON_KEY === 'string'
+      ? import.meta.env.VITE_SUPABASE_ANON_KEY.trim()
+      : ''
+
+  if (anonKey) {
+    headers.apikey = anonKey
+    headers.Authorization = `Bearer ${anonKey}`
+  }
+
+  return headers
+}
 
 /**
  * Fetch public config from Supabase Edge Function
@@ -77,11 +108,9 @@ export async function fetchPublicConfig(): Promise<PublicConfig> {
   isFetching = true
   fetchPromise = (async () => {
     try {
-      const response = await fetch('/functions/v1/get-public-config', {
+      const response = await fetch(getPublicConfigUrl(), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getPublicConfigHeaders(),
       })
 
       if (!response.ok) {
@@ -123,7 +152,10 @@ export async function initConfig(): Promise<void> {
 // Export individual values for convenience (type-safe)
 export const getSupabaseUrl = () => getConfig()?.supabase.url || ''
 export const getSupabaseAnonKey = () => getConfig()?.supabase.anonKey || ''
-export const getStripePublishableKey = () => getConfig()?.stripe.publishableKey || ''
+export const getPayPalClientId = () => getConfig()?.paypal.clientId || ''
+export const getPayPalSettlementCurrency = () => getConfig()?.paypal.settlementCurrency || 'EUR'
+// Backward compatibility for older imports.
+export const getStripePublishableKey = getPayPalClientId
 export const getRecaptchaSiteKey = () => getConfig()?.recaptcha.siteKey || ''
 export const getAppName = () => getConfig()?.app.name || 'Qotoof'
 

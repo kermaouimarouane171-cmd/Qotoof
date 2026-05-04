@@ -464,9 +464,9 @@ export const deliveriesApi = {
       .in('status', ['accepted', 'picked_up', 'on_the_way'])
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
+    if (error) throw error
     return data
   }, { maxRetries: 3, baseDelay: 1000 })
 }

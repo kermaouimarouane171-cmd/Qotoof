@@ -103,7 +103,7 @@ const ForgotPasswordPage = () => {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder={t('auth.forgotPassword.emailPlaceholder', 'Qotoof273@gmail.com')}
+          placeholder={t('auth.forgotPassword.emailPlaceholder', 'Enter your email address')}
           autoComplete="email"
           required
           aria-describedby={error ? 'forgot-password-error' : undefined}

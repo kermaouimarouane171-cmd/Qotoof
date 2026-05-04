@@ -5,17 +5,17 @@
 
 export const DRIVER_CONFIG = {
   // Commission and earnings
-  COMMISSION_RATE: parseFloat(process.env.DRIVER_COMMISSION_RATE || 15), // percentage
+  COMMISSION_RATE: parseFloat(import.meta.env.VITE_DRIVER_COMMISSION_RATE || 15), // percentage
   MIN_PAYOUT_AMOUNT: 50, // minimum earned before payout
   PAYOUT_SCHEDULE: 'weekly', // daily, weekly, monthly
 
   // Rating and validation
-  MIN_RATING_ALLOWED: parseFloat(process.env.DRIVER_MIN_RATING || 2.0),
+  MIN_RATING_ALLOWED: parseFloat(import.meta.env.VITE_DRIVER_MIN_RATING || 2.0),
   MIN_RATING_FOR_PREMIUM: 4.5,
   RATING_EXPIRY_DAYS: 90, // ratings older than 90 days don't affect status
 
   // Delivery limits
-  MAX_ACTIVE_DELIVERIES: parseInt(process.env.DRIVER_MAX_ACTIVE_DELIVERIES || 3),
+  MAX_ACTIVE_DELIVERIES: parseInt(import.meta.env.VITE_DRIVER_MAX_ACTIVE_DELIVERIES || 3),
   MAX_DAILY_DELIVERIES: 50,
   DELIVERY_TIMEOUT_MINUTES: 120,
 

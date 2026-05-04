@@ -1,29 +1,242 @@
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircleIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/react/24/outline'
-import { Receipt } from '@/components/ui'
+import toast from 'react-hot-toast'
+import { LoadingSpinner, Receipt } from '@/components/ui'
 import PaymentReceiptUpload from '@/components/orders/PaymentReceiptUpload'
+import { supabase } from '@/services/supabase'
+import { paymentGateway } from '@/services/paymentGateway'
+import { logger } from '@/utils/logger'
 
 const OrderConfirmation = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const { id: routeOrderId } = useParams()
+  const [searchParams] = useSearchParams()
   const [order, setOrder] = useState(location.state?.order)
+  const [loadingOrder, setLoadingOrder] = useState(Boolean(routeOrderId) && !location.state?.order)
+  const [paypalMessage, setPaypalMessage] = useState('')
+  const [processingPayPal, setProcessingPayPal] = useState(false)
+  const paypalHandledRef = useRef(false)
+
+  const paypalAction = searchParams.get('paypal')
+  const paypalToken = searchParams.get('token')
+
+  const loadOrder = useCallback(async (orderId) => {
+    if (!orderId) return null
+
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .maybeSingle()
+
+    if (orderError || !orderData) {
+      logger.error('Failed to load order confirmation data:', orderError)
+      return null
+    }
+
+    const [itemsResult, paymentResult, buyerResult, vendorResult] = await Promise.all([
+      supabase
+        .from('order_items')
+        .select('*, product:products(name)')
+        .eq('order_id', orderId),
+      supabase
+        .from('payments')
+        .select('payment_method, status, transaction_id')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('first_name, last_name, email, phone')
+        .eq('id', orderData.buyer_id)
+        .maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('store_name, city')
+        .eq('id', orderData.vendor_id)
+        .maybeSingle(),
+    ])
+
+    return {
+      ...orderData,
+      items: (itemsResult.data || []).map((item) => ({
+        ...item,
+        price: item.unit_price ?? item.price ?? 0,
+      })),
+      payment_method: paymentResult.data?.payment_method || orderData.payment_method || null,
+      payment_record_status: paymentResult.data?.status || null,
+      payment_transaction_id: paymentResult.data?.transaction_id || null,
+      buyer: buyerResult.data || {},
+      vendor: vendorResult.data || {},
+    }
+  }, [])
 
   useEffect(() => {
     setOrder(location.state?.order)
   }, [location.state])
 
-  // Guard: redirect if no order data (direct access without completing checkout)
   useEffect(() => {
-    if (!order) {
-      // No order data — user navigated here directly without completing checkout
-      navigate('/marketplace', { replace: true })
-    }
-  }, [order, navigate])
+    let active = true
 
-  // Show nothing while redirecting
+    const hydrateOrder = async () => {
+      if (location.state?.order) {
+        setLoadingOrder(false)
+        return
+      }
+
+      if (!routeOrderId) {
+        navigate('/marketplace', { replace: true })
+        return
+      }
+
+      setLoadingOrder(true)
+      const fetchedOrder = await loadOrder(routeOrderId)
+      if (!active) return
+
+      if (!fetchedOrder) {
+        navigate('/marketplace', { replace: true })
+        return
+      }
+
+      setOrder(fetchedOrder)
+      setLoadingOrder(false)
+    }
+
+    hydrateOrder()
+
+    return () => {
+      active = false
+    }
+  }, [loadOrder, location.state, navigate, routeOrderId])
+
+  useEffect(() => {
+    let active = true
+
+    const finalizePayPal = async () => {
+      if (paypalHandledRef.current) return
+      if (!order?.id || order?.payment_method !== 'paypal' || !paypalAction) return
+
+      paypalHandledRef.current = true
+
+      if (paypalAction === 'cancel') {
+        if (active) {
+          setPaypalMessage('تم إلغاء عملية PayPal. يمكنك إعادة المحاولة من نفس صفحة الطلب.')
+        }
+        return
+      }
+
+      if (paypalAction !== 'success' || !paypalToken) {
+        return
+      }
+
+      if (order.payment_record_status === 'completed') {
+        if (active) {
+          setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
+        }
+        return
+      }
+
+      try {
+        setProcessingPayPal(true)
+        const result = await paymentGateway.confirmPayPalPayment(paypalToken)
+
+        if (result.status === 'completed') {
+          const refreshedOrder = await loadOrder(order.id)
+          if (active && refreshedOrder) {
+            setOrder(refreshedOrder)
+          }
+          if (active) {
+            setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
+          }
+          toast.success('تم تأكيد دفع PayPal بنجاح.')
+        } else if (active) {
+          setPaypalMessage('تمت العودة من PayPal لكن حالة الدفع ما زالت قيد المعالجة.')
+        }
+      } catch (error) {
+        logger.error('PayPal confirmation failed:', error)
+        if (active) {
+          setPaypalMessage(error.message || 'تعذر تأكيد دفع PayPal.')
+        }
+        toast.error(error.message || 'تعذر تأكيد دفع PayPal.')
+      } finally {
+        if (active) {
+          setProcessingPayPal(false)
+        }
+      }
+    }
+
+    finalizePayPal()
+
+    return () => {
+      active = false
+    }
+  }, [loadOrder, order?.id, order?.payment_method, order?.payment_record_status, paypalAction, paypalToken])
+
+  const restartPayPalCheckout = async () => {
+    if (!order?.id) return
+
+    try {
+      setProcessingPayPal(true)
+      const { data, error } = await supabase.functions.invoke('create-paypal-order', {
+        body: {
+          orderId: order.id,
+          amount: Number(order.first_payment_amount || 0),
+          currency: 'MAD',
+          customer: {
+            email: order?.buyer?.email || null,
+            name: `${order?.buyer?.first_name || ''} ${order?.buyer?.last_name || ''}`.trim(),
+          },
+          returnUrl: `${window.location.origin}/order-confirmation/${order.id}?paypal=success`,
+          cancelUrl: `${window.location.origin}/order-confirmation/${order.id}?paypal=cancel`,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      if (!data?.orderId || !data?.approvalUrl) {
+        throw new Error('تعذر إعادة تهيئة جلسة PayPal.')
+      }
+
+      const { error: updateError } = await supabase
+        .from('payments')
+        .update({
+          transaction_id: data.orderId,
+          gateway_response: data,
+          status: 'pending',
+        })
+        .eq('order_id', order.id)
+        .eq('payment_method', 'paypal')
+
+      if (updateError) {
+        throw updateError
+      }
+
+      window.location.href = data.approvalUrl
+    } catch (error) {
+      logger.error('Failed to restart PayPal checkout:', error)
+      toast.error(error.message || 'تعذر إعادة تهيئة PayPal.')
+      setProcessingPayPal(false)
+    }
+  }
+
+  if (loadingOrder || (!order && routeOrderId)) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <div className="flex items-center justify-center gap-3 text-gray-500">
+          <LoadingSpinner size="sm" />
+          <p>{t('orderConfirmation.redirecting', 'Redirecting...')}</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!order) {
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
@@ -33,7 +246,7 @@ const OrderConfirmation = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16" data-testid="order-confirmation-page">
       <div className="text-center mb-8">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircleIcon className="w-12 h-12 text-green-500" />
@@ -44,19 +257,45 @@ const OrderConfirmation = () => {
         </p>
       </div>
 
+      {paypalMessage && (
+        <div className={`mb-8 rounded-xl border px-4 py-4 text-sm leading-6 ${paypalAction === 'cancel' ? 'border-amber-200 bg-amber-50 text-amber-900' : paypalAction === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-blue-200 bg-blue-50 text-blue-900'}`}>
+          {paypalMessage}
+        </div>
+      )}
+
       {order && (
         <div className="mb-8">
           <Receipt order={order} />
         </div>
       )}
 
-      {order?.payment_type && order.payment_type !== 'cod' && (
+      {order?.payment_method === 'bank' && (
         <div className="mb-8">
           <PaymentReceiptUpload
             order={order}
             stage="first"
             onUploadComplete={setOrder}
           />
+        </div>
+      )}
+
+      {order?.payment_method === 'paypal' && (
+        <div className="card p-6 mb-8 border border-blue-200 bg-blue-50">
+          <h2 className="font-semibold text-blue-900 mb-2">الدفع عبر PayPal</h2>
+          <p className="text-sm leading-6 text-blue-900">
+            {order?.payment_record_status === 'completed'
+              ? 'تم تأكيد عملية PayPal لهذا الطلب بنجاح.'
+              : 'هذا الطلب ينتظر إكمال أو تأكيد عملية PayPal. يمكنك متابعة الدفع من الزر أدناه إذا لم تكتمل العملية.'}
+          </p>
+          {order?.payment_record_status !== 'completed' && (
+            <button
+              onClick={restartPayPalCheckout}
+              className="btn-primary mt-4"
+              disabled={processingPayPal}
+            >
+              {processingPayPal ? 'جاري تهيئة PayPal...' : 'إتمام الدفع عبر PayPal'}
+            </button>
+          )}
         </div>
       )}
 
