@@ -1,0 +1,68 @@
+name: Monitoring — Production Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+concurrency:
+  group: monitoring-production
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  health-check:
+    name: Check Production Availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PRODUCTION_APP_URL: ${{ secrets.PRODUCTION_APP_URL }}
+      PRODUCTION_API_HEALTHCHECK_URL: ${{ secrets.PRODUCTION_API_HEALTHCHECK_URL }}
+    steps:
+      - name: Validate monitoring configuration
+        id: config
+        shell: bash
+        run: |
+          if [ -z "$PRODUCTION_APP_URL" ] && [ -z "$PRODUCTION_API_HEALTHCHECK_URL" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "No monitoring URLs configured. Set PRODUCTION_APP_URL and/or PRODUCTION_API_HEALTHCHECK_URL." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Check production web app
+        if: ${{ steps.config.outputs.configured == 'true' && env.PRODUCTION_APP_URL != '' }}
+        shell: bash
+        run: |
+          status_code="$(curl -fsSL -o /tmp/app-body.html -D /tmp/app-headers.txt -w '%{http_code}' "$PRODUCTION_APP_URL")"
+
+          case "$status_code" in
+            2*|3*) ;;
+            *)
+              echo "Unexpected app status code: $status_code"
+              exit 1
+              ;;
+          esac
+
+          grep -Eqi 'content-type: (text/html|application/xhtml\+xml)' /tmp/app-headers.txt || {
+            echo "Unexpected response headers from app URL"
+            cat /tmp/app-headers.txt
+            exit 1
+          }
+
+          echo "Web app is reachable: $PRODUCTION_APP_URL ($status_code)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check production API health endpoint
+        if: ${{ steps.config.outputs.configured == 'true' && env.PRODUCTION_API_HEALTHCHECK_URL != '' }}
+        shell: bash
+        run: |
+          response="$(curl -fsSL "$PRODUCTION_API_HEALTHCHECK_URL")"
+          echo "$response" | grep -Eq '"status"\s*:\s*"ok"' || {
+            echo "Unexpected API health payload: $response"
+            exit 1
+          }
+
+          echo "API health endpoint is healthy: $PRODUCTION_API_HEALTHCHECK_URL" >> "$GITHUB_STEP_SUMMARY"

@@ -1,18 +1,28 @@
 name: CD — Deploy to Firebase Hosting
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:          # allow manual trigger from GitHub UI
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
   cancel-in-progress: false   # never cancel an in-flight deploy
 
+permissions:
+  contents: read
+
 jobs:
   deployment-readiness:
     name: Check Deployment Secrets
     runs-on: ubuntu-latest
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main') }}
     outputs:
       supabase_ready: ${{ steps.check.outputs.supabase_ready }}
       firebase_ready: ${{ steps.check.outputs.firebase_ready }}
@@ -23,7 +33,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_GREENMARKET_MARKETPLACE }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           FIREBASE_DEPLOY_PROJECT_ID: ${{ secrets.FIREBASE_DEPLOY_PROJECT_ID }}
         run: |
@@ -79,6 +89,7 @@ jobs:
       VITE_APP_NAME:              ${{ secrets.VITE_APP_NAME }}
       VITE_SUPPORT_EMAIL:         ${{ secrets.VITE_SUPPORT_EMAIL }}
       VITE_SUPPORT_PHONE:         ${{ secrets.VITE_SUPPORT_PHONE }}
+      RESEND_API_KEY:             ${{ secrets.RESEND_API_KEY }}
       VITE_COMMISSION_RATE:       ${{ secrets.VITE_COMMISSION_RATE }}
       VITE_DELIVERY_BASE_FEE:     ${{ secrets.VITE_DELIVERY_BASE_FEE }}
       VITE_DELIVERY_PER_KM_FEE:   ${{ secrets.VITE_DELIVERY_PER_KM_FEE }}
@@ -90,11 +101,14 @@ jobs:
       VITE_FIREBASE_APP_ID:       ${{ secrets.VITE_FIREBASE_APP_ID }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
+      - run: npm run deploy:check
       - run: npm run build
       - uses: actions/upload-artifact@v4
         with:
@@ -112,6 +126,8 @@ jobs:
     if: ${{ needs.build.result == 'success' && needs.deployment-readiness.outputs.supabase_ready == 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
@@ -131,8 +147,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deployment-readiness, build, deploy-functions]
     if: ${{ always() && needs.build.result == 'success' && (needs.deploy-functions.result == 'success' || needs.deploy-functions.result == 'skipped') && needs.deployment-readiness.outputs.firebase_ready == 'true' }}
+    environment: production
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/download-artifact@v4
         with:
           name: dist-production
@@ -142,7 +161,7 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken:        ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_GREENMARKET_MARKETPLACE }}
           channelId:        live
           projectId:        ${{ secrets.FIREBASE_DEPLOY_PROJECT_ID }}
       - name: Setup Node for Firebase CLI deploy

@@ -2,7 +2,7 @@
 /* global console, process */
 
 /**
- * فحص ما قبل النشر على Vercel
+ * فحص ما قبل النشر الإنتاجي على Firebase Hosting / GitHub Actions
  * شغّله قبل كل deploy:
  * node scripts/pre-deploy-check.mjs
  */
@@ -17,6 +17,54 @@ const BOLD   = '\x1b[1m'
 
 let errors   = 0
 let warnings = 0
+
+const parseEnvFile = (raw) => {
+  const values = {}
+
+  for (const line of raw.split(/\r?\n/u)) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const separatorIndex = trimmed.indexOf('=')
+    if (separatorIndex === -1) continue
+
+    const key = trimmed.slice(0, separatorIndex).trim()
+    const value = trimmed.slice(separatorIndex + 1).trim().replace(/^['"]|['"]$/g, '')
+
+    if (key) {
+      values[key] = value
+    }
+  }
+
+  return values
+}
+
+const fileEnv = existsSync('.env')
+  ? parseEnvFile(readFileSync('.env', 'utf-8'))
+  : {}
+
+const getEnvValue = (key) => {
+  const fileValue = fileEnv[key]
+  if (typeof fileValue === 'string' && fileValue.length > 0) {
+    return fileValue
+  }
+
+  const processValue = process.env[key]
+  return typeof processValue === 'string' ? processValue.trim() : ''
+}
+
+const hasIssuedValue = (value) => {
+  if (!value) return false
+
+  const normalized = value.trim()
+  if (!normalized) return false
+
+  return !(
+    normalized === 'XXX' ||
+    normalized.startsWith('your_') ||
+    normalized.startsWith('placeholder')
+  )
+}
 
 const check = (condition, message, isWarning = false) => {
   if (condition) {
@@ -33,12 +81,13 @@ const check = (condition, message, isWarning = false) => {
 }
 
 console.log(`\n${BOLD}══════════════════════════════════════${RESET}`)
-console.log(`${BOLD}🔍 Qotoof — فحص ما قبل النشر${RESET}`)
+console.log(`${BOLD}🔍 Qotoof — فحص الجاهزية للنشر الإنتاجي${RESET}`)
 console.log(`${BOLD}══════════════════════════════════════${RESET}\n`)
 
 // ── فحص الملفات الأساسية ──
 console.log(`${BOLD}📁 الملفات الأساسية:${RESET}`)
-check(existsSync('vercel.json'),     'vercel.json موجود')
+check(existsSync('firebase.json'),   'firebase.json موجود')
+check(existsSync('vercel.json'),     'vercel.json موجود (اختياري لمسار Vercel)', true)
 check(existsSync('.env.example'),    '.env.example موجود')
 check(existsSync('vite.config.js')
   || existsSync('vite.config.ts'),   'vite.config موجود')
@@ -76,50 +125,44 @@ check(!pkg.dependencies?.['react']
 
 // ── فحص متغيرات البيئة ──
 console.log(`\n${BOLD}⚙️  متغيرات البيئة:${RESET}`)
-if (existsSync('.env')) {
-  const env = readFileSync('.env', 'utf-8')
+const requiredVars = [
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
+  'VITE_APP_NAME',
+  'VITE_SUPPORT_EMAIL',
+  'VITE_SUPPORT_PHONE',
+  'RESEND_API_KEY',
+  'VITE_COMMISSION_RATE',
+  'VITE_DELIVERY_BASE_FEE',
+  'VITE_DELIVERY_PER_KM_FEE'
+]
 
-  const requiredVars = [
-    'VITE_SUPABASE_URL',
-    'VITE_SUPABASE_ANON_KEY',
-    'VITE_APP_NAME',
-    'VITE_SUPPORT_EMAIL',
-    'VITE_SUPPORT_PHONE',
-    'RESEND_API_KEY',
-    'VITE_COMMISSION_RATE',
-    'VITE_DELIVERY_BASE_FEE',
-    'VITE_DELIVERY_PER_KM_FEE'
-  ]
+const optionalVars = [
+  'VITE_PAYPAL_CLIENT_ID',
+  'PAYPAL_CLIENT_SECRET',
+  'VITE_SENTRY_DSN'
+]
 
-  const optionalVars = [
-    'VITE_PAYPAL_CLIENT_ID',
-    'PAYPAL_CLIENT_SECRET',
-    'VITE_SENTRY_DSN'
-  ]
+check(
+  existsSync('.env') || requiredVars.some((key) => Boolean(process.env[key])),
+  'إعدادات البيئة متاحة عبر .env أو GitHub Actions secrets / process.env'
+)
 
-  for (const v of requiredVars) {
-    const hasVar = env.includes(v + '=')
-    const isEmpty = env.includes(v + '=\n')
-      || env.includes(v + '=your_')
-      || env.includes(v + '=XXX')
-    check(hasVar && !isEmpty,
-      `${v} موجود وله قيمة`)
-  }
+for (const v of requiredVars) {
+  const value = getEnvValue(v)
+  check(hasIssuedValue(value), `${v} موجود وله قيمة`)
+}
 
-  for (const v of optionalVars) {
-    const hasVar = env.includes(v + '=')
-    check(hasVar, `${v} موجود`, true)
-  }
-} else {
-  check(false,
-    'ملف .env موجود — أنشئه من .env.example')
+for (const v of optionalVars) {
+  const value = getEnvValue(v)
+  check(Boolean(value), `${v} موجود`, true)
 }
 
 // ── النتيجة النهائية ──
 console.log(`\n${BOLD}══════════════════════════════════════${RESET}`)
 if (errors === 0 && warnings === 0) {
   console.log(
-    `${GREEN}${BOLD}✅ جاهز للنشر على Vercel!${RESET}`
+    `${GREEN}${BOLD}✅ جاهز للنشر الإنتاجي على Firebase Hosting!${RESET}`
   )
 } else if (errors === 0) {
   console.log(

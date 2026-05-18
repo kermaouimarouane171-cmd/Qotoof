@@ -30,6 +30,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken:        ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          projectId:        ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.FIREBASE_SERVICE_ACCOUNT_GREENMARKET_MARKETPLACE }}
+          projectId:        ${{ secrets.FIREBASE_DEPLOY_PROJECT_ID }}
           # Creates a temporary preview URL and posts it as a PR comment
