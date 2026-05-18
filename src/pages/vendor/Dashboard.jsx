@@ -43,6 +43,7 @@ import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { ChartSkeleton } from '@/components/ui'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
+import { getOrderStatusColors, STATUS_I18N_KEYS, getOrderStatusLabel } from '@/constants/orderStatuses'
 
 // Lazy load chart components for better initial load performance
 const Line = lazy(() =>
@@ -77,50 +78,18 @@ const VendorLocationSetup = React.lazy(() => import('./LocationSetup'))
 // ============================================================
 // STATUS CONFIG
 // ============================================================
-const STATUS_CONFIG = {
-  pending: {
-    label: 'vendor.orders.statuses.pending',
-    labelDefault: 'Pending',
-    color: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-    icon: ClockIcon,
-  },
-  vendor_accepted: {
-    label: 'vendor.orders.statuses.confirmed',
-    labelDefault: 'Confirmed',
-    color: 'bg-blue-100 text-blue-800 border border-blue-200',
-    icon: CheckIcon,
-  },
-  vendor_rejected: {
-    label: 'vendor.orders.statuses.cancelled',
-    labelDefault: 'Rejected',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    icon: XMarkIcon,
-  },
-  driver_assigned: {
-    label: 'vendor.orders.statuses.processing',
-    labelDefault: 'Processing',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    icon: TruckIcon,
-  },
-  on_the_way: {
-    label: 'vendor.orders.statuses.shipped',
-    labelDefault: 'Shipped',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    icon: TruckIcon,
-  },
-  delivered: {
-    label: 'vendor.orders.statuses.delivered',
-    labelDefault: 'Delivered',
-    color: 'bg-green-100 text-green-800 border border-green-200',
-    icon: CheckIcon,
-  },
-  cancelled: {
-    label: 'vendor.orders.statuses.cancelled',
-    labelDefault: 'Cancelled',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    icon: XMarkIcon,
-  },
+// Icon map (page-specific)
+const STATUS_ICONS_VENDOR = {
+  pending:          ClockIcon,
+  vendor_accepted:  CheckIcon,
+  vendor_rejected:  XMarkIcon,
+  driver_assigned:  TruckIcon,
+  on_the_way:       TruckIcon,
+  delivered:        CheckIcon,
+  cancelled:        XMarkIcon,
 }
+
+
 
 // ============================================================
 // HELPER: Days ago label
@@ -1254,8 +1223,8 @@ const VendorDashboard = () => {
                 </tr>
               ) : (
                 recentOrders.slice(0, 8).map((order) => {
-                  const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-                  const Icon = config.icon
+                  const sc = getOrderStatusColors(order.status)
+                  const Icon = STATUS_ICONS_VENDOR[order.status] || ClockIcon
                   return (
                     <tr key={order.id}>
                       <td>
@@ -1268,9 +1237,9 @@ const VendorDashboard = () => {
                       </td>
                       <td className="font-semibold text-sm">{formatPrice(order.total)}</td>
                       <td>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${config.color}`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${sc.bg} ${sc.text} border ${sc.border}`}>
                           <Icon className="w-3 h-3" />
-                          {t(config.label, config.labelDefault)}
+                          {t(STATUS_I18N_KEYS[order.status] || `admin.orders.status.${order.status}`, getOrderStatusLabel(order.status))}
                         </span>
                       </td>
                       <td className="text-gray-500 text-sm">
@@ -1303,8 +1272,8 @@ const VendorDashboard = () => {
             </p>
           ) : (
             recentOrders.slice(0, 5).map((order) => {
-              const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-              const Icon = config.icon
+              const sc = getOrderStatusColors(order.status)
+              const Icon = STATUS_ICONS_VENDOR[order.status] || ClockIcon
               return (
                 <div
                   key={order.id}
@@ -1314,9 +1283,9 @@ const VendorDashboard = () => {
                     <span className="font-semibold text-green-600 text-sm">
                       {order.order_number || order.id?.slice(0, 8)}
                     </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${config.color}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${sc.bg} ${sc.text} border ${sc.border}`}>
                       <Icon className="w-3 h-3" />
-                      {t(config.label, config.labelDefault)}
+                      {t(STATUS_I18N_KEYS[order.status] || `admin.orders.status.${order.status}`, getOrderStatusLabel(order.status))}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm">

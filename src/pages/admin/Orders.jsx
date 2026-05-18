@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { paymentGateway } from '@/services/paymentGateway'
+import { resolvePaymentMethod } from '@/services/paymentRecords'
+import { createOrderPaymentRecord } from '@/services/paymentService'
 import { auditLogger, useEntityAuditLogs } from '@/services/auditLogger'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
@@ -25,23 +27,36 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { ORDER_STATUS_COLORS, getOrderStatusLabel, ACTIVE_ORDER_STATUSES } from '@/constants/orderStatuses'
 
 // ============================================
 // Constants
 // ============================================
 
-const getSTATUS_CONFIG = (t) => ({
-  pending:            { label: t('admin.orders.status.pending', 'Pending'),            color: '#F59E0B', bg: 'bg-amber-100',    text: 'text-amber-700',    icon: ClockIcon },
-  vendor_accepted:    { label: t('admin.orders.status.accepted', 'Accepted'),           color: '#3B82F6', bg: 'bg-blue-100',    text: 'text-blue-700',     icon: CheckCircleIcon },
-  vendor_rejected:    { label: t('admin.orders.status.rejected', 'Rejected'),           color: '#EF4444', bg: 'bg-red-100',      text: 'text-red-700',      icon: XMarkIcon },
-  driver_assigned:    { label: t('admin.orders.status.driverAssigned', 'Driver Assigned'),    color: '#8B5CF6', bg: 'bg-purple-100',  text: 'text-purple-700',   icon: TruckIcon },
-  driver_accepted:    { label: t('admin.orders.status.driverAccepted', 'Driver Accepted'),    color: '#8B5CF6', bg: 'bg-purple-100',  text: 'text-purple-700',   icon: CheckCircleIcon },
-  driver_picked_up:   { label: t('admin.orders.status.pickedUp', 'Picked Up'),          color: '#8B5CF6', bg: 'bg-purple-100',  text: 'text-purple-700',   icon: ShoppingBagIcon },
-  on_the_way:         { label: t('admin.orders.status.onTheWay', 'On the Way'),         color: '#8B5CF6', bg: 'bg-purple-100',  text: 'text-purple-700',   icon: TruckIcon },
-  delivered:          { label: t('admin.orders.status.delivered', 'Delivered'),          color: '#10B981', bg: 'bg-emerald-100', text: 'text-emerald-700',  icon: CheckCircleIcon },
-  cancelled:          { label: t('admin.orders.status.cancelled', 'Cancelled'),          color: '#EF4444', bg: 'bg-red-100',      text: 'text-red-700',      icon: XMarkIcon },
-  refunded:           { label: t('admin.orders.status.refunded', 'Refunded'),           color: '#6B7280', bg: 'bg-gray-100',    text: 'text-gray-700',     icon: ArrowPathIcon },
-})
+// Icon map (page-specific)
+const STATUS_ICONS_ADMIN = {
+  pending:          ClockIcon,
+  vendor_accepted:  CheckCircleIcon,
+  vendor_rejected:  XMarkIcon,
+  driver_assigned:  TruckIcon,
+  driver_accepted:  CheckCircleIcon,
+  driver_picked_up: ShoppingBagIcon,
+  on_the_way:       TruckIcon,
+  delivered:        CheckCircleIcon,
+  cancelled:        XMarkIcon,
+  refunded:         ArrowPathIcon,
+}
+
+// Thin wrapper over canonical constants — same interface as before, zero call-site changes.
+const getSTATUS_CONFIG = (t) => Object.fromEntries(
+  Object.entries(ORDER_STATUS_COLORS).map(([s, c]) => [s, {
+    label: getOrderStatusLabel(s, t),
+    color: c.hex,
+    bg:    c.bg,
+    text:  c.text,
+    icon:  STATUS_ICONS_ADMIN[s] || ClockIcon,
+  }])
+)
 
 const getPAYMENT_STATUS_CONFIG = (t) => ({
   pending:          { label: t('admin.orders.paymentStatus.pending', 'Payment Pending'),  color: '#F59E0B', bg: 'bg-amber-100',    text: 'text-amber-700' },
@@ -65,7 +80,7 @@ const getFILTER_TABS = (t) => [
   { id: 'cancelled', label: t('admin.orders.filters.cancelled', 'Cancelled/Refunded') },
 ]
 
-const ACTIVE_STATUSES = ['pending', 'vendor_accepted', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'on_the_way']
+const ACTIVE_STATUSES = ACTIVE_ORDER_STATUSES
 
 const getREFUND_REASONS = (t) => [
   { id: 'customer_request', label: t('admin.orders.refundModal.reasons.customerRequest', 'Customer Request') },
@@ -85,6 +100,9 @@ const AdminOrders = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, profile } = useAuthStore()
+
+  // Memoised config — recomputed only when `t` changes (i.e. on language switch)
+  const statusConfig   = useMemo(() => getSTATUS_CONFIG(t),         [t])
 
   // State
   const [orders, setOrders] = useState([])
@@ -250,7 +268,7 @@ const AdminOrders = () => {
         },
       })
 
-      toast.success(t('admin.orders.notifications.statusUpdated', 'Order status updated to {{status}}', { status: getSTATUS_CONFIG(t)[newStatus]?.label || newStatus }).replace('{{status}}', getSTATUS_CONFIG(t)[newStatus]?.label || newStatus))
+      toast.success(t('admin.orders.notifications.statusUpdated', 'Order status updated to {{status}}', { status: statusConfig[newStatus]?.label || newStatus }).replace('{{status}}', statusConfig[newStatus]?.label || newStatus))
       setShowStatusModal(false)
       setSelectedOrder(data)
       loadOrders()
@@ -300,6 +318,8 @@ const AdminOrders = () => {
         logger.error('Error fetching payment:', paymentError)
       }
 
+      const paymentMethod = resolvePaymentMethod(payment) || 'cod'
+
       // 2. Process refund through payment gateway
       let refundResult = { success: false, status: 'manual' }
 
@@ -326,17 +346,15 @@ const AdminOrders = () => {
           .eq('id', payment.id)
       } else {
         // Create a refund payment record if no payment exists (COD/Bank)
-        await supabase
-          .from('payments')
-          .insert({
+        await createOrderPaymentRecord({
             order_id: selectedOrder.id,
             amount: -amount, // Negative for refund
-            method: payment?.method || 'cod',
+            payment_method: paymentMethod,
             status: 'refunded',
             refund_amount: amount,
             refund_reason: refundReason,
             refunded_at: new Date().toISOString(),
-          })
+        })
       }
 
       // 4. Update order status if full refund
@@ -385,7 +403,7 @@ const AdminOrders = () => {
           refundAmount: amount,
           refundReason: refundReason,
           refundNotes: refundNotes,
-          paymentMethod: payment?.method || 'unknown',
+          paymentMethod: paymentMethod || 'unknown',
           gatewayRefundStatus: refundResult.status,
           processedBy: 'admin',
           adminId: user?.id,
@@ -399,7 +417,7 @@ const AdminOrders = () => {
         orderNumber: selectedOrder.order_number,
         amount: amount,
         reason: refundReason,
-        paymentMethod: payment?.method,
+        paymentMethod,
       })
 
       toast.success(t('admin.orders.notifications.refundSuccess', 'Refund of {{amount}} processed successfully', { amount: formatPrice(amount) }).replace('{{amount}}', formatPrice(amount)))
@@ -660,7 +678,7 @@ const AdminOrders = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {orders.map((order) => {
-                    const statusCfg = getSTATUS_CONFIG(t)[order.status] || getSTATUS_CONFIG(t).pending
+                    const statusCfg = statusConfig[order.status] || statusConfig.pending
                     const StatusIcon = statusCfg.icon
                     return (
                       <tr key={order.id} className="hover:bg-gray-50 transition-colors">
@@ -1228,7 +1246,7 @@ const StatusUpdateModal = ({
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {t('admin.orders.statusModal.orderInfo', 'Order')}: {order.order_number || order.id} | {t('admin.orders.statusModal.current', 'Current')}: {getSTATUS_CONFIG(t)[order.status]?.label || order.status}
+            {t('admin.orders.statusModal.orderInfo', 'Order')}: {order.order_number || order.id} | {t('admin.orders.statusModal.current', 'Current')}: {statusConfig[order.status]?.label || order.status}
           </p>
         </div>
 
@@ -1238,7 +1256,7 @@ const StatusUpdateModal = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.orders.statusModal.newStatus', 'New Status')}</label>
             <div className="grid grid-cols-2 gap-2">
               {availableStatuses.map((status) => {
-                const cfg = getSTATUS_CONFIG(t)[status]
+                const cfg = statusConfig[status]
                 const isSelected = newStatus === status
                 return (
                   <button

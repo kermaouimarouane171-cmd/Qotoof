@@ -34,7 +34,7 @@ import RouteMap from '@/components/ui/RouteMap'
 import { formatPrice } from '@/utils/currency'
 import { ordersApi } from '@/services/deliveries'
 import { orderTimelineApi } from '@/services/favorites'
-import { commissionService } from '@/services/commissionService'
+import { confirmOrderPayment } from '@/services/paymentService'
 import { driverLocationService } from '@/services/driverLocationService'
 import cancellationService, { DEFAULT_VENDOR_CANCELLATION_POLICY, normalizeCancellationPolicy } from '@/services/cancellationService'
 import reviewService from '@/services/reviewService'
@@ -43,123 +43,27 @@ import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { getOrderStatusColors, getOrderStatusLabel } from '@/constants/orderStatuses'
 
 // ============================================================
-// STATUS CONFIGURATION
+// STATUS META — workflow data (icon, step index, i18n label).
+// Colors are NOT stored here — use getOrderStatusColors() at render.
 // ============================================================
-const STATUS_CONFIG = {
-  pending: {
-    label: 'orderDetail.status.pending',
-    labelDefault: 'Order Placed',
-    color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    dotColor: 'bg-yellow-500',
-    icon: ShoppingBagIcon,
-    stepIndex: 0,
-  },
-  confirmed: {
-    label: 'orderDetail.status.confirmed',
-    labelDefault: 'Confirmed',
-    color: 'bg-blue-100 text-blue-800 border border-blue-200',
-    dotColor: 'bg-blue-500',
-    icon: CheckCircleIcon,
-    stepIndex: 1,
-  },
-  payment_received: {
-    label: 'orderDetail.status.payment_received',
-    labelDefault: 'Payment Received',
-    color: 'bg-teal-100 text-teal-800 border border-teal-200',
-    dotColor: 'bg-teal-500',
-    icon: CheckCircleIcon,
-    stepIndex: 3,
-  },
-  preparing: {
-    label: 'orderDetail.status.preparing',
-    labelDefault: 'Preparing',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    dotColor: 'bg-purple-500',
-    icon: ClockIcon,
-    stepIndex: 2,
-  },
-  shipped: {
-    label: 'orderDetail.status.shipped',
-    labelDefault: 'On the Way',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    dotColor: 'bg-indigo-500',
-    icon: TruckIcon,
-    stepIndex: 3,
-  },
-  on_the_way: {
-    label: 'orderDetail.status.shipped',
-    labelDefault: 'On the Way',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    dotColor: 'bg-indigo-500',
-    icon: TruckIcon,
-    stepIndex: 3,
-  },
-  delivered: {
-    label: 'orderDetail.status.delivered',
-    labelDefault: 'Delivered',
-    color: 'bg-green-100 text-green-800 border border-green-200',
-    dotColor: 'bg-green-500',
-    icon: CheckCircleIcon,
-    stepIndex: 4,
-  },
-  cancelled: {
-    label: 'orderDetail.status.cancelled',
-    labelDefault: 'Cancelled',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    dotColor: 'bg-red-500',
-    icon: XMarkIcon,
-    stepIndex: -1,
-  },
-  vendor_accepted: {
-    label: 'orderDetail.status.vendor_accepted',
-    labelDefault: 'Vendor Accepted',
-    color: 'bg-blue-100 text-blue-800 border border-blue-200',
-    dotColor: 'bg-blue-500',
-    icon: CheckCircleIcon,
-    stepIndex: 1,
-  },
-  vendor_rejected: {
-    label: 'orderDetail.status.vendor_rejected',
-    labelDefault: 'Vendor Rejected',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    dotColor: 'bg-red-500',
-    icon: XMarkIcon,
-    stepIndex: -1,
-  },
-  driver_assigned: {
-    label: 'orderDetail.status.driver_assigned',
-    labelDefault: 'Driver Assigned',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    dotColor: 'bg-purple-500',
-    icon: UserIcon,
-    stepIndex: 2,
-  },
-  driver_accepted: {
-    label: 'orderDetail.status.driver_accepted',
-    labelDefault: 'Driver Accepted',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    dotColor: 'bg-purple-500',
-    icon: CheckCircleIcon,
-    stepIndex: 2,
-  },
-  driver_picked_up: {
-    label: 'orderDetail.status.driver_picked_up',
-    labelDefault: 'Picked Up',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    dotColor: 'bg-indigo-500',
-    icon: TruckIcon,
-    stepIndex: 3,
-  },
-  awaiting_driver: {
-    label: 'orderDetail.status.awaiting_driver',
-    labelDefault: 'Awaiting Driver',
-    color: 'bg-orange-100 text-orange-800 border border-orange-200',
-    dotColor: 'bg-orange-500',
-    icon: ClockIcon,
-    stepIndex: 2,
-  },
+const ORDER_STATUS_META = {
+  pending:          { label: 'orderDetail.status.pending',          labelDefault: 'Order Placed',    icon: ShoppingBagIcon,  stepIndex: 0  },
+  confirmed:        { label: 'orderDetail.status.confirmed',        labelDefault: 'Confirmed',        icon: CheckCircleIcon,  stepIndex: 1  },
+  payment_received: { label: 'orderDetail.status.payment_received', labelDefault: 'Payment Received', icon: CheckCircleIcon,  stepIndex: 3  },
+  preparing:        { label: 'orderDetail.status.preparing',        labelDefault: 'Preparing',        icon: ClockIcon,        stepIndex: 2  },
+  shipped:          { label: 'orderDetail.status.shipped',          labelDefault: 'On the Way',       icon: TruckIcon,        stepIndex: 3  },
+  on_the_way:       { label: 'orderDetail.status.shipped',          labelDefault: 'On the Way',       icon: TruckIcon,        stepIndex: 3  },
+  delivered:        { label: 'orderDetail.status.delivered',        labelDefault: 'Delivered',        icon: CheckCircleIcon,  stepIndex: 4  },
+  cancelled:        { label: 'orderDetail.status.cancelled',        labelDefault: 'Cancelled',        icon: XMarkIcon,        stepIndex: -1 },
+  vendor_accepted:  { label: 'orderDetail.status.vendor_accepted',  labelDefault: 'Vendor Accepted',  icon: CheckCircleIcon,  stepIndex: 1  },
+  vendor_rejected:  { label: 'orderDetail.status.vendor_rejected',  labelDefault: 'Vendor Rejected',  icon: XMarkIcon,        stepIndex: -1 },
+  driver_assigned:  { label: 'orderDetail.status.driver_assigned',  labelDefault: 'Driver Assigned',  icon: UserIcon,         stepIndex: 2  },
+  driver_accepted:  { label: 'orderDetail.status.driver_accepted',  labelDefault: 'Driver Accepted',  icon: CheckCircleIcon,  stepIndex: 2  },
+  driver_picked_up: { label: 'orderDetail.status.driver_picked_up', labelDefault: 'Picked Up',        icon: TruckIcon,        stepIndex: 3  },
+  awaiting_driver:  { label: 'orderDetail.status.awaiting_driver',  labelDefault: 'Awaiting Driver',  icon: ClockIcon,        stepIndex: 2  },
 }
 
 const TIMELINE_STEPS = [
@@ -170,12 +74,17 @@ const TIMELINE_STEPS = [
   { key: 'delivered', label: 'orderDetail.timeline.delivered', labelDefault: 'Delivered', icon: CheckCircleIcon },
 ]
 
+const PAYMENT_CONFIRMATION_ELIGIBLE_STATUSES = ['confirmed', 'vendor_accepted', 'preparing', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered']
+const ROUTE_AND_TRACKING_STATUSES = ['confirmed', 'vendor_accepted', 'preparing', 'payment_received', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up']
+const BUYER_CANCELLABLE_STATUSES = ['pending', 'confirmed', 'awaiting_driver', 'vendor_accepted', 'payment_received', 'preparing']
+const SECOND_RECEIPT_UPLOAD_STATUSES = ['shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered', 'payment_received']
+const ORDER_CONFIRMED_STATUSES = ['payment_received', ...PAYMENT_CONFIRMATION_ELIGIBLE_STATUSES]
+
 // ============================================================
 // HELPER: Get status step index
 // ============================================================
 const getStatusStepIndex = (status) => {
-  const config = STATUS_CONFIG[status]
-  return config?.stepIndex ?? 0
+  return ORDER_STATUS_META[status]?.stepIndex ?? 0
 }
 
 const formatMadAmount = (value) => `${Number(value || 0).toFixed(2)} درهم`
@@ -472,19 +381,26 @@ const OrderDetail = () => {
     if (!order?.items?.length) return
     try {
       let addedCount = 0
+      const addItem = useCartStore.getState().addItem
       for (const item of order.items) {
         if (item.product) {
-          useCartStore.getState().addItem({
+          const wasAdded = addItem({
             id: item.product.id,
             name: item.product.name,
-            price: item.unit_price,
-            image: item.product.images?.[0]?.url || '',
+            price_per_unit: item.unit_price,
+            image_url: item.product.images?.[0]?.url || item.product.image_url || '',
             vendor_id: order.vendor_id,
             vendor_name: order.vendor?.store_name || '',
-            min_quantity: item.product.min_quantity || 1,
-            unit: item.product.unit || 'piece',
+            min_order_quantity: item.product.min_order_quantity || 1,
+            unit_type: item.unit_type || item.product.unit_type || 'piece',
+            available_quantity: item.product.available_quantity ?? null,
+            is_available: item.product.is_available ?? true,
+            category: item.product.category,
           }, item.quantity)
-          addedCount++
+
+          if (wasAdded) {
+            addedCount++
+          }
         }
       }
 
@@ -687,49 +603,13 @@ const OrderDetail = () => {
       const hasPendingSecondReceiptVerification = Boolean(order.second_payment_receipt_url) && order.second_payment_status === 'paid'
       const needsCommissionConfirmation = hasPendingFirstReceiptVerification || (order.payment_type === 'cod' && !order.payment_received_at)
 
-      let commissionResult = null
-      if (needsCommissionConfirmation) {
-        commissionResult = await commissionService.confirmSaleAndCalculate(order.id, order.vendor_id, saleAmount)
-        if (!commissionResult?.success) {
-          throw new Error(commissionResult?.error || t('marketplaceFeatures.orderDetailTracking.errors.commissionRegistrationFailed'))
-        }
-      }
-
-      const currentOrderStatus = order.status
-      const keepsDeliveryWorkflowStatus = ['shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered'].includes(currentOrderStatus)
-      const nextOrderPayload = {}
-
-      if (hasPendingFirstReceiptVerification) {
-        nextOrderPayload.first_payment_status = 'verified'
-        nextOrderPayload.payment_verified_by_vendor = true
-      }
-
-      if (hasPendingSecondReceiptVerification) {
-        nextOrderPayload.second_payment_status = 'verified'
-        nextOrderPayload.payment_verified_by_vendor = true
-      }
-
-      if (needsCommissionConfirmation) {
-        nextOrderPayload.payment_received_at = new Date().toISOString()
-      }
-
-      if (needsCommissionConfirmation && !keepsDeliveryWorkflowStatus) {
-        nextOrderPayload.status = 'payment_received'
-      }
-
-      const { error: paymentReceivedError } = await supabase
-        .from('orders')
-        .update(nextOrderPayload)
-        .eq('id', order.id)
-        .eq('vendor_id', user.id)
-
-      if (paymentReceivedError) throw paymentReceivedError
+      const confirmationResult = await confirmOrderPayment({ orderId: order.id })
 
       if (hasPendingSecondReceiptVerification && !needsCommissionConfirmation) {
         toast.success('تم التحقق من الدفعة الثانية بنجاح.')
       } else {
         toast.success(t('marketplaceFeatures.orderDetailTracking.success.paymentConfirmed', {
-          total: formatPrice(commissionResult?.total_this_month || commissionResult?.commission_so_far || 0),
+          total: formatPrice(confirmationResult?.commission?.totalThisMonth || confirmationResult?.commission?.commissionSoFar || 0),
         }))
       }
       setPaymentReceivedModalOpen(false)
@@ -906,26 +786,24 @@ const OrderDetail = () => {
   const currentStepIndex = getStatusStepIndex(order.status)
   const isDelivered = order.status === 'delivered'
   const isCancelled = order.status === 'cancelled' || order.status === 'vendor_rejected'
-  const paymentConfirmationEligibleStatuses = ['confirmed', 'preparing', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered']
-  const routeAndTrackingStatuses = ['confirmed', 'preparing', 'payment_received', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up']
   const hasPaymentBeenConfirmed = Boolean(order.payment_received_at || order.status === 'payment_received')
   const hasPendingFirstReceiptVerification = Boolean(order.first_payment_receipt_url) && order.first_payment_status === 'paid'
   const hasPendingSecondReceiptVerification = Boolean(order.second_payment_receipt_url) && order.second_payment_status === 'paid'
   const canReturn = isDelivered && !order.return_requested
   const canRate = isDelivered
-  const canDisplayCancellationAction = order.buyer_id === user?.id && !isCancelled && !isDelivered && ['pending', 'confirmed', 'vendor_accepted', 'payment_received', 'preparing'].includes(order.status)
+  const canDisplayCancellationAction = order.buyer_id === user?.id && !isCancelled && !isDelivered && BUYER_CANCELLABLE_STATUSES.includes(order.status)
   const canCancel = canDisplayCancellationAction && Boolean(cancellationPreview?.allowed)
   const canVendorConfirmPayment = order.vendor_id === user?.id && (
     hasPendingFirstReceiptVerification ||
     hasPendingSecondReceiptVerification ||
-    (order.payment_type === 'cod' && paymentConfirmationEligibleStatuses.includes(order.status) && !hasPaymentBeenConfirmed)
+    (order.payment_type === 'cod' && PAYMENT_CONFIRMATION_ELIGIBLE_STATUSES.includes(order.status) && !hasPaymentBeenConfirmed)
   )
   const liveTrackingActorId = order.delivery_option === 'self' ? order.vendor_id : order.driver_id
-  const canShowRouteMap = routeAndTrackingStatuses.includes(order.status) && order.vendor?.latitude && order.vendor?.longitude && order.shipping_latitude && order.shipping_longitude
+  const canShowRouteMap = ROUTE_AND_TRACKING_STATUSES.includes(order.status) && order.vendor?.latitude && order.vendor?.longitude && order.shipping_latitude && order.shipping_longitude
   const canShowLiveMap = canShowRouteMap && Boolean(liveTrackingActorId)
-  const canVendorTrackSelfDelivery = order.delivery_option === 'self' && order.vendor_id === user?.id && routeAndTrackingStatuses.includes(order.status) && !isCancelled && !isDelivered
+  const canVendorTrackSelfDelivery = order.delivery_option === 'self' && order.vendor_id === user?.id && ROUTE_AND_TRACKING_STATUSES.includes(order.status) && !isCancelled && !isDelivered
   const canBuyerUploadFirstReceipt = order.buyer_id === user?.id && order.payment_type !== 'cod' && Number(order.first_payment_amount || 0) > 0 && order.first_payment_status !== 'verified'
-  const canBuyerUploadSecondReceipt = order.buyer_id === user?.id && order.payment_type === 'split' && order.first_payment_status === 'verified' && Number(order.second_payment_amount || 0) > 0 && order.second_payment_status !== 'verified' && ['shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered', 'payment_received'].includes(order.status)
+  const canBuyerUploadSecondReceipt = order.buyer_id === user?.id && order.payment_type === 'split' && order.first_payment_status === 'verified' && Number(order.second_payment_amount || 0) > 0 && order.second_payment_status !== 'verified' && SECOND_RECEIPT_UPLOAD_STATUSES.includes(order.status)
   const paymentConfirmationMode = hasPendingSecondReceiptVerification ? 'second' : hasPendingFirstReceiptVerification ? 'first' : 'cod'
   const cancellationActionDescription = loadingCancellationPolicy
     ? 'جاري التحقق من سياسة الإلغاء لهذا الطلب.'
@@ -936,7 +814,7 @@ const OrderDetail = () => {
       : cancellationPreview?.blockingReason || t('orderDetail.actions.cancelOrderDesc', 'Cancel this order')
 
   // Check if order is confirmed or beyond (show delivery info)
-  const isOrderConfirmed = ['payment_received', ...paymentConfirmationEligibleStatuses].includes(order.status)
+  const isOrderConfirmed = ORDER_CONFIRMED_STATUSES.includes(order.status)
 
   const orderDate = new Date(order.created_at)
   const formattedDate = orderDate.toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US', {
@@ -999,12 +877,13 @@ const OrderDetail = () => {
             {/* Status Badge */}
             <div className="flex items-center gap-2 sm:flex-shrink-0">
               {(() => {
-                const config = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-                const Icon = config.icon
+                const meta = ORDER_STATUS_META[order.status] || ORDER_STATUS_META.pending
+                const Icon = meta.icon
+                const sc = getOrderStatusColors(order.status)
                 return (
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border ${config.color}`}>
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border ${sc.bg} ${sc.text} ${sc.border}`}>
                     <Icon className="w-4 h-4" />
-                    {t(config.label, config.labelDefault)}
+                    {t(meta.label, meta.labelDefault)}
                   </span>
                 )
               })()}

@@ -19,7 +19,6 @@ import {
   BanknotesIcon,
 } from '@heroicons/react/24/outline'
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid'
-import { supabase } from '@/services/supabase'
 import { Card } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { formatPrice } from '@/utils/currency'
@@ -29,90 +28,24 @@ import { checkOrderTrackingRate, RateLimitError } from '@/utils/rateLimiter'
 import { generateDeviceFingerprint } from '@/utils/encryption'
 import { logger } from '@/utils/logger'
 import { APP_CONFIG } from '@/config/appConfig'
+import { lookupPublicOrderTracking } from '@/services/publicTrackingService'
 import toast from 'react-hot-toast'
 
-// ============================================================
-// STATUS CONFIGURATION
-// ============================================================
-const STATUS_CONFIG = {
-  pending: {
-    label: 'orderTracking.status.pending',
-    labelDefault: 'Order Placed',
-    color: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-    icon: ShoppingBagIcon,
-  },
-  confirmed: {
-    label: 'orderTracking.status.confirmed',
-    labelDefault: 'Confirmed',
-    color: 'bg-blue-100 text-blue-800 border border-blue-200',
-    icon: CheckCircleIcon,
-  },
-  preparing: {
-    label: 'orderTracking.status.preparing',
-    labelDefault: 'Preparing',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    icon: ClockIcon,
-  },
-  shipped: {
-    label: 'orderTracking.status.shipped',
-    labelDefault: 'On the Way',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    icon: TruckIcon,
-  },
-  on_the_way: {
-    label: 'orderTracking.status.shipped',
-    labelDefault: 'On the Way',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    icon: TruckIcon,
-  },
-  delivered: {
-    label: 'orderTracking.status.delivered',
-    labelDefault: 'Delivered',
-    color: 'bg-green-100 text-green-800 border border-green-200',
-    icon: CheckCircleSolid,
-  },
-  cancelled: {
-    label: 'orderTracking.status.cancelled',
-    labelDefault: 'Cancelled',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    icon: XMarkIcon,
-  },
-  vendor_accepted: {
-    label: 'orderTracking.status.vendor_accepted',
-    labelDefault: 'Accepted',
-    color: 'bg-blue-100 text-blue-800 border border-blue-200',
-    icon: CheckCircleIcon,
-  },
-  vendor_rejected: {
-    label: 'orderTracking.status.vendor_rejected',
-    labelDefault: 'Rejected',
-    color: 'bg-red-100 text-red-800 border border-red-200',
-    icon: XMarkIcon,
-  },
-  driver_assigned: {
-    label: 'orderTracking.status.driver_assigned',
-    labelDefault: 'Driver Assigned',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    icon: TruckIcon,
-  },
-  driver_accepted: {
-    label: 'orderTracking.status.driver_accepted',
-    labelDefault: 'Driver Accepted',
-    color: 'bg-purple-100 text-purple-800 border border-purple-200',
-    icon: CheckCircleIcon,
-  },
-  driver_picked_up: {
-    label: 'orderTracking.status.driver_picked_up',
-    labelDefault: 'Picked Up',
-    color: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    icon: TruckIcon,
-  },
-  awaiting_driver: {
-    label: 'orderTracking.status.awaiting_driver',
-    labelDefault: 'Awaiting Driver',
-    color: 'bg-orange-100 text-orange-800 border border-orange-200',
-    icon: ClockIcon,
-  },
+// Status icon + label map (page-specific — colors not needed at this render site)
+const TRACKING_STATUS_META = {
+  pending:          { label: 'orderTracking.status.pending',          labelDefault: 'Order Placed',    icon: ShoppingBagIcon   },
+  confirmed:        { label: 'orderTracking.status.confirmed',        labelDefault: 'Confirmed',        icon: CheckCircleIcon   },
+  preparing:        { label: 'orderTracking.status.preparing',        labelDefault: 'Preparing',        icon: ClockIcon         },
+  shipped:          { label: 'orderTracking.status.shipped',          labelDefault: 'On the Way',       icon: TruckIcon         },
+  on_the_way:       { label: 'orderTracking.status.shipped',          labelDefault: 'On the Way',       icon: TruckIcon         },
+  delivered:        { label: 'orderTracking.status.delivered',        labelDefault: 'Delivered',        icon: CheckCircleSolid  },
+  cancelled:        { label: 'orderTracking.status.cancelled',        labelDefault: 'Cancelled',        icon: XMarkIcon         },
+  vendor_accepted:  { label: 'orderTracking.status.vendor_accepted',  labelDefault: 'Accepted',         icon: CheckCircleIcon   },
+  vendor_rejected:  { label: 'orderTracking.status.vendor_rejected',  labelDefault: 'Rejected',         icon: XMarkIcon         },
+  driver_assigned:  { label: 'orderTracking.status.driver_assigned',  labelDefault: 'Driver Assigned',  icon: TruckIcon         },
+  driver_accepted:  { label: 'orderTracking.status.driver_accepted',  labelDefault: 'Driver Accepted',  icon: CheckCircleIcon   },
+  driver_picked_up: { label: 'orderTracking.status.driver_picked_up', labelDefault: 'Picked Up',        icon: TruckIcon         },
+  awaiting_driver:  { label: 'orderTracking.status.awaiting_driver',  labelDefault: 'Awaiting Driver',  icon: ClockIcon         },
 }
 
 // ============================================================
@@ -133,19 +66,17 @@ const getSearchHistory = () => {
 const saveToHistory = (entry) => {
   try {
     const history = getSearchHistory()
-    // Mask phone number before storing for privacy
-    const maskedEntry = {
+    const historyEntry = {
       ...entry,
-      phone: entry.phone ? maskPhone(entry.phone) : null,
+      phoneMasked: entry.phone ? maskPhone(entry.phone) : null,
       timestamp: Date.now(),
     }
-    // Remove duplicate
+
     const filtered = history.filter(
-      (h) => !(h.orderNumber === entry.orderNumber && h.phone === entry.phone)
+      (h) => h.orderNumber !== entry.orderNumber
     )
-    // Add to front
-    filtered.unshift(maskedEntry)
-    // Keep only last N
+
+    filtered.unshift(historyEntry)
     const trimmed = filtered.slice(0, MAX_HISTORY)
     localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(trimmed))
   } catch (err) {
@@ -157,6 +88,8 @@ const maskPhone = (phone) => {
   if (!phone || phone.length < 6) return phone
   return phone.slice(0, 3) + '***' + phone.slice(-2)
 }
+
+const getHistoryPhoneLabel = (entry) => entry.phoneMasked || entry.phone || ''
 
 const clearSearchHistory = () => {
   try {
@@ -329,9 +262,17 @@ const Tracking = () => {
 
     const { orderNumber: validatedOrder, phone: validatedPhone } = validationResult.data
 
+    if (!validatedOrder || !validatedPhone) {
+      setErrors((prev) => ({
+        ...prev,
+        general: t('orderTracking.errors.requiresOrderAndPhone', 'Please enter both order number and phone number for security.'),
+      }))
+      return
+    }
+
     // RATE LIMITING CHECK FIRST - before any API calls
     try {
-      const deviceFingerprint = generateDeviceFingerprint()
+      const deviceFingerprint = await generateDeviceFingerprint()
       const rateResult = checkOrderTrackingRate(deviceFingerprint)
 
       if (!rateResult.allowed) {
@@ -354,91 +295,39 @@ const Tracking = () => {
       }
     }
 
-    // SECURITY: Phone search requires BOTH order number AND phone for verification
-    // This prevents anyone from tracking orders by knowing just a phone number
-    if (validatedPhone && !validatedOrder) {
-      setErrors((prev) => ({
-        ...prev,
-        general: t('orderTracking.errors.phoneAlone', 'Please enter both order number and phone number for security.'),
-      }))
-      return
-    }
-
     // Perform search
     setSearching(true)
     setSearchPerformed(true)
 
     try {
-      let buyerId = null
+      const trackingResult = await lookupPublicOrderTracking({
+        orderNumber: validatedOrder,
+        phone: validatedPhone,
+      })
 
-      // If both provided, verify they match
-      if (validatedPhone && validatedOrder) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('phone', validatedPhone)
-          .maybeSingle()
-
-        if (profileData) {
-          buyerId = profileData.id
-        } else {
-          // No profile found with this phone number
-          setResult({ type: 'not_found', searchedOrder: validatedOrder, searchedPhone: validatedPhone })
-          saveToHistory({ orderNumber: validatedOrder, phone: validatedPhone })
-          setSearching(false)
-          return
-        }
-      }
-
-      // MINIMAL DATA QUERY: Only return essential tracking info
-      let query = supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          status,
-          buyer_total,
-          created_at,
-          shipping_city
-        `, { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      if (validatedOrder) {
-        query = query.eq('order_number', validatedOrder)
-      }
-
-      // If phone provided, require BOTH order number AND buyer_id match
-      if (buyerId && validatedOrder) {
-        query = query.eq('buyer_id', buyerId)
-      }
-
-      const { data, error: supabaseError } = await query
-
-      if (supabaseError) throw supabaseError
-
-      if (data && data.length > 0) {
-        // Found order(s) - get minimal item count only
-        const order = data[0]
-
-        // Get item count without full product details
-        const { count: itemCount } = await supabase
-          .from('order_items')
-          .select('*', { count: 'exact', head: true })
-          .eq('order_id', order.id)
-
-        // Attach minimal item info
-        order.item_count = itemCount || 0
+      if (trackingResult?.found && trackingResult.order) {
+        const order = trackingResult.order
 
         setResult({ type: 'found', order })
         saveToHistory({ orderNumber: validatedOrder, phone: validatedPhone })
         toast.success(t('orderTracking.notifications.found', 'Order found!'))
       } else {
-        // Not found
-        setResult({ type: 'not_found', searchedOrder: validatedOrder, searchedPhone: validatedPhone })
+        setResult({
+          type: 'not_found',
+          searchedOrder: trackingResult?.searchedOrder || validatedOrder,
+          searchedPhone: trackingResult?.searchedPhone || validatedPhone,
+        })
         saveToHistory({ orderNumber: validatedOrder, phone: validatedPhone })
       }
     } catch (err) {
+      if (err instanceof RateLimitError || err?.status === 429 || err?.message?.toLowerCase?.().includes('too many')) {
+        setErrors((prev) => ({
+          ...prev,
+          general: t('orderTracking.errors.rateLimited', 'Too many attempts. Please wait before trying again.'),
+        }))
+        return
+      }
+
       logger.error('Order tracking search error:', err)
       setResult({ type: 'error' })
       setErrors((prev) => ({
@@ -455,13 +344,21 @@ const Tracking = () => {
   // ============================================================
   const handleHistoryClick = useCallback((entry) => {
     if (entry.orderNumber) setOrderNumber(entry.orderNumber)
-    if (entry.phone) setPhone(entry.phone)
+    setPhone('')
+    setResult(null)
+    setSearchPerformed(false)
+    setErrors({ orderNumber: '', phone: '', general: '' })
+    setTouched((prev) => ({ ...prev, orderNumber: true, phone: false }))
     setShowHistory(false)
-    // Auto-submit
+
     setTimeout(() => {
-      handleSearch()
+      phoneInputRef.current?.focus()
     }, 100)
-  }, [handleSearch])
+
+    toast(t('orderTracking.form.reenterPhone', 'For security, re-enter the phone number to continue tracking.'), {
+      icon: '🔒',
+    })
+  }, [t])
 
   // ============================================================
   // TRACK ANOTHER ORDER
@@ -517,7 +414,7 @@ const Tracking = () => {
           <p className="text-gray-500 text-sm sm:text-base max-w-md mx-auto">
             {t(
               'orderTracking.subtitle',
-              'Enter your order number or registered phone number to check the status of your delivery.'
+              'Enter your order number and registered phone number to verify the status of your delivery.'
             )}
           </p>
         </div>
@@ -575,7 +472,7 @@ const Tracking = () => {
             <div className="flex items-center gap-3 mb-5">
               <div className="flex-1 h-px bg-gray-200" />
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                {t('orderTracking.form.or', 'OR')}
+                {t('orderTracking.form.and', 'AND')}
               </span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
@@ -684,8 +581,8 @@ const Tracking = () => {
                         {entry.orderNumber && (
                           <p className="text-sm font-medium text-gray-700 truncate">{entry.orderNumber}</p>
                         )}
-                        {entry.phone && (
-                          <p className="text-xs text-gray-400">{entry.phone}</p>
+                        {getHistoryPhoneLabel(entry) && (
+                          <p className="text-xs text-gray-400">{getHistoryPhoneLabel(entry)}</p>
                         )}
                       </div>
                       <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
@@ -748,12 +645,12 @@ const Tracking = () => {
                 {/* Status Badge */}
                 <div className="flex items-center gap-2">
                   {(() => {
-                    const config = STATUS_CONFIG[result.order.status] || STATUS_CONFIG.pending
-                    const Icon = config.icon
+                    const meta = TRACKING_STATUS_META[result.order.status] || TRACKING_STATUS_META.pending
+                    const Icon = meta.icon
                     return (
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-sm font-semibold">
                         <Icon className="w-4 h-4" />
-                        {t(config.label, config.labelDefault)}
+                        {t(meta.label, meta.labelDefault)}
                       </span>
                     )
                   })()}

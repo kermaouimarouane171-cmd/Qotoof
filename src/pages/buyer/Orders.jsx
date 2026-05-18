@@ -29,15 +29,29 @@ import {
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { hydrateRowsWithProductItems, isProductImagesRelationError } from '@/services/productImages'
 import { supabase } from '@/services/supabase'
 import reviewService from '@/services/reviewService'
 import invoiceService from '@/services/invoiceService'
 import loyaltyApi from '@/services/loyalty'
+import { getOrderStatusColors, getOrderStatusLabel, ACTIVE_ORDER_STATUSES } from '@/constants/orderStatuses'
 // @react-pdf/renderer is loaded dynamically inside handleDownloadInvoice (see below)
 
 // ============================================
 // Constants & Helpers
 // ============================================
+
+const BUYER_ORDERS_SELECT = `
+  *,
+  vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
+  items:order_items(*, product:products(id, name, images:product_images(url, is_primary)))
+`
+
+const BUYER_ORDERS_SELECT_WITHOUT_IMAGES = `
+  *,
+  vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
+  items:order_items(*, product:products(id, name))
+`
 
 const STATUS_FLOW = [
   'pending',
@@ -49,16 +63,17 @@ const STATUS_FLOW = [
   'delivered',
 ]
 
-const STATUS_CONFIG = {
-  pending:            { label: 'Pending',              color: '#F59E0B', bg: 'bg-amber-100',    text: 'text-amber-700',    icon: ClockIcon },
-  vendor_accepted:    { label: 'Accepted by Vendor',   color: '#F59E0B', bg: 'bg-amber-100',    text: 'text-amber-700',    icon: CheckCircleIcon },
-  vendor_rejected:    { label: 'Rejected by Vendor',   color: '#EF4444', bg: 'bg-red-100',      text: 'text-red-700',      icon: XMarkIcon },
-  driver_assigned:    { label: 'Driver Assigned',      color: '#F97316', bg: 'bg-orange-100',   text: 'text-orange-700',   icon: TruckIcon },
-  driver_accepted:    { label: 'Driver Accepted',      color: '#F97316', bg: 'bg-orange-100',   text: 'text-orange-700',   icon: CheckCircleIcon },
-  driver_picked_up:   { label: 'Picked Up',            color: '#F97316', bg: 'bg-orange-100',   text: 'text-orange-700',   icon: ShoppingBagIcon },
-  on_the_way:         { label: 'On the Way',           color: '#F97316', bg: 'bg-orange-100',   text: 'text-orange-700',   icon: TruckIcon },
-  delivered:          { label: 'Delivered',            color: '#10B981', bg: 'bg-emerald-100',  text: 'text-emerald-700',  icon: CheckCircleIcon },
-  cancelled:          { label: 'Cancelled',            color: '#EF4444', bg: 'bg-red-100',      text: 'text-red-700',      icon: XMarkIcon },
+// Status icon map — page-specific, icons are not stored in the shared constants
+const STATUS_ICONS = {
+  pending:          ClockIcon,
+  vendor_accepted:  CheckCircleIcon,
+  vendor_rejected:  XMarkIcon,
+  driver_assigned:  TruckIcon,
+  driver_accepted:  CheckCircleIcon,
+  driver_picked_up: ShoppingBagIcon,
+  on_the_way:       TruckIcon,
+  delivered:        CheckCircleIcon,
+  cancelled:        XMarkIcon,
 }
 
 const FILTER_TABS = [
@@ -68,7 +83,7 @@ const FILTER_TABS = [
   { id: 'cancelled', label: 'Cancelled' },
 ]
 
-const ACTIVE_STATUSES = ['pending', 'vendor_accepted', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'on_the_way']
+// ACTIVE_STATUSES imported as ACTIVE_ORDER_STATUSES from @/constants/orderStatuses
 
 const PAYMENT_STATUS_OPTIONS = [
   { id: '', label: 'All Payments' },
@@ -169,8 +184,8 @@ const copyOrderNumber = async (orderNumber, t) => {
 // ============================================
 
 const OrderCard = React.memo(({ order, onReorder, onReview, onReturn, onViewDetails, onDownloadInvoice, isSelected, onSelect, t }) => {
-  const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
-  const StatusIcon = status.icon
+  const colors = getOrderStatusColors(order.status)
+  const StatusIcon = STATUS_ICONS[order.status] || ClockIcon
   const progress = getProgressPercentage(order.status)
   const isCancelled = order.status === 'cancelled' || order.status === 'vendor_rejected'
   const isDelivered = order.status === 'delivered'
@@ -211,11 +226,11 @@ const OrderCard = React.memo(({ order, onReorder, onReview, onReturn, onViewDeta
           </button>
 
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${status.bg} ${status.text}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colors.bg} ${colors.text}`}>
               <StatusIcon className="w-4 h-4" />
             </div>
             <div>
-              <span className={`text-sm font-semibold ${status.text}`}>{t(`buyer.orders.status.${order.status}`, status.label)}</span>
+              <span className={`text-sm font-semibold ${colors.text}`}>{t(`buyer.orders.status.${order.status}`, getOrderStatusLabel(order.status))}</span>
               <p className="text-xs text-gray-400">{timeAgo(order.created_at, t)}</p>
             </div>
           </div>
@@ -234,7 +249,7 @@ const OrderCard = React.memo(({ order, onReorder, onReview, onReturn, onViewDeta
                 className="h-full rounded-full transition-all duration-700 ease-out"
                 style={{
                   width: `${progress}%`,
-                  backgroundColor: status.color,
+                  backgroundColor: colors.hex,
                 }}
               />
             </div>
@@ -718,49 +733,60 @@ const OrdersPage = () => {
     }
 
     try {
-      // Build the base query
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-          items:order_items(*, product:products(name, images:product_images(url, is_primary)))
-        `, { count: 'exact' })
-        .eq('buyer_id', profile.id)
+      const pageEndIndex = pageNum * PAGE_SIZE - 1
 
-      // Apply status filter server-side
-      if (filter === 'active') {
-        query = query.in('status', ACTIVE_STATUSES)
-      } else if (filter === 'delivered') {
-        query = query.eq('status', 'delivered')
-      } else if (filter === 'cancelled') {
-        query = query.in('status', ['cancelled', 'vendor_rejected'])
+      const buildQuery = (selectClause) => {
+        let query = supabase
+          .from('orders')
+          .select(selectClause, { count: 'exact' })
+          .eq('buyer_id', profile.id)
+
+        if (filter === 'active') {
+          query = query.in('status', ACTIVE_ORDER_STATUSES)
+        } else if (filter === 'delivered') {
+          query = query.eq('status', 'delivered')
+        } else if (filter === 'cancelled') {
+          query = query.in('status', ['cancelled', 'vendor_rejected'])
+        }
+
+        if (advancedFilters.dateFrom) {
+          query = query.gte('created_at', new Date(advancedFilters.dateFrom).toISOString())
+        }
+
+        if (advancedFilters.dateTo) {
+          const endDate = new Date(advancedFilters.dateTo)
+          endDate.setHours(23, 59, 59, 999)
+          query = query.lte('created_at', endDate.toISOString())
+        }
+
+        const from = (pageNum - 1) * PAGE_SIZE
+        const to = from + PAGE_SIZE - 1
+
+        return query
+          .order('created_at', { ascending: false })
+          .range(from, to)
       }
 
-      // Apply date range filter server-side
-      if (advancedFilters.dateFrom) {
-        query = query.gte('created_at', new Date(advancedFilters.dateFrom).toISOString())
+      let result = await buildQuery(BUYER_ORDERS_SELECT)
+
+      if (result.error) {
+        if (!isProductImagesRelationError(result.error)) throw result.error
+
+        logger.warn('Buyer orders: product_images relation missing, hydrating separately', result.error)
+
+        const fallbackResult = await buildQuery(BUYER_ORDERS_SELECT_WITHOUT_IMAGES)
+        if (fallbackResult.error) throw fallbackResult.error
+
+        result = {
+          ...fallbackResult,
+          data: await hydrateRowsWithProductItems(fallbackResult.data || []),
+        }
       }
-      if (advancedFilters.dateTo) {
-        const endDate = new Date(advancedFilters.dateTo)
-        endDate.setHours(23, 59, 59, 999)
-        query = query.lte('created_at', endDate.toISOString())
-      }
 
-      // Order by newest first
-      query = query.order('created_at', { ascending: false })
-
-      // Apply pagination
-      const from = (pageNum - 1) * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-      query = query.range(from, to)
-
-      const { data, error, count } = await query
-
-      if (error) throw error
+      const { data, count } = result
 
       setTotalCount(count || 0)
-      setHasMore((count || 0) > to + 1)
+      setHasMore((count || 0) > pageEndIndex + 1)
 
       if (pageNum === 1) {
         setOrders(data || [])
@@ -1032,13 +1058,17 @@ const OrdersPage = () => {
     )
   }
 
+  const activeDriverPhone = activeDelivery?.driver?.phone
+    ? String(activeDelivery.driver.phone).trim()
+    : ''
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{t('buyer.orders.title', 'My Orders')}</h1>
         <p className="text-gray-500 text-sm">
-          {orders.length} {t('buyer.orders.ordersTotal', 'order(s) total', { count: orders.length })}
+          {t('buyer.orders.ordersTotal', '{{count}} order(s) total', { count: orders.length })}
         </p>
       </div>
       {/* ===== Active Delivery Tracking Banner ===== */}
@@ -1083,13 +1113,19 @@ const OrdersPage = () => {
                     </p>
                   </div>
                 </div>
-                <a
-                  href={`tel:${activeDelivery.driver.phone}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium hover:text-green-700"
-                >
-                  <PhoneIcon className="w-4 h-4" />
-                  {t('buyer.orders.callDriver', 'Call Driver')}
-                </a>
+                {activeDriverPhone ? (
+                  <a
+                    href={`tel:${activeDriverPhone}`}
+                    className="inline-flex items-center gap-1.5 text-sm text-green-600 font-medium hover:text-green-700"
+                  >
+                    <PhoneIcon className="w-4 h-4" />
+                    {t('buyer.orders.callDriver', 'Call Driver')}
+                  </a>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    {t('buyer.orders.driverPhoneUnavailable', 'Driver phone unavailable')}
+                  </p>
+                )}
               </div>
             )}
 
