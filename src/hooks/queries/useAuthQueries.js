@@ -9,6 +9,23 @@ import { supabase } from '@/services/supabase'
 import { useAuthStore } from '@/store/authStore'
 import { CACHE_CONFIG } from '@/constants/apiEndpoints'
 
+const resolveMutationResult = (result, fallbackMessage) => {
+  if (result?.success === false) {
+    throw new Error(result.error || result.message || fallbackMessage)
+  }
+
+  return result
+}
+
+const splitFullName = (fullName = '') => {
+  const parts = String(fullName).trim().split(/\s+/).filter(Boolean)
+
+  return {
+    firstName: parts[0] || '',
+    lastName: parts.slice(1).join(' '),
+  }
+}
+
 // ══════════════════════════════════════════
 // QUERY KEYS
 // ══════════════════════════════════════════
@@ -76,43 +93,31 @@ export const useCurrentUser = (options = {}) => {
  */
 export const useRegister = () => {
   const queryClient = useQueryClient()
+  const signUp = useAuthStore((s) => s.signUp)
 
   return useMutation({
-    mutationFn: async ({ email, password, fullName, role, phone, businessName }) => {
-      // 1. Create auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+    mutationFn: async ({
+      email,
+      password,
+      fullName,
+      firstName,
+      lastName,
+      role,
+      phone,
+      businessName,
+      captchaToken = null,
+    }) => {
+      const derivedName = splitFullName(fullName)
+      const result = await signUp(email, password, {
+        firstName: firstName || derivedName.firstName,
+        lastName: lastName || derivedName.lastName,
         email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role,
-            phone,
-          },
-        },
-      })
+        phone,
+        role,
+        businessName,
+      }, captchaToken)
 
-      if (authError) throw authError
-
-      // 2. Create profile
-      const nameParts = fullName.trim().split(/\s+/)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: authData.user.id,
-          email,
-          first_name: nameParts[0],
-          last_name: nameParts.slice(1).join(' ') || '',
-          phone: phone || null,
-          role,
-          store_name: businessName || null,
-        })
-        .select()
-        .single()
-
-      if (profileError) throw profileError
-
-      return { user: authData.user, profile }
+      return resolveMutationResult(result, 'Failed to register')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: authKeys.all })
@@ -125,32 +130,15 @@ export const useRegister = () => {
  */
 export const useLogin = () => {
   const queryClient = useQueryClient()
-  const setAuth = useAuthStore((s) => s.setAuth)
+  const signIn = useAuthStore((s) => s.signIn)
 
   return useMutation({
-    mutationFn: async ({ email, password }) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) throw error
-
-      // Fetch profile
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', data.user.id)
-        .single()
-
-      if (profileError) throw profileError
-
-      return { session: data.session, user: data.user, profile }
+    mutationFn: async ({ email, password, captchaToken = null, redirectTo = null }) => {
+      const result = await signIn(email, password, captchaToken, redirectTo)
+      return resolveMutationResult(result, 'Failed to sign in')
     },
-    onSuccess: (data) => {
-      setAuth(data.profile, data.session)
-      queryClient.setQueryData(authKeys.profile(), data.profile)
-      queryClient.setQueryData(authKeys.session(), data.session)
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.all })
     },
   })
 }
@@ -160,16 +148,15 @@ export const useLogin = () => {
  */
 export const useLogout = () => {
   const queryClient = useQueryClient()
-  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const signOut = useAuthStore((s) => s.signOut)
   const navigate = useNavigate()
 
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      const result = await signOut()
+      return resolveMutationResult(result, 'Failed to sign out')
     },
     onSuccess: () => {
-      clearAuth()
       queryClient.clear()
       navigate('/login')
     },
@@ -198,14 +185,12 @@ export const useVerifyEmail = () => {
  * Forgot password - send reset email
  */
 export const useForgotPassword = () => {
+  const resetPassword = useAuthStore((s) => s.resetPassword)
+
   return useMutation({
     mutationFn: async ({ email }) => {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      })
-
-      if (error) throw error
-      return { success: true, message: 'Password reset email sent' }
+      const result = await resetPassword(email)
+      return resolveMutationResult(result, 'Failed to send password reset email')
     },
   })
 }
@@ -214,14 +199,12 @@ export const useForgotPassword = () => {
  * Reset password with new password
  */
 export const useResetPassword = () => {
+  const updatePassword = useAuthStore((s) => s.updatePassword)
+
   return useMutation({
     mutationFn: async ({ newPassword }) => {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-
-      if (error) throw error
-      return { success: true }
+      const result = await updatePassword(newPassword)
+      return resolveMutationResult(result, 'Failed to update password')
     },
   })
 }
@@ -231,27 +214,15 @@ export const useResetPassword = () => {
  */
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient()
-  const setAuth = useAuthStore((s) => s.setAuth)
+  const updateProfile = useAuthStore((s) => s.updateProfile)
 
   return useMutation({
     mutationFn: async (updates) => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('No active session')
-
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', session.user.id)
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
+      const result = await updateProfile(updates)
+      return resolveMutationResult(result, 'Failed to update profile')
     },
-    onSuccess: (data) => {
-      queryClient.setQueryData(authKeys.profile(), data)
-      const session = queryClient.getQueryData(authKeys.session())
-      if (session) setAuth(data, session)
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: authKeys.profile() })
     },
   })
 }
@@ -303,14 +274,12 @@ export const useUploadAvatar = () => {
  * Change password
  */
 export const useChangePassword = () => {
+  const updatePassword = useAuthStore((s) => s.updatePassword)
+
   return useMutation({
     mutationFn: async ({ newPassword }) => {
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-
-      if (error) throw error
-      return { success: true }
+      const result = await updatePassword(newPassword)
+      return resolveMutationResult(result, 'Failed to change password')
     },
   })
 }
@@ -320,27 +289,15 @@ export const useChangePassword = () => {
  */
 export const useDeleteAccount = () => {
   const queryClient = useQueryClient()
-  const clearAuth = useAuthStore((s) => s.clearAuth)
+  const deleteAccount = useAuthStore((s) => s.deleteAccount)
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('No active session')
-
-      // Soft delete profile
-      const { error } = await supabase
-        .from('profiles')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', session.user.id)
-
-      if (error) throw error
-
-      // Sign out
-      await supabase.auth.signOut()
+    mutationFn: async ({ confirmationText = 'DELETE' } = {}) => {
+      const result = await deleteAccount(confirmationText)
+      return resolveMutationResult(result, 'Failed to delete account')
     },
     onSuccess: () => {
-      clearAuth()
       queryClient.clear()
       navigate('/login')
     },

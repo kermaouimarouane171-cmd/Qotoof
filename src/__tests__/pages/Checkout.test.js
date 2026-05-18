@@ -35,6 +35,11 @@ describe('Checkout Page – Logic', () => {
     return { valid: true, discount, finalTotal: cartTotal - discount }
   }
 
+  function canProceedWithCheckout(items = []) {
+    const vendorCount = new Set(items.map((item) => item.vendor_id).filter(Boolean)).size
+    return vendorCount <= 1
+  }
+
   // ─── Shipping ────────────────────────────────────────────────────────────
 
   test('applies free shipping above threshold', () => {
@@ -128,5 +133,19 @@ describe('Checkout Page – Logic', () => {
   test('rejects unknown payment method', () => {
     const VALID_METHODS = ['cod', 'stripe', 'cmi', 'bank_transfer']
     expect(VALID_METHODS.includes('bitcoin')).toBe(false)
+  })
+
+  test('allows checkout for a single-vendor cart', () => {
+    expect(canProceedWithCheckout([
+      { id: 'p1', vendor_id: 'vendor-1' },
+      { id: 'p2', vendor_id: 'vendor-1' },
+    ])).toBe(true)
+  })
+
+  test('blocks checkout for multi-vendor carts until shipping is split per vendor', () => {
+    expect(canProceedWithCheckout([
+      { id: 'p1', vendor_id: 'vendor-1' },
+      { id: 'p2', vendor_id: 'vendor-2' },
+    ])).toBe(false)
   })
 })

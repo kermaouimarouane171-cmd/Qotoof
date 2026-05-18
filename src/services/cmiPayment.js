@@ -1,21 +1,11 @@
 import { supabase } from '@/services/supabase'
+import { getLatestPaymentRecordForOrder } from '@/services/paymentRecords'
 export const initCMIPayment = async (order) => {
   if (!order?.id) {
     throw new Error('بيانات الطلب غير كافية لتهيئة CMI')
   }
 
-  const { data, error } = await supabase.functions.invoke('cmi-payment', {
-    body: {
-      orderId: order.id,
-      amount: order.total_amount ?? order.total ?? 0,
-    },
-  })
-
-  if (error) {
-    throw error
-  }
-
-  return data
+  throw new Error('CMI لم يعد مسار دفع نشطاً في checkout الحالي. استخدم PayPal أو التحويل البنكي.')
 }
 
 /**
@@ -36,14 +26,12 @@ export const getCMIStatus = async (orderId) => {
   }
 
   // fallback: قراءة آخر حالة دفع من Supabase
-  const { data, error } = await supabase
-    .from('payments')
-    .select('id, order_id, status, method, transaction_id, updated_at')
-    .eq('order_id', orderId)
-    .eq('method', 'cmi')
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const { data, error } = await getLatestPaymentRecordForOrder({
+    orderId,
+    paymentMethod: 'cmi',
+    select: 'id, order_id, status, payment_method, method, transaction_id, updated_at',
+    allowMissing: true,
+  })
 
   if (error) {
     throw new Error(`فشل استعلام حالة الدفع من قاعدة البيانات: ${error.message}`)

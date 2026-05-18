@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { deliveriesApi } from '@/services/deliveries'
 import { Card, LoadingSpinner } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
@@ -46,18 +47,11 @@ const DriverDeliveryTracking = () => {
 
   const loadDelivery = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('delivery_tracking')
-        .select(`
-          *,
-          order:orders(*),
-          customer:profiles!buyer_id(first_name, last_name, phone)
-        `)
-        .eq('delivery_id', id)
-        .single()
-
-      if (error) throw error
-      setDelivery(data)
+      const data = await deliveriesApi.getById(id)
+      setDelivery({
+        ...data,
+        customer: data.order?.buyer || null,
+      })
     } catch (error) {
       logger.error('Load delivery error:', error)
       toast.error('Failed to load delivery')
@@ -92,20 +86,7 @@ const DriverDeliveryTracking = () => {
         metadata: { source: 'driver-delivery-tracking' },
       })
 
-      const { error: updateError } = await supabase
-        .from('delivery_tracking')
-        .update({
-          current_latitude: latitude,
-          current_longitude: longitude,
-          current_speed: speedKmh,
-          current_accuracy: accuracyMeters,
-          last_location_update: new Date().toISOString(),
-        })
-        .eq('delivery_id', id)
-
-      if (updateError) {
-        logger.warn('Failed to sync delivery_tracking live fields:', updateError)
-      }
+      await deliveriesApi.updateLocation(id, latitude, longitude)
 
       // Success
       setLastSyncTime(new Date())
@@ -278,21 +259,26 @@ const DriverDeliveryTracking = () => {
   const updateStatus = async (newStatus) => {
     setUpdatingStatus(true)
     try {
-      const { error } = await supabase
-        .from('delivery_tracking')
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('delivery_id', id)
+      if (newStatus === 'picked_up') {
+        await deliveriesApi.markPickedUp(id)
+      } else if (newStatus === 'on_the_way') {
+        await deliveriesApi.markOnTheWay(id)
+      } else if (newStatus === 'delivered') {
+        await deliveriesApi.markDelivered(id)
+      } else {
+        const { data, error } = await supabase
+          .from('deliveries')
+          .update({ status: newStatus })
+          .eq('id', id)
+          .eq('driver_id', user.id)
+          .select('id')
+          .maybeSingle()
 
-      if (error) throw error
-
-      // Update delivery status
-      await supabase
-        .from('deliveries')
-        .update({ status: newStatus })
-        .eq('id', id)
+        if (error) throw error
+        if (!data) {
+          throw new Error('Delivery not found')
+        }
+      }
 
       setDelivery({ ...delivery, status: newStatus })
       toast.success(t('driver.tracking.statusUpdated', 'Status updated to: {{status}}', { status: newStatus }))

@@ -1,8 +1,28 @@
+jest.mock('@/services/supabase', () => ({
+  supabase: {
+    from: jest.fn(),
+  },
+}))
+
+jest.mock('@/services/productImages', () => ({
+  hydrateProductsWithImages: jest.fn(async (products) => products),
+  isProductImagesRelationError: jest.fn(() => false),
+}))
+
+jest.mock('@/utils/logger', () => ({
+  logger: {
+    warn: jest.fn(),
+    error: jest.fn(),
+    info: jest.fn(),
+  },
+}))
+
 import {
   buildProductSearchFiltersFromParams,
   normalizeProductSearchFilters,
   normalizeSearchProduct,
 } from '@/services/search/productSearchHelpers'
+import productSearchService from '@/services/search/productSearchService'
 
 describe('productSearchService helpers', () => {
   test('normalizes filter aliases and strips empty values', () => {
@@ -99,5 +119,24 @@ describe('productSearchService helpers', () => {
       page: 1,
       hitsPerPage: 24,
     })
+  })
+
+  test('gets featured products through the shared search pipeline', async () => {
+    const searchSpy = jest.spyOn(productSearchService, 'searchProducts').mockResolvedValue({
+      hits: [{ id: 'product-1' }, { id: 'product-2' }],
+    })
+
+    await expect(productSearchService.getFeaturedProducts(8)).resolves.toEqual([
+      { id: 'product-1' },
+      { id: 'product-2' },
+    ])
+
+    expect(searchSpy).toHaveBeenCalledWith({
+      page: 0,
+      hitsPerPage: 8,
+      sortBy: 'newest',
+    })
+
+    searchSpy.mockRestore()
   })
 })

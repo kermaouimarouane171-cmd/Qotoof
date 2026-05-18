@@ -100,6 +100,8 @@ const NOTIFICATION_PREFERENCE_BY_CATEGORY = {
 const NOTIFICATION_BADGE_EVENT = 'notification-badge-update'
 const NOTIFICATION_PREFERENCES_EVENT = 'notification-preferences-updated'
 
+let notificationSubscriptionSequence = 0
+
 const resolveListOptions = (limitOrOptions, maybeOptions = {}) => {
   if (typeof limitOrOptions === 'number' || typeof limitOrOptions === 'undefined') {
     return {
@@ -322,11 +324,16 @@ export const notificationsApi = {
     return count || 0
   }, { maxRetries: 3, baseDelay: 1000 }),
 
-  markAsRead: withRetry(async (notificationId) => {
+  markAsRead: withRetry(async (userId, notificationId) => {
+    if (!userId || !notificationId) {
+      throw new Error('userId and notificationId are required')
+    }
+
     const timestamp = new Date().toISOString()
     const { data, error } = await supabase
       .from('notifications')
       .update({ is_read: true, read_at: timestamp })
+      .eq('user_id', userId)
       .eq('id', notificationId)
       .select()
       .maybeSingle()
@@ -351,10 +358,15 @@ export const notificationsApi = {
     if (error) throw error
   }, { maxRetries: 2, baseDelay: 500 }),
 
-  delete: withRetry(async (notificationId) => {
+  delete: withRetry(async (userId, notificationId) => {
+    if (!userId || !notificationId) {
+      throw new Error('userId and notificationId are required')
+    }
+
     const { data, error } = await supabase
       .from('notifications')
       .update({ deleted_at: new Date().toISOString() })
+      .eq('user_id', userId)
       .eq('id', notificationId)
       .select()
       .maybeSingle()
@@ -445,9 +457,12 @@ export const notificationsApi = {
     return inserted ? normalizeNotification(inserted) : null
   }, { maxRetries: 2, baseDelay: 1000 }),
 
-  subscribe: (userId, callback) => {
+  subscribe: (userId, callback, options = {}) => {
+    notificationSubscriptionSequence += 1
+    const scope = options.scope ? String(options.scope).trim() : 'listener'
+    const channelName = `notifications:${userId}:${scope}:${notificationSubscriptionSequence}`
     const channel = supabase
-      .channel(`notifications:${userId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -468,6 +483,11 @@ export const notificationsApi = {
       .subscribe()
 
     return () => {
+      if (typeof supabase.removeChannel === 'function') {
+        void supabase.removeChannel(channel)
+        return
+      }
+
       channel.unsubscribe()
     }
   },

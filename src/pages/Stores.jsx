@@ -14,20 +14,21 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { filterPublicVendors } from '@/utils/publicVisibility'
 
 const SPECIALTY_OPTIONS = [
-  { id: 'plants', label: 'Plants', emoji: '🌿' },
-  { id: 'vegetables', label: 'Vegetables', emoji: '🥬' },
-  { id: 'fruits', label: 'Fruits', emoji: '🍎' },
-  { id: 'herbs', label: 'Herbs', emoji: '🌱' },
-  { id: 'seeds', label: 'Seeds', emoji: '🌰' },
+  { id: 'plants', defaultLabel: 'Plants', emoji: '🌿' },
+  { id: 'vegetables', defaultLabel: 'Vegetables', emoji: '🥬' },
+  { id: 'fruits', defaultLabel: 'Fruits', emoji: '🍎' },
+  { id: 'herbs', defaultLabel: 'Herbs', emoji: '🌱' },
+  { id: 'seeds', defaultLabel: 'Seeds', emoji: '🌰' },
 ]
 
 const SORT_OPTIONS = [
-  { id: 'newest', label: 'Newest First' },
-  { id: 'oldest', label: 'Oldest First' },
-  { id: 'highest_rated', label: 'Highest Rated' },
-  { id: 'most_reviewed', label: 'Most Reviewed' },
+  { id: 'newest', defaultLabel: 'Newest First' },
+  { id: 'oldest', defaultLabel: 'Oldest First' },
+  { id: 'highest_rated', defaultLabel: 'Highest Rated' },
+  { id: 'most_reviewed', defaultLabel: 'Most Reviewed' },
 ]
 
 const Stores = () => {
@@ -45,6 +46,14 @@ const Stores = () => {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [error, setError] = useState(null)
   const [searchTimeout, setSearchTimeout] = useState(null)
+  const specialtyOptions = SPECIALTY_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`stores.specialties.${option.id}`, option.defaultLabel),
+  }))
+  const sortOptions = SORT_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`stores.sortOptions.${option.id}`, option.defaultLabel),
+  }))
 
   // Update URL when filters change
   useEffect(() => {
@@ -86,11 +95,12 @@ const Stores = () => {
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setStores(data || [])
+      const visibleStores = filterPublicVendors(data || [])
+      setStores(visibleStores)
 
       // Batch fetch ratings and categories (NOT N+1!)
-      if (data && data.length > 0) {
-        const vendorIds = data.map(s => s.id)
+      if (visibleStores.length > 0) {
+        const vendorIds = visibleStores.map((store) => store.id)
 
         // Fetch all reviews at once
         const { data: allReviews } = await supabase
@@ -106,6 +116,7 @@ const Stores = () => {
           .select('vendor_id, category')
           .in('vendor_id', vendorIds)
           .eq('is_available', true)
+          .eq('approval_status', 'approved')
 
         // Process reviews into ratings
         const ratings = {}
@@ -147,8 +158,9 @@ const Stores = () => {
       }
     } catch (error) {
       logger.error('Error loading stores:', error)
-      setError('Failed to load stores. Please try again.')
-      toast.error('Failed to load stores')
+      const loadFailedMessage = t('stores.error.loadFailed', 'Failed to load stores. Please try again.')
+      setError(loadFailedMessage)
+      toast.error(loadFailedMessage)
     } finally {
       setLoading(false)
     }
@@ -187,8 +199,8 @@ const Stores = () => {
 
   const activeSpecialtyTags = useMemo(() => {
     const allCats = new Set(Object.values(storeCategories).flat())
-    return SPECIALTY_OPTIONS.filter(opt => allCats.has(opt.id))
-  }, [storeCategories])
+    return specialtyOptions.filter(opt => allCats.has(opt.id))
+  }, [specialtyOptions, storeCategories])
 
   const clearAllFilters = () => {
     setSearch('')
@@ -227,9 +239,9 @@ const Stores = () => {
         <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
           <XMarkIcon className="w-10 h-10 text-red-400" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('stores.error.genericTitle', 'Something went wrong')}</h2>
         <p className="text-gray-500 mb-6">{error}</p>
-        <button onClick={loadStores} className="btn-primary">Try Again</button>
+        <button onClick={loadStores} className="btn-primary">{t('stores.error.tryAgain', 'Try Again')}</button>
       </div>
     )
   }
@@ -268,9 +280,9 @@ const Stores = () => {
           value={cityFilter}
           onChange={(e) => setCityFilter(e.target.value)}
           className="input text-sm py-2"
-          aria-label="Filter by city"
+          aria-label={t('stores.filters.city', 'Filter by city')}
         >
-          <option value="">All Cities</option>
+          <option value="">{t('stores.filters.allCities', 'All Cities')}</option>
           {cities.map(city => (
             <option key={city} value={city}>{city}</option>
           ))}
@@ -281,9 +293,9 @@ const Stores = () => {
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
           className="input text-sm py-2"
-          aria-label="Filter by category"
+          aria-label={t('stores.filters.category', 'Filter by category')}
         >
-          <option value="">All Categories</option>
+          <option value="">{t('stores.filters.allCategories', 'All Categories')}</option>
           {activeSpecialtyTags.map(cat => (
             <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
           ))}
@@ -294,9 +306,9 @@ const Stores = () => {
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           className="input text-sm py-2"
-          aria-label="Sort stores"
+          aria-label={t('stores.filters.sortBy', 'Sort stores')}
         >
-          {SORT_OPTIONS.map(opt => (
+          {sortOptions.map(opt => (
             <option key={opt.id} value={opt.id}>{opt.label}</option>
           ))}
         </select>
@@ -306,10 +318,10 @@ const Stores = () => {
           <button
             onClick={clearAllFilters}
             className="text-sm text-green-600 hover:underline flex items-center gap-1"
-            aria-label="Clear all filters"
+            aria-label={t('stores.filters.clearAll', 'Clear all filters')}
           >
             <XMarkIcon className="w-4 h-4" />
-            Clear all
+            {t('stores.filters.clearAll', 'Clear all')}
           </button>
         )}
 
@@ -317,10 +329,10 @@ const Stores = () => {
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
           className="lg:hidden ml-auto flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
-          aria-label="Toggle filters"
+          aria-label={t('stores.filters.label', 'Filters')}
         >
           <AdjustmentsHorizontalIcon className="w-5 h-5" />
-          Filters
+          {t('stores.filters.label', 'Filters')}
         </button>
       </div>
 
@@ -331,15 +343,15 @@ const Stores = () => {
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
               <MapPinIcon className="w-3.5 h-3.5" />
               {cityFilter}
-              <button onClick={() => setCityFilter('')} className="hover:text-green-900" aria-label="Remove city filter">
+              <button onClick={() => setCityFilter('')} className="hover:text-green-900" aria-label={t('stores.filters.removeCity', 'Remove city filter')}>
                 <XMarkIcon className="w-3 h-3" />
               </button>
             </span>
           )}
           {categoryFilter && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
-              {SPECIALTY_OPTIONS.find(c => c.id === categoryFilter)?.emoji} {SPECIALTY_OPTIONS.find(c => c.id === categoryFilter)?.label}
-              <button onClick={() => setCategoryFilter('')} className="hover:text-green-900" aria-label="Remove category filter">
+              {specialtyOptions.find(c => c.id === categoryFilter)?.emoji} {specialtyOptions.find(c => c.id === categoryFilter)?.label}
+              <button onClick={() => setCategoryFilter('')} className="hover:text-green-900" aria-label={t('stores.filters.removeCategory', 'Remove category filter')}>
                 <XMarkIcon className="w-3 h-3" />
               </button>
             </span>
@@ -398,7 +410,7 @@ const Stores = () => {
                   {/* Online/Offline Indicator */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm">
                     <span className={`w-2 h-2 rounded-full ${store.is_online ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                    <span className="text-xs text-gray-600">{store.is_online ? 'Online' : 'Offline'}</span>
+                    <span className="text-xs text-gray-600">{store.is_online ? t('stores.status.online', 'Online') : t('stores.status.offline', 'Offline')}</span>
                   </div>
                 </div>
 
@@ -453,11 +465,11 @@ const Stores = () => {
                           <span className="text-xs text-gray-400">({rating.count})</span>
                         </>
                       ) : (
-                        <span className="text-xs text-gray-400">No reviews yet</span>
+                        <span className="text-xs text-gray-400">{t('stores.rating.noReviews', 'No reviews yet')}</span>
                       )}
                     </div>
                     <span className="inline-flex items-center gap-1 text-sm font-medium text-green-600 group-hover:gap-2 transition-all">
-                      Visit Store
+                      {t('stores.cta.visitStore', 'Visit Store')}
                       <ArrowTopRightOnSquareIcon className="w-4 h-4" />
                     </span>
                   </div>

@@ -9,6 +9,7 @@ import { Card, LoadingSpinner } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import storeTypeService from '@/services/storeTypeService'
+import { isPublicVendorVisible } from '@/utils/publicVisibility'
 
 const VendorProfilePublic = () => {
   const { id } = useParams()
@@ -32,6 +33,12 @@ const VendorProfilePublic = () => {
         if (vendorError && vendorError.code !== 'PGRST116') {
           // PGRST116 = row not found → handled by null check below
           throw vendorError
+        }
+
+        if (vendorData?.role !== 'vendor' || (vendorData && !isPublicVendorVisible(vendorData))) {
+          setVendor(null)
+          setCanSeeContact(false)
+          return
         }
 
         setVendor(vendorData || null)

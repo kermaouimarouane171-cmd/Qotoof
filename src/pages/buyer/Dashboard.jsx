@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { Card, LoadingSpinner, ProductCard } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { runProductImageFallbackQuery } from '@/services/productImages'
 import { supabase } from '@/services/supabase'
 import { realtimeService } from '@/services/realtime'
 import { deliveriesApi } from '@/services/deliveries'
@@ -30,6 +31,16 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'
+
+const DASHBOARD_PRODUCT_FIELDS = `
+  *,
+  vendor:profiles!products_vendor_id_fkey(first_name, last_name, city, store_name, is_verified)
+`
+
+const DASHBOARD_PRODUCT_SELECT = `
+  ${DASHBOARD_PRODUCT_FIELDS},
+  images:product_images(url, is_primary)
+`
 
 // ============================================
 // Quick Action Item
@@ -129,14 +140,10 @@ const BuyerDashboard = () => {
       }
 
       // ✅ STEP 3: Run independent queries in parallel with Promise.allSettled
-      const buildProductsQuery = () => {
+      const buildProductsQuery = (selectClause) => {
         let query = supabase
           .from('products')
-          .select(`
-            *,
-            vendor:profiles!products_vendor_id_fkey(first_name, last_name, city, store_name, is_verified),
-            images:product_images(url, is_primary)
-          `)
+          .select(selectClause)
           .eq('is_available', true)
 
         if (vendorIds.length > 0) {
@@ -147,20 +154,24 @@ const BuyerDashboard = () => {
       }
 
       const [recommendedResult, seasonalResult, storesResult] = await Promise.allSettled([
-        // Recommended products
-        buildProductsQuery(),
+        runProductImageFallbackQuery({
+          buildQuery: buildProductsQuery,
+          selectWithImages: DASHBOARD_PRODUCT_SELECT,
+          selectWithoutImages: DASHBOARD_PRODUCT_FIELDS,
+          onRelationError: (error) => logger.warn('Buyer dashboard recommended products: product_images relation missing, hydrating separately', error),
+        }),
 
-        // Seasonal products (currently popular)
-        supabase
-          .from('products')
-          .select(`
-            *,
-            vendor:profiles!products_vendor_id_fkey(first_name, last_name, city, store_name, is_verified),
-            images:product_images(url, is_primary)
-          `)
-          .eq('is_available', true)
-          .order('created_at', { ascending: false })
-          .limit(4),
+        runProductImageFallbackQuery({
+          buildQuery: (selectClause) => supabase
+            .from('products')
+            .select(selectClause)
+            .eq('is_available', true)
+            .order('created_at', { ascending: false })
+            .limit(4),
+          selectWithImages: DASHBOARD_PRODUCT_SELECT,
+          selectWithoutImages: DASHBOARD_PRODUCT_FIELDS,
+          onRelationError: (error) => logger.warn('Buyer dashboard seasonal products: product_images relation missing, hydrating separately', error),
+        }),
 
         // Favorite/recently visited stores
         supabase

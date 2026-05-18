@@ -154,8 +154,8 @@ export const getSupabaseUrl = () => getConfig()?.supabase.url || ''
 export const getSupabaseAnonKey = () => getConfig()?.supabase.anonKey || ''
 export const getPayPalClientId = () => getConfig()?.paypal.clientId || ''
 export const getPayPalSettlementCurrency = () => getConfig()?.paypal.settlementCurrency || 'EUR'
-// Backward compatibility for older imports.
-export const getStripePublishableKey = getPayPalClientId
+// Stripe marketplace checkout is retired; keep the export but never alias it to PayPal.
+export const getStripePublishableKey = () => ''
 export const getRecaptchaSiteKey = () => getConfig()?.recaptcha.siteKey || ''
 export const getAppName = () => getConfig()?.app.name || 'Qotoof'
 

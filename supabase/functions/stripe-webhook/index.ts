@@ -1,6 +1,7 @@
 // ============================================
 // Supabase Edge Function: stripe-webhook
-// Handles Stripe webhook events for subscription management
+// Handles Stripe webhook events for subscription management only.
+// Marketplace order checkout uses PayPal/bank flows instead.
 // ============================================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'

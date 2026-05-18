@@ -10,6 +10,11 @@ import { CheckCircleIcon, ClockIcon, TruckIcon, ShoppingBagIcon, MapPinIcon, Pho
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
+const formatSyncTime = (value) => {
+  if (!value) return null
+  return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
 const OrderTracking = () => {
   const { t } = useTranslation()
   const { id } = useParams()
@@ -17,8 +22,10 @@ const OrderTracking = () => {
   const { user } = useAuthStore()
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [realtimeConnected, setRealtimeConnected] = useState(false)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null)
   const subscriptionRef = useRef(null)
 
   // Status steps with full coverage
@@ -55,14 +62,16 @@ const OrderTracking = () => {
   // ============================================================
   // LOAD ORDER — WITH OWNERSHIP VERIFICATION (IDOR Prevention)
   // ============================================================
-  const loadOrder = useCallback(async () => {
+  const loadOrder = useCallback(async ({ silent = false } = {}) => {
     if (!user) {
       navigate('/login', { state: { from: `/orders/${id}/tracking` } })
       return
     }
 
     try {
-      setLoading(true)
+      if (!silent) {
+        setLoading(true)
+      }
       setError(null)
 
       // Verify session is still valid
@@ -103,14 +112,26 @@ const OrderTracking = () => {
       }
 
       setOrder(data)
+      setLastUpdatedAt(new Date())
     } catch (error) {
       logger.error('Error loading order:', error)
       setError('load_failed')
       toast.error(t('tracking.loadFailed', 'Failed to load order'))
     } finally {
-      setLoading(false)
+      if (!silent) {
+        setLoading(false)
+      }
     }
   }, [id, navigate, t, user])
+
+  const handleManualRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await loadOrder({ silent: true })
+    } finally {
+      setRefreshing(false)
+    }
+  }, [loadOrder])
 
   useEffect(() => {
     if (!user) {
@@ -145,6 +166,7 @@ const OrderTracking = () => {
             payload.new?.driver_id === user?.id
           ) {
             setOrder((prev) => (prev ? { ...prev, ...payload.new } : payload.new))
+            setLastUpdatedAt(new Date())
             toast.success(t('tracking.orderUpdated', 'Order status updated!'))
           }
         }
@@ -152,6 +174,11 @@ const OrderTracking = () => {
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           setRealtimeConnected(true)
+          return
+        }
+
+        if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status)) {
+          setRealtimeConnected(false)
         }
       })
 
@@ -262,6 +289,31 @@ const OrderTracking = () => {
             number: order.order_number || id?.slice(0, 8),
           })}
         </p>
+        <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm ${realtimeConnected ? 'border-green-200 bg-green-50 text-green-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`} data-testid="tracking-sync-status">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium">
+                {realtimeConnected
+                  ? t('tracking.liveConnected', 'Live tracking is connected.')
+                  : t('tracking.liveDisconnected', 'Live updates are unavailable right now.')}
+              </p>
+              <p className="mt-1 text-xs leading-6">
+                {lastUpdatedAt
+                  ? t('tracking.lastUpdated', 'Last update at {{time}}.', { time: formatSyncTime(lastUpdatedAt) })
+                  : t('tracking.lastUpdatedFallback', 'Tracking will refresh once data is received.')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleManualRefresh}
+              disabled={refreshing}
+              data-testid="tracking-manual-refresh"
+              className={`inline-flex items-center justify-center rounded-xl px-4 py-2 font-medium transition-colors ${realtimeConnected ? 'bg-white text-green-700 hover:bg-green-100' : 'bg-white text-amber-800 hover:bg-amber-100'} disabled:opacity-60`}
+            >
+              {refreshing ? t('tracking.refreshing', 'Refreshing...') : t('tracking.refreshNow', 'Refresh now')}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Progress Timeline */}

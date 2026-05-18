@@ -207,9 +207,10 @@ const parseEnv = async (relativePath) => {
 }
 
 const mergeEnv = async () => {
-  const envFiles = ['.env', '.env.local', '.env.production', '.env.example']
-  const values = await Promise.all(envFiles.map(parseEnv))
-  return Object.assign({}, ...values)
+  // For production check, ONLY read .env.production - don't fall back to .env.example
+  // This ensures we catch real missing/placeholder values
+  const env = await parseEnv('.env.production')
+  return env
 }
 
 const isPlaceholderValue = (value) => {

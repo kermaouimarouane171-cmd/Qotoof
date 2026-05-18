@@ -134,6 +134,21 @@
       "copyright": "© {{year}} قطوف - Qotoof. جميع الحقوق محفوظة."
     }
   },
+  "authLayout": {
+    "hero": {
+      "badge": "#1 سوق B2B",
+      "title": "طازج من",
+      "subtitle": "المزرعة إلى عملك",
+      "description": "تواصل مباشرة مع المزارعين والمشاتل. اشترِ بالجملة ووفر أكثر.",
+      "imageAlt": "منتجات طازجة",
+      "stats": {
+        "activeProducts": "منتجات نشطة",
+        "verifiedVendors": "بائعون موثوقون",
+        "ordersCompleted": "طلبات مكتملة",
+        "satisfactionRate": "معدل الرضا"
+      }
+    }
+  },
   "marketplace": {
     "title": "السوق",
     "subtitle": "اعثر على نباتات وخضروات وفاكهة بالجملة",
@@ -145,6 +160,31 @@
     },
     "filtersLabel": "التصفية",
     "sortByLabel": "ترتيب حسب",
+    "searchPlaceholder": "ابحث عن منتج أو فئة أو فئة فرعية...",
+    "categoryTabs": "فئات المنتجات",
+    "clearAllFilters": "مسح جميع الفلاتر",
+    "clearAll": "مسح الكل",
+    "subcategory": "الفئة الفرعية",
+    "allSubcategories": "كل الفئات الفرعية",
+    "region": "المدينة",
+    "allRegions": "كل المدن",
+    "priceRange": "نطاق السعر",
+    "min": "من",
+    "minPrice": "السعر الأدنى",
+    "max": "إلى",
+    "maxPrice": "السعر الأقصى",
+    "rating": "الحد الأدنى للتقييم",
+    "anyRating": "أي تقييم",
+    "inStockOnly": "متوفر حالياً فقط",
+    "openFilters": "فتح الفلاتر",
+    "filtersPanel": "خيارات الفلاتر",
+    "showResults": "عرض {{count}} نتيجة",
+    "showingResults": "عرض {{current}} من أصل {{total}} منتج",
+    "productsGrid": "قائمة المنتجات",
+    "pagination": "ترقيم صفحات المنتجات",
+    "previousPage": "الصفحة السابقة",
+    "pageNumber": "الصفحة {{num}}",
+    "nextPage": "الصفحة التالية",
     "filters": {
       "priceRange": "نطاق السعر",
       "location": "الموقع",
@@ -156,7 +196,18 @@
       "newest": "الأحدث أولاً",
       "priceLow": "السعر: من الأقل للأعلى",
       "priceHigh": "السعر: من الأعلى للأقل",
-      "rating": "الأعلى تقييماً"
+      "rating": "الأعلى تقييماً",
+      "name": "الاسم: أ - ي"
+    },
+    "ratingOptions": {
+      "2": "2+ نجوم",
+      "3": "3+ نجوم",
+      "4": "4+ نجوم"
+    },
+    "empty": {
+      "title": "لا توجد منتجات مطابقة",
+      "description": "جرّب تعديل البحث أو الفلاتر للوصول إلى نتائج أوسع",
+      "clearFilters": "مسح الفلاتر"
     },
     "addToCart": "أضف إلى السلة",
     "viewDetails": "عرض التفاصيل",
@@ -164,11 +215,220 @@
     "location": "الموقع",
     "minOrder": "الحد الأدنى للطلب"
   },
+  "search": {
+    "filters": "الفلاتر",
+    "clearFilters": "مسح الفلاتر",
+    "category": "الفئة الرئيسية",
+    "allCategories": "كل الفئات",
+    "subcategory": "الفئة الفرعية",
+    "allSubcategories": "كل الفئات الفرعية",
+    "region": "المدينة",
+    "allRegions": "كل المدن",
+    "priceRange": "نطاق السعر",
+    "minPrice": "السعر الأدنى",
+    "maxPrice": "السعر الأقصى",
+    "rating": "التقييم الأدنى",
+    "anyRating": "أي تقييم",
+    "inStockOnly": "متوفر حالياً فقط",
+    "results": "نتيجة",
+    "forQuery": "لـ",
+    "startPrompt": "ابدأ بالبحث أو اختر فلتر لعرض المنتجات المناسبة",
+    "noResults": "لا توجد نتائج مطابقة",
+    "tryOther": "جرّب تقليل عدد الفلاتر أو تغيير كلمات البحث",
+    "sortBy": {
+      "relevance": "الأكثر صلة",
+      "newest": "الأحدث أولاً",
+      "priceLow": "السعر: من الأقل للأعلى",
+      "priceHigh": "السعر: من الأعلى للأقل",
+      "rating": "الأعلى تقييماً",
+      "name": "الاسم: أ - ي"
+    }
+  },
+  "stores": {
+    "title": "جميع المتاجر",
+    "browseStores": "تصفح {{count}} متجرًا على قطوف",
+    "searchPlaceholder": "ابحث عن متجر بالاسم...",
+    "searchLabel": "ابحث في المتاجر",
+    "filters": {
+      "label": "الفلاتر",
+      "city": "التصفية حسب المدينة",
+      "allCities": "كل المدن",
+      "category": "التصفية حسب الفئة",
+      "allCategories": "كل الفئات",
+      "sortBy": "ترتيب المتاجر",
+      "clearAll": "مسح الكل",
+      "removeCity": "إزالة فلتر المدينة",
+      "removeCategory": "إزالة فلتر الفئة"
+    },
+    "specialties": {
+      "plants": "نباتات",
+      "vegetables": "خضروات",
+      "fruits": "فواكه",
+      "herbs": "أعشاب",
+      "seeds": "بذور"
+    },
+    "sortOptions": {
+      "newest": "الأحدث أولاً",
+      "oldest": "الأقدم أولاً",
+      "highest_rated": "الأعلى تقييماً",
+      "most_reviewed": "الأكثر مراجعة"
+    },
+    "status": {
+      "online": "متصل",
+      "offline": "غير متصل"
+    },
+    "rating": {
+      "noReviews": "لا توجد مراجعات بعد"
+    },
+    "cta": {
+      "visitStore": "زيارة المتجر"
+    },
+    "visitStoreCard": "زيارة المتجر: {{storeName}}",
+    "empty": {
+      "title": "لم يتم العثور على متاجر",
+      "description": "جرّب تعديل الفلاتر أو كلمات البحث",
+      "clearFilters": "مسح الفلاتر"
+    },
+    "error": {
+      "loadFailed": "تعذر تحميل المتاجر. حاول مرة أخرى.",
+      "genericTitle": "حدث خطأ ما",
+      "tryAgain": "حاول مرة أخرى"
+    }
+  },
+  "storeDetail": {
+    "breadcrumb": "مسار التنقل",
+    "meta": {
+      "title": "{{storeName}} | متاجر قطوف - Qotoof",
+      "defaultDescription": "{{storeName}} - متجر على سوق قطوف"
+    },
+    "notFound": {
+      "title": "المتجر غير موجود",
+      "description": "المتجر الذي تبحث عنه غير موجود أو تمت إزالته."
+    },
+    "error": {
+      "title": "حدث خطأ ما",
+      "loadStoreFailed": "تعذر تحميل معلومات المتجر. حاول مرة أخرى.",
+      "loadProductsFailed": "تعذر تحميل المنتجات",
+      "followUpdateFailed": "تعذر تحديث حالة المتابعة",
+      "submitReviewFailed": "تعذر إرسال التقييم",
+      "tryAgain": "حاول مرة أخرى"
+    },
+    "actions": {
+      "backToStores": "العودة إلى المتاجر",
+      "shareStore": "مشاركة المتجر",
+      "followStore": "متابعة المتجر",
+      "following": "تتم المتابعة",
+      "callSeller": "اتصل بالبائع",
+      "sendMessage": "إرسال رسالة",
+      "clearSearch": "مسح البحث",
+      "clearAll": "مسح الكل",
+      "clearFilters": "مسح الفلاتر",
+      "shareCopied": "تم نسخ رابط المتجر",
+      "loginToFollow": "سجّل الدخول لمتابعة المتاجر",
+      "unfollowSuccess": "تم إلغاء متابعة المتجر",
+      "followSuccess": "أنت الآن تتابع هذا المتجر!",
+      "loginToMessage": "سجّل الدخول لإرسال الرسائل"
+    },
+    "badges": {
+      "verifiedStore": "متجر موثّق"
+    },
+    "setup": {
+      "storeType": "نوع المتجر",
+      "deliveryOption": "خيار التوصيل",
+      "activeProducts": "المنتجات النشطة",
+      "nextTierProgress": "التقدم نحو النوع التالي",
+      "activeProductsCountValue": "{{count}} منتج",
+      "storeTypes": {
+        "small": "متجر صغير",
+        "medium": "متجر متوسط",
+        "enterprise": "متجر مؤسسي"
+      },
+      "deliveryOptions": {
+        "self": "التوصيل الذاتي",
+        "find_driver": "البحث عن سائق",
+        "own_driver": "السائق المرتبط"
+      },
+      "progress": {
+        "complete": "وصل متجرك إلى أعلى فئة متاحة حالياً.",
+        "headline": "يفصلك {{count}} للوصول إلى {{nextStoreType}}."
+      }
+    },
+    "stats": {
+      "noReviews": "لا توجد مراجعات بعد",
+      "newInMarket": "جديد في السوق",
+      "monthsInMarket": "{{count}} شهرًا في السوق",
+      "yearsInMarket": "{{count}}+ سنة في السوق",
+      "respondsIn": "يرد خلال نحو {{hours}}س",
+      "minOrder": "الحد الأدنى للطلب: {{amount}}"
+    },
+    "products": {
+      "title": "المنتجات",
+      "sortAria": "ترتيب المنتجات",
+      "searchPlaceholder": "ابحث عن منتجات هذا المتجر...",
+      "searchLabel": "ابحث في منتجات المتجر",
+      "filters": "الفلاتر",
+      "searchTag": "البحث: \"{{query}}\"",
+      "emptyTitle": "لم يتم العثور على منتجات",
+      "emptyFiltered": "جرّب تعديل الفلاتر أو كلمات البحث",
+      "emptyInitial": "لا يملك هذا المتجر منتجات بعد",
+      "categories": {
+        "all": "كل المنتجات",
+        "plants": "نباتات وأشجار",
+        "vegetables": "خضروات",
+        "fruits": "فواكه",
+        "herbs": "أعشاب",
+        "seeds": "بذور"
+      },
+      "sortOptions": {
+        "newest": "الأحدث أولاً",
+        "priceLow": "السعر: من الأقل للأعلى",
+        "priceHigh": "السعر: من الأعلى للأقل",
+        "name": "الاسم أ-ي"
+      },
+      "pagination": {
+        "previous": "السابق",
+        "page": "الصفحة {{current}} من {{total}}",
+        "next": "التالي"
+      }
+    },
+    "location": {
+      "title": "موقع المتجر",
+      "address": "العنوان",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني",
+      "status": "الحالة",
+      "checking": "جارٍ التحقق...",
+      "openNow": "مفتوح الآن",
+      "closed": "مغلق",
+      "businessHours": "ساعات العمل",
+      "noPhone": "لا يوجد رقم هاتف متاح"
+    },
+    "reviews": {
+      "title": "التقييمات",
+      "summary": "{{count}} تقييم",
+      "writeTitle": "اكتب تقييمًا",
+      "ratingLabel": "التقييم",
+      "yourReviewLabel": "تقييمك (اختياري)",
+      "yourReviewPlaceholder": "شارك تجربتك مع هذا المتجر...",
+      "submitting": "جارٍ الإرسال...",
+      "submit": "إرسال التقييم",
+      "loginPromptPrefix": "يرجى",
+      "loginLink": "تسجيل الدخول",
+      "loginPromptSuffix": "لكتابة تقييم",
+      "emptyTitle": "لا توجد تقييمات بعد",
+      "emptyDescription": "كن أول من يقيّم هذا المتجر",
+      "anonymousUser": "مستخدم",
+      "loginRequired": "يرجى تسجيل الدخول لإضافة تقييم",
+      "selectRating": "يرجى اختيار تقييم",
+      "submitSuccess": "تم إرسال التقييم بنجاح!"
+    }
+  },
   "product": {
     "details": "تفاصيل المنتج",
     "description": "الوصف",
     "price": "السعر",
     "perUnit": "لكل {{unit}}",
+    "breadcrumb": "مسار التنقل",
     "available": "متوفر",
     "outOfStock": "غير متوفر",
     "quantity": "الكمية",
@@ -178,7 +438,96 @@
     "viewStore": "عرض المتجر",
     "reviews": "التقييمات",
     "noReviews": "لا توجد تقييمات بعد",
-    "relatedProducts": "منتجات مشابهة"
+    "relatedProducts": "منتجات مشابهة",
+    "previousImage": "الصورة السابقة",
+    "nextImage": "الصورة التالية",
+    "imageThumbnail": "عرض الصورة {{num}}",
+    "minOrder": "الحد الأدنى للطلب هو {{min}} {{unit}}",
+    "exceedsStock": "الكمية المطلوبة تتجاوز المخزون المتاح ({{max}} {{unit}})",
+    "notFound": {
+      "title": "المنتج غير موجود",
+      "description": "المنتج الذي تبحث عنه غير موجود أو تمت إزالته.",
+      "backToMarketplace": "العودة إلى السوق"
+    }
+  },
+  "productDetail": {
+    "meta": {
+      "title": "{{productName}} | قطوف - Qotoof",
+      "defaultDescription": "{{productName}} - {{category}} متوفر على سوق قطوف"
+    },
+    "vendor": {
+      "unknown": "بائع غير معروف",
+      "locationTitle": "موقع البائع"
+    },
+    "badges": {
+      "lowStock": "مخزون منخفض",
+      "organic": "عضوي",
+      "local": "محلي"
+    },
+    "purchase": {
+      "minOrder": "الحد الأدنى للطلب: {{quantity}} {{unit}}",
+      "available": "المتوفر: {{quantity}} {{unit}}",
+      "quantityLabel": "الكمية ({{unit}})",
+      "quantityMultiple": "يجب أن تكون الكمية مضاعفًا لـ {{quantity}} {{unit}}",
+      "totalPrice": "السعر الإجمالي:"
+    },
+    "waitlist": {
+      "title": "هذا المنتج غير متوفر حاليًا",
+      "description": "سنرسل لك إشعارًا داخل المنصة فور عودة هذا المنتج إلى المخزون.",
+      "count": "عدد المنتظرين الحالي: {{count}}",
+      "alreadyJoined": "أنت مسجل بالفعل في قائمة الانتظار",
+      "join": "انضم إلى قائمة الانتظار",
+      "loginRequired": "يرجى تسجيل الدخول أولاً للانضمام إلى قائمة الانتظار",
+      "joinSuccess": "تمت إضافتك إلى قائمة الانتظار بنجاح",
+      "joinFailed": "تعذر إضافتك إلى قائمة الانتظار"
+    },
+    "features": {
+      "fastDeliveryTitle": "توصيل سريع",
+      "fastDeliveryBody": "خلال 24-48 ساعة",
+      "qualityAssuredTitle": "جودة مضمونة",
+      "qualityAssuredBody": "بائع موثق"
+    },
+    "refund": {
+      "title": "سياسة الاسترجاع",
+      "returnWindow": "نافذة الإرجاع",
+      "returnWindowValue": "{{count}} يوم",
+      "partialReturns": "الإرجاع الجزئي",
+      "allowed": "مسموح",
+      "notAllowed": "غير مسموح",
+      "shippingResponsibility": "شحن الإرجاع",
+      "shippingPaidBy": {
+        "vendor": "على البائع",
+        "shared": "مشاركة بين الطرفين",
+        "buyer": "على المشتري"
+      },
+      "nonReturnable": "فئات غير قابلة للإرجاع: {{categories}}"
+    },
+    "farming": {
+      "title": "معلومات الزراعة",
+      "scientificName": "الاسم العلمي",
+      "season": "الموسم",
+      "careInstructions": "تعليمات العناية"
+    },
+    "reviews": {
+      "summary": "{{count}} تقييم",
+      "writeTitle": "أضف تقييمك",
+      "ratingLabel": "التقييم",
+      "yourReviewLabel": "تعليقك (اختياري)",
+      "yourReviewPlaceholder": "شارك تجربتك مع هذا المنتج...",
+      "submitting": "جاري الإرسال...",
+      "submit": "إرسال التقييم",
+      "loginPromptPrefix": "يرجى",
+      "loginLink": "تسجيل الدخول",
+      "loginPromptSuffix": "لإضافة تقييم",
+      "emptyDescription": "لا توجد تقييمات بعد لهذا المنتج",
+      "anonymousInitial": "م",
+      "anonymousUser": "مستخدم",
+      "vendorReply": "رد البائع",
+      "loginRequired": "يجب تسجيل الدخول لإضافة تقييم",
+      "selectRating": "الرجاء اختيار تقييم",
+      "submitSuccess": "تم إرسال التقييم بنجاح!",
+      "submitFailed": "حدث خطأ أثناء إرسال التقييم"
+    }
   },
   "cart": {
     "title": "سلة التسوق",
@@ -191,7 +540,12 @@
     "quantity": "الكمية",
     "remove": "إزالة",
     "checkout": "متابعة الدفع",
-    "continueShopping": "متابعة التسوق"
+    "continueShopping": "متابعة التسوق",
+    "item": "منتج",
+    "items": "منتجات",
+    "fromVendors": "من {{count}} بائعين",
+    "clearCart": "تفريغ السلة",
+    "orderSummary": "ملخص الطلب"
   },
   "checkout": {
     "title": "الدفع",
@@ -1495,7 +1849,7 @@
   },
   "orderTracking": {
     "title": "تتبع طلبك",
-    "subtitle": "أدخل رقم الطلب أو رقم الهاتف المسجل للتحقق من حالة التوصيل.",
+    "subtitle": "أدخل رقم الطلب ورقم الهاتف المسجل للتحقق من حالة التوصيل.",
     "unknownProduct": "منتج غير معروف",
     "form": {
       "orderNumber": {
@@ -1504,6 +1858,7 @@
         "hint": "تجد رقم الطلب في رسالة تأكيد البريد الإلكتروني"
       },
       "or": "أو",
+      "and": "معًا",
       "phone": {
         "label": "رقم الهاتف",
         "placeholder": "+212 6XX-XXXXXX",
@@ -1525,7 +1880,7 @@
         "max": "رقم الهاتف طويل جداً",
         "format": "أدخل رقم هاتف مغربي صحيح (مثال: +212612345678)"
       },
-      "atLeastOne": "يرجى إدخال رقم الطلب أو رقم الهاتف",
+      "atLeastOne": "يرجى إدخال رقم الطلب ورقم الهاتف معًا",
       "xssDetected": "تم اكتشاف أحرف غير صالحة",
       "sqlDetected": "تم اكتشاف أحرف غير صالحة"
     },
@@ -1566,8 +1921,8 @@
         "desc": "تجده في رسالة تأكيد البريد الإلكتروني أو سجل الطلبات في حسابك"
       },
       "step2": {
-        "title": "أو استخدم رقم الهاتف",
-        "desc": "أدخل رقم الهاتف المغربي الذي استخدمته عند تقديم الطلب"
+        "title": "أدخل رقم الهاتف",
+        "desc": "استخدم نفس رقم الهاتف المغربي الذي استُخدم عند تقديم الطلب"
       },
       "step3": {
         "title": "تتبع التوصيل",
@@ -1593,6 +1948,7 @@
     },
     "errors": {
       "rateLimited": "محاولات كثيرة جداً. يرجى الانتظار {{minutes}} دقائق قبل المحاولة مرة أخرى.",
+      "requiresOrderAndPhone": "يرجى إدخال رقم الطلب ورقم الهاتف معًا لأسباب أمنية.",
       "searchFailed": "فشل البحث. يرجى المحاولة مرة أخرى."
     }
   },
@@ -2709,6 +3065,7 @@
       "trackLive": "تتبع مباشر",
       "track": "تتبع",
       "callDriver": "اتصل بالسائق",
+      "driverPhoneUnavailable": "رقم هاتف السائق غير متاح حالياً",
       "selectionCount": "طلب(طلبات) محددة",
       "clearSelection": "مسح التحديد",
       "selectAll": "تحديد الكل",
@@ -2955,6 +3312,28 @@
     "helpText": "إذا كنت تعتقد أن هذا خطأ، يرجى",
     "contactSupport": "التواصل مع الدعم"
   },
+  "internalServerError": {
+    "title": "خطأ داخلي في الخادم",
+    "description": "حدث خلل غير متوقع. حاول مرة أخرى بعد قليل أو عد إلى الصفحة الرئيسية.",
+    "retry": "إعادة المحاولة",
+    "backHome": "العودة للرئيسية"
+  },
+  "serviceUnavailable": {
+    "title": "الخدمة غير متاحة مؤقتًا",
+    "description": "قد تكون المنصة تحت الصيانة أو ضغط مرتفع. يرجى المحاولة بعد دقائق.",
+    "retry": "إعادة المحاولة",
+    "backHome": "العودة للرئيسية"
+  },
+  "errorBoundary": {
+    "title": "حدث خطأ ما",
+    "description": "عذراً، حدث خطأ غير متوقع في التطبيق.",
+    "chunkReloading": "جاري محاولة تحديث التطبيق تلقائياً. إذا استمرت المشكلة، أعد تحميل الصفحة يدوياً.",
+    "errorLabel": "الخطأ:",
+    "fullDetails": "التفاصيل الكاملة",
+    "tryAgain": "حاول مرة أخرى",
+    "backHome": "العودة للرئيسية",
+    "sentryFallback": "حدث خطأ غير متوقع. حاول تحديث الصفحة."
+  },
   "becomeVendor": {
     "title": "كن بائعاً",
     "subtitle": "ابدأ البيع على قطوف",
@@ -3007,9 +3386,11 @@
   "helpCenter": {
     "title": "مركز المساعدة",
     "subtitle": "اعثر على إجابات أو تواصل مع الدعم",
+    "loginRequired": "يرجى تسجيل الدخول لإرسال تذكرة دعم.",
     "contact": {
       "ticket": "تذكرة دعم",
-      "ticketDesc": "إرسال تذكرة",
+      "ticketDesc": "أرسل تذكرة",
+      "ticketLoginDesc": "سجل الدخول لإرسال تذكرة دعم",
       "call": "اتصل بنا",
       "email": "البريد الإلكتروني"
     },
@@ -3121,6 +3502,90 @@
       "shipping": "الشحن",
       "browse": "تصفح",
       "casablancaMorocco": "الدار البيضاء، المغرب"
+    },
+    "shared": {
+      "backToSite": "العودة للموقع"
+    },
+    "admin": {
+      "panelTitle": "الإدارة",
+      "defaultTitle": "الإدارة",
+      "links": {
+        "dashboard": "لوحة التحكم",
+        "users": "المستخدمون",
+        "vendors": "البائعون",
+        "drivers": "السائقون",
+        "products": "المنتجات",
+        "orders": "الطلبات",
+        "analytics": "التحليلات",
+        "reports": "التقارير",
+        "moderation": "الإشراف",
+        "fraudReports": "بلاغات الاحتيال",
+        "commissions": "العمولات",
+        "commissionManagement": "إدارة العمولات",
+        "disputes": "نزاعات الدفع",
+        "payouts": "المدفوعات",
+        "reviews": "التقييمات",
+        "supportTickets": "تذاكر الدعم",
+        "security": "الأمن",
+        "settings": "الإعدادات"
+      }
+    },
+    "vendor": {
+      "panelTitle": "متجري",
+      "defaultTitle": "البائع",
+      "links": {
+        "dashboard": "لوحة التحكم",
+        "products": "منتجاتي",
+        "orders": "الطلبات",
+        "deliveryOptions": "خيار التوصيل",
+        "driverPreferences": "السائق المفضل",
+        "findDriver": "البحث عن سائق",
+        "analytics": "التحليلات",
+        "reviews": "التقييمات",
+        "coupons": "الكوبونات",
+        "premium": "الاشتراك المميز",
+        "rfqBoard": "لوحة طلبات التسعير",
+        "schedules": "المواعيد",
+        "location": "الموقع",
+        "profile": "الملف الشخصي",
+        "settings": "الإعدادات"
+      }
+    },
+    "driver": {
+      "panelTitle": "السائق",
+      "defaultTitle": "السائق",
+      "links": {
+        "dashboard": "لوحة التحكم",
+        "active": "التوصيلات النشطة",
+        "available": "الطلبات المتاحة",
+        "vendorPreferences": "البائع المفضل",
+        "findVendor": "البحث عن بائع",
+        "history": "السجل",
+        "earnings": "الأرباح",
+        "profile": "الملف الشخصي",
+        "settings": "الإعدادات"
+      }
+    },
+    "buyer": {
+      "links": {
+        "dashboard": "لوحة التحكم",
+        "orders": "الطلبات",
+        "addresses": "العناوين",
+        "shoppingLists": "قوائم التسوق",
+        "myRequests": "طلباتي",
+        "loyalty": "الولاء",
+        "settings": "الإعدادات"
+      }
+    },
+    "dashboard": {
+      "closeMenu": "إغلاق القائمة",
+      "preferences": "التفضيلات",
+      "roles": {
+        "admin": "الإدارة",
+        "vendor": "البائع",
+        "driver": "السائق",
+        "buyer": "المشتري"
+      }
     }
   }
   ,

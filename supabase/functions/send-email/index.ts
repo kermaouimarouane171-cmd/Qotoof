@@ -3,9 +3,13 @@
 // Deploy: supabase functions deploy send-email
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const SMTP_CONFIG = {
   host: Deno.env.get('SMTP_HOST'),
   port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
@@ -19,12 +23,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
-const rateLimit = new Map<string, { count: number; resetAt: number }>()
+const EMAIL_REQUEST_LIMIT = {
+  maxAttempts: 60,
+  windowSeconds: 60,
+  blockSeconds: 60,
+}
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders, ...extraHeaders },
   })
 }
 
@@ -214,18 +222,28 @@ serve(async (req) => {
       return jsonResponse({ error: 'Method not allowed' }, 405)
     }
 
-    // Basic anti-abuse per IP (60 requests/minute)
-    const forwardedFor = req.headers.get('x-forwarded-for') || ''
-    const clientIp = forwardedFor.split(',')[0]?.trim() || 'unknown'
-    const now = Date.now()
-    const rlRecord = rateLimit.get(clientIp)
-    if (!rlRecord || now > rlRecord.resetAt) {
-      rateLimit.set(clientIp, { count: 1, resetAt: now + 60_000 })
-    } else {
-      rlRecord.count += 1
-      if (rlRecord.count > 60) {
-        return jsonResponse({ error: 'Too many requests, try again later' }, 429)
-      }
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return jsonResponse({ error: 'Supabase environment variables are not configured' }, 500)
+    }
+
+    const clientIp = getClientIp(req)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    const rateLimitResult = await enforceServerRateLimit({
+      supabase,
+      scope: 'send_email_request',
+      identifierParts: ['send-email', clientIp],
+      maxAttempts: EMAIL_REQUEST_LIMIT.maxAttempts,
+      windowSeconds: EMAIL_REQUEST_LIMIT.windowSeconds,
+      blockSeconds: EMAIL_REQUEST_LIMIT.blockSeconds,
+    })
+
+    if (!rateLimitResult.allowed) {
+      return jsonResponse(
+        { error: 'Too many requests, try again later' },
+        429,
+        { 'Retry-After': String(rateLimitResult.retry_after_seconds || EMAIL_REQUEST_LIMIT.blockSeconds) },
+      )
     }
 
     const { to, toName, from, fromName, subject, template, data } = await req.json()

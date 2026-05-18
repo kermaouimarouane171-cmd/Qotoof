@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Card } from '@/components/ui'
-import { supabase } from '@/services/supabase'
-import FAQS from '@/data/faqData'
+import { getFaqsForLocale } from '@/data/faqData'
 import {
   ArrowLeftIcon,
   QuestionMarkCircleIcon,
@@ -16,10 +15,12 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { getDisplayErrorMessage } from '@/utils/errorHandler'
 import { APP_CONFIG } from '@/config/appConfig'
+import { createSupportTicket } from '@/services/supportTickets'
 
 const HelpCenter = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const { hash } = useLocation()
   const { user } = useAuthStore()
@@ -36,33 +37,66 @@ const HelpCenter = () => {
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketDescription, setTicketDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const faqs = useMemo(() => getFaqsForLocale(i18n.resolvedLanguage || i18n.language), [i18n.language, i18n.resolvedLanguage])
+
+  const redirectToLogin = useCallback(() => {
+    navigate('/login', { state: { from: '/help' } })
+  }, [navigate])
+
+  const handleBack = useCallback(() => {
+    if (window.history.length > 1) {
+      navigate(-1)
+      return
+    }
+
+    navigate('/')
+  }, [navigate])
+
+  const handleOpenTicketForm = useCallback(() => {
+    if (!user) {
+      toast.error(t('helpCenter.loginRequired', 'Please sign in to submit a support ticket.'))
+      redirectToLogin()
+      return
+    }
+
+    setShowTicketForm(true)
+  }, [redirectToLogin, t, user])
 
   const handleSubmitTicket = async (e) => {
     e.preventDefault()
+
+    if (!user?.id) {
+      toast.error(t('helpCenter.loginRequired', 'Please sign in to submit a support ticket.'))
+      setShowTicketForm(false)
+      redirectToLogin()
+      return
+    }
+
     if (!ticketSubject.trim() || !ticketDescription.trim()) {
-      toast.error(t('helpCenter.errors.fillFields', 'Please fill in all fields'))
+      toast.error(t('helpCenter.errors.fillFields', 'يرجى تعبئة جميع الحقول المطلوبة'))
       return
     }
 
     setSubmitting(true)
     try {
-      const { error } = await supabase
-        .from('support_tickets')
-        .insert({
-          user_id: user.id,
-          subject: ticketSubject.trim(),
-          description: ticketDescription.trim(),
-          status: 'open',
-        })
+      await createSupportTicket({
+        subject: ticketSubject,
+        description: ticketDescription,
+        category: 'general',
+      })
 
-      if (error) throw error
-      toast.success(t('helpCenter.ticketSuccess', "Support ticket submitted! We'll respond within 24 hours."))
+      toast.success(t('helpCenter.ticketSuccess', 'تم إرسال تذكرتك بنجاح. سنرد عليك خلال 24 ساعة.'))
       setTicketSubject('')
       setTicketDescription('')
       setShowTicketForm(false)
     } catch (error) {
       logger.error('Error submitting ticket:', error)
-      toast.error(t('helpCenter.ticketError', 'Failed to submit ticket'))
+      toast.error(getDisplayErrorMessage(error, {
+        network_error: t('helpCenter.ticketErrorNetwork', 'تعذر إرسال التذكرة بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.'),
+        validation: t('helpCenter.ticketErrorValidation', 'يرجى مراجعة البيانات المدخلة ثم إعادة الإرسال.'),
+        server_error: t('helpCenter.ticketErrorServer', 'فريق الدعم غير متاح مؤقتاً. حاول مرة أخرى بعد قليل.'),
+        default: t('helpCenter.ticketError', 'تعذر إرسال التذكرة حالياً. حاول مرة أخرى بعد قليل.'),
+      }))
     } finally {
       setSubmitting(false)
     }
@@ -72,7 +106,7 @@ const HelpCenter = () => {
     <div>
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate('/buyer/dashboard')} className="p-2 hover:bg-gray-100 rounded-lg">
+        <button onClick={handleBack} className="p-2 hover:bg-gray-100 rounded-lg">
           <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
         </button>
         <div>
@@ -87,10 +121,14 @@ const HelpCenter = () => {
       {/* Contact Options */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <Card className="p-5 text-center cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => setShowTicketForm(true)}>
+          onClick={handleOpenTicketForm}>
           <ChatBubbleLeftRightIcon className="w-8 h-8 text-green-600 mx-auto mb-2" />
           <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.ticket', 'Support Ticket')}</h3>
-          <p className="text-xs text-gray-500 mt-1">{t('helpCenter.contact.ticketDesc', 'Submit a ticket')}</p>
+          <p className="text-xs text-gray-500 mt-1">
+            {user
+              ? t('helpCenter.contact.ticketDesc', 'Submit a ticket')
+              : t('helpCenter.contact.ticketLoginDesc', 'Sign in to submit a support ticket')}
+          </p>
         </Card>
         <a href={`tel:${APP_CONFIG.supportPhone}`} className="block">
           <Card className="p-5 text-center hover:shadow-md transition-shadow">
@@ -156,7 +194,7 @@ const HelpCenter = () => {
       <div id="faq" className="scroll-mt-20">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('helpCenter.faq.title', 'Frequently Asked Questions')}</h2>
         <div className="space-y-6">
-          {FAQS.map(category => (
+          {faqs.map(category => (
             <div key={category.category}>
               <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">{category.category}</h3>
               <div className="space-y-2">

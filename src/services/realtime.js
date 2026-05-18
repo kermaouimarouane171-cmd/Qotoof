@@ -35,8 +35,8 @@ class RealtimeService {
   }
 
   /**
-   * Subscribe to orders changes for a user
-   * @param {string} userId - User ID
+    * Subscribe to buyer order changes
+    * @param {string} userId - Buyer user ID
    * @param {function} callback - Callback function for order changes
    * @returns {function} Unsubscribe function
    */
@@ -61,7 +61,7 @@ class RealtimeService {
           event: '*', // INSERT, UPDATE, DELETE
           schema: 'public',
           table: 'orders',
-          filter: `user_id=eq.${userId}`,
+          filter: `buyer_id=eq.${userId}`,
         },
         (payload) => {
           logger.info('Order changed:', payload)
@@ -343,7 +343,7 @@ class RealtimeService {
           if (newQty === 0) {
             toast.error('⚠️ نفذ المنتج من المخزون')
           } else if (newQty <= 10) {
-            toast.warning(`⚠️ مخزون منخفض: ${newQty} متبقي`)
+            toast(`مخزون منخفض: ${newQty} متبقي`, { icon: '⚠️' })
           }
         }
       )

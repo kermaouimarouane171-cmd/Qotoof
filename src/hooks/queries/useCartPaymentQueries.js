@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { hydrateRowsWithProductField, isProductImagesRelationError } from '@/services/productImages'
 import { supabase } from '@/services/supabase'
 import { CACHE_CONFIG } from '@/constants/apiEndpoints'
 
@@ -34,21 +35,41 @@ export const useCart = (options = {}) => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return []
 
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('cart_items')
-        .select(`
-          id, quantity, created_at,
-          product:products(
-            id, name, price_per_unit, unit_type,
-            stock_quantity, is_available,
-            product_images(url, is_primary)
-          )
-        `)
+        .select(selectClause)
         .eq('user_id', session.user.id)
         .is('deleted_at', null)
 
-      if (error) throw error
-      return data || []
+      let result = await buildQuery(`
+        id, quantity, created_at,
+        product:products(
+          id, name, price_per_unit, unit_type,
+          stock_quantity, is_available,
+          product_images(url, is_primary)
+        )
+      `)
+
+      if (result.error) {
+        if (!isProductImagesRelationError(result.error)) throw result.error
+
+        const fallbackResult = await buildQuery(`
+          id, quantity, created_at,
+          product:products(
+            id, name, price_per_unit, unit_type,
+            stock_quantity, is_available
+          )
+        `)
+
+        if (fallbackResult.error) throw fallbackResult.error
+
+        result = {
+          ...fallbackResult,
+          data: await hydrateRowsWithProductField(fallbackResult.data || []),
+        }
+      }
+
+      return result.data || []
     },
     staleTime: CACHE_CONFIG.CART.staleTime,
     cacheTime: CACHE_CONFIG.CART.cacheTime,

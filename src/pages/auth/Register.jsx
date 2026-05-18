@@ -11,6 +11,7 @@ import { checkSignupRate } from '@/utils/rateLimiter'
 import { registerSchema } from '@/utils/validationSchemas'
 import { getOnboardingPathForRole } from '@/services/onboardingService'
 import { setPendingPhoneVerification } from '@/services/phoneOtpService'
+import { resolveSafeAuthRedirect } from '@/utils/authRedirects'
 
 const RegisterPage = () => {
   const { t } = useTranslation()
@@ -18,6 +19,7 @@ const RegisterPage = () => {
   const [searchParams] = useSearchParams()
   const { signUp, loading } = useAuthStore()
   const defaultRole = searchParams.get('role') || 'buyer'
+  const postVerifyRedirect = resolveSafeAuthRedirect(searchParams.get('redirect_to'), null)
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -191,6 +193,11 @@ const RegisterPage = () => {
 
       if (result.needsEmailVerification) {
         sessionStorage.setItem('pendingVerificationEmail', sanitizedData.email)
+
+        if (postVerifyRedirect) {
+          sessionStorage.setItem('redirect_after_verification', postVerifyRedirect)
+        }
+
         navigate('/verify-email')
       } else if (result.requiresPhoneVerification && result.userId && result.phone) {
         navigate('/verify-phone')

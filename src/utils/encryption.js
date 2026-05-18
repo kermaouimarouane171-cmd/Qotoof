@@ -450,9 +450,10 @@ export const secureStorage = {
       if (!item) return null
 
       const data = JSON.parse(item)
+      const storedAt = data.ts ?? data.timestamp
 
       // Check TTL
-      if (data.ttl && (Date.now() - data.timestamp) > data.ttl) {
+      if (data.ttl && storedAt && (Date.now() - storedAt) > data.ttl) {
         sessionStorage.removeItem(key)
         return null
       }

@@ -122,10 +122,10 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={() => query.length >= 2 && setOpen(true)}
-          placeholder={placeholder || t('search.placeholder', 'ابحث عن منتجات...')}
+          placeholder={placeholder || t('nav.search', 'Search for a product...')}
           data-testid="search-bar-input"
           className="flex-1 bg-transparent text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 outline-none"
-          aria-label={t('search.label', 'بحث')}
+          aria-label={t('common.search', 'Search')}
           autoComplete="off"
         />
         {loading && (
@@ -141,7 +141,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
           data-testid="search-bar-submit"
           className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-colors shrink-0"
         >
-          {t('search.search', 'بحث')}
+          {t('common.search', 'Search')}
         </button>
       </div>
 

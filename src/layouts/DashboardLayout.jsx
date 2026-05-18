@@ -1,7 +1,9 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { useDarkMode } from '@/hooks/useDarkMode'
+import NotificationLink from '@/components/notifications/NotificationLink'
 import {
   Bars3Icon,
   XMarkIcon,
@@ -11,7 +13,6 @@ import {
   CubeIcon,
   UserGroupIcon,
   ArrowLeftOnRectangleIcon,
-  BellIcon,
   Cog6ToothIcon,
   TruckIcon,
   UserIcon,
@@ -33,20 +34,10 @@ const DashboardLayout = () => {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [notificationBadge, setNotificationBadge] = useState(0)
   const { isDark, toggle: toggleDark } = useDarkMode()
+  const { t } = useTranslation()
 
   const { profile, signOut } = useAuthStore()
-
-  // Listen for notification badge updates from Notifications page
-  useEffect(() => {
-    const handleBadgeUpdate = (e) => {
-      setNotificationBadge(e.detail.unreadCount)
-    }
-
-    window.addEventListener('notification-badge-update', handleBadgeUpdate)
-    return () => window.removeEventListener('notification-badge-update', handleBadgeUpdate)
-  }, [])
   
   const isAdmin = profile?.role === 'admin'
   const isVendor = profile?.role === 'vendor'
@@ -55,53 +46,60 @@ const DashboardLayout = () => {
   // 6 items: Dashboard | Products | Orders | Analytics | Coupons | Profile
   // Reviews → tab inside Orders   |   Location/Hours/Security/Preferences → tabs inside Profile
   const vendorNavItems = [
-    { to: '/vendor/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { to: '/vendor/products', label: 'Products', icon: CubeIcon },
-    { to: '/vendor/orders', label: 'Orders', icon: ShoppingBagIcon },
-    { to: '/vendor/analytics', label: 'Analytics', icon: ChartBarSquareIcon },
-    { to: '/vendor/coupons', label: 'Coupons', icon: TagIcon },
-    { to: '/vendor/subscription', label: 'Premium', icon: BoltIcon },
-    { to: '/vendor/rfqs', label: 'RFQ Board', icon: DocumentTextIcon },
-    { to: '/vendor/profile', label: 'Profile', icon: UserIcon },
+    { to: '/vendor/dashboard', label: t('layout.vendor.links.dashboard', 'Dashboard'), icon: HomeIcon },
+    { to: '/vendor/products', label: t('layout.vendor.links.products', 'My Products'), icon: CubeIcon },
+    { to: '/vendor/orders', label: t('layout.vendor.links.orders', 'Orders'), icon: ShoppingBagIcon },
+    { to: '/vendor/analytics', label: t('layout.vendor.links.analytics', 'Analytics'), icon: ChartBarSquareIcon },
+    { to: '/vendor/coupons', label: t('layout.vendor.links.coupons', 'Coupons'), icon: TagIcon },
+    { to: '/vendor/subscription', label: t('layout.vendor.links.premium', 'Premium'), icon: BoltIcon },
+    { to: '/vendor/rfqs', label: t('layout.vendor.links.rfqBoard', 'RFQ Board'), icon: DocumentTextIcon },
+    { to: '/vendor/profile', label: t('layout.vendor.links.profile', 'Profile'), icon: UserIcon },
   ]
 
   // 6 items: Dashboard | Available | Active | History | Earnings | Profile
   // Settings/Security/Pricing → tabs inside Profile (Pricing already redirected in Phase 2)
   const driverNavItems = [
-    { to: '/driver/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { to: '/driver/available', label: 'Available', icon: TruckIcon },
-    { to: '/driver/active', label: 'Active', icon: ClockIcon },
-    { to: '/driver/history', label: 'History', icon: ClipboardDocumentListIcon },
-    { to: '/driver/earnings', label: 'Earnings', icon: CurrencyDollarIcon },
-    { to: '/driver/profile', label: 'Profile', icon: UserIcon },
+    { to: '/driver/dashboard', label: t('layout.driver.links.dashboard', 'Dashboard'), icon: HomeIcon },
+    { to: '/driver/available', label: t('layout.driver.links.available', 'Available Orders'), icon: TruckIcon },
+    { to: '/driver/active', label: t('layout.driver.links.active', 'Active Deliveries'), icon: ClockIcon },
+    { to: '/driver/history', label: t('layout.driver.links.history', 'History'), icon: ClipboardDocumentListIcon },
+    { to: '/driver/earnings', label: t('layout.driver.links.earnings', 'Earnings'), icon: CurrencyDollarIcon },
+    { to: '/driver/profile', label: t('layout.driver.links.profile', 'Profile'), icon: UserIcon },
   ]
 
   // 10 items: Dashboard | Users | Products | Orders | Reviews | Payouts | Analytics | Drivers | Security | Settings
   // Vendors → /admin/users?role=vendor   |   Commissions → Payouts tab   |   Moderation → Reviews tab
   const adminNavItems = [
-    { to: '/admin/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { to: '/admin/users', label: 'Users', icon: UserGroupIcon },
-    { to: '/admin/products', label: 'Products', icon: CubeIcon },
-    { to: '/admin/orders', label: 'Orders', icon: ShoppingBagIcon },
-    { to: '/admin/reviews', label: 'Reviews', icon: StarIcon },
-    { to: '/admin/payouts', label: 'Payouts', icon: BanknotesIcon },
-    { to: '/admin/analytics', label: 'Analytics', icon: ChartBarSquareIcon },
-    { to: '/admin/drivers', label: 'Drivers', icon: TruckIcon },
-    { to: '/admin/security', label: 'Security', icon: ShieldCheckIcon },
-    { to: '/admin/settings', label: 'Settings', icon: Cog6ToothIcon },
+    { to: '/admin/dashboard', label: t('layout.admin.links.dashboard', 'Dashboard'), icon: HomeIcon },
+    { to: '/admin/users', label: t('layout.admin.links.users', 'Users'), icon: UserGroupIcon },
+    { to: '/admin/products', label: t('layout.admin.links.products', 'Products'), icon: CubeIcon },
+    { to: '/admin/orders', label: t('layout.admin.links.orders', 'Orders'), icon: ShoppingBagIcon },
+    { to: '/admin/reviews', label: t('layout.admin.links.reviews', 'Reviews'), icon: StarIcon },
+    { to: '/admin/payouts', label: t('layout.admin.links.payouts', 'Payouts'), icon: BanknotesIcon },
+    { to: '/admin/analytics', label: t('layout.admin.links.analytics', 'Analytics'), icon: ChartBarSquareIcon },
+    { to: '/admin/drivers', label: t('layout.admin.links.drivers', 'Drivers'), icon: TruckIcon },
+    { to: '/admin/security', label: t('layout.admin.links.security', 'Security'), icon: ShieldCheckIcon },
+    { to: '/admin/settings', label: t('layout.admin.links.settings', 'Settings'), icon: Cog6ToothIcon },
   ]
 
   // 6 items: Dashboard | Orders | Addresses | Shopping Lists | Loyalty | Settings
   // Security → tab inside Settings
   const buyerNavItems = [
-    { to: '/buyer/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { to: '/buyer/orders', label: 'Orders', icon: ShoppingBagIcon },
-    { to: '/buyer/addresses', label: 'Addresses', icon: MapPinIcon },
-    { to: '/buyer/shopping-lists', label: 'Shopping Lists', icon: ClipboardDocumentListIcon },
-    { to: '/buyer/rfq', label: 'My Requests', icon: DocumentTextIcon },
-    { to: '/buyer/loyalty', label: 'Loyalty', icon: StarIcon },
-    { to: '/buyer/settings', label: 'Settings', icon: Cog6ToothIcon },
+    { to: '/buyer/dashboard', label: t('layout.buyer.links.dashboard', 'Dashboard'), icon: HomeIcon },
+    { to: '/buyer/orders', label: t('layout.buyer.links.orders', 'Orders'), icon: ShoppingBagIcon },
+    { to: '/buyer/addresses', label: t('layout.buyer.links.addresses', 'Addresses'), icon: MapPinIcon },
+    { to: '/buyer/shopping-lists', label: t('layout.buyer.links.shoppingLists', 'Shopping Lists'), icon: ClipboardDocumentListIcon },
+    { to: '/buyer/rfq', label: t('layout.buyer.links.myRequests', 'My Requests'), icon: DocumentTextIcon },
+    { to: '/buyer/loyalty', label: t('layout.buyer.links.loyalty', 'Loyalty'), icon: StarIcon },
+    { to: '/buyer/settings', label: t('layout.buyer.links.settings', 'Settings'), icon: Cog6ToothIcon },
   ]
+
+  const roleLabels = {
+    admin: t('layout.dashboard.roles.admin', 'Admin'),
+    vendor: t('layout.dashboard.roles.vendor', 'Vendor'),
+    driver: t('layout.dashboard.roles.driver', 'Driver'),
+    buyer: t('layout.dashboard.roles.buyer', 'Buyer'),
+  }
   
   const navItems = isAdmin ? adminNavItems : isDriver ? driverNavItems : isVendor ? vendorNavItems : buyerNavItems
   
@@ -160,7 +158,7 @@ const DashboardLayout = () => {
             }`}
           >
             <Cog6ToothIcon className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span>{isAdmin ? 'Settings' : 'Preferences'}</span>}
+            {sidebarOpen && <span>{isAdmin ? t('layout.admin.links.settings', 'Settings') : t('layout.dashboard.preferences', 'Preferences')}</span>}
           </Link>
           <button
             onClick={signOut}
@@ -169,7 +167,7 @@ const DashboardLayout = () => {
             }`}
           >
             <ArrowLeftOnRectangleIcon className="w-5 h-5 flex-shrink-0" />
-            {sidebarOpen && <span>Sign Out</span>}
+            {sidebarOpen && <span>{t('nav.logout', 'Sign Out')}</span>}
           </button>
         </div>
       </aside>
@@ -179,7 +177,7 @@ const DashboardLayout = () => {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t('layout.dashboard.closeMenu', 'Close menu')}
             className="fixed inset-0 bg-black/50 dark:bg-gray-900 backdrop-blur-sm"
             onClick={() => setMobileSidebarOpen(false)}
           />
@@ -194,6 +192,7 @@ const DashboardLayout = () => {
               <button
                 onClick={() => setMobileSidebarOpen(false)}
                 className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+                aria-label={t('layout.dashboard.closeMenu', 'Close menu')}
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -237,20 +236,18 @@ const DashboardLayout = () => {
               <button
                 onClick={toggleDark}
                 className="p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
-                aria-label="Toggle dark mode"
+                aria-label={isDark ? t('layout.main.switchToLightMode', 'Switch to light mode') : t('layout.main.switchToDarkMode', 'Switch to dark mode')}
               >
                 {isDark ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
               </button>
 
               {/* Notifications */}
-              <Link to="/notifications" className="relative p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors">
-                <BellIcon className="w-5 h-5" />
-                {notificationBadge > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {notificationBadge > 99 ? '99+' : notificationBadge}
-                  </span>
-                )}
-              </Link>
+              <NotificationLink
+                className="relative p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                iconClassName="w-5 h-5"
+                badgeClassName="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                ariaLabel={t('nav.notifications', 'Notifications')}
+              />
 
               {/* User */}
               <div className="flex items-center gap-3 pl-3 border-l border-gray-200 dark:border-gray-700">
@@ -263,7 +260,7 @@ const DashboardLayout = () => {
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-300">
                     {profile?.first_name} {profile?.last_name}
                   </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{profile?.role}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{roleLabels[profile?.role] ?? profile?.role}</p>
                 </div>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { runProductImageFallbackQuery } from '@/services/productImages'
 import { Button, Card, Modal, Input, Map, LoadingSpinner, VendorAlerts } from '@/components/ui'
 import InventoryManager from '@/components/vendor/InventoryManager'
 import { ImageUploader } from '@/components/vendor/ProductForm'
@@ -76,16 +77,22 @@ const VendorProducts = () => {
     
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('products')
-        .select(`
-          *,
-          images:product_images(id, url, is_primary)
-        `)
+        .select(selectClause)
         .eq('vendor_id', profile.id)
         .order('created_at', { ascending: false })
-      
-      if (error) throw error
+
+      const { data } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: `
+          *,
+          images:product_images(id, url, is_primary)
+        `,
+        selectWithoutImages: '*',
+        onRelationError: (error) => logger.warn('Vendor products: product_images relation missing, hydrating separately', error),
+      })
+
       setProducts(data || [])
     } catch (error) {
       logger.error('Error loading products:', error)
@@ -471,12 +478,12 @@ const VendorProducts = () => {
 
     // Stock warning for low quantities
     if (quantity > 0 && quantity <= 10) {
-      toast.warning(`Low stock warning: Only ${quantity} ${formData.unit_type} listed. Buyers may be disappointed if stock runs out.`)
+      toast(`Low stock warning: Only ${quantity} ${formData.unit_type} listed. Buyers may be disappointed if stock runs out.`, { icon: '⚠️' })
     }
 
     // Out of stock warning
     if (quantity === 0 && editingProduct?.is_available) {
-      toast.warning('Setting quantity to 0 will mark this product as unavailable. Consider marking as "Out of Stock" instead.')
+      toast('Setting quantity to 0 will mark this product as unavailable. Consider marking as "Out of Stock" instead.', { icon: '⚠️' })
     }
 
     setSubmitting(true)

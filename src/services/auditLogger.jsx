@@ -89,6 +89,7 @@ class AuditLogger {
     oldValues = null,
     newValues = null,
     userId = null,
+    metadata = null,
     _metadata = {}
   }) {
     try {
@@ -116,6 +117,7 @@ class AuditLogger {
       const signature = await createSignature(signatureData, userId)
 
       // Create audit log entry
+      const resolvedMetadata = metadata ?? _metadata ?? null
       const auditLog = {
         user_id: userId,
         action,
@@ -127,8 +129,10 @@ class AuditLogger {
         user_agent: navigator.userAgent,
         device_fingerprint: deviceFingerprint,
         session_id: session?.access_token?.substring(0, 50) || null,
-        signature: signature.hash
-        // metadata field removed temporarily until migration is run
+        signature: signature.hash,
+        metadata: resolvedMetadata && Object.keys(resolvedMetadata).length > 0
+          ? resolvedMetadata
+          : null,
       }
 
       // If online, send immediately

@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
+import { resolvePaymentMethod } from '@/services/paymentRecords'
 
 /**
  * Email Notification Service
@@ -281,7 +282,7 @@ class EmailService {
       data: {
         orderNumber: order.order_number || order.id.slice(0, 8),
         amount: payment.amount,
-        paymentMethod: payment.method,
+        paymentMethod: resolvePaymentMethod(payment),
         paymentDate: new Date(payment.created_at).toLocaleDateString('ar-MA'),
         transactionId: payment.transaction_id || payment.id.slice(0, 8),
       },

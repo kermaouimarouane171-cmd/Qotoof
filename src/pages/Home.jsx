@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
+import productSearchService from '@/services/search/productSearchService'
 import { ProductCard, MoroccoNotice } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from '@/store/authStore'
@@ -130,18 +131,8 @@ const HomePage = () => {
         return
       }
 
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          *,
-          product_images(url, is_primary)
-        `)
-        .eq('is_available', true)
-        .order('created_at', { ascending: false })
-        .limit(8)
-
-      if (error) throw error
-      setProducts(data || [])
+      const featuredProducts = await productSearchService.getFeaturedProducts(8)
+      setProducts(featuredProducts)
     } catch (error) {
       logger.error('Error loading products:', error)
       setProducts([]) // Ensure empty array on error
@@ -272,11 +263,11 @@ const HomePage = () => {
                   // Already a vendor
                   <>
                     <Link to="/vendor/dashboard" className="btn-lg bg-white text-green-600 hover:bg-gray-50 shadow-xl shadow-black/10 rounded-2xl font-semibold text-sm sm:text-base whitespace-nowrap">
-                      {t('home.hero.goToDashboard', 'Go to Dashboard')}
+                      {t('home.hero.goToDashboard', 'لوحة التحكم')}
                       <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" />
                     </Link>
                     <Link to="/vendor/products" className="btn-lg bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 border-2 border-white/30 rounded-2xl font-semibold text-sm sm:text-base whitespace-nowrap">
-                      {t('home.hero.manageProducts', 'Manage Products')}
+                      {t('home.hero.manageProducts', 'إدارة المنتجات')}
                     </Link>
                   </>
                 ) : (
@@ -287,7 +278,7 @@ const HomePage = () => {
                       <ArrowRightIcon className="w-4 h-4 sm:w-5 sm:h-5 ml-1 sm:ml-2" />
                     </Link>
                     <Link to="/register?role=vendor" className="btn-lg bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 border-2 border-white/30 rounded-2xl font-semibold text-sm sm:text-base whitespace-nowrap">
-                      {t('home.hero.becomeVendor', 'Become a Vendor')}
+                      {t('home.hero.becomeVendor', 'كن بائعاً')}
                     </Link>
                   </>
                 )}
@@ -296,7 +287,7 @@ const HomePage = () => {
               {/* Stats with loading state */}
               <div className="grid grid-cols-3 gap-3 sm:gap-6 mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-white/20">
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
+                  <div className="text-xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
                     {statsLoading ? (
                       <span className="inline-block w-12 sm:w-16 h-6 sm:h-8 bg-white/20 rounded animate-pulse"></span>
                     ) : stats.products > 0 ? (
@@ -308,7 +299,7 @@ const HomePage = () => {
                   <div className="text-xs sm:text-sm text-green-200 mt-1">{t('home.stats.products')}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
+                  <div className="text-xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
                     {statsLoading ? (
                       <span className="inline-block w-12 sm:w-16 h-6 sm:h-8 bg-white/20 rounded animate-pulse"></span>
                     ) : stats.vendors > 0 ? (
@@ -320,7 +311,7 @@ const HomePage = () => {
                   <div className="text-xs sm:text-sm text-green-200 mt-1">{t('home.stats.vendors')}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
+                  <div className="text-xl sm:text-3xl font-bold text-white min-h-[2rem] sm:min-h-[3rem] flex items-center justify-center">
                     {statsLoading ? (
                       <span className="inline-block w-12 sm:w-16 h-6 sm:h-8 bg-white/20 rounded animate-pulse"></span>
                     ) : stats.orders > 0 ? (
@@ -416,7 +407,7 @@ const HomePage = () => {
                 <div className="absolute bottom-0 left-0 right-0 p-4">
                   <div className="text-2xl mb-1">{category.emoji}</div>
                   <h3 className="text-white font-semibold">{category.name}</h3>
-                  <p className="text-white/70 text-xs">{category.count} items</p>
+                  <p className="text-white/70 text-xs">{category.count}</p>
                 </div>
               </Link>
             ))}

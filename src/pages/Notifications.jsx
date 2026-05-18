@@ -399,7 +399,7 @@ const Notifications = () => {
       } catch {
         toast.error(t('notifications.errors.syncFailed', 'تعذر مزامنة الإشعارات الجديدة'))
       }
-    })
+    }, { scope: 'center' })
 
     return () => {
       unsubscribe()
@@ -455,9 +455,11 @@ const Notifications = () => {
   }
 
   const handleMarkAsRead = async (notificationId) => {
+    if (!user?.id) return
+
     setActionLoading(`read:${notificationId}`)
     try {
-      await notificationsApi.markAsRead(notificationId)
+      await notificationsApi.markAsRead(user.id, notificationId)
       await Promise.all([
         loadNotifications(1, false),
         refreshUnreadCount(),
@@ -470,9 +472,11 @@ const Notifications = () => {
   }
 
   const handleArchiveNotification = async (notificationId) => {
+    if (!user?.id) return
+
     setActionLoading(`archive:${notificationId}`)
     try {
-      await notificationsApi.delete(notificationId)
+      await notificationsApi.delete(user.id, notificationId)
       await Promise.all([
         loadNotifications(1, false),
         refreshUnreadCount(),
@@ -529,7 +533,9 @@ const Notifications = () => {
   const handleNotificationOpen = async (notification) => {
     if (!notification.is_read) {
       try {
-        await notificationsApi.markAsRead(notification.id)
+        if (!user?.id) return
+
+        await notificationsApi.markAsRead(user.id, notification.id)
         await refreshUnreadCount()
       } catch {
         toast.error(t('notifications.errors.markAsReadFailed', 'تعذر تعليم الإشعار كمقروء'))

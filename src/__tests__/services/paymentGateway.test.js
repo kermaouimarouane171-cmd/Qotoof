@@ -11,17 +11,16 @@ describe('PaymentGateway', () => {
     // Create a mock PaymentGateway class that mimics the real one without import.meta.env
     PaymentGateway = class {
       constructor() {
-        this.stripePublicKey = 'pk_test_123'
-        this.cmiMerchantId = 'cmi_123'
+        this.paypalClientId = 'paypal_test_123'
         this.isTestMode = true
       }
 
       async initializePayment({ orderId, amount, method, currency = 'MAD', customer }) {
         switch (method) {
-          case 'stripe':
-            return this.processStripePayment({ orderId, amount, currency, customer })
+          case 'paypal':
+            return this.processPayPalPayment({ orderId, amount, currency, customer })
           case 'cmi':
-            return this.processCmiPayment({ orderId, amount, currency, customer })
+            throw new Error('CMI is retired for marketplace checkout. Use PayPal or bank transfer instead.')
           case 'cod':
             return this.processCodPayment({ orderId, amount, customer })
           case 'bank':
@@ -31,24 +30,13 @@ describe('PaymentGateway', () => {
         }
       }
 
-      async processStripePayment({ orderId, amount, currency }) {
-        if (!this.stripePublicKey) throw new Error('Stripe not configured')
+      async processPayPalPayment({ orderId, amount, currency }) {
+        if (!this.paypalClientId) throw new Error('PayPal not configured')
         return {
-          method: 'stripe',
-          clientSecret: 'cs_test_123',
-          paymentIntentId: 'pi_123',
+          method: 'paypal',
+          orderId: 'pp_order_123',
+          approvalUrl: 'https://paypal.example.com/checkout',
           status: 'requires_confirmation',
-        }
-      }
-
-      async processCmiPayment({ orderId, amount, currency, customer }) {
-        if (!this.cmiMerchantId) throw new Error('CMI not configured')
-        return {
-          method: 'cmi',
-          redirectUrl: 'https://cmi.example.com',
-          params: { hash: 'abc123' },
-          paymentId: 'pay_1',
-          status: 'redirecting',
         }
       }
 
@@ -93,11 +81,8 @@ describe('PaymentGateway', () => {
           { id: 'cod', name: 'الدفع عند الاستلام', icon: '💵', available: true },
           { id: 'bank', name: 'تحويل بنكي', icon: '🏦', available: true },
         ]
-        if (this.stripePublicKey) {
-          methods.push({ id: 'stripe', name: 'بطاقة ائتمانية', icon: '💳', available: true })
-        }
-        if (this.cmiMerchantId) {
-          methods.push({ id: 'cmi', name: 'CMI (المغرب)', icon: '🇲🇦', available: true })
+        if (this.paypalClientId) {
+          methods.push({ id: 'paypal', name: 'PayPal', icon: '🅿️', available: true })
         }
         return methods
       }
@@ -105,32 +90,29 @@ describe('PaymentGateway', () => {
   })
 
   describe('initializePayment', () => {
-    it('should initialize Stripe payment', async () => {
+    it('should initialize PayPal payment', async () => {
       const gateway = new PaymentGateway()
       const result = await gateway.initializePayment({
         orderId: 'o1',
         amount: 100,
-        method: 'stripe',
+        method: 'paypal',
         currency: 'MAD',
         customer: { email: 'test@test.com', name: 'Test User' },
       })
 
-      expect(result.method).toBe('stripe')
-      expect(result.clientSecret).toBe('cs_test_123')
+      expect(result.method).toBe('paypal')
+      expect(result.orderId).toBe('pp_order_123')
     })
 
-    it('should initialize CMI payment', async () => {
+    it('should reject retired CMI checkout', async () => {
       const gateway = new PaymentGateway()
-      const result = await gateway.initializePayment({
+      await expect(gateway.initializePayment({
         orderId: 'o1',
         amount: 100,
         method: 'cmi',
         currency: 'MAD',
         customer: { email: 'test@test.com', name: 'Test User', phone: '0612345678' },
-      })
-
-      expect(result.method).toBe('cmi')
-      expect(result.redirectUrl).toBe('https://cmi.example.com')
+      })).rejects.toThrow('CMI is retired for marketplace checkout')
     })
 
     it('should initialize COD payment', async () => {
@@ -221,21 +203,21 @@ describe('PaymentGateway', () => {
 
       expect(methods).toContainEqual(expect.objectContaining({ id: 'cod' }))
       expect(methods).toContainEqual(expect.objectContaining({ id: 'bank' }))
-      expect(methods).toContainEqual(expect.objectContaining({ id: 'stripe' }))
-      expect(methods).toContainEqual(expect.objectContaining({ id: 'cmi' }))
+      expect(methods).toContainEqual(expect.objectContaining({ id: 'paypal' }))
+      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'cmi' }))
     })
 
-    it('should exclude Stripe when not configured', () => {
+    it('should exclude PayPal when not configured', () => {
       const gateway = new PaymentGateway()
-      gateway.stripePublicKey = null
+      gateway.paypalClientId = null
       const methods = gateway.getAvailableMethods()
 
-      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'stripe' }))
+      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'paypal' }))
     })
 
-    it('should exclude CMI when not configured', () => {
+    it('should keep CMI hidden even if legacy config exists', () => {
       const gateway = new PaymentGateway()
-      gateway.cmiMerchantId = null
+      gateway.cmiMerchantId = 'legacy_only'
       const methods = gateway.getAvailableMethods()
 
       expect(methods).not.toContainEqual(expect.objectContaining({ id: 'cmi' }))

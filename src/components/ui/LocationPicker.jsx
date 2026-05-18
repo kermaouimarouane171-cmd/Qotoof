@@ -12,6 +12,21 @@ import {
 import Map from './Map'
 import { logger } from '@/utils/logger'
 
+async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    })
+    return response
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
 // ─── Nominatim geocoding helper ───────────────────────────
 async function nominatimSearch(query) {
   const params = new URLSearchParams({
@@ -21,7 +36,7 @@ async function nominatimSearch(query) {
     countrycodes: 'ma',
     addressdetails: 1,
   })
-  const res = await fetch(
+  const res = await fetchJsonWithTimeout(
     `https://nominatim.openstreetmap.org/search?${params}`,
     { headers: { Accept: 'application/json' } }
   )
@@ -31,7 +46,7 @@ async function nominatimSearch(query) {
 
 async function nominatimReverse(lat, lng) {
   const params = new URLSearchParams({ lat, lon: lng, format: 'json', addressdetails: 1 })
-  const res = await fetch(
+  const res = await fetchJsonWithTimeout(
     `https://nominatim.openstreetmap.org/reverse?${params}`,
     { headers: { Accept: 'application/json' } }
   )
@@ -138,8 +153,12 @@ const LocationPicker = ({
         const data = await nominatimSearch(v)
         setSearchResults(data)
         if (data.length === 0) setSearchError('لم يتم العثور على نتائج')
-      } catch {
-        setSearchError('فشل البحث، تحقق من الاتصال')
+      } catch (error) {
+        setSearchError(
+          error?.name === 'AbortError'
+            ? 'استغرق البحث وقتاً أطول من المتوقع. يمكنك تحديد الموقع من الخريطة مباشرة في الأسفل.'
+            : 'فشل البحث. تحقق من الاتصال أو حدد الموقع من الخريطة مباشرة.'
+        )
       } finally {
         setSearching(false)
       }
@@ -260,7 +279,10 @@ const LocationPicker = ({
       {detectError && (
         <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
           <ExclamationTriangleIcon className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{detectError}</p>
+          <div className="text-sm text-red-700">
+            <p>{detectError}</p>
+            <p className="mt-1 text-xs text-red-600">يمكنك المتابعة بتحديد الموقع يدويًا من الخريطة أو بالبحث عن العنوان.</p>
+          </div>
         </div>
       )}
 

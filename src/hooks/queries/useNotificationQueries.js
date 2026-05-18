@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/services/supabase'
 import { normalizeNotificationCategory, notificationsApi } from '@/services/notifications'
+import { createSupportTicket } from '@/services/supportTickets'
 
 export const notificationKeys = {
   all: ['notifications'],
@@ -206,24 +207,15 @@ export const useSupportTicket = (id, options = {}) => {
 export const useCreateTicket = () => {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ subject, message, category }) => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
-      const { data, error } = await supabase
-        .from('support_tickets')
-        .insert({
-          user_id: session.user.id,
-          subject,
-          message,
-          category,
-          status: 'open',
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
+    mutationFn: async ({ subject, message, description, category, orderId, attachments, priority }) => {
+      return createSupportTicket({
+        subject,
+        description: description || message,
+        category,
+        orderId,
+        attachments,
+        priority,
+      })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: supportKeys.all })

@@ -1,0 +1,141 @@
+BEGIN;
+
+CREATE OR REPLACE FUNCTION public.reserve_checkout_inventory(p_items JSONB)
+RETURNS TABLE(
+  product_id UUID,
+  reserved_quantity NUMERIC(10, 2),
+  remaining_quantity NUMERIC(10, 2)
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  reservation_item RECORD;
+  current_quantity NUMERIC(10, 2);
+  next_quantity NUMERIC(10, 2);
+  has_items BOOLEAN := FALSE;
+BEGIN
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'inventory_items_required';
+  END IF;
+
+  FOR reservation_item IN
+    WITH normalized_items AS (
+      SELECT
+        NULLIF(TRIM(COALESCE(value->>'productId', value->>'product_id', value->>'id')), '')::UUID AS product_id,
+        NULLIF(TRIM(COALESCE(value->>'quantity', '')), '')::NUMERIC(10, 2) AS quantity
+      FROM jsonb_array_elements(p_items) AS value
+    )
+    SELECT product_id, SUM(quantity)::NUMERIC(10, 2) AS quantity
+    FROM normalized_items
+    WHERE product_id IS NOT NULL AND quantity IS NOT NULL AND quantity > 0
+    GROUP BY product_id
+  LOOP
+    has_items := TRUE;
+
+    SELECT COALESCE(stock_quantity, available_quantity, 0)
+      INTO current_quantity
+    FROM public.products
+    WHERE id = reservation_item.product_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'product_not_found:%', reservation_item.product_id;
+    END IF;
+
+    IF current_quantity < reservation_item.quantity THEN
+      RAISE EXCEPTION 'insufficient_stock:%', reservation_item.product_id;
+    END IF;
+
+    next_quantity := GREATEST(current_quantity - reservation_item.quantity, 0);
+
+    UPDATE public.products
+    SET stock_quantity = next_quantity,
+        available_quantity = next_quantity
+    WHERE id = reservation_item.product_id;
+
+    RETURN QUERY
+    SELECT
+      reservation_item.product_id,
+      reservation_item.quantity,
+      next_quantity;
+  END LOOP;
+
+  IF NOT has_items THEN
+    RAISE EXCEPTION 'inventory_items_invalid';
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.reserve_checkout_inventory(JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reserve_checkout_inventory(JSONB) TO service_role;
+
+CREATE OR REPLACE FUNCTION public.release_checkout_inventory(p_items JSONB)
+RETURNS TABLE(
+  product_id UUID,
+  released_quantity NUMERIC(10, 2),
+  available_quantity NUMERIC(10, 2)
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  release_item RECORD;
+  current_quantity NUMERIC(10, 2);
+  next_quantity NUMERIC(10, 2);
+  has_items BOOLEAN := FALSE;
+BEGIN
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'inventory_items_required';
+  END IF;
+
+  FOR release_item IN
+    WITH normalized_items AS (
+      SELECT
+        NULLIF(TRIM(COALESCE(value->>'productId', value->>'product_id', value->>'id')), '')::UUID AS product_id,
+        NULLIF(TRIM(COALESCE(value->>'quantity', '')), '')::NUMERIC(10, 2) AS quantity
+      FROM jsonb_array_elements(p_items) AS value
+    )
+    SELECT product_id, SUM(quantity)::NUMERIC(10, 2) AS quantity
+    FROM normalized_items
+    WHERE product_id IS NOT NULL AND quantity IS NOT NULL AND quantity > 0
+    GROUP BY product_id
+  LOOP
+    has_items := TRUE;
+
+    SELECT COALESCE(stock_quantity, available_quantity, 0)
+      INTO current_quantity
+    FROM public.products
+    WHERE id = release_item.product_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'product_not_found:%', release_item.product_id;
+    END IF;
+
+    next_quantity := GREATEST(current_quantity + release_item.quantity, 0);
+
+    UPDATE public.products
+    SET stock_quantity = next_quantity,
+        available_quantity = next_quantity
+    WHERE id = release_item.product_id;
+
+    RETURN QUERY
+    SELECT
+      release_item.product_id,
+      release_item.quantity,
+      next_quantity;
+  END LOOP;
+
+  IF NOT has_items THEN
+    RAISE EXCEPTION 'inventory_items_invalid';
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.release_checkout_inventory(JSONB) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.release_checkout_inventory(JSONB) TO service_role;
+
+COMMIT;

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
+import { runProductImageFallbackQuery } from '@/services/productImages'
 import storeTypeService from '@/services/storeTypeService'
 import { Card, LoadingSpinner, ProductCard, Map, StarRating, SimpleRating } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -30,27 +31,34 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
+import { isPublicVendorVisible } from '@/utils/publicVisibility'
 
 const PRODUCT_CATEGORIES = [
-  { id: 'all', label: 'All Products' },
-  { id: 'plants', label: 'Plants & Trees', emoji: '🌿' },
-  { id: 'vegetables', label: 'Vegetables', emoji: '🥬' },
-  { id: 'fruits', label: 'Fruits', emoji: '🍎' },
-  { id: 'herbs', label: 'Herbs', emoji: '🌱' },
-  { id: 'seeds', label: 'Seeds', emoji: '🌰' },
+  { id: 'all', defaultLabel: 'All Products' },
+  { id: 'plants', defaultLabel: 'Plants & Trees', emoji: '🌿' },
+  { id: 'vegetables', defaultLabel: 'Vegetables', emoji: '🥬' },
+  { id: 'fruits', defaultLabel: 'Fruits', emoji: '🍎' },
+  { id: 'herbs', defaultLabel: 'Herbs', emoji: '🌱' },
+  { id: 'seeds', defaultLabel: 'Seeds', emoji: '🌰' },
 ]
 
 const SORT_OPTIONS = [
-  { id: 'newest', label: 'Newest First' },
-  { id: 'priceLow', label: 'Price: Low to High' },
-  { id: 'priceHigh', label: 'Price: High to Low' },
-  { id: 'name', label: 'Name A-Z' },
+  { id: 'newest', defaultLabel: 'Newest First' },
+  { id: 'priceLow', defaultLabel: 'Price: Low to High' },
+  { id: 'priceHigh', defaultLabel: 'Price: High to Low' },
+  { id: 'name', defaultLabel: 'Name A-Z' },
 ]
 
 const PRODUCTS_PER_PAGE = 12
 
+const getTextLocale = (language = 'en') => {
+  if (language.startsWith('ar')) return 'ar-MA'
+  if (language.startsWith('fr')) return 'fr-FR'
+  return 'en-US'
+}
+
 const StoreDetail = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
@@ -85,12 +93,24 @@ const StoreDetail = () => {
   // Follow state
   const [isFollowing, setIsFollowing] = useState(false)
   const [followLoading, setFollowLoading] = useState(false)
+  const displayName = store?.store_name || [store?.first_name, store?.last_name].filter(Boolean).join(' ').trim()
+  const textLocale = useMemo(() => getTextLocale(i18n.resolvedLanguage || i18n.language || 'en'), [i18n.language, i18n.resolvedLanguage])
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(textLocale), [textLocale])
+  const localizedProductCategories = useMemo(() => PRODUCT_CATEGORIES.map((category) => ({
+    ...category,
+    label: t(`storeDetail.products.categories.${category.id}`, category.defaultLabel),
+  })), [t, i18n.language])
+  const localizedSortOptions = useMemo(() => SORT_OPTIONS.map((option) => ({
+    ...option,
+    label: t(`storeDetail.products.sortOptions.${option.id}`, option.defaultLabel),
+  })), [t, i18n.language])
 
   // Load store info
   const loadStore = useCallback(async () => {
     setLoading(true)
     setStoreError(false)
     setNotFound(false)
+    const loadStoreFailedMessage = t('storeDetail.error.loadStoreFailed', 'Failed to load store information. Please try again.')
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -111,6 +131,11 @@ const StoreDetail = () => {
         return
       }
 
+      if (!isPublicVendorVisible(data)) {
+        setNotFound(true)
+        return
+      }
+
       setStore(data)
 
       try {
@@ -125,11 +150,11 @@ const StoreDetail = () => {
     } catch (error) {
       logger.error('Error loading store:', error)
       setStoreError(true)
-      toast.error('Failed to load store information. Please try again.')
+      toast.error(loadStoreFailedMessage)
     } finally {
       setLoading(false)
     }
-  }, [id])
+  }, [id, t])
 
   useEffect(() => {
     if (id) loadStore()
@@ -167,7 +192,7 @@ const StoreDetail = () => {
   // SEO: Update title and meta description
   useEffect(() => {
     if (store) {
-      document.title = `${displayName} | Qotoof Stores - قطوف`
+      document.title = t('storeDetail.meta.title', '{{storeName}} | Qotoof Stores - قطوف', { storeName: displayName })
 
       let metaDescription = document.querySelector('meta[name="description"]')
       if (!metaDescription) {
@@ -175,7 +200,7 @@ const StoreDetail = () => {
         metaDescription.name = 'description'
         document.head.appendChild(metaDescription)
       }
-      metaDescription.content = store.description || `${displayName} - Store on Qotoof marketplace`
+      metaDescription.content = store.description || t('storeDetail.meta.defaultDescription', '{{storeName}} - Store on Qotoof marketplace', { storeName: displayName })
 
       // JSON-LD Structured Data for Store
       const jsonLd = {
@@ -219,92 +244,70 @@ const StoreDetail = () => {
 
       return () => { script.remove() }
     }
-  }, [store, averageRating, totalReviews, displayName])
-
-  // Debounced auto-search for product search
-  useEffect(() => {
-    if (!id) return
-    const timer = setTimeout(() => {
-      setProductPage(1)
-      loadProducts()
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [productSearch, loadProducts])
-
-  // Load products when filters change (excluding search which is debounced above)
-  useEffect(() => {
-    if (id) loadProducts()
-  }, [id, categoryFilter, sortBy, productPage, loadProducts])
-
-  // Load reviews
-  useEffect(() => {
-    if (id) loadReviews()
-  }, [id, loadReviews])
-
-  // Check follow status when store loads
-  useEffect(() => {
-    if (store && user) checkFollowStatus()
-  }, [store, user, checkFollowStatus])
+  }, [store, averageRating, totalReviews, displayName, t, i18n.language])
 
   const loadProducts = useCallback(async () => {
     setProductsLoading(true)
+    const loadProductsFailedMessage = t('storeDetail.error.loadProductsFailed', 'Failed to load products')
     try {
-      let query = supabase
-        .from('products')
-        .select(`
+      const buildQuery = (selectClause) => {
+        let query = supabase
+          .from('products')
+          .select(selectClause, { count: 'exact' })
+          .eq('vendor_id', id)
+          .eq('is_available', true)
+          .eq('approval_status', 'approved')
+
+        if (categoryFilter !== 'all') {
+          query = query.eq('category', categoryFilter)
+        }
+
+        if (productSearch) {
+          query = query.or(`name.ilike.%${sanitizePostgRESTFilter(productSearch)}%,description.ilike.%${sanitizePostgRESTFilter(productSearch)}%`)
+        }
+
+        switch (sortBy) {
+          case 'priceLow':
+            query = query.order('price_per_unit', { ascending: true })
+            break
+          case 'priceHigh':
+            query = query.order('price_per_unit', { ascending: false })
+            break
+          case 'name':
+            query = query.order('name', { ascending: true })
+            break
+          case 'newest':
+          default:
+            query = query.order('created_at', { ascending: false })
+            break
+        }
+
+        const from = (productPage - 1) * PRODUCTS_PER_PAGE
+        const to = from + PRODUCTS_PER_PAGE - 1
+        return query.range(from, to)
+      }
+
+      const { data, count } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: `
           *,
           product_images(url, is_primary)
-        `, { count: 'exact' })
-        .eq('vendor_id', id)
-        .eq('is_available', true)
-        .eq('approval_status', 'approved') // Only show approved products
+        `,
+        selectWithoutImages: '*',
+        onRelationError: (error) => logger.warn('Store detail: product_images relation missing, hydrating separately', error),
+      })
 
-      // Category filter
-      if (categoryFilter !== 'all') {
-        query = query.eq('category', categoryFilter)
-      }
-
-      // Search
-      if (productSearch) {
-        query = query.or(`name.ilike.%${sanitizePostgRESTFilter(productSearch)}%,description.ilike.%${sanitizePostgRESTFilter(productSearch)}%`)
-      }
-
-      // Sort
-      switch (sortBy) {
-        case 'priceLow':
-          query = query.order('price_per_unit', { ascending: true })
-          break
-        case 'priceHigh':
-          query = query.order('price_per_unit', { ascending: false })
-          break
-        case 'name':
-          query = query.order('name', { ascending: true })
-          break
-        case 'newest':
-        default:
-          query = query.order('created_at', { ascending: false })
-          break
-      }
-
-      // Pagination
-      const from = (productPage - 1) * PRODUCTS_PER_PAGE
-      const to = from + PRODUCTS_PER_PAGE - 1
-      query = query.range(from, to)
-
-      const { data, error, count } = await query
-
-      if (error) throw error
       setProducts(data || [])
       setTotalProducts(count || 0)
     } catch (error) {
       logger.error('Error loading products:', error)
-      toast.error('Failed to load products')
+      toast.error(loadProductsFailedMessage)
       setProducts([])
       setTotalProducts(0)
     } finally {
       setProductsLoading(false)
     }
-  }, [id, categoryFilter, productSearch, sortBy, productPage])
+  }, [id, categoryFilter, productSearch, sortBy, productPage, t])
 
   const loadReviews = useCallback(async () => {
     try {
@@ -359,9 +362,34 @@ const StoreDetail = () => {
     }
   }, [user, id])
 
+  // Debounced auto-search for product search
+  useEffect(() => {
+    if (!id) return
+    const timer = setTimeout(() => {
+      setProductPage(1)
+      loadProducts()
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [id, productSearch, loadProducts])
+
+  // Load products when filters change (excluding search which is debounced above)
+  useEffect(() => {
+    if (id) loadProducts()
+  }, [id, categoryFilter, sortBy, productPage, loadProducts])
+
+  // Load reviews
+  useEffect(() => {
+    if (id) loadReviews()
+  }, [id, loadReviews])
+
+  // Check follow status when store loads
+  useEffect(() => {
+    if (store && user) checkFollowStatus()
+  }, [store, user, checkFollowStatus])
+
   const handleFollowStore = async () => {
     if (!user) {
-      toast.error('Please login to follow stores')
+      toast.error(t('storeDetail.actions.loginToFollow', 'Please login to follow stores'))
       return
     }
 
@@ -375,18 +403,18 @@ const StoreDetail = () => {
           .eq('store_id', id)
 
         setIsFollowing(false)
-        toast.success('Unfollowed store')
+        toast.success(t('storeDetail.actions.unfollowSuccess', 'Unfollowed store'))
       } else {
         await supabase
           .from('store_follows')
           .insert({ user_id: user.id, store_id: id })
 
         setIsFollowing(true)
-        toast.success('Now following this store!')
+        toast.success(t('storeDetail.actions.followSuccess', 'Now following this store!'))
       }
     } catch (error) {
       logger.error('Error toggling follow:', error)
-      toast.error('Failed to update follow status')
+      toast.error(t('storeDetail.error.followUpdateFailed', 'Failed to update follow status'))
     } finally {
       setFollowLoading(false)
     }
@@ -396,13 +424,13 @@ const StoreDetail = () => {
     if (store?.phone) {
       window.location.href = `tel:${store.phone}`
     } else {
-      toast.error('No phone number available')
+      toast.error(t('storeDetail.location.noPhone', 'No phone number available'))
     }
-  }, [store?.phone])
+  }, [store?.phone, t])
 
   const handleSendMessage = () => {
     if (!user) {
-      toast.error('Please login to send messages')
+      toast.error(t('storeDetail.actions.loginToMessage', 'Please login to send messages'))
       return
     }
     navigate(`/messages?vendor=${id}`)
@@ -423,18 +451,18 @@ const StoreDetail = () => {
       }
     } else {
       await navigator.clipboard.writeText(shareUrl)
-      toast.success('Store link copied to clipboard!')
+      toast.success(t('storeDetail.actions.shareCopied', 'Store link copied to clipboard!'))
     }
   }
 
   const handleSubmitReview = async () => {
     if (!user) {
-      toast.error('Please login to add a review')
+      toast.error(t('storeDetail.reviews.loginRequired', 'Please login to add a review'))
       return
     }
 
     if (userRating === 0) {
-      toast.error('Please select a rating')
+      toast.error(t('storeDetail.reviews.selectRating', 'Please select a rating'))
       return
     }
 
@@ -453,13 +481,13 @@ const StoreDetail = () => {
 
       if (error) throw error
 
-      toast.success('Review submitted successfully!')
+      toast.success(t('storeDetail.reviews.submitSuccess', 'Review submitted successfully!'))
       setUserRating(0)
       setReviewText('')
       await loadReviews()
     } catch (error) {
       logger.error('Error submitting review:', error)
-      toast.error('Failed to submit review')
+      toast.error(t('storeDetail.error.submitReviewFailed', 'Failed to submit review'))
     } finally {
       setSubmittingReview(false)
     }
@@ -479,24 +507,92 @@ const StoreDetail = () => {
   }
 
   // Calculate years in market
-  const yearsInMarket = useMemo(() => {
+  const marketTenureLabel = useMemo(() => {
     if (!store?.created_at) return null
     const created = new Date(store.created_at)
     const now = new Date()
     const diffMs = now - created
     const diffYears = diffMs / (365.25 * 24 * 60 * 60 * 1000)
-    if (diffYears < 0.25) return 'New'
-    if (diffYears < 1) return `${Math.floor(diffYears * 12)} months`
-    return `${Math.floor(diffYears)}+ years`
-  }, [store?.created_at])
+    if (diffYears < 0.25) return t('storeDetail.stats.newInMarket', 'New in market')
 
-  // Get display name
-  const displayName = useMemo(() => {
-    if (!store) return ''
-    return store.store_name || `${store.first_name} ${store.last_name}`
-  }, [store])
+    if (diffYears < 1) {
+      return t('storeDetail.stats.monthsInMarket', '{{count}} months in market', {
+        count: numberFormatter.format(Math.max(Math.floor(diffYears * 12), 1)),
+      })
+    }
+
+    return t('storeDetail.stats.yearsInMarket', '{{count}}+ years in market', {
+      count: numberFormatter.format(Math.floor(diffYears)),
+    })
+  }, [store?.created_at, t, numberFormatter])
+
+  const businessHoursDisplay = useMemo(() => {
+    const hours = store?.business_hours
+    if (!hours) return ''
+
+    if (typeof hours === 'string') {
+      return hours.trim()
+    }
+
+    if (Array.isArray(hours)) {
+      return hours.filter(Boolean).join(' • ')
+    }
+
+    if (typeof hours === 'object') {
+      return Object.entries(hours)
+        .filter(([, value]) => Boolean(value))
+        .map(([day, value]) => {
+          if (Array.isArray(value)) {
+            return `${day}: ${value.filter(Boolean).join(', ')}`
+          }
+
+          if (typeof value === 'object') {
+            return `${day}: ${Object.values(value).filter(Boolean).join(' - ')}`
+          }
+
+          return `${day}: ${value}`
+        })
+        .join(' • ')
+    }
+
+    return ''
+  }, [store?.business_hours])
 
   const storeSetup = useMemo(() => storeTypeService.decorateStoreProfile(store), [store])
+  const localizedStoreSetup = useMemo(() => {
+    if (!storeSetup) return null
+
+    const storeTypeLabel = t(`storeDetail.setup.storeTypes.${storeSetup.storeType}`, storeSetup.storeTypeLabel || '')
+    const deliveryOptionLabel = t(`storeDetail.setup.deliveryOptions.${storeSetup.deliveryOption}`, storeSetup.deliveryOptionMeta?.label || '')
+    const nextStoreTypeLabel = storeSetup.progress?.nextStoreType
+      ? t(`storeDetail.setup.storeTypes.${storeSetup.progress.nextStoreType}`, storeSetup.progress.nextStoreTypeLabel || '')
+      : ''
+
+    const progressHeadline = !storeSetup.progress?.nextStoreType
+      ? t('storeDetail.setup.progress.complete', 'Your store has reached the highest available tier.')
+      : t('storeDetail.setup.progress.headline', '{{count}} products left to reach {{nextStoreType}}.', {
+          count: numberFormatter.format(storeSetup.progress.remainingProducts || 0),
+          nextStoreType: nextStoreTypeLabel,
+        })
+
+    return {
+      storeTypeLabel,
+      deliveryOptionLabel,
+      activeProductsCountLabel: t('storeDetail.setup.activeProductsCountValue', '{{count}} products', {
+        count: numberFormatter.format(storeSetup.activeProductsCount || 0),
+      }),
+      progressHeadline,
+    }
+  }, [storeSetup, t, i18n.language, numberFormatter])
+  const minOrderLabel = useMemo(() => {
+    if (!store?.min_order_value) return ''
+    return t('storeDetail.stats.minOrder', 'Min. order: {{amount}}', { amount: store.min_order_value })
+  }, [store?.min_order_value, t])
+  const formatReviewDate = useCallback((value) => new Date(value).toLocaleDateString(textLocale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }), [textLocale])
 
   // Banner gradient fallback
   const bannerGradient = 'from-green-600 via-emerald-500 to-teal-500'
@@ -517,11 +613,11 @@ const StoreDetail = () => {
         <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
           <BuildingStorefrontIcon className="w-10 h-10 text-red-400" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Store not found</h2>
-        <p className="text-gray-500 mb-6">The store you're looking for doesn't exist or has been removed.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('storeDetail.notFound.title', 'Store not found')}</h2>
+        <p className="text-gray-500 mb-6">{t('storeDetail.notFound.description', 'The store you\'re looking for doesn\'t exist or has been removed.')}</p>
         <button onClick={() => navigate('/stores')} className="btn-primary">
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
-          Back to Stores
+          {t('storeDetail.actions.backToStores', 'Back to Stores')}
         </button>
       </div>
     )
@@ -534,9 +630,9 @@ const StoreDetail = () => {
         <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
           <BuildingStorefrontIcon className="w-10 h-10 text-red-400" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h2>
-        <p className="text-gray-500 mb-6">Failed to load store information. Please try again.</p>
-        <button onClick={loadStore} className="btn-primary">Try Again</button>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('storeDetail.error.title', 'Something went wrong')}</h2>
+        <p className="text-gray-500 mb-6">{t('storeDetail.error.loadStoreFailed', 'Failed to load store information. Please try again.')}</p>
+        <button onClick={loadStore} className="btn-primary">{t('storeDetail.error.tryAgain', 'Try Again')}</button>
       </div>
     )
   }
@@ -576,7 +672,7 @@ const StoreDetail = () => {
         <button
           onClick={() => navigate('/stores')}
           className="absolute top-4 left-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-          aria-label="Back to stores"
+          aria-label={t('storeDetail.actions.backToStores', 'Back to stores')}
         >
           <ArrowLeftIcon className="w-5 h-5 text-gray-700" />
         </button>
@@ -585,7 +681,7 @@ const StoreDetail = () => {
         <button
           onClick={handleShareStore}
           className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
-          aria-label="Share store"
+          aria-label={t('storeDetail.actions.shareStore', 'Share store')}
         >
           <ShareIcon className="w-5 h-5 text-gray-700" />
         </button>
@@ -621,7 +717,7 @@ const StoreDetail = () => {
           {store.is_verified && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
               <CheckBadgeIcon className="w-4 h-4" />
-              Verified Store
+              {t('storeDetail.badges.verifiedStore', 'Verified Store')}
             </span>
           )}
         </div>
@@ -631,36 +727,36 @@ const StoreDetail = () => {
           <p className="text-gray-600 mb-4 max-w-2xl">{store.description}</p>
         )}
 
-        {storeSetup && (
+        {storeSetup && localizedStoreSetup && (
           <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 mb-6 shadow-sm">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
                 <SparklesIcon className="w-4 h-4" />
-                {storeSetup.storeTypeLabel}
+                {localizedStoreSetup.storeTypeLabel}
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
                 <TruckIcon className="w-4 h-4" />
-                {storeSetup.deliveryOptionMeta?.label}
+                {localizedStoreSetup.deliveryOptionLabel}
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
               <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-500 mb-1">نوع المتجر</p>
-                <p className="font-semibold text-gray-900">{storeSetup.storeTypeLabel}</p>
+                <p className="text-xs text-gray-500 mb-1">{t('storeDetail.setup.storeType', 'Store type')}</p>
+                <p className="font-semibold text-gray-900">{localizedStoreSetup.storeTypeLabel}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-500 mb-1">خيار التوصيل</p>
-                <p className="font-semibold text-gray-900">{storeSetup.deliveryOptionMeta?.label}</p>
+                <p className="text-xs text-gray-500 mb-1">{t('storeDetail.setup.deliveryOption', 'Delivery option')}</p>
+                <p className="font-semibold text-gray-900">{localizedStoreSetup.deliveryOptionLabel}</p>
               </div>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                <p className="text-xs text-gray-500 mb-1">المنتجات النشطة</p>
-                <p className="font-semibold text-gray-900">{storeSetup.activeProductsCountLabel}</p>
+                <p className="text-xs text-gray-500 mb-1">{t('storeDetail.setup.activeProducts', 'Active products')}</p>
+                <p className="font-semibold text-gray-900">{localizedStoreSetup.activeProductsCountLabel}</p>
               </div>
             </div>
 
             <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-gray-900">التقدم نحو النوع التالي</p>
+              <p className="text-sm font-medium text-gray-900">{t('storeDetail.setup.nextTierProgress', 'Progress to next tier')}</p>
               <span className="text-xs text-gray-500">{storeSetup.progress.percentage}%</span>
             </div>
             <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden mb-3">
@@ -669,7 +765,7 @@ const StoreDetail = () => {
                 style={{ width: `${storeSetup.progress.percentage}%` }}
               />
             </div>
-            <p className="text-sm text-gray-600 leading-6">{storeSetup.progress.headline}</p>
+            <p className="text-sm text-gray-600 leading-6">{localizedStoreSetup.progressHeadline}</p>
           </div>
         )}
 
@@ -682,14 +778,14 @@ const StoreDetail = () => {
               <span className="text-gray-400">({totalReviews})</span>
             </div>
           ) : (
-            <span className="text-gray-400">No reviews yet</span>
+            <span className="text-gray-400">{t('storeDetail.stats.noReviews', 'No reviews yet')}</span>
           )}
 
           {/* Years in Market */}
-          {yearsInMarket && (
+          {marketTenureLabel && (
             <div className="flex items-center gap-1.5">
               <CalendarIcon className="w-4 h-4" />
-              <span>{yearsInMarket} in market</span>
+              <span>{marketTenureLabel}</span>
             </div>
           )}
 
@@ -697,7 +793,7 @@ const StoreDetail = () => {
           {store.response_time_hours && (
             <div className="flex items-center gap-1.5">
               <BoltIcon className="w-4 h-4 text-green-500" />
-              <span>Responds in ~{store.response_time_hours}h</span>
+              <span>{t('storeDetail.stats.respondsIn', 'Responds in ~{{hours}}h', { hours: store.response_time_hours })}</span>
             </div>
           )}
         </div>
@@ -713,7 +809,7 @@ const StoreDetail = () => {
           {store.min_order_value && (
             <div className="flex items-center gap-1.5">
               <ClockIcon className="w-4 h-4 flex-shrink-0" />
-              <span>Min. order: {store.min_order_value}</span>
+              <span>{minOrderLabel}</span>
             </div>
           )}
         </div>
@@ -737,7 +833,7 @@ const StoreDetail = () => {
             ) : (
               <BellIcon className="w-4 h-4" />
             )}
-            {isFollowing ? 'Following' : 'Follow Store'}
+            {isFollowing ? t('storeDetail.actions.following', 'Following') : t('storeDetail.actions.followStore', 'Follow Store')}
           </button>
 
           {/* Call Seller */}
@@ -747,7 +843,7 @@ const StoreDetail = () => {
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
             >
               <PhoneIcon className="w-4 h-4" />
-              Call Seller
+              {t('storeDetail.actions.callSeller', 'Call Seller')}
             </button>
           )}
 
@@ -757,7 +853,7 @@ const StoreDetail = () => {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
           >
             <ChatBubbleLeftRightIcon className="w-4 h-4" />
-            Send Message
+            {t('storeDetail.actions.sendMessage', 'Send Message')}
           </button>
 
           {/* Email */}
@@ -767,7 +863,7 @@ const StoreDetail = () => {
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all"
             >
               <EnvelopeIcon className="w-4 h-4" />
-              Email
+                {t('storeDetail.location.email', 'Email')}
             </a>
           )}
         </div>
@@ -779,7 +875,7 @@ const StoreDetail = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              Products
+              {t('storeDetail.products.title', 'Products')}
               <span className="text-gray-400 font-normal ml-1">({totalProducts})</span>
             </h2>
           </div>
@@ -790,9 +886,9 @@ const StoreDetail = () => {
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setProductPage(1) }}
               className="input text-sm py-2"
-              aria-label="Sort products"
+              aria-label={t('storeDetail.products.sortAria', 'Sort products')}
             >
-              {SORT_OPTIONS.map(opt => (
+              {localizedSortOptions.map(opt => (
                 <option key={opt.id} value={opt.id}>{opt.label}</option>
               ))}
             </select>
@@ -806,18 +902,18 @@ const StoreDetail = () => {
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search products in this store..."
+              placeholder={t('storeDetail.products.searchPlaceholder', 'Search products in this store...')}
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
               className="input pl-12 pr-10 py-2.5"
-              aria-label="Search products in store"
+              aria-label={t('storeDetail.products.searchLabel', 'Search products in store')}
             />
             {productSearch && (
               <button
                 type="button"
                 onClick={() => { setProductSearch(''); setProductPage(1) }}
                 className="absolute right-3 top-1/2 -translate-y-1/2"
-                aria-label="Clear search"
+                aria-label={t('storeDetail.actions.clearSearch', 'Clear search')}
               >
                 <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-600" />
               </button>
@@ -830,7 +926,7 @@ const StoreDetail = () => {
             className="sm:hidden inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <FunnelIcon className="w-4 h-4" />
-            Filters
+            {t('storeDetail.products.filters', 'Filters')}
           </button>
         </div>
 
@@ -838,7 +934,7 @@ const StoreDetail = () => {
         <div className={`${mobileFiltersOpen ? 'block' : 'hidden'} sm:block mb-6`}>
           {/* Category Pills */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin mb-3">
-            {PRODUCT_CATEGORIES.map(cat => (
+            {localizedProductCategories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => { setCategoryFilter(cat.id); setProductPage(1) }}
@@ -859,7 +955,7 @@ const StoreDetail = () => {
             <div className="flex flex-wrap gap-2 mb-3">
               {productSearch && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs">
-                  Search: "{productSearch}"
+                  {t('storeDetail.products.searchTag', 'Search: "{{query}}"', { query: productSearch })}
                   <button onClick={() => { setProductSearch(''); setProductPage(1) }} className="hover:text-green-900">
                     <XMarkIcon className="w-3 h-3" />
                   </button>
@@ -867,14 +963,14 @@ const StoreDetail = () => {
               )}
               {categoryFilter !== 'all' && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs">
-                  {PRODUCT_CATEGORIES.find(c => c.id === categoryFilter)?.emoji} {PRODUCT_CATEGORIES.find(c => c.id === categoryFilter)?.label}
+                  {localizedProductCategories.find(c => c.id === categoryFilter)?.emoji} {localizedProductCategories.find(c => c.id === categoryFilter)?.label}
                   <button onClick={() => { setCategoryFilter('all'); setProductPage(1) }} className="hover:text-green-900">
                     <XMarkIcon className="w-3 h-3" />
                   </button>
                 </span>
               )}
               <button onClick={clearProductFilters} className="text-xs text-green-600 hover:underline">
-                Clear all
+                {t('storeDetail.actions.clearAll', 'Clear all')}
               </button>
             </div>
           )}
@@ -885,9 +981,9 @@ const StoreDetail = () => {
               value={sortBy}
               onChange={(e) => { setSortBy(e.target.value); setProductPage(1) }}
               className="input text-sm py-2 w-full"
-              aria-label="Sort products"
+              aria-label={t('storeDetail.products.sortAria', 'Sort products')}
             >
-              {SORT_OPTIONS.map(opt => (
+              {localizedSortOptions.map(opt => (
                 <option key={opt.id} value={opt.id}>{opt.label}</option>
               ))}
             </select>
@@ -924,17 +1020,20 @@ const StoreDetail = () => {
                   disabled={productPage === 1}
                   className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
-                  Previous
+                  {t('storeDetail.products.pagination.previous', 'Previous')}
                 </button>
                 <span className="text-sm text-gray-500 px-3">
-                  Page {productPage} of {Math.ceil(totalProducts / PRODUCTS_PER_PAGE)}
+                  {t('storeDetail.products.pagination.page', 'Page {{current}} of {{total}}', {
+                    current: numberFormatter.format(productPage),
+                    total: numberFormatter.format(Math.ceil(totalProducts / PRODUCTS_PER_PAGE)),
+                  })}
                 </span>
                 <button
                   onClick={() => setProductPage(p => Math.min(Math.ceil(totalProducts / PRODUCTS_PER_PAGE), p + 1))}
                   disabled={productPage >= Math.ceil(totalProducts / PRODUCTS_PER_PAGE)}
                   className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-colors"
                 >
-                  Next
+                  {t('storeDetail.products.pagination.next', 'Next')}
                 </button>
               </div>
             )}
@@ -942,15 +1041,15 @@ const StoreDetail = () => {
         ) : (
           <Card className="p-12 text-center">
             <MagnifyingGlassIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('storeDetail.products.emptyTitle', 'No products found')}</h3>
             <p className="text-gray-500 mb-4">
               {productSearch || categoryFilter !== 'all'
-                ? 'Try adjusting your filters or search terms'
-                : 'This store doesn\'t have any products yet'}
+                ? t('storeDetail.products.emptyFiltered', 'Try adjusting your filters or search terms')
+                : t('storeDetail.products.emptyInitial', 'This store doesn\'t have any products yet')}
             </p>
             {(productSearch || categoryFilter !== 'all') && (
               <button onClick={clearProductFilters} className="btn-primary">
-                Clear Filters
+                {t('storeDetail.actions.clearFilters', 'Clear Filters')}
               </button>
             )}
           </Card>
@@ -960,7 +1059,7 @@ const StoreDetail = () => {
       {/* ===== LOCATION MAP ===== */}
       {(store.latitude || store.longitude || store.city) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Store Location</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('storeDetail.location.title', 'Store Location')}</h2>
           <Card className="overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-0">
               {/* Location Info */}
@@ -971,7 +1070,7 @@ const StoreDetail = () => {
                     <div className="flex items-start gap-3 text-sm">
                       <MapPinIcon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-gray-500">Address</p>
+                        <p className="text-gray-500">{t('storeDetail.location.address', 'Address')}</p>
                         <p className="text-gray-900 font-medium">
                           {store.address ? `${store.address}, ` : ''}{store.city}{store.country ? `, ${store.country}` : ''}
                         </p>
@@ -982,7 +1081,7 @@ const StoreDetail = () => {
                     <div className="flex items-start gap-3 text-sm">
                       <PhoneIcon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-gray-500">Phone</p>
+                        <p className="text-gray-500">{t('storeDetail.location.phone', 'Phone')}</p>
                         <a href={`tel:${store.phone}`} className="text-green-600 hover:underline font-medium">
                           {store.phone}
                         </a>
@@ -993,7 +1092,7 @@ const StoreDetail = () => {
                     <div className="flex items-start gap-3 text-sm">
                       <EnvelopeIcon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-gray-500">Email</p>
+                        <p className="text-gray-500">{t('storeDetail.location.email', 'Email')}</p>
                         <a href={`mailto:${store.email}`} className="text-green-600 hover:underline font-medium">
                           {store.email}
                         </a>
@@ -1004,28 +1103,28 @@ const StoreDetail = () => {
                   <div className="flex items-start gap-3 text-sm">
                     <ClockIcon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-gray-500">Status</p>
+                      <p className="text-gray-500">{t('storeDetail.location.status', 'Status')}</p>
                       {isVendorOpen === null ? (
-                        <p className="text-gray-400 text-sm">Checking...</p>
+                        <p className="text-gray-400 text-sm">{t('storeDetail.location.checking', 'Checking...')}</p>
                       ) : isVendorOpen ? (
                         <p className="text-green-600 font-semibold flex items-center gap-1">
                           <CheckCircleIcon className="w-4 h-4" />
-                          Open Now
+                          {t('storeDetail.location.openNow', 'Open Now')}
                         </p>
                       ) : (
                         <p className="text-red-600 font-semibold flex items-center gap-1">
                           <XMarkIcon className="w-4 h-4" />
-                          Closed
+                          {t('storeDetail.location.closed', 'Closed')}
                         </p>
                       )}
                     </div>
                   </div>
-                  {store.business_hours && (
+                  {businessHoursDisplay && (
                     <div className="flex items-start gap-3 text-sm">
                       <ClockIcon className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-gray-500">Business Hours</p>
-                        <p className="text-gray-900 font-medium">{store.business_hours}</p>
+                        <p className="text-gray-500">{t('storeDetail.location.businessHours', 'Business Hours')}</p>
+                        <p className="text-gray-900 font-medium">{businessHoursDisplay}</p>
                       </div>
                     </div>
                   )}
@@ -1060,7 +1159,7 @@ const StoreDetail = () => {
       {/* ===== REVIEWS SECTION ===== */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <h2 className="text-xl font-bold text-gray-900 mb-6">
-          Reviews
+          {t('storeDetail.reviews.title', 'Reviews')}
           <span className="text-gray-400 font-normal ml-1">({totalReviews})</span>
         </h2>
 
@@ -1076,7 +1175,7 @@ const StoreDetail = () => {
               <div>
                 <SimpleRating rating={averageRating} size="lg" />
                 <p className="text-sm text-gray-500 mt-1">
-                  {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
+                  {t('storeDetail.reviews.summary', '{{count}} reviews', { count: numberFormatter.format(totalReviews) })}
                 </p>
               </div>
             </div>
@@ -1086,9 +1185,9 @@ const StoreDetail = () => {
         {/* Write Review */}
         {user ? (
           <Card className="p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Write a Review</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('storeDetail.reviews.writeTitle', 'Write a Review')}</h3>
             <div className="mb-4">
-              <p className="block text-sm font-medium text-gray-700 mb-2">Rating</p>
+              <p className="block text-sm font-medium text-gray-700 mb-2">{t('storeDetail.reviews.ratingLabel', 'Rating')}</p>
               <StarRating
                 rating={userRating}
                 size="lg"
@@ -1097,7 +1196,7 @@ const StoreDetail = () => {
             </div>
             <div className="mb-4">
               <label htmlFor="store-review-text" className="block text-sm font-medium text-gray-700 mb-2">
-                Your Review (optional)
+                {t('storeDetail.reviews.yourReviewLabel', 'Your Review (optional)')}
               </label>
               <textarea
                 id="store-review-text"
@@ -1105,7 +1204,7 @@ const StoreDetail = () => {
                 onChange={(e) => setReviewText(e.target.value)}
                 rows={3}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                placeholder="Share your experience with this store..."
+                placeholder={t('storeDetail.reviews.yourReviewPlaceholder', 'Share your experience with this store...')}
               />
             </div>
             <button
@@ -1113,17 +1212,17 @@ const StoreDetail = () => {
               disabled={submittingReview || userRating === 0}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submittingReview ? 'Submitting...' : 'Submit Review'}
+              {submittingReview ? t('storeDetail.reviews.submitting', 'Submitting...') : t('storeDetail.reviews.submit', 'Submit Review')}
             </button>
           </Card>
         ) : (
           <Card className="p-6 mb-6 bg-blue-50 border-blue-200 text-center">
             <p className="text-blue-800">
-              Please{' '}
+              {t('storeDetail.reviews.loginPromptPrefix', 'Please')}{' '}
               <Link to="/login" className="font-semibold underline hover:text-blue-600">
-                login
+                {t('storeDetail.reviews.loginLink', 'login')}
               </Link>
-              {' '}to write a review
+              {' '}{t('storeDetail.reviews.loginPromptSuffix', 'to write a review')}
             </p>
           </Card>
         )}
@@ -1133,8 +1232,8 @@ const StoreDetail = () => {
           {reviews.length === 0 ? (
             <Card className="p-12 text-center">
               <ChatBubbleLeftRightIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
-              <p className="text-gray-500">Be the first to review this store</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('storeDetail.reviews.emptyTitle', 'No reviews yet')}</h3>
+              <p className="text-gray-500">{t('storeDetail.reviews.emptyDescription', 'Be the first to review this store')}</p>
             </Card>
           ) : (
             reviews.map((review) => (
@@ -1148,14 +1247,10 @@ const StoreDetail = () => {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : 'User'}
+                        {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : t('storeDetail.reviews.anonymousUser', 'User')}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(review.created_at).toLocaleDateString('en-US', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
+                        {formatReviewDate(review.created_at)}
                       </p>
                     </div>
                   </div>

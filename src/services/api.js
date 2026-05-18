@@ -1,76 +1,130 @@
 import { supabase } from './supabase'
 import { authAdminOps } from './authAdminOps'
+import {
+  hydrateRowsWithProductItems,
+  isProductImagesRelationError,
+  runProductImageFallbackQuery,
+} from './productImages'
 import { useAuthStore } from '@/store/authStore'
 import { withRetry } from '@/utils/withRetry'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
+
+const PRODUCT_LIST_FIELDS = `
+  id, name, description, category, subcategory,
+  price_per_unit, unit_type, stock_quantity,
+  min_order_quantity, is_available, approval_status,
+  created_at, vendor_id
+`
+
+const PRODUCT_LIST_SELECT = `
+  ${PRODUCT_LIST_FIELDS},
+  product_images(url, is_primary)
+`
+
+const PRODUCT_DETAIL_SELECT = `
+  *,
+  product_images(url, is_primary),
+  reviews!inner(rating, comment, created_at)
+`
+
+const PRODUCT_DETAIL_SELECT_WITHOUT_IMAGES = `
+  *,
+  reviews!inner(rating, comment, created_at)
+`
+
+const PENDING_PRODUCT_SELECT = `
+  id, name, description, category, price_per_unit, unit_type,
+  approval_status, created_at, vendor_id,
+  vendor:profiles(first_name, last_name, store_name),
+  images:product_images(url, is_primary)
+`
+
+const PENDING_PRODUCT_SELECT_WITHOUT_IMAGES = `
+  id, name, description, category, price_per_unit, unit_type,
+  approval_status, created_at, vendor_id,
+  vendor:profiles(first_name, last_name, store_name)
+`
+
+const ORDER_DETAIL_SELECT = `
+  *,
+  buyer:profiles!buyer_id(id, first_name, last_name, avatar_url, phone, email),
+  vendor:profiles!vendor_id(id, first_name, last_name, avatar_url, phone, store_name),
+  items:order_items(id, product_id, quantity, unit_price, product:products(id, name, images:product_images(url, is_primary)))
+`
+
+const ORDER_DETAIL_SELECT_WITHOUT_IMAGES = `
+  *,
+  buyer:profiles!buyer_id(id, first_name, last_name, avatar_url, phone, email),
+  vendor:profiles!vendor_id(id, first_name, last_name, avatar_url, phone, store_name),
+  items:order_items(id, product_id, quantity, unit_price, product:products(id, name))
+`
 
 // Products API
 export const productsApi = {
   getAll: async (filters = {}) => {
     return withRetry(async () => {
-      // Only fetch primary images to avoid duplicate rows
-      let query = supabase
-        .from('products')
-        .select(`
-          id, name, description, category, subcategory,
-          price_per_unit, unit_type, stock_quantity,
-          min_order_quantity, is_available, approval_status,
-          created_at, vendor_id,
-          product_images(url, is_primary)
-        `, { count: 'exact' })
-        .is('deleted_at', null)
+      const buildQuery = (selectClause) => {
+        let query = supabase
+          .from('products')
+          .select(selectClause, { count: 'exact' })
+          .is('deleted_at', null)
 
-      if (filters.category) {
-        query = query.eq('category', filters.category)
+        if (filters.category) {
+          query = query.eq('category', filters.category)
+        }
+
+        if (filters.minPrice) {
+          query = query.gte('price_per_unit', filters.minPrice)
+        }
+
+        if (filters.maxPrice) {
+          query = query.lte('price_per_unit', filters.maxPrice)
+        }
+
+        if (filters.search) {
+          query = query.or(`name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,description.ilike.%${sanitizePostgRESTFilter(filters.search)}%`)
+        }
+
+        if (filters.vendorId) {
+          query = query.eq('vendor_id', filters.vendorId)
+        }
+
+        if (filters.approvalStatus) {
+          query = query.eq('approval_status', filters.approvalStatus)
+        }
+
+        const limit = Math.min(filters.limit || 50, 200)
+        const offset = filters.offset || 0
+        return query
+          .range(offset, offset + limit - 1)
+          .order('created_at', { ascending: false })
       }
 
-      if (filters.minPrice) {
-        query = query.gte('price_per_unit', filters.minPrice)
-      }
+      const { data, count } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: PRODUCT_LIST_SELECT,
+        selectWithoutImages: PRODUCT_LIST_FIELDS,
+      })
 
-      if (filters.maxPrice) {
-        query = query.lte('price_per_unit', filters.maxPrice)
-      }
-
-      if (filters.search) {
-        query = query.or(`name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,description.ilike.%${sanitizePostgRESTFilter(filters.search)}%`)
-      }
-
-      if (filters.vendorId) {
-        query = query.eq('vendor_id', filters.vendorId)
-      }
-
-      if (filters.approvalStatus) {
-        query = query.eq('approval_status', filters.approvalStatus)
-      }
-
-      // Pagination: default 50, max 200
-      const limit = Math.min(filters.limit || 50, 200)
-      const offset = filters.offset || 0
-      query = query.range(offset, offset + limit - 1)
-
-      query = query.order('created_at', { ascending: false })
-
-      const { data, error, count } = await query
-      if (error) throw error
       return { data, total: count }
     }, { maxRetries: 3, baseDelay: 1000 })()
   },
 
   getById: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('products')
-        .select(`
-          *,
-          product_images(url, is_primary),
-          reviews!inner(rating, comment, created_at)
-        `)
+        .select(selectClause)
         .eq('id', id)
         .is('deleted_at', null)
         .single()
 
-      if (error) throw error
+      const { data } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: PRODUCT_DETAIL_SELECT,
+        selectWithoutImages: PRODUCT_DETAIL_SELECT_WITHOUT_IMAGES,
+      })
+
       return data
     }, { maxRetries: 2, baseDelay: 500 })()
   },
@@ -151,19 +205,19 @@ export const productsApi = {
 
   getPending: async () => {
     return withRetry(async () => {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('products')
-        .select(`
-          id, name, description, category, price_per_unit, unit_type,
-          approval_status, created_at, vendor_id,
-          vendor:profiles(first_name, last_name, store_name),
-          images:product_images(url, is_primary)
-        `)
+        .select(selectClause)
         .eq('approval_status', 'pending')
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      const { data } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: PENDING_PRODUCT_SELECT,
+        selectWithoutImages: PENDING_PRODUCT_SELECT_WITHOUT_IMAGES,
+      })
+
       return data
     }, { maxRetries: 3, baseDelay: 1000 })()
   },
@@ -290,19 +344,24 @@ export const ordersApi = {
 
   getById: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('orders')
-        .select(`
-          *,
-          buyer:profiles!buyer_id(id, first_name, last_name, avatar_url, phone, email),
-          vendor:profiles!vendor_id(id, first_name, last_name, avatar_url, phone, store_name),
-          items:order_items(id, product_id, quantity, unit_price, product:products(id, name, images:product_images(url, is_primary)))
-        `)
+        .select(selectClause)
         .eq('id', id)
         .is('deleted_at', null)
         .single()
 
-      if (error) throw error
+      const { data, error } = await buildQuery(ORDER_DETAIL_SELECT)
+      if (error) {
+        if (!isProductImagesRelationError(error)) throw error
+
+        const { data: fallbackData, error: fallbackError } = await buildQuery(ORDER_DETAIL_SELECT_WITHOUT_IMAGES)
+        if (fallbackError) throw fallbackError
+
+        const [hydratedOrder] = await hydrateRowsWithProductItems(fallbackData ? [fallbackData] : [])
+        return hydratedOrder || null
+      }
+
       return data
     }, { maxRetries: 2, baseDelay: 500 })()
   },

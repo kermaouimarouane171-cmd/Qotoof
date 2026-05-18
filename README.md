@@ -52,7 +52,7 @@ npm run dev
 
 The app will open at `http://localhost:3000`
 
-## 🌐 Deployment on Vercel
+## 🌐 Deployment on Firebase Hosting
 
 ### Pre-Deployment Check
 Before deploying, run the pre-deployment verification:
@@ -61,51 +61,52 @@ npm run deploy:check
 ```
 
 This verifies:
-- ✅ All required files exist (`vercel.json`, `.env.example`, `vite.config.js`)
+- ✅ All required deployment files exist (`firebase.json`, `.env.example`, `vite.config.js`)
 - ✅ `.gitignore` is configured correctly
-- ✅ Required environment variables are set
+- ✅ Required environment variables are available from `.env` or injected CI secrets
 - ✅ Package.json has required build scripts
 
 ### Deployment Steps
 
-1. **Push code to GitHub:**
+1. **Configure GitHub Actions secrets:**
+    - Add the repository secrets listed in `.github/SECRETS_REQUIRED.md`
+    - At minimum configure Firebase deploy credentials and the public client variables used at build time
+
+2. **Run the readiness check locally before shipping:**
+```bash
+npm run deploy:check
+```
+
+3. **Push code to GitHub:**
 ```bash
 git add .
-git commit -m "Ready for Vercel deployment"
+git commit -m "Ready for production deployment"
 git push
 ```
 
-2. **Link project to Vercel:**
-   - Go to [vercel.com](https://vercel.com)
-   - Click "New Project"
-   - Select your GitHub repository
-   - Import the project
+4. **CI validates the release automatically:**
+    - The `CI` workflow runs lint, tests, and a production build on `pull_request` and `push`
+    - The `CD — Deploy to Firebase Hosting` workflow only deploys after `CI` succeeds on `main`
 
-3. **Configure Environment Variables:**
-   - In Vercel Project Settings → Environment Variables
-   - Add all variables from `.env.example`:
-     - `VITE_SUPABASE_URL`
-     - `VITE_SUPABASE_ANON_KEY`
-    - `VITE_PAYPAL_CLIENT_ID`
-     - `VITE_SENTRY_DSN`
-     - `RESEND_API_KEY`
-     - `VITE_GOOGLE_MAPS_KEY`
-     - And other vars from `.env.example`
+5. **Use PR previews before merging:**
+    - Opening a pull request triggers `PR Preview — Firebase Hosting`
+    - GitHub posts a temporary preview URL for review
 
-4. **Deploy:**
-   - Click "Deploy"
-   - Vercel will automatically run `npm run build`
-   - Your app will be live at `https://your-project.vercel.app`
+6. **Enable production monitoring:**
+    - Set `PRODUCTION_APP_URL`
+    - Optionally set `PRODUCTION_API_HEALTHCHECK_URL`
+    - The `Monitoring — Production Health` workflow checks availability every 30 minutes
 
-### Build Configuration
+### Build / Hosting Configuration
 - **Build Command:** `npm run build`
 - **Output Directory:** `dist`
-- **Node Version:** 18.x (default)
+- **Node Version in GitHub Actions:** `20`
+- **Hosting Target:** Firebase Hosting via `firebase.json`
 
-The `vercel.json` file automatically configures:
+The `firebase.json` file configures:
 - SPA rewrites (all routes → `index.html`)
-- Security headers (CSP, X-Frame-Options, etc.)
-- Static asset caching (1 year for `/assets`)
+
+The repository still contains `vercel.json` as an optional alternate hosting config, but the maintained production deployment path is Firebase Hosting via GitHub Actions.
 
 ## 📘 TypeScript Support
 
@@ -219,6 +220,36 @@ curl -X POST "https://<project-ref>.supabase.co/functions/v1/commission-cron" \
 ```
 
 Run this daily. On month start, it will also close previous month commissions and generate payment deadlines.
+
+## PayPal Reconciliation Worker
+
+The project includes a scheduled edge function at `supabase/functions/reconcile-paypal-payments/index.ts`.
+
+### Deploy function
+```bash
+supabase functions deploy reconcile-paypal-payments
+```
+
+### Set secret (recommended)
+```bash
+supabase secrets set PAYPAL_RECONCILIATION_SECRET=your-secret-value
+```
+
+### Example scheduler call
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/reconcile-paypal-payments" \
+    -H "Authorization: Bearer your-secret-value"
+```
+
+### Example single-order recovery call
+```bash
+curl -X POST "https://<project-ref>.supabase.co/functions/v1/reconcile-paypal-payments" \
+    -H "Authorization: Bearer <user-jwt-or-secret>" \
+    -H "Content-Type: application/json" \
+    -d '{"orderId":"<order-id>"}'
+```
+
+Run this on a short schedule to recover abandoned or delayed PayPal returns. The worker inspects pending PayPal payments, captures approved orders server-side, and re-syncs `payments.status` with `orders.payment_status`.
 
 ## 🧪 Testing
 

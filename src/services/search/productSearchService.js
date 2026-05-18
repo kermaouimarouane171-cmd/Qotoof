@@ -1,7 +1,9 @@
 import { algoliasearch } from 'algoliasearch'
 import { supabase } from '@/services/supabase'
+import { hydrateProductsWithImages, isProductImagesRelationError } from '@/services/productImages'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
 import { logger } from '@/utils/logger'
+import { filterPublicProducts, filterPublicVendors } from '@/utils/publicVisibility'
 import {
   buildProductSearchFiltersFromParams,
   normalizeProductSearchFilters,
@@ -18,7 +20,7 @@ const APP_ID = import.meta.env.VITE_ALGOLIA_APP_ID || ''
 const SEARCH_KEY = import.meta.env.VITE_ALGOLIA_SEARCH_KEY || ''
 const PRODUCTS_INDEX = import.meta.env.VITE_ALGOLIA_PRODUCTS_INDEX || 'products'
 
-const PRODUCT_SELECT = `
+const PRODUCT_CORE_SELECT = `
   id,
   name,
   description,
@@ -35,8 +37,44 @@ const PRODUCT_SELECT = `
   reviews_count,
   created_at,
   vendor_id,
-  product_images(url, is_primary),
+`
+
+const PRODUCT_VENDOR_SELECT = `
   vendor:profiles(id, first_name, last_name, store_name, city, is_verified)
+`
+
+const PRODUCT_SELECT = `
+  ${PRODUCT_CORE_SELECT}
+  product_images(url, is_primary),
+  ${PRODUCT_VENDOR_SELECT}
+`
+
+const PRODUCT_SELECT_WITHOUT_IMAGES = `
+  ${PRODUCT_CORE_SELECT}
+  ${PRODUCT_VENDOR_SELECT}
+`
+
+const PRODUCT_SUGGESTION_SELECT = `
+  id,
+  name,
+  category,
+  subcategory,
+  price_per_unit,
+  average_rating,
+  vendor_id,
+  product_images(url, is_primary),
+  vendor:profiles(id, first_name, last_name, store_name, email)
+`
+
+const PRODUCT_SUGGESTION_SELECT_WITHOUT_IMAGES = `
+  id,
+  name,
+  category,
+  subcategory,
+  price_per_unit,
+  average_rating,
+  vendor_id,
+  vendor:profiles(id, first_name, last_name, store_name, email)
 `
 
 let algoliaClient = null
@@ -69,6 +107,22 @@ const shouldUseAlgolia = (filters) => {
     && filters.sortBy !== 'name_asc'
 }
 
+const fetchPublicVendors = async ({ region = null } = {}) => {
+  let query = supabase
+    .from('profiles')
+    .select('id, first_name, last_name, store_name, store_description, city, email')
+    .eq('role', 'vendor')
+
+  if (region) {
+    query = query.eq('city', region)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+
+  return filterPublicVendors(data || [])
+}
+
 const searchProductsViaAlgolia = async (filters) => {
   const searchFilters = []
   if (filters.category) searchFilters.push(`category:${filters.category}`)
@@ -94,8 +148,16 @@ const searchProductsViaAlgolia = async (filters) => {
   }])
 
   const firstResult = results?.[0] || { hits: [], nbHits: 0, nbPages: 0, page: filters.page }
+  const normalizedHits = (firstResult.hits || []).map(normalizeSearchProduct)
+  const visibleHits = filterPublicProducts(normalizedHits)
+
+  if (visibleHits.length !== normalizedHits.length) {
+    logger.warn('Product search: hidden experimental Algolia hits detected, falling back to Supabase')
+    return searchProductsViaSupabase(filters)
+  }
+
   return buildSearchResponse({
-    hits: (firstResult.hits || []).map(normalizeSearchProduct),
+    hits: visibleHits,
     total: firstResult.nbHits || 0,
     page: firstResult.page || 0,
     hitsPerPage: filters.hitsPerPage,
@@ -104,96 +166,125 @@ const searchProductsViaAlgolia = async (filters) => {
   })
 }
 
-const fetchRegionVendorIds = async (region) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('role', 'vendor')
-    .eq('city', region)
+const fetchPublicVendorIds = async (region = null) => {
+  const vendors = await fetchPublicVendors({ region })
+  return vendors.map((vendor) => vendor.id)
+}
 
-  if (error) throw error
-  return (data || []).map((vendor) => vendor.id)
+const executeProductQueryWithImageFallback = async ({
+  buildQuery,
+  fallbackSelect,
+  relationErrorContext,
+}) => {
+  const primaryResult = await buildQuery(PRODUCT_SELECT)
+  if (!primaryResult.error) {
+    return primaryResult
+  }
+
+  if (!isProductImagesRelationError(primaryResult.error)) {
+    throw primaryResult.error
+  }
+
+  logger.warn(`${relationErrorContext}: product_images relation missing, hydrating images separately`, primaryResult.error)
+
+  const fallbackResult = await buildQuery(fallbackSelect)
+  if (fallbackResult.error) {
+    throw fallbackResult.error
+  }
+
+  return {
+    ...fallbackResult,
+    data: await hydrateProductsWithImages(fallbackResult.data || []),
+  }
 }
 
 const searchProductsViaSupabase = async (filters) => {
-  let query = supabase
-    .from('products')
-    .select(PRODUCT_SELECT, { count: 'exact' })
-    .eq('approval_status', 'approved')
-    .eq('is_available', true)
-
-  if (filters.category) {
-    query = query.eq('category', filters.category)
+  const publicVendorIds = await fetchPublicVendorIds(filters.region || null)
+  if (publicVendorIds.length === 0) {
+    return buildSearchResponse({
+      hits: [],
+      total: 0,
+      page: filters.page,
+      hitsPerPage: filters.hitsPerPage,
+      query: filters.query,
+    })
   }
 
-  if (filters.subcategory) {
-    query = query.eq('subcategory', filters.subcategory)
-  }
+  const buildQuery = (selectClause) => {
+    let query = supabase
+      .from('products')
+      .select(selectClause, { count: 'exact' })
+      .eq('approval_status', 'approved')
+      .eq('is_available', true)
+      .in('vendor_id', publicVendorIds)
 
-  if (filters.region) {
-    const vendorIds = await fetchRegionVendorIds(filters.region)
-    if (vendorIds.length === 0) {
-      return buildSearchResponse({
-        hits: [],
-        total: 0,
-        page: filters.page,
-        hitsPerPage: filters.hitsPerPage,
-        query: filters.query,
-      })
+    if (filters.category) {
+      query = query.eq('category', filters.category)
     }
-    query = query.in('vendor_id', vendorIds)
+
+    if (filters.subcategory) {
+      query = query.eq('subcategory', filters.subcategory)
+    }
+
+    if (filters.region) {
+      query = query.in('vendor_id', publicVendorIds)
+    }
+
+    if (filters.minPrice !== null) {
+      query = query.gte('price_per_unit', filters.minPrice)
+    }
+
+    if (filters.maxPrice !== null) {
+      query = query.lte('price_per_unit', filters.maxPrice)
+    }
+
+    if (filters.rating !== null) {
+      query = query.gte('average_rating', filters.rating)
+    }
+
+    if (filters.inStock === true) {
+      query = query.or('stock_quantity.gt.0,available_quantity.gt.0')
+    }
+
+    if (filters.query) {
+      const textQuery = filters.query.replace(/\s+/g, ' ').trim()
+      query = query.textSearch('search_document', textQuery, { type: 'websearch', config: 'simple' })
+    }
+
+    switch (filters.sortBy) {
+      case 'price_asc':
+        query = query.order('price_per_unit', { ascending: true })
+        break
+      case 'price_desc':
+        query = query.order('price_per_unit', { ascending: false })
+        break
+      case 'rating_desc':
+        query = query.order('average_rating', { ascending: false }).order('reviews_count', { ascending: false })
+        break
+      case 'name_asc':
+        query = query.order('name', { ascending: true })
+        break
+      case 'relevance':
+      case 'newest':
+      default:
+        query = query.order('created_at', { ascending: false })
+        break
+    }
+
+    const from = filters.page * filters.hitsPerPage
+    const to = from + filters.hitsPerPage - 1
+    return query.range(from, to)
   }
 
-  if (filters.minPrice !== null) {
-    query = query.gte('price_per_unit', filters.minPrice)
-  }
+  const { data, count } = await executeProductQueryWithImageFallback({
+    buildQuery,
+    fallbackSelect: PRODUCT_SELECT_WITHOUT_IMAGES,
+    relationErrorContext: 'Product search: Supabase fallback',
+  })
 
-  if (filters.maxPrice !== null) {
-    query = query.lte('price_per_unit', filters.maxPrice)
-  }
-
-  if (filters.rating !== null) {
-    query = query.gte('average_rating', filters.rating)
-  }
-
-  if (filters.inStock === true) {
-    query = query.or('stock_quantity.gt.0,available_quantity.gt.0')
-  }
-
-  if (filters.query) {
-    const textQuery = filters.query.replace(/\s+/g, ' ').trim()
-    query = query.textSearch('search_document', textQuery, { type: 'websearch', config: 'simple' })
-  }
-
-  switch (filters.sortBy) {
-    case 'price_asc':
-      query = query.order('price_per_unit', { ascending: true })
-      break
-    case 'price_desc':
-      query = query.order('price_per_unit', { ascending: false })
-      break
-    case 'rating_desc':
-      query = query.order('average_rating', { ascending: false }).order('reviews_count', { ascending: false })
-      break
-    case 'name_asc':
-      query = query.order('name', { ascending: true })
-      break
-    case 'relevance':
-    case 'newest':
-    default:
-      query = query.order('created_at', { ascending: false })
-      break
-  }
-
-  const from = filters.page * filters.hitsPerPage
-  const to = from + filters.hitsPerPage - 1
-  query = query.range(from, to)
-
-  const { data, error, count } = await query
-  if (error) throw error
-
+  const visibleHits = filterPublicProducts((data || []).map(normalizeSearchProduct))
   return buildSearchResponse({
-    hits: (data || []).map(normalizeSearchProduct),
+    hits: visibleHits,
     total: count || 0,
     page: filters.page,
     hitsPerPage: filters.hitsPerPage,
@@ -203,24 +294,33 @@ const searchProductsViaSupabase = async (filters) => {
 }
 
 const getSearchSuggestionsViaSupabase = async (query, { hitsPerPage = 6, category = null } = {}) => {
-  let searchQuery = supabase
-    .from('products')
-    .select('id, name, category, subcategory, price_per_unit, average_rating, product_images(url, is_primary)')
-    .eq('approval_status', 'approved')
-    .eq('is_available', true)
-    .range(0, hitsPerPage - 1)
+  const publicVendorIds = await fetchPublicVendorIds()
+  if (publicVendorIds.length === 0) return []
 
-  if (category) {
-    searchQuery = searchQuery.eq('category', category)
+  const buildQuery = (selectClause) => {
+    let searchQuery = supabase
+      .from('products')
+      .select(selectClause)
+      .eq('approval_status', 'approved')
+      .eq('is_available', true)
+      .in('vendor_id', publicVendorIds)
+      .range(0, hitsPerPage - 1)
+
+    if (category) {
+      searchQuery = searchQuery.eq('category', category)
+    }
+
+    const sanitizedQuery = sanitizePostgRESTFilter(query)
+    return searchQuery.or(`name.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%,subcategory.ilike.%${sanitizedQuery}%`)
   }
 
-  const sanitizedQuery = sanitizePostgRESTFilter(query)
-  searchQuery = searchQuery.or(`name.ilike.%${sanitizedQuery}%,description.ilike.%${sanitizedQuery}%,subcategory.ilike.%${sanitizedQuery}%`)
+  const { data } = await executeProductQueryWithImageFallback({
+    buildQuery,
+    fallbackSelect: PRODUCT_SUGGESTION_SELECT_WITHOUT_IMAGES,
+    relationErrorContext: 'Product search: Supabase suggestions',
+  })
 
-  const { data, error } = await searchQuery
-  if (error) throw error
-
-  return (data || []).map((product) => {
+  return filterPublicProducts((data || []).map((product) => {
     const normalized = normalizeSearchProduct(product)
     return {
       objectID: normalized.id,
@@ -228,8 +328,9 @@ const getSearchSuggestionsViaSupabase = async (query, { hitsPerPage = 6, categor
       category: normalized.category,
       subcategory: normalized.subcategory,
       image_url: normalized.image_url,
+      vendor: normalized.vendor,
     }
-  })
+  }))
 }
 
 export const productSearchService = {
@@ -258,6 +359,17 @@ export const productSearchService = {
     }
   },
 
+  async getFeaturedProducts(limit = 8) {
+    const normalizedLimit = Math.max(1, Math.min(Number(limit) || 8, 24))
+    const response = await this.searchProducts({
+      page: 0,
+      hitsPerPage: normalizedLimit,
+      sortBy: 'newest',
+    })
+
+    return response.hits || []
+  },
+
   async getSearchSuggestions(query, { hitsPerPage = 6, category = null } = {}) {
     const trimmedQuery = String(query || '').trim()
     if (trimmedQuery.length < 2) return []
@@ -274,7 +386,7 @@ export const productSearchService = {
           },
         }])
 
-        return results?.[0]?.hits || []
+        return filterPublicProducts(results?.[0]?.hits || [])
       } catch (error) {
         logger.warn('Product search: Algolia suggestions failed, falling back to Supabase', error)
       }
@@ -294,14 +406,8 @@ export const productSearchService = {
 
   async getAvailableRegions() {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('city')
-        .eq('role', 'vendor')
-        .not('city', 'is', null)
-
-      if (error) throw error
-      return [...new Set((data || []).map((profile) => profile.city).filter(Boolean))].sort()
+      const vendors = await fetchPublicVendors()
+      return [...new Set(vendors.map((profile) => profile.city).filter(Boolean))].sort()
     } catch (error) {
       logger.error('Product search: failed to load vendor regions', error)
       return []

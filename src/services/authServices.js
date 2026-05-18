@@ -15,6 +15,43 @@ import { logger } from '../utils/logger.js'
 import { emailService } from '@/services/emailService'
 import { withRetry } from '@/utils/withRetry'
 
+const getSessionTokenPrefix = (session) => {
+  const accessToken = session?.access_token
+
+  if (typeof accessToken !== 'string' || !accessToken) {
+    return null
+  }
+
+  return accessToken.substring(0, 100)
+}
+
+const resolveSessionExpiry = (session) => {
+  if (typeof session?.expires_at === 'number') {
+    return new Date(session.expires_at * 1000).toISOString()
+  }
+
+  return new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+}
+
+const normalizeSessionDeviceInfo = (sessionRecord) => {
+  if (!sessionRecord) {
+    return sessionRecord
+  }
+
+  if (typeof sessionRecord.device_info !== 'string') {
+    return sessionRecord
+  }
+
+  try {
+    return {
+      ...sessionRecord,
+      device_info: JSON.parse(sessionRecord.device_info),
+    }
+  } catch {
+    return sessionRecord
+  }
+}
+
 // ============================================
 // 1. MFA (Multi-Factor Authentication) SERVICE
 // ============================================
@@ -259,6 +296,7 @@ export const sessionService = {
 
       const deviceFingerprint = await generateDeviceFingerprint()
       const deviceInfo = getDeviceInfo()
+      const sessionToken = getSessionTokenPrefix(session)
 
       await supabase
         .from('active_sessions')
@@ -270,13 +308,15 @@ export const sessionService = {
         .from('active_sessions')
         .insert({
           user_id: user.id,
-          session_id: session.access_token.substring(0, 100),
-          session_token: session.access_token.substring(0, 100),
+          session_id: sessionToken,
+          session_token: sessionToken,
           device_fingerprint: deviceFingerprint,
           device_info: deviceInfo,
           user_agent: navigator.userAgent,
+          last_active: new Date().toISOString(),
+          is_active: true,
           is_current: true,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+          expires_at: resolveSessionExpiry(session)
         })
       if (error) {
         logger.error('Register session error:', error)
@@ -301,7 +341,7 @@ export const sessionService = {
         .eq('is_active', true)
         .order('last_active', { ascending: false })
       if (error) throw error
-      return data || []
+      return (data || []).map(normalizeSessionDeviceInfo)
     } catch (error) {
       logger.error('Get sessions error:', error)
       return []
@@ -315,7 +355,7 @@ export const sessionService = {
 
       const { error } = await supabase
         .from('active_sessions')
-        .update({ is_active: false })
+        .update({ is_active: false, is_current: false, last_active: new Date().toISOString() })
         .eq('id', sessionId)
         .eq('user_id', user.id)
       if (error) throw error
@@ -335,7 +375,7 @@ export const sessionService = {
 
       const { error } = await supabase
         .from('active_sessions')
-        .update({ is_active: false })
+        .update({ is_active: false, is_current: false, last_active: new Date().toISOString() })
         .eq('user_id', user.id)
         .eq('is_current', false)
       if (error) throw error
@@ -344,6 +384,31 @@ export const sessionService = {
       return { success: true }
     } catch (error) {
       logger.error('Revoke all sessions error:', error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  async revokeCurrentSession() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('No user logged in')
+
+      const { error } = await supabase
+        .from('active_sessions')
+        .update({
+          is_active: false,
+          is_current: false,
+          last_active: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('is_current', true)
+
+      if (error) throw error
+
+      await auditLogger.logSessionAction('SESSION_REVOKED_CURRENT', user.id)
+      return { success: true }
+    } catch (error) {
+      logger.error('Revoke current session error:', error)
       return { success: false, error: error.message }
     }
   },
@@ -358,6 +423,7 @@ export const sessionService = {
         .update({ last_active: new Date().toISOString() })
         .eq('user_id', user.id)
         .eq('is_current', true)
+        .eq('is_active', true)
     } catch (error) {
       logger.error('Update session activity error:', error)
     }
@@ -409,6 +475,8 @@ export const autoLogoutService = {
           reason: 'idle_timeout',
           lastActivity: new Date(this.lastActivity).toISOString()
         })
+
+        await sessionService.revokeCurrentSession()
       }
       secureStorage.clear()
       clearSupabaseLocalStorage()

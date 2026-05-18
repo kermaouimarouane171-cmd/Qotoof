@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { LoadingSpinner } from '@/components/ui'
+import { resolveSafeAuthRedirect } from '@/utils/authRedirects'
 import { logger } from '@/utils/logger'
 
 // ============================================
@@ -12,6 +13,7 @@ import { logger } from '@/utils/logger'
 
 const CALLBACK_TIMEOUT_MS = 15000 // 15 seconds
 const EXPECTED_STATE_PREFIX = 'oauth_'
+const OAUTH_STATE_STORAGE_KEY = 'oauth_state'
 
 // ============================================
 // Helpers
@@ -45,8 +47,10 @@ const validateOAuthState = (search, hash) => {
   const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash)
 
   const state = params.get('state') || hashParams.get('state')
+  const storedState = sessionStorage.getItem(OAUTH_STATE_STORAGE_KEY)
 
   if (!state) {
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     // No state parameter — could be a direct navigation or CSRF attempt
     logger.warn('OAuth callback missing state parameter')
     return { valid: false, reason: 'missing_state' }
@@ -54,19 +58,25 @@ const validateOAuthState = (search, hash) => {
 
   // Validate state format (should start with our prefix)
   if (!state.startsWith(EXPECTED_STATE_PREFIX)) {
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     logger.warn('OAuth callback state parameter has unexpected format:', state.substring(0, 10))
     return { valid: false, reason: 'invalid_state_format' }
   }
 
-  // Check against stored state (if we saved it before redirect)
-  const storedState = sessionStorage.getItem('oauth_state')
-  if (storedState && storedState !== state) {
+  if (!storedState) {
+    logger.error('OAuth callback state parameter was provided without a stored browser state')
+    return { valid: false, reason: 'missing_stored_state' }
+  }
+
+  // Check against stored state saved before redirect
+  if (storedState !== state) {
+    sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
     logger.error('OAuth state mismatch! Expected:', storedState.substring(0, 10), 'Got:', state.substring(0, 10))
     return { valid: false, reason: 'state_mismatch' }
   }
 
   // Clean up stored state
-  sessionStorage.removeItem('oauth_state')
+  sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
 
   return { valid: true }
 }
@@ -130,6 +140,7 @@ const AuthCallback = () => {
         case 'missing_state':
           // Could be an email verification link (no OAuth) — proceed normally
           break
+        case 'missing_stored_state':
         case 'invalid_state_format':
         case 'state_mismatch':
           setError('Security check failed. The authentication request may have been tampered with. Please try signing in again.')
@@ -198,14 +209,16 @@ const AuthCallback = () => {
   useEffect(() => {
     if (!loading && profile) {
       const params = new URLSearchParams(window.location.search)
-      const redirectTo = params.get('redirect_to') ||
-        sessionStorage.getItem('redirect_after_verification')
+      const redirectTo = params.get('redirect_to') || sessionStorage.getItem('redirect_after_verification')
 
       if (redirectTo) {
         sessionStorage.removeItem('redirect_after_verification')
       }
 
-      const redirectPath = redirectTo || useAuthStore.getState().getRedirectPath(profile.role)
+      const redirectPath = resolveSafeAuthRedirect(
+        redirectTo,
+        useAuthStore.getState().getRedirectPath(profile.role)
+      )
       navigate(redirectPath, { replace: true })
     }
   }, [profile, loading, navigate])

@@ -1,23 +1,27 @@
 import { supabase } from '@/services/supabase'
+import { PAYMENT_METHOD } from '@/constants/payment'
+import {
+  getLatestPaymentRecordForOrder,
+  getPaymentRecordById,
+  insertPaymentRecord,
+  normalizePaymentMethod,
+  resolvePaymentMethod,
+  updatePaymentRecordById,
+} from '@/services/paymentRecords'
 import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/withRetry'
 import { getPayPalClientId as getConfiguredPayPalClientId } from '@/lib/config'
 
 /**
  * Payment Gateway Service
- * Supports multiple payment methods for Morocco:
- * - CMI (Centre Monétique Interbancaire - Morocco)
- * - COD (Cash on Delivery)
- * - Bank Transfer
+ * Supports the active marketplace payment methods.
+ * Historical CMI support remains available only for reading or refunding legacy records.
  */
 class PaymentGateway {
   constructor() {
     this.paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID
     // NOTE: PayPal secret is handled server-side in Supabase Edge Functions only.
     // Never expose it in VITE_ env vars — it would be bundled into the client.
-    this.cmiMerchantId = import.meta.env.VITE_CMI_MERCHANT_ID
-    // NOTE: CMI store key is handled server-side in the 'create-cmi-session' Edge Function only.
-    // Never expose it via VITE_ env vars — it would be bundled into the browser.
     this.isTestMode = import.meta.env.VITE_PAYMENT_MODE !== 'production'
     this.bankDetailsCache = new Map()
     this.bankDetailsTtlMs = 5 * 60 * 1000
@@ -32,22 +36,26 @@ class PaymentGateway {
    * @param {Object} options - Payment options
    * @param {string} options.orderId - Order ID
    * @param {number} options.amount - Amount in MAD
-  * @param {string} options.method - Payment method (paypal, cmi, cod, bank)
+   * @param {string} [options.paymentMethod] - Canonical payment method id
+   * @param {string} [options.payment_method] - Canonical snake_case alias
+   * @param {string} [options.method] - Deprecated alias kept for backward compatibility
    * @param {string} options.currency - Currency (default: MAD)
    * @param {Object} options.customer - Customer info
    * @returns {Promise<Object>} Payment result
    */
-  async initializePayment({ orderId, amount, method, currency = 'MAD', customer }) {
+  async initializePayment({ orderId, amount, paymentMethod = null, payment_method = null, method = null, currency = 'MAD', customer }) {
+    const normalizedMethod = normalizePaymentMethod(paymentMethod ?? payment_method ?? method)
+
     return withRetry(
       async () => {
-        switch (method) {
-          case 'paypal':
+        switch (normalizedMethod) {
+          case PAYMENT_METHOD.PAYPAL:
             return await this.processPayPalPayment({ orderId, amount, currency, customer })
-          case 'cmi':
-            return await this.processCmiPayment({ orderId, amount, currency, customer })
-          case 'cod':
+          case PAYMENT_METHOD.CMI:
+            throw new Error('CMI is retired for marketplace checkout. Use PayPal or bank transfer instead.')
+          case PAYMENT_METHOD.CASH:
             return await this.processCodPayment({ orderId, amount, customer })
-          case 'bank':
+          case PAYMENT_METHOD.BANK_TRANSFER:
             return await this.processBankTransfer({ orderId, amount, customer })
           default:
             throw new Error('Unsupported payment method for Morocco')
@@ -86,22 +94,21 @@ class PaymentGateway {
 
         if (error) throw error
 
-        const { data: payment, error: paymentError } = await supabase
-          .from('payments')
-          .insert({
+        const { data: payment, error: paymentError } = await insertPaymentRecord({
+          payload: {
             order_id: orderId,
             amount,
-            method: 'paypal',
+            payment_method: PAYMENT_METHOD.PAYPAL,
             status: 'pending',
             transaction_id: paypalOrder?.orderId || null,
-          })
-          .select()
-          .single()
+          },
+        })
 
         if (paymentError) throw paymentError
 
         return {
-          method: 'paypal',
+          payment_method: PAYMENT_METHOD.PAYPAL,
+          method: PAYMENT_METHOD.PAYPAL,
           paymentId: payment.id,
           orderId: paypalOrder?.orderId,
           approvalUrl: paypalOrder?.approvalUrl,
@@ -113,56 +120,11 @@ class PaymentGateway {
   }
 
   /**
-   * Process CMI payment (Moroccan gateway)
-   * SECURITY: Hash generation and merchant keys are handled server-side via Edge Function.
-   * The frontend only initiates the request; the backend returns the signed params.
+   * Historical compatibility shim.
+   * Active marketplace checkout no longer exposes CMI.
    */
-  async processCmiPayment({ orderId, amount, currency, customer }) {
-    return withRetry(
-      async () => {
-        if (!this.cmiMerchantId) {
-          throw new Error('CMI not configured')
-        }
-
-        // Delegate to backend Edge Function — never compute CMI hash on the client
-        const { data: cmiSession, error: fnError } = await supabase.functions.invoke('create-cmi-session', {
-          body: {
-            orderId,
-            amount: Math.round(amount * 100),
-            currency: currency === 'MAD' ? '504' : '840',
-            customer: { email: customer.email, name: customer.name, phone: customer.phone },
-            okUrl: `${window.location.origin}/payment/success`,
-            failUrl: `${window.location.origin}/payment/failed`,
-          },
-        })
-
-        if (fnError) throw fnError
-
-        // Save payment record (no sensitive keys stored here)
-        const { data: payment, error } = await supabase
-          .from('payments')
-          .insert({
-            order_id: orderId,
-            amount,
-            method: 'cmi',
-            status: 'pending',
-            transaction_id: cmiSession.transactionId,
-          })
-          .select()
-          .single()
-
-        if (error) throw error
-
-        return {
-          method: 'cmi',
-          redirectUrl: cmiSession.redirectUrl,
-          params: cmiSession.params, // Signed by backend — no store key in browser
-          paymentId: payment.id,
-          status: 'redirecting',
-        }
-      },
-      { maxRetries: 2, baseDelay: 1000 }
-    )
+  async processCmiPayment() {
+    throw new Error('CMI is retired for marketplace checkout. Use PayPal or bank transfer instead.')
   }
 
   /**
@@ -172,23 +134,22 @@ class PaymentGateway {
     return withRetry(
       async () => {
         // Save payment record
-        const { data: payment, error } = await supabase
-          .from('payments')
-          .insert({
+        const { data: payment, error } = await insertPaymentRecord({
+          payload: {
             order_id: orderId,
             amount,
-            method: 'cod',
+            payment_method: PAYMENT_METHOD.CASH,
             status: 'pending',
             customer_name: customer.name,
             customer_phone: customer.phone,
-          })
-          .select()
-          .single()
+          },
+        })
 
         if (error) throw error
 
         return {
-          method: 'cod',
+          payment_method: PAYMENT_METHOD.CASH,
+          method: PAYMENT_METHOD.CASH,
           paymentId: payment.id,
           status: 'confirmed',
           message: 'سيتم الدفع عند الاستلام',
@@ -208,18 +169,16 @@ class PaymentGateway {
         const referenceNumber = `BANK-${orderId}-${Date.now()}`
 
         // Save payment record
-        const { data: payment, error } = await supabase
-          .from('payments')
-          .insert({
+        const { data: payment, error } = await insertPaymentRecord({
+          payload: {
             order_id: orderId,
             amount,
-            method: 'bank',
+            payment_method: PAYMENT_METHOD.BANK_TRANSFER,
             status: 'awaiting_transfer',
             reference_number: referenceNumber,
             customer_name: customer.name,
-          })
-          .select()
-          .single()
+          },
+        })
 
         if (error) throw error
 
@@ -234,7 +193,8 @@ class PaymentGateway {
         }
 
         return {
-          method: 'bank',
+          payment_method: PAYMENT_METHOD.BANK_TRANSFER,
+          method: PAYMENT_METHOD.BANK_TRANSFER,
           paymentId: payment.id,
           status: 'awaiting_transfer',
           referenceNumber,
@@ -287,34 +247,12 @@ class PaymentGateway {
           throw new Error(error.message)
         }
 
-        const status = captureResult?.status === 'COMPLETED' ? 'completed' : 'pending'
-
-        // Update payment status in database
-        const { data: payment, error: paymentUpdateError } = await supabase
-          .from('payments')
-          .update({
-            status,
-            gateway_response: captureResult,
-            confirmed_at: new Date().toISOString(),
-          })
-          .eq('transaction_id', orderId)
-          .select('id, order_id')
-          .single()
-
-        if (paymentUpdateError) {
-          throw paymentUpdateError
-        }
-
-        if (status === 'completed' && payment?.order_id) {
-          await supabase
-            .from('orders')
-            .update({ payment_status: 'paid' })
-            .eq('id', payment.order_id)
-        }
+        const status = captureResult?.paymentStatus || (captureResult?.status === 'COMPLETED' ? 'completed' : 'pending')
 
         return {
           status,
           orderId,
+          internalOrderId: captureResult?.internalOrderId || null,
         }
       },
       { maxRetries: 2, baseDelay: 1000 }
@@ -384,13 +322,7 @@ class PaymentGateway {
   async getPaymentStatus(orderId) {
     return withRetry(
       async () => {
-        const { data, error } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('order_id', orderId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+        const { data, error } = await getLatestPaymentRecordForOrder({ orderId })
 
         if (error) throw error
 
@@ -406,29 +338,28 @@ class PaymentGateway {
   async refundPayment(paymentId, amount, reason = '') {
     return withRetry(
       async () => {
-        const { data: payment, error: fetchError } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('id', paymentId)
-          .single()
+        const { data: payment, error: fetchError } = await getPaymentRecordById({ paymentId })
 
         if (fetchError) throw fetchError
 
-        if (payment.method === 'paypal') {
-          return await this.refundPayPalPayment(payment, amount)
-        } else if (payment.method === 'cmi') {
-          return await this.refundCmiPayment(payment, amount)
+        const paymentMethod = resolvePaymentMethod(payment)
+
+        if (paymentMethod === PAYMENT_METHOD.PAYPAL) {
+          return await this.refundPayPalPayment(payment, amount, reason)
+        } else if (paymentMethod === PAYMENT_METHOD.CMI || paymentMethod === 'card') {
+          return await this.refundCmiPayment(payment, amount, reason)
         } else {
           // Manual refund for COD/Bank
-          await supabase
-            .from('payments')
-            .update({
+          await updatePaymentRecordById({
+            paymentId,
+            values: {
               status: 'refunded',
               refund_amount: amount,
               refund_reason: reason,
               refunded_at: new Date().toISOString(),
-            })
-            .eq('id', paymentId)
+            },
+            select: 'id',
+          })
 
           return { success: true, status: 'refunded' }
         }
@@ -440,29 +371,31 @@ class PaymentGateway {
   /**
    * Refund PayPal payment
    */
-  async refundPayPalPayment(payment, amount) {
+  async refundPayPalPayment(payment, amount, reason = '') {
     return withRetry(
       async () => {
+        const refundReason = reason || 'requested_by_customer'
         const { data, error } = await supabase.functions.invoke('refund-paypal-payment', {
           body: {
             orderId: payment.transaction_id,
             amount,
-            reason: 'requested_by_customer',
+            reason: refundReason,
           },
         })
 
         if (error) throw error
 
-        await supabase
-          .from('payments')
-          .update({
+        await updatePaymentRecordById({
+          paymentId: payment.id,
+          values: {
             status: 'refunded',
             refund_amount: amount,
-            refund_reason: 'requested_by_customer',
+            refund_reason: refundReason,
             refunded_at: new Date().toISOString(),
             gateway_response: data,
-          })
-          .eq('id', payment.id)
+          },
+          select: 'id',
+        })
 
         return { success: true, status: 'refunded' }
       },
@@ -473,30 +406,35 @@ class PaymentGateway {
   /**
    * Refund CMI payment
    */
-  async refundCmiPayment(payment, amount) {
+  async refundCmiPayment(payment, amount, reason = '') {
     return withRetry(
       async () => {
         // SECURITY: CMI refund must be processed server-side — never call CMI API directly from browser.
         // The merchant key and direct API access must stay on the backend.
+        const refundReason = reason || 'requested_by_customer'
         const { data: result, error } = await supabase.functions.invoke('refund-cmi-payment', {
           body: {
+            orderId: payment.order_id,
             paymentId: payment.id,
             transactionId: payment.transaction_id,
-            amount: Math.round(amount * 100),
+            amount,
+            reason: refundReason,
           },
         })
 
         if (error) throw error
 
         if (result?.success) {
-          await supabase
-            .from('payments')
-            .update({
+          await updatePaymentRecordById({
+            paymentId: payment.id,
+            values: {
               status: 'refunded',
               refund_amount: amount,
+              refund_reason: refundReason,
               refunded_at: new Date().toISOString(),
-            })
-            .eq('id', payment.id)
+            },
+            select: 'id',
+          })
         }
 
         return { success: result?.success === true, status: result?.status }
@@ -520,10 +458,6 @@ class PaymentGateway {
 
     if (this.getPayPalClientId()) {
       methods.push({ id: 'paypal', name: 'PayPal', icon: '🅿️', available: true })
-    }
-
-    if (this.cmiMerchantId) {
-      methods.push({ id: 'cmi', name: 'CMI (المغرب)', icon: '🇲🇦', available: true })
     }
 
     return methods

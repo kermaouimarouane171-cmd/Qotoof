@@ -40,6 +40,107 @@ const buildReferralLink = (referralCode) => {
   return `${window.location.origin}/register?role=buyer&ref=${encodeURIComponent(referralCode)}`
 }
 
+const isMissingLoyaltyReasonColumnError = (error) => (
+  error?.code === '42703' && /loyalty_transactions\.reason/i.test(error.message || '')
+)
+
+const buildCompatTransactionMetadata = ({ metadata = {}, reason }) => {
+  if (!reason) return metadata || {}
+  return {
+    ...(metadata || {}),
+    transaction_reason: reason,
+  }
+}
+
+const insertLoyaltyTransaction = async ({
+  userId,
+  pointsChange,
+  reason,
+  orderId = null,
+  balanceAfter,
+  metadata = {},
+  createdAt,
+}) => {
+  const basePayload = {
+    user_id: userId,
+    points_change: pointsChange,
+    reason,
+    order_id: orderId,
+    balance_after: balanceAfter,
+    metadata,
+    created_at: createdAt,
+  }
+
+  let result = await supabase
+    .from('loyalty_transactions')
+    .insert(basePayload)
+    .select()
+    .single()
+
+  if (!isMissingLoyaltyReasonColumnError(result.error)) {
+    if (result.error) throw result.error
+    return result.data
+  }
+
+  const fallbackPayload = {
+    ...basePayload,
+    metadata: buildCompatTransactionMetadata({ metadata, reason }),
+  }
+  delete fallbackPayload.reason
+
+  result = await supabase
+    .from('loyalty_transactions')
+    .insert(fallbackPayload)
+    .select()
+    .single()
+
+  if (result.error) throw result.error
+  return result.data
+}
+
+const fetchProcessedOrderTransactions = async (userId) => {
+  let result = await supabase
+    .from('loyalty_transactions')
+    .select('order_id, metadata')
+    .eq('user_id', userId)
+    .eq('reason', 'order_completed')
+
+  if (!isMissingLoyaltyReasonColumnError(result.error)) {
+    if (result.error) throw result.error
+    return result.data || []
+  }
+
+  result = await supabase
+    .from('loyalty_transactions')
+    .select('order_id, metadata')
+    .eq('user_id', userId)
+    .not('order_id', 'is', null)
+
+  if (result.error) throw result.error
+  return result.data || []
+}
+
+const fetchReferralBonusTransactions = async (userId) => {
+  let result = await supabase
+    .from('loyalty_transactions')
+    .select('metadata')
+    .eq('user_id', userId)
+    .eq('reason', 'referral_bonus')
+
+  if (!isMissingLoyaltyReasonColumnError(result.error)) {
+    if (result.error) throw result.error
+    return result.data || []
+  }
+
+  result = await supabase
+    .from('loyalty_transactions')
+    .select('metadata')
+    .eq('user_id', userId)
+
+  if (result.error) throw result.error
+  return (result.data || []).filter((entry) => Boolean(entry.metadata?.referral_id))
+}
+
 const insertNotification = async ({ userId, type, title, message, data = {} }) => {
   if (!userId) return
 
@@ -144,21 +245,15 @@ export const loyaltyApi = {
       lastEarnedAt,
     })
 
-    const { data, error } = await supabase
-      .from('loyalty_transactions')
-      .insert({
-        user_id: userId,
-        points_change: toInteger(points),
-        reason,
-        order_id: orderId,
-        balance_after: nextBalance,
-        metadata,
-        created_at: lastEarnedAt,
-      })
-      .select()
-      .single()
-
-    if (error) throw error
+    const data = await insertLoyaltyTransaction({
+      userId,
+      pointsChange: toInteger(points),
+      reason,
+      orderId,
+      balanceAfter: nextBalance,
+      metadata,
+      createdAt: lastEarnedAt,
+    })
 
     return {
       ...data,
@@ -192,20 +287,15 @@ export const loyaltyApi = {
       lastEarnedAt: currentBalance.last_earned_at || null,
     })
 
-    const { data, error } = await supabase
-      .from('loyalty_transactions')
-      .insert({
-        user_id: userId,
-        points_change: -toInteger(points),
-        reason,
-        balance_after: nextBalance,
-        metadata,
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single()
+    const data = await insertLoyaltyTransaction({
+      userId,
+      pointsChange: -toInteger(points),
+      reason,
+      balanceAfter: nextBalance,
+      metadata,
+      createdAt: new Date().toISOString(),
+    })
 
-    if (error) throw error
     return data
   }, { maxRetries: 2, baseDelay: 1000 }),
 
@@ -444,7 +534,7 @@ export const loyaltyApi = {
    * Sync loyalty points for delivered orders that haven't yet generated an order_completed transaction.
    */
   syncDeliveredOrderBenefits: withRetry(async (userId) => {
-    const [currentBalance, profileResult, deliveredOrdersResult, existingTransactionsResult] = await Promise.all([
+    const [currentBalance, profileResult, deliveredOrdersResult, existingTransactions] = await Promise.all([
       loyaltyApi.getPointsBalance(userId),
       supabase
         .from('profiles')
@@ -457,18 +547,13 @@ export const loyaltyApi = {
         .eq('buyer_id', userId)
         .eq('status', 'delivered')
         .order('delivered_at', { ascending: true }),
-      supabase
-        .from('loyalty_transactions')
-        .select('order_id')
-        .eq('user_id', userId)
-        .eq('reason', 'order_completed'),
+      fetchProcessedOrderTransactions(userId),
     ])
 
     if (profileResult.error) throw profileResult.error
     if (deliveredOrdersResult.error) throw deliveredOrdersResult.error
-    if (existingTransactionsResult.error) throw existingTransactionsResult.error
 
-    const processedOrderIds = new Set((existingTransactionsResult.data || []).map((entry) => entry.order_id).filter(Boolean))
+    const processedOrderIds = new Set((existingTransactions || []).map((entry) => entry.order_id).filter(Boolean))
     const eligibleOrders = (deliveredOrdersResult.data || []).filter((order) => !processedOrderIds.has(order.id))
 
     const summary = {
@@ -559,7 +644,7 @@ export const loyaltyApi = {
    * Credit referral bonuses that became eligible through completed first orders.
    */
   syncReferralBonuses: withRetry(async (userId) => {
-    const [currentBalance, referralsResult, transactionsResult] = await Promise.all([
+    const [currentBalance, referralsResult, transactions] = await Promise.all([
       loyaltyApi.getPointsBalance(userId),
       supabase
         .from('referrals')
@@ -567,18 +652,13 @@ export const loyaltyApi = {
         .eq('referrer_id', userId)
         .eq('reward_status', 'earned')
         .order('first_order_completed_at', { ascending: true }),
-      supabase
-        .from('loyalty_transactions')
-        .select('metadata')
-        .eq('user_id', userId)
-        .eq('reason', 'referral_bonus'),
+      fetchReferralBonusTransactions(userId),
     ])
 
     if (referralsResult.error) throw referralsResult.error
-    if (transactionsResult.error) throw transactionsResult.error
 
     const creditedReferralIds = new Set(
-      (transactionsResult.data || [])
+      (transactions || [])
         .map((entry) => entry.metadata?.referral_id)
         .filter(Boolean)
     )
@@ -615,22 +695,18 @@ export const loyaltyApi = {
         lastEarnedAt: new Date().toISOString(),
       })
 
-      const { error: txError } = await supabase
-        .from('loyalty_transactions')
-        .insert({
-          user_id: userId,
-          points_change: bonusPoints,
-          reason: 'referral_bonus',
-          balance_after: runningBalance,
-          metadata: {
-            referral_id: referral.id,
-            referred_user_id: referral.referred_user_id,
-            completed_at: referral.first_order_completed_at,
-          },
-          created_at: new Date().toISOString(),
-        })
-
-      if (txError) throw txError
+      await insertLoyaltyTransaction({
+        userId,
+        pointsChange: bonusPoints,
+        reason: 'referral_bonus',
+        balanceAfter: runningBalance,
+        metadata: {
+          referral_id: referral.id,
+          referred_user_id: referral.referred_user_id,
+          completed_at: referral.first_order_completed_at,
+        },
+        createdAt: new Date().toISOString(),
+      })
 
       summary.referralsProcessed += 1
       summary.pointsAwarded += bonusPoints

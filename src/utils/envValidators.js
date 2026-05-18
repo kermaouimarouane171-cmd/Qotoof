@@ -1,6 +1,29 @@
 const readValue = (value) => (typeof value === 'string' ? value.trim() : '')
 
-export const sentryDsnLooksIssued = (value) => /^https?:\/\/[^\s@]+@[^\s/]+\/\d+$/i.test(readValue(value))
+const PLACEHOLDER_VALUE_PATTERN = /(placeholder|your[-_ ]?key|example(?:publickey)?|replace[-_ ]?me|changeme)/i
+
+export const sentryDsnLooksIssued = (value) => {
+  const normalized = readValue(value)
+
+  if (!normalized) {
+    return false
+  }
+
+  try {
+    const url = new URL(normalized)
+    const publicKey = decodeURIComponent(url.username || '')
+    const projectId = url.pathname.replace(/^\/+/, '')
+
+    return (
+      url.protocol === 'https:' &&
+      publicKey.length >= 16 &&
+      !PLACEHOLDER_VALUE_PATTERN.test(publicKey) &&
+      /^\d+$/.test(projectId)
+    )
+  } catch {
+    return false
+  }
+}
 
 export const supabaseUrlLooksIssued = (value) => {
   const normalized = readValue(value)

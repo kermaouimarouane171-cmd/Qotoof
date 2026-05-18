@@ -4,18 +4,9 @@ import { useSearchParams } from 'react-router-dom'
 import { AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import SearchBar from '@/components/Search/SearchBar'
 import { ProductCard } from '@/components/ui'
-import { PRODUCT_CATEGORIES, getSuggestedSubcategories } from '@/constants/categories'
+import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
 import productSearchService from '@/services/search/productSearchService'
 import { logger } from '@/utils/logger'
-
-const SORT_OPTIONS = [
-  { value: 'relevance', label: 'الأكثر صلة' },
-  { value: 'newest', label: 'الأحدث' },
-  { value: 'price_asc', label: 'السعر: من الأقل' },
-  { value: 'price_desc', label: 'السعر: من الأعلى' },
-  { value: 'rating_desc', label: 'الأعلى تقييماً' },
-  { value: 'name_asc', label: 'الاسم: أ - ي' },
-]
 
 const EMPTY_RESULTS = {
   hits: [],
@@ -27,10 +18,11 @@ const EMPTY_RESULTS = {
 }
 
 const SearchResults = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [results, setResults] = useState(EMPTY_RESULTS)
   const [loading, setLoading] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [availableRegions, setAvailableRegions] = useState([])
 
@@ -38,6 +30,19 @@ const SearchResults = () => {
   const filters = productSearchService.buildFiltersFromParams(params)
   const currentPage = filters.page
   const subcategoryOptions = filters.category ? getSuggestedSubcategories(filters.category) : []
+  const sortOptions = [
+    { value: 'relevance', label: t('search.sortBy.relevance', 'Most Relevant') },
+    { value: 'newest', label: t('search.sortBy.newest', 'Newest First') },
+    { value: 'price_asc', label: t('search.sortBy.priceLow', 'Price: Low to High') },
+    { value: 'price_desc', label: t('search.sortBy.priceHigh', 'Price: High to Low') },
+    { value: 'rating_desc', label: t('search.sortBy.rating', 'Highest Rated') },
+    { value: 'name_asc', label: t('search.sortBy.name', 'Name: A to Z') },
+  ]
+  const ratingOptions = [
+    { value: '4', label: t('marketplace.ratingOptions.4', '4+ stars') },
+    { value: '3', label: t('marketplace.ratingOptions.3', '3+ stars') },
+    { value: '2', label: t('marketplace.ratingOptions.2', '2+ stars') },
+  ]
   const hasActiveSearch = Boolean(
     filters.query
       || filters.category
@@ -69,11 +74,13 @@ const SearchResults = () => {
     const loadResults = async () => {
       if (!hasActiveSearch) {
         setLoading(false)
+        setSearchError('')
         setResults({ ...EMPTY_RESULTS, query: filters.query })
         return
       }
 
       setLoading(true)
+      setSearchError('')
       try {
         const data = await productSearchService.searchProducts(filters)
         if (!cancelled) {
@@ -82,6 +89,7 @@ const SearchResults = () => {
       } catch (error) {
         logger.error('SearchResults: failed to load products', error)
         if (!cancelled) {
+          setSearchError('تعذر تحميل نتائج البحث حالياً. تحقق من الاتصال ثم أعد المحاولة.')
           setResults({ ...EMPTY_RESULTS, query: filters.query })
         }
       } finally {
@@ -172,7 +180,7 @@ const SearchResults = () => {
               >
                 <option value="all">{t('search.allCategories', 'كل الفئات')}</option>
                 {PRODUCT_CATEGORIES.map((category) => (
-                  <option key={category.id} value={category.id}>{category.labelAr || category.label}</option>
+                  <option key={category.id} value={category.id}>{getCategoryLabel(category.id, i18n.language)}</option>
                 ))}
               </select>
             </div>
@@ -244,9 +252,9 @@ const SearchResults = () => {
                 className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-700 dark:text-gray-200"
               >
                 <option value="">{t('search.anyRating', 'أي تقييم')}</option>
-                <option value="4">4+ نجوم</option>
-                <option value="3">3+ نجوم</option>
-                <option value="2">2+ نجوم</option>
+                {ratingOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
 
@@ -294,7 +302,7 @@ const SearchResults = () => {
                 onChange={(event) => updateParams({ sortBy: event.target.value })}
                 className="text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200"
               >
-                {SORT_OPTIONS.map((option) => (
+                {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
@@ -357,12 +365,14 @@ const SearchResults = () => {
 
           {!loading && hasActiveSearch && results.hits.length === 0 && (
             <div className="text-center py-16 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl">
-              <div className="text-5xl mb-4">📭</div>
+              <div className="text-5xl mb-4">{searchError ? '⚠️' : '📭'}</div>
               <p className="text-lg font-medium text-gray-700 dark:text-gray-300">
-                {t('search.noResults', 'لا توجد نتائج مطابقة')}
+                {searchError || t('search.noResults', 'لا توجد نتائج مطابقة')}
               </p>
               <p className="text-sm text-gray-400 mt-2">
-                {t('search.tryOther', 'جرّب تقليل عدد الفلاتر أو تغيير كلمات البحث')}
+                {searchError
+                  ? 'يمكنك إعادة المحاولة الآن أو تعديل الفلاتر مؤقتاً.'
+                  : t('search.tryOther', 'جرّب تقليل عدد الفلاتر أو تغيير كلمات البحث')}
               </p>
             </div>
           )}

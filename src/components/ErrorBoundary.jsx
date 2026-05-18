@@ -7,9 +7,9 @@
 
 import React from 'react';
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
+import { useTranslation } from 'react-i18next';
 import { logger } from '@/utils/logger';
-
-const CHUNK_RELOAD_STORAGE_KEY = 'qotoof_chunk_reload_attempted'
+import { recoverFromStaleAsset } from '@/utils/staleAssetRecovery';
 
 const isChunkLoadError = (error) => {
   const message = String(error?.message || '').toLowerCase()
@@ -24,23 +24,16 @@ const isChunkLoadError = (error) => {
  * مكون Fallback UI - يعرض عند حدوث خطأ
  */
 export const ErrorFallback = ({ error, resetErrorBoundary }) => {
+  const { t } = useTranslation()
+
   logger.error('Error caught by ErrorBoundary:', error);
 
   const chunkError = isChunkLoadError(error)
 
   React.useEffect(() => {
     if (!chunkError) return
-
-    const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_STORAGE_KEY) === '1'
-    if (!alreadyReloaded) {
-      sessionStorage.setItem(CHUNK_RELOAD_STORAGE_KEY, '1')
-      window.location.reload()
-      return
-    }
-
-    // Avoid permanent reload loops if the new bundle is still unavailable.
-    sessionStorage.removeItem(CHUNK_RELOAD_STORAGE_KEY)
-  }, [chunkError])
+    void recoverFromStaleAsset({ error, reason: 'error-boundary' })
+  }, [chunkError, error])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-red-50 px-4">
@@ -65,25 +58,25 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
 
           {/* Title */}
           <h1 className="mt-4 text-2xl font-bold text-gray-900">
-            حدث خطأ ما
+            {t('errorBoundary.title', 'Something went wrong')}
           </h1>
 
           {/* Error Message */}
           <p className="mt-2 text-sm text-gray-500">
             {chunkError
-              ? 'جاري محاولة تحديث التطبيق تلقائياً. إذا استمرت المشكلة، أعد تحميل الصفحة يدوياً.'
-              : 'عذراً، حدث خطأ غير متوقع في التطبيق.'}
+              ? t('errorBoundary.chunkReloading', 'The app is trying to refresh automatically. If the problem persists, reload the page manually.')
+              : t('errorBoundary.description', 'An unexpected application error occurred.')}
           </p>
 
           {/* Error Details (في بيئة Development فقط) */}
           {import.meta.env.DEV && (
             <div className="mt-4 p-4 bg-gray-100 rounded text-left">
               <p className="text-xs font-mono text-gray-700 break-words">
-                <strong>الخطأ:</strong> {error.message}
+                <strong>{t('errorBoundary.errorLabel', 'Error:')}</strong> {error.message}
               </p>
               <details className="mt-2">
                 <summary className="cursor-pointer text-xs font-bold text-gray-600">
-                  التفاصيل الكاملة
+                  {t('errorBoundary.fullDetails', 'Full details')}
                 </summary>
                 <pre className="mt-2 text-xs text-gray-600 overflow-auto max-h-40">
                   {error.stack}
@@ -98,13 +91,13 @@ export const ErrorFallback = ({ error, resetErrorBoundary }) => {
               onClick={resetErrorBoundary}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
             >
-              حاول مرة أخرى
+              {t('errorBoundary.tryAgain', 'Try Again')}
             </button>
             <a
               href="/"
               className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition"
             >
-              العودة للرئيسية
+              {t('errorBoundary.backHome', 'Back to Home')}
             </a>
           </div>
         </div>

@@ -1,7 +1,17 @@
 import { Outlet } from 'react-router-dom'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 const AuthLayout = () => {
+  const { t } = useTranslation()
+
+  const heroStats = [
+    { value: '10K+', label: t('authLayout.hero.stats.activeProducts', 'Active Products') },
+    { value: '2K+', label: t('authLayout.hero.stats.verifiedVendors', 'Verified Vendors') },
+    { value: '50K+', label: t('authLayout.hero.stats.ordersCompleted', 'Orders Completed') },
+    { value: '98%', label: t('authLayout.hero.stats.satisfactionRate', 'Satisfaction Rate') },
+  ]
+
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Form */}
@@ -25,7 +35,7 @@ const AuthLayout = () => {
         <div className="absolute inset-0">
           <img 
             src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200" 
-            alt="Fresh produce" 
+            alt={t('authLayout.hero.imageAlt', 'Fresh produce')}
             className="w-full h-full object-cover mix-blend-overlay opacity-20"
           />
         </div>
@@ -39,36 +49,26 @@ const AuthLayout = () => {
           <div className="max-w-lg text-white">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
               <span>🌱</span>
-              <span>#1 B2B Marketplace</span>
+              <span>{t('authLayout.hero.badge', '#1 B2B Marketplace')}</span>
             </div>
             
             <h1 className="text-4xl xl:text-5xl font-extrabold mb-6 leading-tight">
-              Fresh from
-              <span className="block text-yellow-300">farm to business</span>
+              {t('authLayout.hero.title', 'Fresh from')}
+              <span className="block text-yellow-300">{t('authLayout.hero.subtitle', 'farm to business')}</span>
             </h1>
             
             <p className="text-lg text-green-100 mb-10">
-              Connect directly with farmers and nurseries. Buy in bulk, save more.
+              {t('authLayout.hero.description', 'Connect directly with farmers and nurseries. Buy in bulk, save more.')}
             </p>
             
             {/* Stats */}
             <div className="grid grid-cols-2 gap-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-1">10K+</div>
-                <div className="text-green-200 text-sm">Active Products</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-1">2K+</div>
-                <div className="text-green-200 text-sm">Verified Vendors</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-1">50K+</div>
-                <div className="text-green-200 text-sm">Orders Completed</div>
-              </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
-                <div className="text-3xl font-bold mb-1">98%</div>
-                <div className="text-green-200 text-sm">Satisfaction Rate</div>
-              </div>
+              {heroStats.map((stat) => (
+                <div key={stat.label} className="bg-white/10 backdrop-blur-sm rounded-2xl p-6">
+                  <div className="text-3xl font-bold mb-1">{stat.value}</div>
+                  <div className="text-green-200 text-sm">{stat.label}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

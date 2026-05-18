@@ -19,52 +19,33 @@ import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { supabase } from '@/services/supabase'
 import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/services/minimumOrderService'
+import {
+  formatQuantity,
+  getQuantityStep,
+  isDecimalQuantityUnit,
+  normalizeQuantity,
+} from '@/utils/cartQuantity'
 
-// ============================================
-// Helper Functions
-// ============================================
-
-const WEIGHT_UNITS = ['kg', 'ton', 'lb', 'g']
-/**
- * Returns true if the unit is weight-based (supports decimals)
- */
-const isWeightBasedUnit = (unitType) => {
-  return WEIGHT_UNITS.includes(unitType?.toLowerCase())
+const formatValidationTime = (value) => {
+  if (!value) return null
+  return value.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-/**
- * Returns the step size for quantity adjustments
- * 0.5 for weight-based units, 1 for count-based units
- */
-const getStepSize = (unitType) => {
-  return isWeightBasedUnit(unitType) ? 0.5 : 1
-}
+const parseQuantityInput = (value, item) => {
+  const numericValue = Number(value)
 
-/**
- * Formats quantity display based on unit type
- * Weight: shows decimals (2.5 kg), Count: shows integer (5 pieces)
- */
-const formatQuantity = (quantity, unitType) => {
-  if (isWeightBasedUnit(unitType)) {
-    // Show up to 2 decimal places, strip trailing zeros
-    return parseFloat(quantity.toFixed(2)).toString()
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return 0
   }
-  return Math.round(quantity).toString()
+
+  return normalizeQuantity(numericValue, {
+    unitType: item.unit_type,
+    minOrderQuantity: item.min_order_quantity,
+    fallbackQuantity: item.quantity,
+  })
 }
 
-/**
- * Parses user input into a valid quantity
- * Rounds to nearest step size for weight units
- */
-const parseQuantity = (value, unitType) => {
-  const num = parseFloat(value)
-  if (isNaN(num) || num < 0) return 0
-  if (isWeightBasedUnit(unitType)) {
-    // Round to nearest 0.5
-    return Math.round(num * 2) / 2
-  }
-  return Math.round(num)
-}
+const MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE = 'لا يمكن إتمام الطلب من أكثر من متجر في آنٍ واحد. فصّل سلتك حسب البائع ثم أعد المحاولة.'
 
 // ============================================
 // Cart Page Component
@@ -82,6 +63,8 @@ const CartPage = () => {
     getVendorCount,
     clearCart,
     validateCart,
+    setCheckoutVendor,
+    clearCheckoutVendor,
   } = useCartStore()
 
   // UI state
@@ -93,6 +76,8 @@ const CartPage = () => {
   const [inputErrors, setInputErrors] = useState({}) // { productId: string }
   const [priceAlerts, setPriceAlerts] = useState({}) // { productId: { oldPrice, newPrice } }
   const [vendorProfiles, setVendorProfiles] = useState([])
+  const [lastValidatedAt, setLastValidatedAt] = useState(null)
+  const [lastValidationSummary, setLastValidationSummary] = useState('')
 
   // Initialize input quantities from cart items
   useEffect(() => {
@@ -138,6 +123,25 @@ const CartPage = () => {
     () => evaluateVendorMinimumOrders({ items, vendorProfiles }),
     [items, vendorProfiles]
   )
+  const vendorGroups = useMemo(() => {
+    const groups = new Map()
+
+    items.forEach((item) => {
+      const key = item.vendor_id || 'unknown-vendor'
+      const existing = groups.get(key) || {
+        vendorId: key,
+        vendorName: item.vendor_name || 'بائع غير معروف',
+        items: [],
+        subtotal: 0,
+      }
+
+      existing.items.push(item)
+      existing.subtotal += (item.price_per_unit || 0) * item.quantity
+      groups.set(key, existing)
+    })
+
+    return Array.from(groups.values())
+  }, [items])
 
   const validateCartOnMount = useCallback(async () => {
     setValidating(true)
@@ -153,31 +157,45 @@ const CartPage = () => {
       setInputQuantities(newInputs)
       setInputErrors({})
 
-      if (!result.valid && result.changes?.length > 0) {
-        // Detect price changes
-        const alerts = {}
-        result.changes.forEach(change => {
-          if (change.type === 'price_changed') {
-            alerts[change.item.id] = {
-              oldPrice: change.oldPrice,
-              newPrice: change.newPrice,
-              name: change.item.name,
-            }
+      const alerts = {}
+      result?.changes?.forEach(change => {
+        if (change.type === 'price_changed') {
+          alerts[change.item.id] = {
+            oldPrice: change.oldPrice,
+            newPrice: change.newPrice,
+            name: change.item.name,
           }
-        })
-        setPriceAlerts(alerts)
+        }
+      })
+      setPriceAlerts(alerts)
+      setLastValidatedAt(new Date())
 
+      if (!result.valid && result.changes?.length > 0) {
         const removedCount = result.changes.filter(c => c.type === 'removed').length
         const updatedCount = result.changes.filter(c => c.type !== 'removed').length
+        const summaryParts = []
+
         if (removedCount > 0) {
-          toast.error(`${removedCount} item(s) were removed (unavailable)`)
+          summaryParts.push(`حُذف ${removedCount} منتج(ات)`)
         }
         if (updatedCount > 0) {
-          toast(`${updatedCount} item(s) were updated`, { icon: '⚠️' })
+          summaryParts.push(`حُدِّث ${updatedCount} منتج(ات)`)
         }
+
+        setLastValidationSummary(summaryParts.join(' • '))
+
+        if (removedCount > 0) {
+          toast.error(`تم حذف ${removedCount} منتج(ات) من السلة لأنها غير متاحة حالياً`)
+        }
+        if (updatedCount > 0) {
+          toast(`تم تحديث ${updatedCount} منتج(ات) في سلتك`, { icon: '⚠️' })
+        }
+      } else {
+        setLastValidationSummary('أسعار سلتك وتوفرها محدّثة.')
       }
     } catch (error) {
       logger.error('Cart validation failed:', error)
+      setLastValidationSummary('تعذّر تحديث حالة السلة. حاول مرة أخرى.')
     } finally {
       setValidating(false)
     }
@@ -191,11 +209,11 @@ const CartPage = () => {
 
     // Re-validate every 5 minutes to catch price/stock changes
     const interval = setInterval(() => {
-      validateCart()
+      validateCartOnMount()
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [items.length, validateCart, validateCartOnMount])
+  }, [items.length, validateCartOnMount])
 
   // ============================================
   // Quantity Management
@@ -207,7 +225,7 @@ const CartPage = () => {
     const currentItem = store.items.find(i => i.id === item.id)
     if (!currentItem) return
 
-    const step = getStepSize(currentItem.unit_type)
+    const step = getQuantityStep(currentItem.unit_type, currentItem.min_order_quantity)
     const maxQty = currentItem.available_quantity !== null && currentItem.available_quantity !== undefined
       ? currentItem.available_quantity
       : Infinity
@@ -215,7 +233,7 @@ const CartPage = () => {
     const newQty = parseFloat((currentItem.quantity + step).toFixed(2))
 
     if (newQty > maxQty) {
-      toast.error(`Maximum available quantity reached (${formatQuantity(maxQty, currentItem.unit_type)} ${currentItem.unit_type})`)
+      toast.error(`وصلت للحد الأقصى المتاح: ${formatQuantity(maxQty, currentItem.unit_type)} ${currentItem.unit_type}`)
       return
     }
 
@@ -233,7 +251,7 @@ const CartPage = () => {
     const currentItem = store.items.find(i => i.id === item.id)
     if (!currentItem) return
 
-    const step = getStepSize(currentItem.unit_type)
+    const step = getQuantityStep(currentItem.unit_type, currentItem.min_order_quantity)
     const minQty = currentItem.min_order_quantity || 1
     const newQty = parseFloat((currentItem.quantity - step).toFixed(2))
 
@@ -267,7 +285,7 @@ const CartPage = () => {
       return
     }
 
-    const parsed = parseQuantity(rawValue, item.unit_type)
+    const parsed = parseQuantityInput(rawValue, item)
     const minQty = item.min_order_quantity || 1
     const maxQty = item.available_quantity !== null && item.available_quantity !== undefined
       ? item.available_quantity
@@ -275,11 +293,11 @@ const CartPage = () => {
 
     let error = ''
     if (parsed === 0) {
-      error = 'Quantity must be greater than 0'
+      error = 'الكمية يجب أن تكون أكبر من صفر'
     } else if (parsed < minQty) {
-      error = `Minimum order is ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`
+      error = `الحد الأدنى للطلب ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`
     } else if (maxQty !== null && parsed > maxQty) {
-      error = `Only ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type} available`
+      error = `المتاح فقط ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type}`
     }
 
     setInputQuantities(prev => ({ ...prev, [productId]: rawValue }))
@@ -298,7 +316,7 @@ const CartPage = () => {
       return
     }
 
-    const parsed = parseQuantity(rawValue, item.unit_type)
+    const parsed = parseQuantityInput(rawValue, item)
     const minQty = item.min_order_quantity || 1
     const maxQty = item.available_quantity !== null && item.available_quantity !== undefined
       ? item.available_quantity
@@ -317,7 +335,7 @@ const CartPage = () => {
     if (parsed < minQty) {
       setInputErrors(prev => ({
         ...prev,
-        [productId]: `Minimum order is ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`,
+        [productId]: `الحد الأدنى للطلب ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`,
       }))
       // Revert
       setInputQuantities(prev => ({
@@ -328,15 +346,30 @@ const CartPage = () => {
     }
 
     if (maxQty !== null && parsed > maxQty) {
+      const clampedMaxQty = normalizeQuantity(maxQty, {
+        unitType: item.unit_type,
+        minOrderQuantity: minQty,
+        fallbackQuantity: maxQty,
+      })
+
+      if (clampedMaxQty <= 0 || clampedMaxQty < minQty) {
+        setPendingRemove({ id: item.id, name: item.name })
+        setInputQuantities(prev => ({
+          ...prev,
+          [productId]: formatQuantity(item.quantity, item.unit_type),
+        }))
+        return
+      }
+
       setInputErrors(prev => ({
         ...prev,
-        [productId]: `Only ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type} available`,
+        [productId]: `المتاح فقط ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type}`,
       }))
       // Clamp to max AND update store to keep them in sync
-      updateQuantity(item.id, maxQty)
+      updateQuantity(item.id, clampedMaxQty)
       setInputQuantities(prev => ({
         ...prev,
-        [productId]: formatQuantity(maxQty, item.unit_type),
+        [productId]: formatQuantity(clampedMaxQty, item.unit_type),
       }))
       return
     }
@@ -381,7 +414,7 @@ const CartPage = () => {
     setInputErrors({})
     setPriceAlerts({})
     setShowClearConfirm(false)
-    toast.success('Cart cleared')
+    toast.success('تم تفريغ السلة')
   }, [clearCart])
 
   // ============================================
@@ -391,9 +424,14 @@ const CartPage = () => {
   const handleCheckout = useCallback(async () => {
     if (items.length === 0) return
 
+    const vendorIds = [...new Set(items.map((item) => item.vendor_id).filter(Boolean))]
+    if (vendorIds.length > 1) {
+      toast.error(MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE)
+      return
+    }
+
     setCheckoutLoading(true)
     try {
-      const vendorIds = [...new Set(items.map((item) => item.vendor_id).filter(Boolean))]
       const { data: freshVendorProfiles, error: vendorProfilesError } = await supabase
         .from('profiles')
         .select('id, store_name, min_order_amount')
@@ -430,19 +468,19 @@ const CartPage = () => {
         const fresh = freshMap.get(item.id)
 
         if (!fresh || !fresh.is_available) {
-          issues.push(`${item.name} is no longer available`)
+          issues.push(`${item.name} لم يعد متاحاً`)
           continue
         }
 
         // Verify price hasn't changed significantly
         const priceDiff = Math.abs(fresh.price_per_unit - item.price_per_unit)
         if (priceDiff > 0.01) {
-          issues.push(`${item.name}: price changed from ${formatPrice(item.price_per_unit)} to ${formatPrice(fresh.price_per_unit)}`)
+          issues.push(`${item.name}: تغيّر السعر من ${formatPrice(item.price_per_unit)} إلى ${formatPrice(fresh.price_per_unit)}`)
         }
 
         // Verify stock
         if (fresh.available_quantity !== null && item.quantity > fresh.available_quantity) {
-          issues.push(`${item.name}: only ${formatQuantity(fresh.available_quantity, item.unit_type)} ${item.unit_type} available`)
+          issues.push(`${item.name}: المتاح فقط ${formatQuantity(fresh.available_quantity, item.unit_type)} ${item.unit_type}`)
         }
       }
 
@@ -455,14 +493,27 @@ const CartPage = () => {
       }
 
       // All checks passed — proceed to checkout
+      clearCheckoutVendor()
       navigate('/checkout')
     } catch (error) {
       logger.error('Checkout validation error:', error)
-      toast.error('Failed to validate cart. Please try again.')
+      toast.error('تعذّر التحقق من السلة. حاول مرة أخرى.')
     } finally {
       setCheckoutLoading(false)
     }
-  }, [items, validateCart, navigate])
+  }, [clearCheckoutVendor, items, validateCart, navigate])
+
+  const handleCheckoutForVendor = useCallback((vendorId) => {
+    const didSelectVendor = setCheckoutVendor(vendorId)
+
+    if (!didSelectVendor) {
+      toast.error('تعذر تجهيز سلة هذا البائع حالياً. حاول مرة أخرى.')
+      return
+    }
+
+    toast.success('تم تجهيز السلة لهذا البائع فقط. يمكنك الآن متابعة الدفع.')
+    navigate('/checkout')
+  }, [navigate, setCheckoutVendor])
 
   // ============================================
   // Computed Values
@@ -472,6 +523,7 @@ const CartPage = () => {
   const tax = getTax()
   const total = subtotal + tax
   const vendorCount = getVendorCount()
+  const multiVendorCheckoutBlocked = vendorCount > 1
 
   // ============================================
   // Empty State
@@ -508,14 +560,31 @@ const CartPage = () => {
             {items.length} {items.length !== 1 ? t('cart.items') : t('cart.item')}
             {vendorCount > 1 && ` ${t('cart.fromVendors', { count: vendorCount })}`}
           </p>
+          {(lastValidatedAt || lastValidationSummary) && (
+            <p className="text-xs text-gray-500 mt-2" data-testid="cart-validation-status">
+              {lastValidationSummary}
+              {lastValidatedAt && ` · آخر تحقق: ${formatValidationTime(lastValidatedAt)}`}
+            </p>
+          )}
         </div>
         {items.length > 0 && (
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
-          >
-            {t('cart.clearCart')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={validateCartOnMount}
+              disabled={validating}
+              data-testid="cart-refresh-status"
+              className="text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {validating ? 'جارٍ التحقق…' : 'تحديث الأسعار'}
+            </button>
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="text-sm text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors"
+            >
+              {t('cart.clearCart')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -529,11 +598,46 @@ const CartPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* ===== Cart Items ===== */}
           <div className="lg:col-span-2 space-y-4">
+            {multiVendorCheckoutBlocked && vendorGroups.length > 1 && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 space-y-4">
+                <div>
+                  <h2 className="text-base sm:text-lg font-semibold text-amber-900">قسّم السلة بخطوة واحدة</h2>
+                  <p className="text-sm text-amber-800 mt-1 leading-6">
+                    اختر البائع الذي تريد إتمام طلبه الآن، وسنحتفظ بمنتجاته فقط داخل السلة ثم ننقلك مباشرة إلى صفحة الدفع.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  {vendorGroups.map((group) => (
+                    <div
+                      key={group.vendorId}
+                      className="rounded-xl border border-amber-200 bg-white p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                    >
+                      <div>
+                        <p className="font-semibold text-gray-900">{group.vendorName}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {group.items.length} منتج · {formatPrice(group.subtotal)}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCheckoutForVendor(group.vendorId)}
+                        className="btn-outline w-full sm:w-auto"
+                      >
+                        اختيار هذا البائع والمتابعة للدفع
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {items.map((item) => {
               const itemTotal = (item.price_per_unit || 0) * item.quantity
               const isLowStock = item.available_quantity !== null && item.available_quantity <= item.quantity * 1.25
               const isAtMax = item.available_quantity !== null && item.quantity >= item.available_quantity
-              const step = getStepSize(item.unit_type)
+              const step = getQuantityStep(item.unit_type, item.min_order_quantity)
               const minQty = item.min_order_quantity || 1
               const inputError = inputErrors[item.id]
               const displayQty = inputQuantities[item.id] ?? formatQuantity(item.quantity, item.unit_type)
@@ -552,7 +656,7 @@ const CartPage = () => {
                   {vendorCount > 1 && item.vendor_name && (
                     <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        Sold by: {item.vendor_name}
+                        البائع: {item.vendor_name}
                       </p>
                     </div>
                   )}
@@ -562,7 +666,7 @@ const CartPage = () => {
                     <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
                       <BoltIcon className="w-4 h-4 text-amber-500 flex-shrink-0" />
                       <p className="text-xs text-amber-700">
-                        Price updated: {formatPrice(hasPriceAlert.oldPrice)} → {formatPrice(hasPriceAlert.newPrice)}
+                        تحديث السعر: {formatPrice(hasPriceAlert.oldPrice)} ← {formatPrice(hasPriceAlert.newPrice)}
                       </p>
                     </div>
                   )}
@@ -618,10 +722,10 @@ const CartPage = () => {
                         {isLowStock && (
                           <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
                             <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                            Only {formatQuantity(item.available_quantity, item.unit_type)} {item.unit_type} available
+                            المتاح فقط {formatQuantity(item.available_quantity, item.unit_type)} {item.unit_type}
                             {item.quantity > item.available_quantity * 0.8 && (
                               <span className="ml-1 px-1.5 py-0.5 bg-orange-100 rounded text-[10px] font-medium">
-                                &gt;80% reserved
+                                80%+ محجوز
                               </span>
                             )}
                           </p>
@@ -644,7 +748,7 @@ const CartPage = () => {
                             <div className="relative">
                               <input
                                 type="text"
-                                inputMode={isWeightBasedUnit(item.unit_type) ? 'decimal' : 'numeric'}
+                                inputMode={isDecimalQuantityUnit(item.unit_type) ? 'decimal' : 'numeric'}
                                 value={displayQty}
                                 onChange={(e) => handleInputChange(item, e.target.value)}
                                 onBlur={() => handleInputBlur(item)}
@@ -679,8 +783,8 @@ const CartPage = () => {
 
                           {/* Step Info */}
                           <p className="text-xs text-gray-400 sm:text-right">
-                            Step: {formatQuantity(step, item.unit_type)} {item.unit_type}
-                            {minQty > 1 && ` · Min: ${formatQuantity(minQty, item.unit_type)}`}
+                            الوحدة: {formatQuantity(step, item.unit_type)} {item.unit_type}
+                            {minQty > 1 && ` · الحد الأدنى: ${formatQuantity(minQty, item.unit_type)}`}
                           </p>
 
                           {/* Item Subtotal */}
@@ -709,27 +813,32 @@ const CartPage = () => {
           {/* ===== Order Summary (Desktop Sidebar) ===== */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="card p-6 sticky top-24 bg-white border border-gray-200 rounded-xl" data-testid="cart-summary">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">ملخص الطلب</h2>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
-                  <span>Subtotal ({items.length} items)</span>
+                  <span>الإجمالي الفرعي ({items.length} منتج)</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
                 {tax > 0 && (
                   <div className="flex justify-between text-gray-600">
-                    <span>VAT</span>
+                    <span>الضريبة</span>
                     <span>{formatPrice(tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
-                  <span>Shipping</span>
-                  <span className="text-gray-400 text-sm">Calculated at checkout</span>
+                  <span>التوصيل</span>
+                  <span className="text-gray-400 text-sm">يُحسب عند الدفع</span>
                 </div>
                 {vendorCount > 1 && (
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>Multi-vendor order</span>
-                    <span>{vendorCount} vendors</span>
+                    <span>طلب متعدد البائعين</span>
+                    <span>{vendorCount} بائعين</span>
+                  </div>
+                )}
+                {multiVendorCheckoutBlocked && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-5">
+                    {MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE}
                   </div>
                 )}
                 {minimumOrderStatus.hasViolations && (
@@ -746,49 +855,51 @@ const CartPage = () => {
                 )}
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-xl font-bold text-gray-900" data-testid="cart-total">
-                  <span>Total</span>
+                  <span>الإجمالي</span>
                   <span className="text-green-600">{formatPrice(total)}</span>
                 </div>
               </div>
 
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || minimumOrderStatus.hasViolations}
+                disabled={checkoutLoading || minimumOrderStatus.hasViolations || multiVendorCheckoutBlocked}
                 data-testid="cart-checkout-btn"
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-60"
               >
                 {checkoutLoading ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Validating...
+                    جارٍ التحقق...
                   </>
+                ) : multiVendorCheckoutBlocked ? (
+                  'فصّل السلة حسب البائع'
                 ) : minimumOrderStatus.hasViolations ? (
-                  'Minimum order not met'
+                  'لم يُستوفَ الحد الأدنى'
                 ) : (
                   <>
-                    Proceed to Checkout
+                    المتابعة للدفع
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
               </button>
 
               <Link to="/marketplace" className="btn-ghost w-full mt-3 text-center block">
-                Continue Shopping
+                {t('cart.continueShopping', 'متابعة التسوق')}
               </Link>
 
               {/* Trust Badges */}
               <div className="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-500">
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>Secure checkout</span>
+                  <span>دفع آمن ومشفر</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>Buyer protection</span>
+                  <span>حماية المشتري</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>Quality guarantee</span>
+                  <span>ضمان جودة المنتجات</span>
                 </div>
               </div>
             </div>
@@ -802,29 +913,34 @@ const CartPage = () => {
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs text-gray-500">Total ({items.length} items)</p>
+                <p className="text-xs text-gray-500">الإجمالي ({items.length} منتج)</p>
                 <p className="text-2xl font-bold text-gray-900">{formatPrice(total)}</p>
-                {tax > 0 && <p className="text-xs text-gray-400">incl. {formatPrice(tax)} VAT</p>}
+                {tax > 0 && <p className="text-xs text-gray-400">شامل ضريبة {formatPrice(tax)}</p>}
+                {multiVendorCheckoutBlocked && (
+                  <p className="text-xs text-amber-700 mt-1">فصّل السلة حسب البائع قبل الدفع.</p>
+                )}
                 {minimumOrderStatus.hasViolations && (
                   <p className="text-xs text-amber-700 mt-1">استوفِ الحد الأدنى للطلب لكل بائع قبل المتابعة.</p>
                 )}
               </div>
               <button
                 onClick={handleCheckout}
-                disabled={checkoutLoading || minimumOrderStatus.hasViolations}
+                disabled={checkoutLoading || minimumOrderStatus.hasViolations || multiVendorCheckoutBlocked}
                 data-testid="cart-checkout-btn"
                 className="btn-primary flex items-center gap-2 px-8 py-3 text-base disabled:opacity-60"
               >
                 {checkoutLoading ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    Validating...
+                    جارٍ التحقق...
                   </>
+                ) : multiVendorCheckoutBlocked ? (
+                  'فصّل حسب البائع'
                 ) : minimumOrderStatus.hasViolations ? (
-                  'Minimum not met'
+                  'الحد الأدنى غير مستوفى'
                 ) : (
                   <>
-                    Checkout
+                    إتمام الطلب
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
@@ -850,24 +966,24 @@ const CartPage = () => {
               <TrashIcon className="w-6 h-6 text-red-600" />
             </div>
             <h3 id="remove-dialog-title" className="text-lg font-semibold text-gray-900 mb-2 text-center">
-              Remove Item?
+              حذف المنتج؟
             </h3>
             <p className="text-sm text-gray-600 mb-6 text-center">
-              Are you sure you want to remove <strong>{pendingRemove.name}</strong> from your cart?
+              هل تريد حذف <strong>{pendingRemove.name}</strong> من السلة؟
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setPendingRemove(null)}
                 className="btn-outline flex-1"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 onClick={confirmRemoveItem}
                 data-testid="cart-remove-confirm"
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
               >
-                Remove
+                حذف
               </button>
             </div>
           </div>
@@ -889,23 +1005,23 @@ const CartPage = () => {
               <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
             </div>
             <h3 id="clear-dialog-title" className="text-lg font-semibold text-gray-900 mb-2 text-center">
-              Clear Entire Cart?
+              تفريغ السلة كاملاً؟
             </h3>
             <p className="text-sm text-gray-600 mb-6 text-center">
-              This will remove all <strong>{items.length}</strong> item{items.length !== 1 ? 's' : ''} from your cart. This action cannot be undone.
+              سيتم حذف جميع <strong>{items.length}</strong> منتج{items.length !== 1 ? '' : ''} من سلتك. لا يمكن التراجع عن هذا الإجراء.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
                 className="btn-outline flex-1"
               >
-                Cancel
+                إلغاء
               </button>
               <button
                 onClick={confirmClearCart}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
               >
-                Clear All
+                تفريغ الكل
               </button>
             </div>
           </div>

@@ -29,13 +29,21 @@
 #                              workflow also accepts legacy FIREBASE_SERVICE_ACCOUNT_GREENMARKET_MARKETPLACE
 
 # ─── Build-time app settings ───────────────────────────────────────────────
+# VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY are the only hard build blockers
+# validated by scripts/pre-deploy-check.mjs.
+#
+# The following values are recommended for production branding/runtime behavior,
+# but the frontend has safe fallbacks and CD no longer fails solely because they
+# are absent:
 # VITE_APP_NAME               — public app name injected at build time
 # VITE_SUPPORT_EMAIL          — public support inbox shown in the frontend
 # VITE_SUPPORT_PHONE          — public support phone shown in the frontend
-# RESEND_API_KEY              — required by scripts/pre-deploy-check.mjs during CD validation
 # VITE_COMMISSION_RATE        — build-time commission configuration
 # VITE_DELIVERY_BASE_FEE      — build-time delivery pricing baseline
 # VITE_DELIVERY_PER_KM_FEE    — build-time delivery distance fee
+#
+# RESEND_API_KEY is server-side runtime config for Edge Functions such as
+# send-email; its absence should not block the static frontend build.
 #
 # ─── Monitoring / Observability ─────────────────────────────────────────────
 # PRODUCTION_APP_URL          — public production URL checked every 30 minutes by .github/workflows/monitoring.yml

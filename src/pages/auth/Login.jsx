@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Button, Input, LoadingSpinner, MoroccoNotice } from '@/components/ui'
 import Recaptcha, { isRecaptchaSiteKeyConfigured } from '@/components/ui/Recaptcha'
+import { DEFAULT_AUTH_REDIRECT, resolveSafeAuthRedirect } from '@/utils/authRedirects'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 const LoginPage = () => {
@@ -23,14 +24,11 @@ const LoginPage = () => {
     : ''
   const captchaRequired = isRecaptchaSiteKeyConfigured(recaptchaSiteKey)
 
-  // Validate redirect target is a safe internal path (prevents Open Redirect attacks)
-  const isSafeRedirect = (url) => {
-    if (!url || typeof url !== 'string') return false
-    // Must start with / but not // (protocol-relative URLs like //evil.com)
-    return url.startsWith('/') && !url.startsWith('//')
-  }
   const rawRedirect = new URLSearchParams(window.location.search).get('redirect_to')
-  const from = location.state?.from || (isSafeRedirect(rawRedirect) ? rawRedirect : null) || '/marketplace'
+  const from = resolveSafeAuthRedirect(
+    location.state?.from,
+    resolveSafeAuthRedirect(rawRedirect, null)
+  )
 
   // Redirect already logged-in users
   useEffect(() => {
@@ -76,11 +74,11 @@ const LoginPage = () => {
       return
     }
 
-    const result = await signIn(email, password, captchaToken)
+    const result = await signIn(email, password, captchaToken, from)
 
     if (result.success) {
       // Use the redirect_to parameter, fallback to role dashboard
-      navigate(result.redirect || from)
+      navigate(result.redirect || from || DEFAULT_AUTH_REDIRECT)
     } else if (result.error?.includes('Email not confirmed') || result.error?.includes('not confirmed')) {
       if (captchaRequired) {
         resetCaptcha()
@@ -88,6 +86,11 @@ const LoginPage = () => {
 
       // User hasn't verified email yet
       sessionStorage.setItem('pendingVerificationEmail', email)
+
+      if (from) {
+        sessionStorage.setItem('redirect_after_verification', from)
+      }
+
       navigate('/verify-email')
     } else {
       if (captchaRequired) {
@@ -156,7 +159,7 @@ const LoginPage = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
-            rightElement={
+            rightIcon={
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}

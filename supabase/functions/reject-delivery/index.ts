@@ -1,0 +1,83 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { json, jsonHeaders } from '../_shared/serverRateLimit.ts'
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: jsonHeaders })
+  }
+
+  try {
+    if (req.method !== 'POST') {
+      return json({ success: false, error: 'Method not allowed' }, 405)
+    }
+
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return json({ success: false, error: 'Supabase configuration missing' }, 500)
+    }
+
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return json({ success: false, error: 'Authentication required' }, 401)
+    }
+
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const token = authHeader.split(' ')[1]
+    const { data: { user }, error: authError } = await adminClient.auth.getUser(token)
+
+    if (authError || !user) {
+      return json({ success: false, error: 'Invalid or expired token' }, 401)
+    }
+
+    const body = await req.json().catch(() => null)
+    const deliveryId = typeof body?.deliveryId === 'string' ? body.deliveryId.trim() : ''
+    const reason = typeof body?.reason === 'string' ? body.reason.trim() : ''
+
+    if (!deliveryId) {
+      return json({ success: false, error: 'Delivery ID is required' }, 400)
+    }
+
+    const { data: delivery, error: rejectError } = await adminClient
+      .from('deliveries')
+      .update({
+        driver_id: null,
+        status: 'unassigned',
+        driver_notes: reason,
+      })
+      .eq('id', deliveryId)
+      .eq('driver_id', user.id)
+      .in('status', ['assigned', 'accepted'])
+      .select('id, order_id, status, driver_notes')
+      .single()
+
+    if (rejectError) {
+      if (rejectError.code === 'PGRST116') {
+        return json({ success: false, error: 'This delivery cannot be rejected in its current state' }, 409)
+      }
+
+      throw rejectError
+    }
+
+    const { error: orderError } = await adminClient
+      .from('orders')
+      .update({ status: 'vendor_accepted' })
+      .eq('id', delivery.order_id)
+
+    if (orderError) {
+      console.error('Failed to update order status after delivery rejection:', orderError)
+    }
+
+    return json({
+      success: true,
+      delivery,
+    })
+  } catch (error) {
+    return json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reject delivery',
+    }, 500)
+  }
+})

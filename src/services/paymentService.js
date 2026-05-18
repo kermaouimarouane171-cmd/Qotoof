@@ -13,9 +13,14 @@
 
 import { supabase } from '@/services/supabase'
 import { paymentGateway } from '@/services/paymentGateway'
+import {
+  getLatestPaymentRecordForOrder as fetchLatestPaymentRecordForOrder,
+  insertPaymentRecord,
+  updatePaymentRecordById,
+} from '@/services/paymentRecords'
 import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/withRetry'
-import { PAYMENT_STATUS } from '@/constants/payment'
+import { PAYMENT_METHOD, PAYMENT_STATUS } from '@/constants/payment'
 
 // ============================================================
 // 1. CREATE PAYMENT INTENT
@@ -28,16 +33,20 @@ import { PAYMENT_STATUS } from '@/constants/payment'
  * @param {Object} params
  * @param {number}  params.amount   - Amount in MAD
  * @param {string}  params.currency - Currency code (default 'MAD')
- * @param {string}  params.method   - 'paypal' | 'cmi' | 'cod' | 'bank'
+ * @param {string}  [params.paymentMethod] - Canonical payment method id
+ * @param {string}  [params.payment_method] - Canonical snake_case alias
+ * @param {string}  [params.method] - Deprecated alias retained for compatibility
  * @param {string}  [params.orderId]
  * @param {Object}  [params.customer]
  * @returns {Promise<Object>} Intent data (clientSecret, redirectUrl, etc.)
  */
-export const createPaymentIntent = async ({ amount, currency = 'MAD', method, orderId, customer = {} }) => {
+export const createPaymentIntent = async ({ amount, currency = 'MAD', paymentMethod = null, payment_method = null, method = null, orderId, customer = {} }) => {
   try {
     const result = await paymentGateway.initializePayment({
       orderId,
       amount,
+      paymentMethod,
+      payment_method,
       method,
       currency,
       customer,
@@ -86,8 +95,8 @@ export const processStripePayment = processPayPalPayment
 // ============================================================
 
 /**
- * Initiate a CMI (Centre Monétique Interbancaire) payment.
- * Returns a redirectUrl — the caller must redirect the user to it.
+ * Legacy compatibility surface.
+ * Active marketplace checkout no longer exposes CMI and this call now fails fast.
  *
  * @param {Object} params
  * @param {string} params.orderId    - Order ID
@@ -130,32 +139,31 @@ export const confirmBankTransfer = async ({ orderId, receipt }) => {
     async () => {
       try {
         // Fetch the pending bank transfer payment for this order
-        const { data: payment, error: fetchError } = await supabase
-          .from('payments')
-          .select('id, status, method')
-          .eq('order_id', orderId)
-          .eq('method', 'bank')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+        const { data: payment, error: fetchError } = await fetchLatestPaymentRecordForOrder({
+          orderId,
+          paymentMethod: PAYMENT_METHOD.BANK_TRANSFER,
+          select: 'id, status, payment_method, method',
+          allowMissing: true,
+        })
 
         if (fetchError) throw fetchError
+        if (!payment?.id) {
+          return { success: false, error: 'لم يتم العثور على سجل دفع للتحويل البنكي' }
+        }
 
         if (payment.status === PAYMENT_STATUS.COMPLETED) {
           return { success: false, error: 'الدفع مكتمل بالفعل' }
         }
 
         // Attach receipt and move to processing
-        const { data: updated, error: updateError } = await supabase
-          .from('payments')
-          .update({
+        const { data: updated, error: updateError } = await updatePaymentRecordById({
+          paymentId: payment.id,
+          values: {
             status: PAYMENT_STATUS.PROCESSING,
             receipt_url: receipt,
             receipt_uploaded_at: new Date().toISOString(),
-          })
-          .eq('id', payment.id)
-          .select()
-          .single()
+          },
+        })
 
         if (updateError) throw updateError
 
@@ -171,7 +179,100 @@ export const confirmBankTransfer = async ({ orderId, receipt }) => {
 }
 
 // ============================================================
-// 5. GET PAYMENT STATUS
+// 4A. PAYMENT RECORD CONTRACT HELPERS
+// ============================================================
+
+export const createOrderPaymentRecord = async (paymentData) => {
+  const { data, error } = await insertPaymentRecord({ payload: paymentData })
+  if (error) throw error
+  return data
+}
+
+export const getLatestOrderPaymentRecord = async ({ orderId, paymentMethod = null, select = '*', allowMissing = true } = {}) => {
+  const { data, error } = await fetchLatestPaymentRecordForOrder({
+    orderId,
+    paymentMethod,
+    select,
+    allowMissing,
+  })
+
+  if (error) throw error
+  return data
+}
+
+export const updateOrderPaymentRecord = async ({ paymentId, values, select = '*' }) => {
+  const { data, error } = await updatePaymentRecordById({ paymentId, values, select })
+  if (error) throw error
+  return data
+}
+
+// ============================================================
+// 5. REGISTER STAGED PAYMENT RECEIPT
+// ============================================================
+
+/**
+ * Register a staged payment receipt against an order via Edge Function.
+ * The file upload stays in Storage, while the sensitive order update is
+ * validated and performed server-side.
+ *
+ * @param {Object} params
+ * @param {string} params.orderId
+ * @param {string} params.stage      - 'first' | 'second'
+ * @param {string} params.storagePath
+ * @returns {Promise<Object>} Updated order row
+ */
+export const registerPaymentReceipt = async ({ orderId, stage, storagePath }) => {
+  const { data, error } = await supabase.functions.invoke('register-payment-receipt', {
+    body: {
+      orderId,
+      stage,
+      storagePath,
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  if (!data?.success || !data?.order) {
+    throw new Error(data?.error || 'Failed to register payment receipt')
+  }
+
+  return data.order
+}
+
+// ============================================================
+// 6. CONFIRM ORDER PAYMENT
+// ============================================================
+
+/**
+ * Confirm vendor-side receipt verification / payment received state for an order.
+ * This wraps the sensitive commission and order state mutations in an Edge Function.
+ *
+ * @param {Object} params
+ * @param {string} params.orderId
+ * @returns {Promise<Object>} Updated order + commission summary
+ */
+export const confirmOrderPayment = async ({ orderId }) => {
+  const { data, error } = await supabase.functions.invoke('confirm-order-payment', {
+    body: {
+      orderId,
+    },
+  })
+
+  if (error) {
+    throw error
+  }
+
+  if (!data?.success || !data?.order) {
+    throw new Error(data?.error || 'Failed to confirm order payment')
+  }
+
+  return data
+}
+
+// ============================================================
+// 7. GET PAYMENT STATUS
 // ============================================================
 
 /**
@@ -191,7 +292,7 @@ export const getPaymentStatus = async (orderId) => {
 }
 
 // ============================================================
-// 6. REFUND PAYMENT
+// 8. REFUND PAYMENT
 // ============================================================
 
 /**

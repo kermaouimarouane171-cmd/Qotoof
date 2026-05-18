@@ -133,3 +133,71 @@ describe('realtime hooks interface', () => {
     expect(typeof useRealtimeDeliveries).toBe('function')
   })
 })
+
+describe('actual realtime service wiring', () => {
+  let realtimeService
+  let supabase
+  let channelBuilder
+
+  beforeEach(() => {
+    jest.resetModules()
+
+    channelBuilder = {
+      on: jest.fn(() => channelBuilder),
+      subscribe: jest.fn((statusCallback) => {
+        statusCallback?.('SUBSCRIBED')
+        return { topic: 'orders:buyer-1' }
+      }),
+    }
+
+    jest.doMock('@/services/supabase', () => ({
+      supabase: {
+        channel: jest.fn(() => channelBuilder),
+        removeChannel: jest.fn(),
+      },
+    }))
+
+    jest.doMock('@/utils/logger', () => ({
+      logger: {
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      },
+    }))
+
+    jest.doMock('react-hot-toast', () => ({
+      success: jest.fn(),
+      info: jest.fn(),
+      error: jest.fn(),
+      warning: jest.fn(),
+    }))
+
+    ;({ realtimeService } = require('@/services/realtime'))
+    ;({ supabase } = require('@/services/supabase'))
+  })
+
+  afterEach(() => {
+    jest.resetModules()
+    jest.clearAllMocks()
+  })
+
+  it('subscribes buyer order updates using buyer_id filter', () => {
+    const callback = jest.fn()
+
+    const unsubscribe = realtimeService.subscribeToOrders('buyer-1', callback)
+
+    expect(supabase.channel).toHaveBeenCalledWith('orders:buyer-1')
+    expect(channelBuilder.on).toHaveBeenCalledWith(
+      'postgres_changes',
+      expect.objectContaining({
+        table: 'orders',
+        filter: 'buyer_id=eq.buyer-1',
+      }),
+      expect.any(Function)
+    )
+
+    unsubscribe()
+
+    expect(supabase.removeChannel).toHaveBeenCalledWith({ topic: 'orders:buyer-1' })
+  })
+})

@@ -7,6 +7,8 @@ import { LoadingSpinner, Receipt } from '@/components/ui'
 import PaymentReceiptUpload from '@/components/orders/PaymentReceiptUpload'
 import { supabase } from '@/services/supabase'
 import { paymentGateway } from '@/services/paymentGateway'
+import { getLatestOrderPaymentRecord, updateOrderPaymentRecord } from '@/services/paymentService'
+import { useAuthStore } from '@/store/authStore'
 import { logger } from '@/utils/logger'
 
 const OrderConfirmation = () => {
@@ -15,41 +17,54 @@ const OrderConfirmation = () => {
   const location = useLocation()
   const { id: routeOrderId } = useParams()
   const [searchParams] = useSearchParams()
-  const [order, setOrder] = useState(location.state?.order)
-  const [loadingOrder, setLoadingOrder] = useState(Boolean(routeOrderId) && !location.state?.order)
+  const { user } = useAuthStore()
+  const [order, setOrder] = useState(null)
+  const [loadingOrder, setLoadingOrder] = useState(Boolean(routeOrderId || location.state?.order?.id))
+  const [errorState, setErrorState] = useState(null)
   const [paypalMessage, setPaypalMessage] = useState('')
   const [processingPayPal, setProcessingPayPal] = useState(false)
   const paypalHandledRef = useRef(false)
 
   const paypalAction = searchParams.get('paypal')
   const paypalToken = searchParams.get('token')
+  const confirmationPath = routeOrderId ? `/order-confirmation/${routeOrderId}` : '/order-confirmation'
 
   const loadOrder = useCallback(async (orderId) => {
-    if (!orderId) return null
+    if (!orderId || !user?.id) {
+      return { data: null, error: 'login_required' }
+    }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return { data: null, error: 'login_required' }
+    }
 
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .select('*')
       .eq('id', orderId)
+      .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id},driver_id.eq.${user.id}`)
       .maybeSingle()
 
-    if (orderError || !orderData) {
+    if (orderError) {
       logger.error('Failed to load order confirmation data:', orderError)
-      return null
+      return { data: null, error: 'load_failed' }
     }
 
-    const [itemsResult, paymentResult, buyerResult, vendorResult] = await Promise.all([
+    if (!orderData) {
+      return { data: null, error: 'forbidden' }
+    }
+
+    const [itemsResult, paymentData, buyerResult, vendorResult] = await Promise.all([
       supabase
         .from('order_items')
         .select('*, product:products(name)')
         .eq('order_id', orderId),
-      supabase
-        .from('payments')
-        .select('payment_method, status, transaction_id')
-        .eq('order_id', orderId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+      getLatestOrderPaymentRecord({
+        orderId,
+        select: 'payment_method, method, status, transaction_id',
+        allowMissing: true,
+      }),
       supabase
         .from('profiles')
         .select('first_name, last_name, email, phone')
@@ -63,47 +78,63 @@ const OrderConfirmation = () => {
     ])
 
     return {
-      ...orderData,
-      items: (itemsResult.data || []).map((item) => ({
-        ...item,
-        price: item.unit_price ?? item.price ?? 0,
-      })),
-      payment_method: paymentResult.data?.payment_method || orderData.payment_method || null,
-      payment_record_status: paymentResult.data?.status || null,
-      payment_transaction_id: paymentResult.data?.transaction_id || null,
-      buyer: buyerResult.data || {},
-      vendor: vendorResult.data || {},
+      data: {
+        ...orderData,
+        items: (itemsResult.data || []).map((item) => ({
+          ...item,
+          price: item.unit_price ?? item.price ?? 0,
+        })),
+        payment_method: paymentData?.payment_method || orderData.payment_method || null,
+        payment_record_status: paymentData?.status || null,
+        payment_transaction_id: paymentData?.transaction_id || null,
+        buyer: buyerResult.data || {},
+        vendor: vendorResult.data || {},
+      },
+      error: null,
     }
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
-    setOrder(location.state?.order)
-  }, [location.state])
+    paypalHandledRef.current = false
+  }, [routeOrderId])
 
   useEffect(() => {
     let active = true
 
     const hydrateOrder = async () => {
-      if (location.state?.order) {
-        setLoadingOrder(false)
+      if (!user) {
+        navigate('/login', { state: { from: confirmationPath } })
         return
       }
 
-      if (!routeOrderId) {
-        navigate('/marketplace', { replace: true })
+      const targetOrderId = routeOrderId || location.state?.order?.id
+      if (!targetOrderId) {
+        if (active) {
+          setOrder(null)
+          setErrorState('missing_order')
+          setLoadingOrder(false)
+        }
         return
       }
 
       setLoadingOrder(true)
-      const fetchedOrder = await loadOrder(routeOrderId)
+      setErrorState(null)
+      const result = await loadOrder(targetOrderId)
       if (!active) return
 
-      if (!fetchedOrder) {
-        navigate('/marketplace', { replace: true })
+      if (result.error === 'login_required') {
+        navigate('/login', { state: { from: confirmationPath } })
         return
       }
 
-      setOrder(fetchedOrder)
+      if (result.error) {
+        setOrder(null)
+        setErrorState(result.error)
+        setLoadingOrder(false)
+        return
+      }
+
+      setOrder(result.data)
       setLoadingOrder(false)
     }
 
@@ -112,7 +143,7 @@ const OrderConfirmation = () => {
     return () => {
       active = false
     }
-  }, [loadOrder, location.state, navigate, routeOrderId])
+  }, [confirmationPath, loadOrder, location.state, navigate, routeOrderId, user])
 
   useEffect(() => {
     let active = true
@@ -147,8 +178,8 @@ const OrderConfirmation = () => {
 
         if (result.status === 'completed') {
           const refreshedOrder = await loadOrder(order.id)
-          if (active && refreshedOrder) {
-            setOrder(refreshedOrder)
+          if (active && refreshedOrder.data) {
+            setOrder(refreshedOrder.data)
           }
           if (active) {
             setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
@@ -204,19 +235,25 @@ const OrderConfirmation = () => {
         throw new Error('تعذر إعادة تهيئة جلسة PayPal.')
       }
 
-      const { error: updateError } = await supabase
-        .from('payments')
-        .update({
+      const paymentRecord = await getLatestOrderPaymentRecord({
+        orderId: order.id,
+        paymentMethod: 'paypal',
+        select: 'id',
+        allowMissing: false,
+      })
+
+      if (!paymentRecord?.id) {
+        throw new Error('تعذر العثور على سجل دفع PayPal لإعادة التهيئة.')
+      }
+
+      await updateOrderPaymentRecord({
+        paymentId: paymentRecord.id,
+        values: {
           transaction_id: data.orderId,
           gateway_response: data,
           status: 'pending',
-        })
-        .eq('order_id', order.id)
-        .eq('payment_method', 'paypal')
-
-      if (updateError) {
-        throw updateError
-      }
+        },
+      })
 
       window.location.href = data.approvalUrl
     } catch (error) {
@@ -231,16 +268,42 @@ const OrderConfirmation = () => {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
         <div className="flex items-center justify-center gap-3 text-gray-500">
           <LoadingSpinner size="sm" />
-          <p>{t('orderConfirmation.redirecting', 'Redirecting...')}</p>
+          <p>{t('orderConfirmation.loading', 'Loading your order...')}</p>
         </div>
       </div>
     )
   }
 
-  if (!order) {
+  if (!order || errorState) {
+    const errorCopy = {
+      forbidden: {
+        title: t('orderConfirmation.errors.forbiddenTitle', 'Unable to access this order'),
+        description: t('orderConfirmation.errors.forbiddenDescription', 'This order does not exist or you do not have permission to view it.'),
+      },
+      load_failed: {
+        title: t('orderConfirmation.errors.loadFailedTitle', 'Failed to load order confirmation'),
+        description: t('orderConfirmation.errors.loadFailedDescription', 'We could not load your order details right now. Please try again from your orders page.'),
+      },
+      missing_order: {
+        title: t('orderConfirmation.errors.missingOrderTitle', 'No order was selected'),
+        description: t('orderConfirmation.errors.missingOrderDescription', 'Open this page from checkout or from your orders history.'),
+      },
+    }[errorState || 'missing_order']
+
     return (
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <p className="text-gray-500">{t('orderConfirmation.redirecting', 'Redirecting...')}</p>
+        <div className="rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900 mb-3">{errorCopy.title}</h1>
+          <p className="text-gray-600 mb-6">{errorCopy.description}</p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button onClick={() => navigate('/buyer/orders')} className="btn-primary">
+              {t('orderConfirmation.viewOrders', 'View My Orders')}
+            </button>
+            <button onClick={() => navigate('/marketplace')} className="btn-outline">
+              {t('orderConfirmation.continueShopping', 'متابعة التسوق')}
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -344,7 +407,7 @@ const OrderConfirmation = () => {
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <button onClick={() => navigate('/orders')} className="btn-primary flex-1">
+        <button onClick={() => navigate('/buyer/orders')} className="btn-primary flex-1">
           {t('orderConfirmation.viewOrders', 'View My Orders')}
         </button>
         <button onClick={() => navigate('/marketplace')} className="btn-outline flex-1">

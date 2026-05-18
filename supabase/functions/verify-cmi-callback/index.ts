@@ -122,6 +122,7 @@ serve(async (req) => {
     // Determine payment status
     const isApproved = Response === 'Approved' && ProcReturnCode === '00'
     const paymentStatus = isApproved ? 'completed' : 'failed'
+    const orderPaymentStatus = isApproved ? 'paid' : 'failed'
     const errorCode = ProcReturnCode !== '00' ? ProcReturnCode : null
     const errorMessage = isApproved ? null : (ResponseMsg || 'Payment declined')
 
@@ -175,7 +176,7 @@ serve(async (req) => {
       const { error: orderError } = await supabase
         .from('orders')
         .update({
-          payment_status: paymentStatus,
+          payment_status: orderPaymentStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('id', originalOrderId)
@@ -221,6 +222,7 @@ serve(async (req) => {
         cmiOrderId: oid,
         transactionId: TransId,
         status: paymentStatus,
+        orderPaymentStatus,
         message: isApproved ? 'Payment successful' : errorMessage,
         errorCode,
         verified: true,

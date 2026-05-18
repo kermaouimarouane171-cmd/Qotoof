@@ -6,6 +6,7 @@ jest.mock('@/services/supabase', () => ({
   supabase: {
     from: jest.fn(),
     rpc: jest.fn(),
+    removeChannel: jest.fn(),
     channel: jest.fn(() => ({
       on: jest.fn().mockReturnThis(),
       subscribe: jest.fn().mockReturnThis(),
@@ -21,11 +22,17 @@ import {
   normalizeNotification,
   normalizeNotificationCategory,
   normalizeNotificationPreferences,
+  notificationsApi,
   resolveNotificationLink,
   shouldMuteNotificationPreview,
 } from '@/services/notifications'
+import { supabase } from '@/services/supabase'
 
 describe('notifications helpers', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
   test('normalizes legacy categories to the new canonical set', () => {
     expect(normalizeNotificationCategory('order')).toBe('order_update')
     expect(normalizeNotificationCategory('review_updates')).toBe('review')
@@ -112,5 +119,39 @@ describe('notifications helpers', () => {
 
     expect(shouldMuteNotificationPreview(preferences, { category: 'system' }, new Date('2026-04-22T23:30:00'))).toBe(true)
     expect(shouldMuteNotificationPreview(preferences, { category: 'system' }, new Date('2026-04-22T14:30:00'))).toBe(false)
+  })
+
+  test('uses distinct realtime channels for multiple notification consumers', () => {
+    const callback = jest.fn()
+
+    const unsubscribeBadge = notificationsApi.subscribe('user-1', callback, { scope: 'badge' })
+    const unsubscribeCenter = notificationsApi.subscribe('user-1', callback, { scope: 'center' })
+
+    expect(supabase.channel).toHaveBeenNthCalledWith(1, 'notifications:user-1:badge:1')
+    expect(supabase.channel).toHaveBeenNthCalledWith(2, 'notifications:user-1:center:2')
+
+    unsubscribeBadge()
+    unsubscribeCenter()
+
+    expect(supabase.removeChannel).toHaveBeenCalledTimes(2)
+  })
+
+  test('scopes notification mutations to the current user id', async () => {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: null, error: null })
+    const select = jest.fn(() => ({ maybeSingle }))
+    const eqById = jest.fn(() => ({ select }))
+    const eqByUser = jest.fn(() => ({ eq: eqById }))
+    const update = jest.fn(() => ({ eq: eqByUser }))
+
+    supabase.from.mockReturnValue({ update })
+
+    await notificationsApi.markAsRead('user-1', 'notification-1')
+    await notificationsApi.delete('user-1', 'notification-2')
+
+    expect(supabase.from).toHaveBeenNthCalledWith(1, 'notifications')
+    expect(supabase.from).toHaveBeenNthCalledWith(2, 'notifications')
+    expect(eqByUser).toHaveBeenCalledWith('user_id', 'user-1')
+    expect(eqById).toHaveBeenCalledWith('id', 'notification-1')
+    expect(eqById).toHaveBeenCalledWith('id', 'notification-2')
   })
 })

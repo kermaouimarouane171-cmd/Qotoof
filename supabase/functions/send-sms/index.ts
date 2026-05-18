@@ -1,67 +1,70 @@
 import { serve } from 'https://deno.land/std@0.200.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { enforceServerRateLimit, getClientIp, json, jsonHeaders } from '../_shared/serverRateLimit.ts'
 
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID')
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')
 const TWILIO_FROM_NUMBER = Deno.env.get('TWILIO_FROM_NUMBER')
 const TWILIO_MESSAGING_SERVICE_SID = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+const SMS_REQUEST_LIMIT = {
+  maxAttempts: 20,
+  windowSeconds: 60,
+  blockSeconds: 60,
 }
-
-const rateLimit = new Map<string, { count: number; resetAt: number }>()
-
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders,
-    },
-  })
 
 serve(async (req) => {
   try {
     if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders })
+      return new Response('ok', { headers: jsonHeaders })
     }
 
     if (req.method !== 'POST') {
-      return jsonResponse({ error: 'Method not allowed' }, 405)
+      return json({ error: 'Method not allowed' }, 405)
     }
 
-    const forwardedFor = req.headers.get('x-forwarded-for') || ''
-    const clientIp = forwardedFor.split(',')[0]?.trim() || 'unknown'
-    const now = Date.now()
-    const currentRate = rateLimit.get(clientIp)
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return json({ error: 'Supabase environment variables are not configured' }, 500)
+    }
 
-    if (!currentRate || now > currentRate.resetAt) {
-      rateLimit.set(clientIp, { count: 1, resetAt: now + 60_000 })
-    } else {
-      currentRate.count += 1
-      if (currentRate.count > 20) {
-        return jsonResponse({ error: 'Too many requests, try again later' }, 429)
-      }
+    const clientIp = getClientIp(req)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    const rateLimitResult = await enforceServerRateLimit({
+      supabase,
+      scope: 'send_sms_request',
+      identifierParts: ['send-sms', clientIp],
+      maxAttempts: SMS_REQUEST_LIMIT.maxAttempts,
+      windowSeconds: SMS_REQUEST_LIMIT.windowSeconds,
+      blockSeconds: SMS_REQUEST_LIMIT.blockSeconds,
+    })
+
+    if (!rateLimitResult.allowed) {
+      return json(
+        { error: 'Too many requests, try again later' },
+        429,
+        { 'Retry-After': String(rateLimitResult.retry_after_seconds || SMS_REQUEST_LIMIT.blockSeconds) },
+      )
     }
 
     const { to, message } = await req.json()
 
     if (!to || !message) {
-      return jsonResponse({ error: 'Missing required fields: to, message' }, 400)
+      return json({ error: 'Missing required fields: to, message' }, 400)
     }
 
     if (typeof to !== 'string' || !to.startsWith('+')) {
-      return jsonResponse({ error: 'Invalid phone number format' }, 400)
+      return json({ error: 'Invalid phone number format' }, 400)
     }
 
     if (typeof message !== 'string' || message.length > 600) {
-      return jsonResponse({ error: 'Invalid message body' }, 400)
+      return json({ error: 'Invalid message body' }, 400)
     }
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || (!TWILIO_MESSAGING_SERVICE_SID && !TWILIO_FROM_NUMBER)) {
-      return jsonResponse({ error: 'Twilio environment variables are not configured' }, 503)
+      return json({ error: 'Twilio environment variables are not configured' }, 503)
     }
 
     const payload = new URLSearchParams()
@@ -89,11 +92,11 @@ serve(async (req) => {
 
     const result = await response.json()
     if (!response.ok) {
-      return jsonResponse({ error: result?.message || 'Failed to send SMS' }, response.status)
+      return json({ error: result?.message || 'Failed to send SMS' }, response.status)
     }
 
-    return jsonResponse({ success: true, sid: result.sid }, 200)
+    return json({ success: true, sid: result.sid }, 200)
   } catch (error) {
-    return jsonResponse({ error: error?.message || 'Failed to send SMS' }, 500)
+    return json({ error: error?.message || 'Failed to send SMS' }, 500)
   }
 })

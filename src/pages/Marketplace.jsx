@@ -4,24 +4,19 @@ import { useTranslation } from 'react-i18next'
 import { ProductCard } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SearchBar from '@/components/Search/SearchBar'
-import { PRODUCT_CATEGORIES, getSuggestedSubcategories } from '@/constants/categories'
+import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
 import productSearchService from '@/services/search/productSearchService'
+import { getDisplayErrorMessage } from '@/utils/errorHandler'
 import { FunnelIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
 const ITEMS_PER_PAGE = 12
 
-const SORT_OPTIONS = [
-  { value: 'newest', label: 'الأحدث' },
-  { value: 'price_asc', label: 'السعر: من الأقل' },
-  { value: 'price_desc', label: 'السعر: من الأعلى' },
-  { value: 'rating_desc', label: 'الأعلى تقييماً' },
-  { value: 'name_asc', label: 'الاسم: أ - ي' },
-]
+const SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'rating_desc', 'name_asc']
 
 const MarketplacePage = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [products, setProducts] = useState([])
@@ -44,6 +39,18 @@ const MarketplacePage = () => {
 
   const totalPages = Math.max(Math.ceil(totalCount / ITEMS_PER_PAGE), 1)
   const subcategoryOptions = filters.category !== 'all' ? getSuggestedSubcategories(filters.category) : []
+  const sortOptions = [
+    { value: 'newest', label: t('marketplace.sortBy.newest', 'Newest First') },
+    { value: 'price_asc', label: t('marketplace.sortBy.priceLow', 'Price: Low to High') },
+    { value: 'price_desc', label: t('marketplace.sortBy.priceHigh', 'Price: High to Low') },
+    { value: 'rating_desc', label: t('marketplace.sortBy.rating', 'Highest Rated') },
+    { value: 'name_asc', label: t('marketplace.sortBy.name', 'Name: A to Z') },
+  ]
+  const ratingOptions = [
+    { value: '4', label: t('marketplace.ratingOptions.4', '4+ stars') },
+    { value: '3', label: t('marketplace.ratingOptions.3', '3+ stars') },
+    { value: '2', label: t('marketplace.ratingOptions.2', '2+ stars') },
+  ]
 
   useEffect(() => {
     let cancelled = false
@@ -86,7 +93,12 @@ const MarketplacePage = () => {
       } catch (error) {
         logger.error('Marketplace: failed to load products', error)
         if (!cancelled) {
-          toast.error('تعذر تحميل المنتجات حالياً')
+          toast.error(getDisplayErrorMessage(error, {
+            network_error: 'تعذر تحميل المنتجات بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.',
+            server_error: 'الخدمة مشغولة حالياً. حاول مرة أخرى بعد قليل.',
+            not_found: 'لم نتمكن من العثور على المنتجات المطلوبة. جرّب تعديل الفلاتر أو البحث.',
+            default: 'تعذر تحميل المنتجات حالياً. أعد المحاولة بعد قليل.',
+          }))
           setProducts([])
           setTotalCount(0)
         }
@@ -144,7 +156,7 @@ const MarketplacePage = () => {
     { id: 'all', label: t('marketplace.categories.all', 'كل الفئات') },
     ...PRODUCT_CATEGORIES.map((category) => ({
       id: category.id,
-      label: category.labelAr || category.label,
+      label: getCategoryLabel(category.id, i18n.language),
     })),
   ]
 
@@ -270,9 +282,9 @@ const MarketplacePage = () => {
                 className="input"
               >
                 <option value="">{t('marketplace.anyRating', 'أي تقييم')}</option>
-                <option value="4">4+ نجوم</option>
-                <option value="3">3+ نجوم</option>
-                <option value="2">2+ نجوم</option>
+                {ratingOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
 
@@ -295,7 +307,7 @@ const MarketplacePage = () => {
                 className="input"
                 disabled={loading}
               >
-                {SORT_OPTIONS.map((option) => (
+                {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
@@ -329,7 +341,7 @@ const MarketplacePage = () => {
             />
             <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">{t('marketplace.filters', 'الفلاتر')}</h3>
+                <h3 className="text-lg font-semibold">{t('marketplace.filtersLabel', 'الفلاتر')}</h3>
                 <button onClick={() => setFiltersOpen(false)} aria-label={t('common.close', 'إغلاق')}>
                   <XMarkIcon className="w-6 h-6" />
                 </button>
@@ -365,9 +377,9 @@ const MarketplacePage = () => {
                   <label className="input-label">{t('marketplace.rating', 'الحد الأدنى للتقييم')}</label>
                   <select value={filters.rating} onChange={(event) => updateParams({ rating: event.target.value })} className="input">
                     <option value="">{t('marketplace.anyRating', 'أي تقييم')}</option>
-                    <option value="4">4+ نجوم</option>
-                    <option value="3">3+ نجوم</option>
-                    <option value="2">2+ نجوم</option>
+                    {ratingOptions.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
                   </select>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -375,9 +387,9 @@ const MarketplacePage = () => {
                   {t('marketplace.inStockOnly', 'متوفر حالياً فقط')}
                 </label>
                 <div>
-                  <label className="input-label">{t('marketplace.sortBy', 'الترتيب')}</label>
+                  <label className="input-label">{t('marketplace.sortByLabel', 'الترتيب')}</label>
                   <select value={filters.sortBy} onChange={(event) => updateParams({ sortBy: event.target.value })} className="input">
-                    {SORT_OPTIONS.map((option) => (
+                    {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
                   </select>

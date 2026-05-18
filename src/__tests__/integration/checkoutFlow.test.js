@@ -158,6 +158,17 @@ describe('Checkout Flow Integration', () => {
       expect(canCheckout).toBe(false)
     })
 
+    it('should fail checkout when cart contains multiple vendors', async () => {
+      const p1 = { id: 'p1', name: 'Tomatoes', price_per_unit: 12, vendor_id: 'v1', min_quantity: 1, available_quantity: 50 }
+      const p2 = { id: 'p2', name: 'Olive Oil', price_per_unit: 85, vendor_id: 'v2', min_quantity: 1, available_quantity: 30 }
+
+      cart.addItem(p1, 3)
+      cart.addItem(p2, 1)
+
+      const canCheckout = cart.getItemCount() > 0 && cart.getVendorCount() === 1
+      expect(canCheckout).toBe(false)
+    })
+
     it('should fail checkout when user is not authenticated', async () => {
       const p1 = { id: 'p1', name: 'Tomatoes', price_per_unit: 10, vendor_id: 'v1', min_quantity: 1, available_quantity: 100 }
       cart.addItem(p1, 2)

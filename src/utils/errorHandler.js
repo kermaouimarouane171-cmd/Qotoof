@@ -147,6 +147,19 @@ export const getUserFriendlyMessage = (error) => {
 };
 
 /**
+ * Resolve a display message using the normalized error type plus optional overrides.
+ */
+export const getDisplayErrorMessage = (error, overrides = {}) => {
+  const formatted = formatErrorForUI(error);
+  return (
+    overrides[formatted.type] ||
+    overrides.default ||
+    formatted.message ||
+    ERROR_MESSAGES.SOMETHING_WENT_WRONG
+  );
+};
+
+/**
  * Log error to external service (Sentry, etc.)
  */
 export const logErrorToService = async (error, context = {}) => {
@@ -357,6 +370,7 @@ export default {
   normalizeError,
   formatErrorForUI,
   getUserFriendlyMessage,
+  getDisplayErrorMessage,
   logErrorToService,
   retryWithBackoff,
   handleErrorByStatus,

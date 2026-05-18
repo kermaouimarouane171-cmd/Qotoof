@@ -118,8 +118,10 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json()
-    const { 
-      orderId,
+    const {
+      orderId: payloadOrderId,
+      paymentId,
+      transactionId,
       amount,
       reason,
       refundType = 'Credit', // Credit = full/partial refund, Void = cancel before settlement
@@ -128,11 +130,12 @@ serve(async (req) => {
     } = body
 
     // Validate required fields
-    if (!orderId || !amount || amount <= 0) {
+    const numericAmount = Number(amount)
+    if ((!payloadOrderId && !paymentId) || !numericAmount || numericAmount <= 0) {
       return new Response(
         JSON.stringify({ 
           error: 'Missing or invalid required fields',
-          required: ['orderId', 'amount (must be > 0)'],
+          required: ['orderId or paymentId', 'amount (must be > 0)'],
         }),
         { 
           status: 400, 
@@ -175,11 +178,19 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
     // Get the original payment
-    const { data: payment, error: paymentError } = await supabase
+    let paymentQuery = supabase
       .from('payments')
       .select('*')
-      .eq('order_id', orderId)
-      .single()
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (paymentId) {
+      paymentQuery = paymentQuery.eq('id', paymentId)
+    } else {
+      paymentQuery = paymentQuery.eq('order_id', payloadOrderId)
+    }
+
+    const { data: payment, error: paymentError } = await paymentQuery.maybeSingle()
 
     if (paymentError || !payment) {
       return new Response(
@@ -190,6 +201,21 @@ serve(async (req) => {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
           } 
+        }
+      )
+    }
+
+    const orderId = payloadOrderId || payment.order_id
+
+    if (!orderId) {
+      return new Response(
+        JSON.stringify({ error: 'Unable to resolve order for this refund' }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
         }
       )
     }
@@ -228,6 +254,22 @@ serve(async (req) => {
       )
     }
 
+    if (numericAmount > Number(payment.amount || 0)) {
+      return new Response(
+        JSON.stringify({
+          error: 'Refund amount exceeds original payment amount',
+          originalAmount: payment.amount,
+        }),
+        {
+          status: 400,
+          headers: {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          }
+        }
+      )
+    }
+
     // Check if already refunded
     if (payment.refund_amount && payment.refund_amount > 0) {
       return new Response(
@@ -262,7 +304,7 @@ serve(async (req) => {
     }
 
     // Get original transaction ID
-    const originalTransId = payment.transaction_id
+    const originalTransId = payment.transaction_id || transactionId
 
     if (!originalTransId) {
       return new Response(
@@ -278,7 +320,7 @@ serve(async (req) => {
     }
 
     // Prepare refund parameters
-    const refundAmount = Math.round(amount * 100).toString() // Convert to cents
+    const refundAmount = Math.round(numericAmount * 100).toString() // Convert to cents
     const currency = payment.currency === 'MAD' ? '944' : '840'
 
     const refundParams = {
@@ -301,7 +343,7 @@ serve(async (req) => {
     }
 
     // Call CMI refund API
-    console.log('Initiating CMI refund for order:', orderId, 'amount:', amount)
+    console.log('Initiating CMI refund for order:', orderId, 'amount:', numericAmount)
     
     const cmiResponse = await callCMIRefundAPI(refundFormData)
 
@@ -317,7 +359,7 @@ serve(async (req) => {
           action: 'refund_failed',
           previous_status: 'completed',
           new_status: 'refund_failed',
-          amount,
+          amount: numericAmount,
           performed_by: requestedBy || 'system',
           performed_by_role: 'admin',
           details: {
@@ -363,7 +405,7 @@ serve(async (req) => {
           action: 'refund_declined',
           previous_status: 'completed',
           new_status: 'refund_declined',
-          amount,
+          amount: numericAmount,
           performed_by: requestedBy || 'system',
           performed_by_role: 'admin',
           details: {
@@ -398,13 +440,13 @@ serve(async (req) => {
       .from('payments')
       .update({
         status: 'refunded',
-        refund_amount: amount,
+        refund_amount: numericAmount,
         refund_reason: reason,
         refunded_at: new Date().toISOString(),
         gateway_response: {
           ...payment.gateway_response,
           refund: {
-            amount,
+            amount: numericAmount,
             reason,
             refund_type: refundType,
             cmi_transaction_id: refundTransId,
@@ -425,7 +467,7 @@ serve(async (req) => {
 
     // Update order if fully refunded
     const originalAmount = payment.amount
-    if (amount >= originalAmount) {
+    if (numericAmount >= originalAmount) {
       await supabase
         .from('orders')
         .update({
@@ -444,7 +486,7 @@ serve(async (req) => {
         action: 'refund_completed',
         previous_status: 'completed',
         new_status: 'refunded',
-        amount,
+        amount: numericAmount,
         performed_by: requestedBy || 'system',
         performed_by_role: 'admin',
         details: {
@@ -466,7 +508,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         orderId,
-        refundAmount: amount,
+        refundAmount: numericAmount,
         refundTransactionId: refundTransId,
         status: 'refunded',
         message: 'Refund processed successfully',

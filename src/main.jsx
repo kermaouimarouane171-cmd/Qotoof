@@ -2,13 +2,14 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { StrictMode } from 'react'
 import { BrowserRouter } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
+import { Toaster, toast } from 'react-hot-toast'
 import { HelmetProvider } from 'react-helmet-async'
 import * as Sentry from '@sentry/react'
+import { registerSW } from 'virtual:pwa-register'
 import ErrorBoundary from './components/ErrorBoundary'
 import { SkipLink } from './utils/accessibility.jsx'
 import App from './App'
-import './i18n'
+import i18n from './i18n'
 import './index.css'
 
 // ============================================
@@ -19,6 +20,7 @@ import { logger } from './utils/logger.js'
 import { logError } from './services/sentry'
 import { sentryDsnLooksIssued } from './utils/envValidators'
 import { initConfig } from './lib/config'
+import { configurePendingUpdateActivator, recoverFromStaleAsset } from './utils/staleAssetRecovery'
 
 logger.log('[ENTRY] main.jsx loaded — starting app initialization')
 
@@ -72,6 +74,52 @@ if (import.meta.env.DEV) {
   logger.log('📊 Analytics:', import.meta.env.PROD ? 'enabled' : 'disabled (dev mode)')
 }
 
+let updateToastId = null
+
+const updateServiceWorker = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    if (updateToastId) return
+
+    updateToastId = toast.custom((currentToast) => (
+      <div className="max-w-md rounded-2xl border border-green-200 bg-white p-4 shadow-xl">
+        <p className="text-sm font-semibold text-gray-900">A new version of Qotoof is ready.</p>
+        <p className="mt-1 text-sm text-gray-600">Refresh now to load the latest assets and avoid stale pages.</p>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white"
+            onClick={async () => {
+              toast.dismiss(currentToast.id)
+              updateToastId = null
+              await updateServiceWorker(true)
+            }}
+          >
+            Refresh now
+          </button>
+          <button
+            type="button"
+            className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700"
+            onClick={() => {
+              toast.dismiss(currentToast.id)
+              updateToastId = null
+            }}
+          >
+            Later
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, id: 'app-update-ready' })
+  },
+  onOfflineReady() {
+    toast.success('Offline assets are ready for this device.', { id: 'offline-ready' })
+  },
+})
+
+configurePendingUpdateActivator(async () => {
+  await updateServiceWorker(true)
+})
+
 // ============================================
 // RENDER APPLICATION
 // ============================================
@@ -91,7 +139,7 @@ const renderApp = async () => {
           {/* Skip Link for keyboard users */}
           <SkipLink target="#main-content" />
 
-          <Sentry.ErrorBoundary fallback={<p className="p-4 text-red-600">حدث خطأ غير متوقع. حاول تحديث الصفحة.</p>}>
+          <Sentry.ErrorBoundary fallback={<p className="p-4 text-red-600">{i18n.t('errorBoundary.sentryFallback', 'An unexpected error occurred. Please refresh the page.')}</p>}>
             <App />
           </Sentry.ErrorBoundary>
 
@@ -140,20 +188,30 @@ const renderApp = async () => {
 
 renderApp()
 
-// 🚨 GLOBAL ERROR & REJECTION HANDLERS — for terminal visibility
-if (import.meta.env.DEV) {
-  window.addEventListener('error', (e) => {
-    console.error('[خطأ عام في المتصفح]', e.error?.stack || e.message, 'في', e.filename || 'غير معروف', ':', e.lineno || '?', e.colno || '?')
-    logError(e.error || new Error(e.message), {
-      tags: { source: 'window.error' },
-      extra: { file: e.filename, line: e.lineno, col: e.colno },
-    })
-  })
-  window.addEventListener('unhandledrejection', (e) => {
-    console.error('[رفض Promise غير معالج]', e.reason?.stack || e.reason)
-    logError(e.reason instanceof Error ? e.reason : new Error(String(e.reason)), {
-      tags: { source: 'window.unhandledrejection' },
-    })
+const handleRuntimeFailure = async (error, source, extra = {}) => {
+  const recovered = await recoverFromStaleAsset({ error, reason: source })
+  if (recovered) return
+
+  if (import.meta.env.DEV) {
+    console.error(`[${source}]`, error?.stack || error, extra)
+  }
+
+  logError(error instanceof Error ? error : new Error(String(error)), {
+    tags: { source },
+    extra,
   })
 }
+
+// 🚨 GLOBAL ERROR & REJECTION HANDLERS — for terminal visibility
+window.addEventListener('error', (event) => {
+  void handleRuntimeFailure(event.error || new Error(event.message), 'window.error', {
+    file: event.filename,
+    line: event.lineno,
+    col: event.colno,
+  })
+})
+
+window.addEventListener('unhandledrejection', (event) => {
+  void handleRuntimeFailure(event.reason, 'window.unhandledrejection')
+})
 

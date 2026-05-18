@@ -14,6 +14,7 @@ import { supabase } from '@/services/supabase'
 import { notificationsApi } from '@/services/notifications'
 import { emailService } from '@/services/emailService'
 import smsService from '@/services/sms/smsService'
+import { registerPaymentReceipt } from '@/services/paymentService'
 import { formatPrice } from '@/utils/currency'
 import { logger } from '@/utils/logger'
 
@@ -131,9 +132,12 @@ const PaymentReceiptUpload = ({ order, stage = 'first', onUploadComplete }) => {
 
     setUploading(true)
 
+    let storagePath = ''
+    let receiptRegistered = false
+
     try {
       const fileExtension = file.name.split('.').pop() || 'jpg'
-      const storagePath = `${user.id}/${order.id}/${stage}-${Date.now()}.${fileExtension}`
+      storagePath = `${user.id}/${order.id}/${stage}-${Date.now()}.${fileExtension}`
 
       const { error: uploadError } = await supabase.storage
         .from('payment-receipts')
@@ -145,21 +149,12 @@ const PaymentReceiptUpload = ({ order, stage = 'first', onUploadComplete }) => {
 
       if (uploadError) throw uploadError
 
-      const updatePayload = {
-        [config.receiptField]: storagePath,
-        [config.paidAtField]: new Date().toISOString(),
-        [config.statusField]: 'paid',
-      }
-
-      const { data: updatedOrder, error: updateError } = await supabase
-        .from('orders')
-        .update(updatePayload)
-        .eq('id', order.id)
-        .eq('buyer_id', user.id)
-        .select('*')
-        .single()
-
-      if (updateError) throw updateError
+      const updatedOrder = await registerPaymentReceipt({
+        orderId: order.id,
+        stage,
+        storagePath,
+      })
+      receiptRegistered = true
 
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('payment-receipts')
@@ -169,52 +164,66 @@ const PaymentReceiptUpload = ({ order, stage = 'first', onUploadComplete }) => {
         setPreviewUrl(signedUrlData?.signedUrl || '')
       }
 
-      const { data: vendorProfile } = await supabase
-        .from('profiles')
-        .select('id, store_name, email, phone')
-        .eq('id', order.vendor_id)
-        .maybeSingle()
+      try {
+        const { data: vendorProfile } = await supabase
+          .from('profiles')
+          .select('id, store_name, email, phone')
+          .eq('id', order.vendor_id)
+          .maybeSingle()
 
-      if (vendorProfile?.id) {
-        await notificationsApi.create({
-          user_id: vendorProfile.id,
-          title: 'إيصال دفع جديد بانتظار المراجعة',
-          message: `${config.vendorMessage} للطلب #${order.order_number || order.id.slice(0, 8)}.`,
-          type: 'payment_receipt',
-          data: {
-            order_id: order.id,
-            payment_stage: stage,
-            payment_type: order.payment_type,
-          },
-        })
-      }
-
-      if (vendorProfile?.email) {
-        await emailService.sendEmail({
-          to: vendorProfile.email,
-          toName: vendorProfile.store_name || 'Vendor',
-          subject: `إيصال دفع جديد للطلب #${order.order_number || order.id.slice(0, 8)}`,
-          template: 'payment_receipt_review',
-          data: {
-            message: `${config.vendorMessage} بقيمة ${formatPrice(amount)}. الرجاء مراجعة الطلب داخل لوحة البائع.`,
-          },
-        })
-      }
-
-      if (vendorProfile?.phone) {
-        try {
-          await smsService.sendVendorNotification(
-            vendorProfile.phone,
-            `${config.vendorMessage} للطلب #${order.order_number || order.id.slice(0, 8)} بقيمة ${formatPrice(amount)}`
-          )
-        } catch (smsError) {
-          logger.warn('Payment receipt SMS notification failed:', smsError)
+        if (vendorProfile?.id) {
+          await notificationsApi.create({
+            user_id: vendorProfile.id,
+            title: 'إيصال دفع جديد بانتظار المراجعة',
+            message: `${config.vendorMessage} للطلب #${order.order_number || order.id.slice(0, 8)}.`,
+            type: 'payment_receipt',
+            data: {
+              order_id: order.id,
+              payment_stage: stage,
+              payment_type: order.payment_type,
+            },
+          })
         }
+
+        if (vendorProfile?.email) {
+          await emailService.sendEmail({
+            to: vendorProfile.email,
+            toName: vendorProfile.store_name || 'Vendor',
+            subject: `إيصال دفع جديد للطلب #${order.order_number || order.id.slice(0, 8)}`,
+            template: 'payment_receipt_review',
+            data: {
+              message: `${config.vendorMessage} بقيمة ${formatPrice(amount)}. الرجاء مراجعة الطلب داخل لوحة البائع.`,
+            },
+          })
+        }
+
+        if (vendorProfile?.phone) {
+          try {
+            await smsService.sendVendorNotification(
+              vendorProfile.phone,
+              `${config.vendorMessage} للطلب #${order.order_number || order.id.slice(0, 8)} بقيمة ${formatPrice(amount)}`
+            )
+          } catch (smsError) {
+            logger.warn('Payment receipt SMS notification failed:', smsError)
+          }
+        }
+      } catch (notificationError) {
+        logger.warn('Payment receipt notifications failed after successful upload:', notificationError)
       }
 
       toast.success(config.successMessage)
       onUploadComplete?.({ ...order, ...updatedOrder })
     } catch (error) {
+      if (storagePath && !receiptRegistered) {
+        const { error: cleanupError } = await supabase.storage
+          .from('payment-receipts')
+          .remove([storagePath])
+
+        if (cleanupError) {
+          logger.warn('Failed to cleanup orphaned payment receipt upload:', cleanupError)
+        }
+      }
+
       logger.error('Payment receipt upload failed:', error)
       toast.error(error.message || 'تعذر رفع الإيصال حالياً.')
     } finally {

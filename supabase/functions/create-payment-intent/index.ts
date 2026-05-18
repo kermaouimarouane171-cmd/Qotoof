@@ -1,5 +1,5 @@
 // Supabase Edge Function: create-payment-intent
-// Creates Stripe payment intent
+// Creates Stripe payment intents for the subscription/billing surface, not marketplace checkout.
 // Deploy: supabase functions deploy create-payment-intent
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'

@@ -18,6 +18,11 @@ const BANK_RIB = Deno.env.get('BANK_RIB') || ''
 const BANK_IBAN = Deno.env.get('BANK_IBAN') || ''
 const BANK_BENEFICIARY = Deno.env.get('BANK_BENEFICIARY') || 'Qotoof SARL'
 
+const isBankTransferMethod = (paymentMethod: string | null | undefined) => {
+  const normalized = String(paymentMethod || '').trim()
+  return normalized === 'bank' || normalized === 'bank_transfer'
+}
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -105,8 +110,9 @@ serve(async (req) => {
         )
       }
 
-      // Check if payment method is bank_transfer
-      if (order.payment_method !== 'bank_transfer') {
+      // This endpoint is a legacy/manual compatibility surface.
+      // Accept both the canonical bank contract and older bank_transfer rows.
+      if (!isBankTransferMethod(order.payment_method)) {
         return new Response(
           JSON.stringify({ 
             error: 'This order is not using bank transfer payment',
@@ -199,7 +205,7 @@ serve(async (req) => {
       }
 
       // Verify payment method
-      if (order.payment_method !== 'bank_transfer') {
+      if (!isBankTransferMethod(order.payment_method)) {
         return new Response(
           JSON.stringify({ error: 'This order is not using bank transfer payment' }),
           { 
@@ -213,11 +219,11 @@ serve(async (req) => {
       }
 
       // Check if already confirmed
-      if (order.payment_status === 'completed') {
+      if (order.payment_status === 'paid' || order.payment_status === 'completed') {
         return new Response(
           JSON.stringify({ 
             error: 'Payment already confirmed for this order',
-            status: 'already_completed',
+            status: 'already_paid',
           }),
           { 
             status: 400, 
@@ -241,6 +247,7 @@ serve(async (req) => {
         ({ error: paymentUpdateError } = await supabase
           .from('payments')
           .update({
+            payment_method: 'bank',
             status: 'processing',
             transaction_id: transactionId || null,
             payment_proof_url: transferProofUrl || null,
@@ -264,7 +271,7 @@ serve(async (req) => {
             user_id: order.buyer_id,
             amount: order.total,
             currency: 'MAD',
-            payment_method: 'bank_transfer',
+            payment_method: 'bank',
             status: 'processing',
             transaction_id: transactionId || null,
             payment_proof_url: transferProofUrl || null,

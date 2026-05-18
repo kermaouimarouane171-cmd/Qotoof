@@ -1,15 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { runProductImageFallbackQuery } from '@/services/productImages'
 import inventoryService from '@/services/inventoryService'
 import reviewService from '@/services/reviewService'
 import refundPolicyService from '@/services/refundPolicyService'
 import { Button, LoadingSpinner, Map, StarRating } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { formatPrice } from '@/utils/currency'
+import { formatQuantity, getQuantityStep, normalizeQuantity } from '@/utils/cartQuantity'
+import { getCategoryLabel } from '@/constants/categories'
 import {
   MapPinIcon,
   ShoppingCartIcon,
@@ -26,8 +29,14 @@ import { logger } from '@/utils/logger'
 
 const REVIEWS_PER_PAGE = 10
 
+const getTextLocale = (language = 'en') => {
+  if (language.startsWith('ar')) return 'ar-MA'
+  if (language.startsWith('fr')) return 'fr-FR'
+  return 'en-US'
+}
+
 const ProductDetailPage = () => {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { id } = useParams()
   const { addItem } = useCartStore()
   const { user } = useAuthStore()
@@ -50,11 +59,33 @@ const ProductDetailPage = () => {
   const [refundPolicy, setRefundPolicy] = useState(null)
   const [_relatedProducts, setRelatedProducts] = useState([])
   const [_relatedLoading, setRelatedLoading] = useState(false)
+  const currentLanguage = i18n.resolvedLanguage || i18n.language || 'en'
+  const textLocale = useMemo(() => getTextLocale(currentLanguage), [currentLanguage])
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(textLocale), [textLocale])
+  const formatReviewDate = useCallback((value) => new Date(value).toLocaleDateString(textLocale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }), [textLocale])
+  const localizedCategoryLabel = useMemo(() => {
+    if (!product?.category) return ''
+    return getCategoryLabel(product.category, currentLanguage)
+  }, [product?.category, currentLanguage])
+  const minimumOrderQuantity = useMemo(
+    () => Number(product?.min_order_quantity || 1),
+    [product?.min_order_quantity]
+  )
+  const quantityStep = useMemo(
+    () => getQuantityStep(product?.unit_type, minimumOrderQuantity),
+    [minimumOrderQuantity, product?.unit_type]
+  )
 
   // SEO: Update title and meta description
   useEffect(() => {
     if (product) {
-      document.title = `${product.name} | Qotoof - قطوف`
+      document.title = t('productDetail.meta.title', '{{productName}} | Qotoof - قطوف', {
+        productName: product.name,
+      })
 
       let metaDescription = document.querySelector('meta[name="description"]')
       if (!metaDescription) {
@@ -62,7 +93,14 @@ const ProductDetailPage = () => {
         metaDescription.name = 'description'
         document.head.appendChild(metaDescription)
       }
-      metaDescription.content = product.description || `${product.name} - ${product.category} available at Qotoof marketplace`
+      metaDescription.content = product.description || t(
+        'productDetail.meta.defaultDescription',
+        '{{productName}} - {{category}} available at Qotoof marketplace',
+        {
+          productName: product.name,
+          category: localizedCategoryLabel || product.category,
+        }
+      )
 
       // JSON-LD Structured Data for SEO
       const jsonLd = {
@@ -73,7 +111,7 @@ const ProductDetailPage = () => {
         image: product.images?.map(img => img.url) || [],
         brand: {
           '@type': 'Brand',
-          name: product.vendor?.store_name || product.vendor?.first_name || 'Unknown Vendor'
+          name: product.vendor?.store_name || product.vendor?.first_name || t('productDetail.vendor.unknown', 'Unknown vendor')
         },
         offers: {
           '@type': 'Offer',
@@ -88,7 +126,7 @@ const ProductDetailPage = () => {
             : [],
           seller: {
             '@type': 'Organization',
-            name: product.vendor?.store_name || product.vendor?.first_name || 'Unknown Vendor'
+            name: product.vendor?.store_name || product.vendor?.first_name || t('productDetail.vendor.unknown', 'Unknown vendor')
           }
         },
         aggregateRating: averageRating > 0
@@ -100,7 +138,7 @@ const ProductDetailPage = () => {
               worstRating: '1'
             }
           : undefined,
-        category: product.category
+        category: localizedCategoryLabel || product.category
       }
 
       // Remove existing JSON-LD if any
@@ -118,7 +156,7 @@ const ProductDetailPage = () => {
         script.remove()
       }
     }
-  }, [product, averageRating, reviews])
+  }, [product, averageRating, reviews, t, localizedCategoryLabel])
 
   const loadProduct = useCallback(async () => {
     if (!id) return
@@ -126,21 +164,55 @@ const ProductDetailPage = () => {
     setLoading(true)
     setNotFound(false)
     try {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('products')
-        .select(`
-          *,
-          product_images(id, url, is_primary)
-        `)
+        .select(selectClause)
         .eq('id', id)
         .single()
 
-      if (error) {
+      let data
+      try {
+        ({ data } = await runProductImageFallbackQuery({
+          buildQuery,
+          selectWithImages: `
+            *,
+            vendor:profiles!products_vendor_id_fkey(
+              id,
+              first_name,
+              last_name,
+              store_name,
+              store_description,
+              avatar_url,
+              city,
+              country,
+              latitude,
+              longitude
+            ),
+            product_images(id, url, is_primary)
+          `,
+          selectWithoutImages: `
+            *,
+            vendor:profiles!products_vendor_id_fkey(
+              id,
+              first_name,
+              last_name,
+              store_name,
+              store_description,
+              avatar_url,
+              city,
+              country,
+              latitude,
+              longitude
+            )
+          `,
+          onRelationError: (relationError) => logger.warn('Product detail: product_images relation missing, hydrating separately', relationError),
+        }))
+      } catch (error) {
         if (error.code === 'PGRST116') {
-          // Product not found
           setNotFound(true)
           return
         }
+
         throw error
       }
 
@@ -212,19 +284,25 @@ const ProductDetailPage = () => {
 
     setRelatedLoading(true)
     try {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('products')
-        .select(`
-          *,
-          product_images(url, is_primary)
-        `)
+        .select(selectClause)
         .eq('is_available', true)
         .eq('category', product.category)
-        .neq('id', id) // Exclude current product
+        .neq('id', id)
         .order('created_at', { ascending: false })
         .limit(4)
 
-      if (error) throw error
+      const { data } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: `
+          *,
+          product_images(url, is_primary)
+        `,
+        selectWithoutImages: '*',
+        onRelationError: (error) => logger.warn('Product detail related products: product_images relation missing, hydrating separately', error),
+      })
+
       setRelatedProducts(data || [])
     } catch (error) {
       logger.error('Error loading related products:', error)
@@ -295,12 +373,12 @@ const ProductDetailPage = () => {
 
   const handleSubmitReview = async () => {
     if (!user) {
-      toast.error('يجب تسجيل الدخول لإضافة تقييم')
+      toast.error(t('productDetail.reviews.loginRequired', 'Please login to add a review'))
       return
     }
 
     if (userRating === 0) {
-      toast.error('الرجاء اختيار تقييم')
+      toast.error(t('productDetail.reviews.selectRating', 'Please select a rating'))
       return
     }
 
@@ -315,13 +393,13 @@ const ProductDetailPage = () => {
           comment: reviewText,
         })
 
-      toast.success('تم إضافة التقييم بنجاح')
+      toast.success(t('productDetail.reviews.submitSuccess', 'Review submitted successfully!'))
       setUserRating(0)
       setReviewText('')
       await loadReviews()
     } catch (error) {
       logger.error('Error submitting review:', error)
-      toast.error('حدث خطأ أثناء إضافة التقييم')
+      toast.error(t('productDetail.reviews.submitFailed', 'Failed to submit review'))
     } finally {
       setSubmittingReview(false)
     }
@@ -330,6 +408,12 @@ const ProductDetailPage = () => {
   const handleAddToCart = () => {
     if (!product) return
 
+    const normalizedQuantity = normalizeQuantity(quantity, {
+      unitType: product.unit_type,
+      minOrderQuantity: minimumOrderQuantity,
+      fallbackQuantity: minimumOrderQuantity,
+    })
+
     // Check if product is available
     if (!product.is_available) {
       toast.error(t('product.outOfStock', 'This product is out of stock'))
@@ -337,7 +421,7 @@ const ProductDetailPage = () => {
     }
 
     // Check minimum order quantity
-    if (quantity < product.min_order_quantity) {
+    if (normalizedQuantity < product.min_order_quantity) {
       toast.error(
         t('product.minOrder', 'Minimum order is {{min}} {{unit}}', {
           min: product.min_order_quantity,
@@ -348,7 +432,7 @@ const ProductDetailPage = () => {
     }
 
     // Check available quantity
-    if (product.available_quantity !== null && quantity > product.available_quantity) {
+    if (product.available_quantity !== null && normalizedQuantity > product.available_quantity) {
       toast.error(
         t('product.exceedsStock', 'Requested quantity exceeds available stock ({{max}} {{unit}})', {
           max: product.available_quantity,
@@ -358,14 +442,14 @@ const ProductDetailPage = () => {
       return
     }
 
-    addItem(product, quantity)
+    addItem(product, normalizedQuantity)
   }
 
   const handleJoinWaitlist = async () => {
     if (!product) return
 
     if (!user) {
-      toast.error('يجب تسجيل الدخول أولاً للانضمام إلى قائمة الانتظار')
+      toast.error(t('productDetail.waitlist.loginRequired', 'Please login first to join the waitlist'))
       return
     }
 
@@ -382,10 +466,10 @@ const ProductDetailPage = () => {
         ...previous,
         waitlist_count: Number(previous.waitlist_count || 0) + 1,
       } : previous)
-      toast.success('تم تسجيلك في قائمة الانتظار بنجاح')
+      toast.success(t('productDetail.waitlist.joinSuccess', 'You have been added to the waitlist successfully'))
     } catch (error) {
       logger.error('Error joining waitlist:', error)
-      toast.error(error.message || 'تعذر إضافتك إلى قائمة الانتظار')
+      toast.error(error.message || t('productDetail.waitlist.joinFailed', 'Unable to add you to the waitlist'))
     } finally {
       setJoiningWaitlist(false)
     }
@@ -427,11 +511,11 @@ const ProductDetailPage = () => {
         <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <PhotoIcon className="w-10 h-10 text-gray-400" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Product not found</h2>
-        <p className="text-gray-500 mb-6">The product you're looking for doesn't exist or has been removed.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('product.notFound.title', 'Product not found')}</h2>
+        <p className="text-gray-500 mb-6">{t('product.notFound.description', 'The product you\'re looking for doesn\'t exist or has been removed.')}</p>
         <Link to="/marketplace" className="btn-primary">
           <ArrowLeftIcon className="w-5 h-5 mr-2" />
-          Back to Marketplace
+          {t('product.notFound.backToMarketplace', 'Back to Marketplace')}
         </Link>
       </div>
     )
@@ -451,7 +535,7 @@ const ProductDetailPage = () => {
           <>
             <span aria-hidden="true">/</span>
             <Link to={`/marketplace?category=${product.category}`} className="hover:text-green-600 capitalize">
-              {t(`product.categories.${product.category}`, product.category)}
+              {localizedCategoryLabel || product.category}
             </Link>
           </>
         )}
@@ -525,21 +609,21 @@ const ProductDetailPage = () => {
         {/* Product Info */}
         <div>
           <div className="mb-2">
-            <span className="badge-primary capitalize">{product.category}</span>
+            <span className="badge-primary capitalize">{localizedCategoryLabel || product.category}</span>
             {product.subcategory && (
               <span className="badge-secondary ml-2 capitalize">{product.subcategory}</span>
             )}
             {!product.is_available && (
-              <span className="badge-danger ml-2">Out of Stock</span>
+              <span className="badge-danger ml-2">{t('product.outOfStock', 'Out of Stock')}</span>
             )}
             {product.is_available && product.available_quantity <= 10 && product.available_quantity > 0 && (
-              <span className="badge-warning ml-2">Low Stock</span>
+              <span className="badge-warning ml-2">{t('productDetail.badges.lowStock', 'Low Stock')}</span>
             )}
             {product.is_organic && (
-              <span className="badge-success ml-2">Organic</span>
+              <span className="badge-success ml-2">{t('productDetail.badges.organic', 'Organic')}</span>
             )}
             {product.is_local && (
-              <span className="badge-secondary ml-2">Local</span>
+              <span className="badge-secondary ml-2">{t('productDetail.badges.local', 'Local')}</span>
             )}
           </div>
 
@@ -575,15 +659,21 @@ const ProductDetailPage = () => {
               <span className="text-4xl font-bold text-green-600">
                 {formatPrice(product.price_per_unit)}
               </span>
-              <span className="text-lg text-gray-500">/{product.unit_type}</span>
+              <span className="text-lg text-gray-500">{t('product.perUnit', 'per {{unit}}', { unit: product.unit_type })}</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
               <span className="text-gray-600">
-                Min order: <strong>{product.min_order_quantity} {product.unit_type}</strong>
+                {t('productDetail.purchase.minOrder', 'Min order: {{quantity}} {{unit}}', {
+                  quantity: numberFormatter.format(product.min_order_quantity),
+                  unit: product.unit_type,
+                })}
               </span>
               {product.available_quantity > 0 && (
                 <span className="text-green-600">
-                  • Available: <strong>{product.available_quantity.toLocaleString()} {product.unit_type}</strong>
+                  {t('productDetail.purchase.available', 'Available: {{quantity}} {{unit}}', {
+                    quantity: numberFormatter.format(product.available_quantity),
+                    unit: product.unit_type,
+                  })}
                 </span>
               )}
             </div>
@@ -591,11 +681,18 @@ const ProductDetailPage = () => {
 
           {/* Quantity Selector */}
           <div className="mb-6">
-            <label className="input-label">Quantity ({product.unit_type})</label>
+            <label className="input-label">{t('productDetail.purchase.quantityLabel', 'Quantity ({{unit}})', { unit: product.unit_type })}</label>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setQuantity(Math.max(product.min_order_quantity, quantity - product.min_order_quantity))}
-                disabled={quantity <= product.min_order_quantity}
+                onClick={() => setQuantity((currentQuantity) => Math.max(
+                  minimumOrderQuantity,
+                  normalizeQuantity(currentQuantity - quantityStep, {
+                    unitType: product.unit_type,
+                    minOrderQuantity: minimumOrderQuantity,
+                    fallbackQuantity: minimumOrderQuantity,
+                  })
+                ))}
+                disabled={quantity <= minimumOrderQuantity}
                 className="w-12 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-gray-100"
               >
                 −
@@ -604,34 +701,47 @@ const ProductDetailPage = () => {
                 type="number"
                 value={quantity}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value)
-                  if (!isNaN(val) && val >= product.min_order_quantity) {
-                    const adjusted = Math.ceil(val / product.min_order_quantity) * product.min_order_quantity
-                    setQuantity(adjusted)
+                  const nextValue = Number(e.target.value)
+                  if (Number.isFinite(nextValue)) {
+                    setQuantity(Math.max(
+                      minimumOrderQuantity,
+                      normalizeQuantity(nextValue, {
+                        unitType: product.unit_type,
+                        minOrderQuantity: minimumOrderQuantity,
+                        fallbackQuantity: minimumOrderQuantity,
+                      })
+                    ))
                   } else if (e.target.value === '') {
-                    setQuantity(product.min_order_quantity)
+                    setQuantity(minimumOrderQuantity)
                   }
                 }}
                 className="input w-24 text-center text-lg font-semibold"
-                min={product.min_order_quantity}
-                step={product.min_order_quantity}
+                min={minimumOrderQuantity}
+                step={quantityStep}
               />
               <button
-                onClick={() => setQuantity(quantity + product.min_order_quantity)}
+                onClick={() => setQuantity((currentQuantity) => normalizeQuantity(currentQuantity + quantityStep, {
+                  unitType: product.unit_type,
+                  minOrderQuantity: minimumOrderQuantity,
+                  fallbackQuantity: minimumOrderQuantity,
+                }))}
                 className="w-12 h-12 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xl font-medium transition-colors"
               >
                 +
               </button>
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Quantity must be a multiple of {product.min_order_quantity} {product.unit_type}
+              {t('productDetail.purchase.quantityStep', 'Quantity changes in steps of {{quantity}} {{unit}}', {
+                quantity: formatQuantity(quantityStep, product.unit_type),
+                unit: product.unit_type,
+              })}
             </p>
           </div>
 
           {/* Total */}
           <div className="mb-6 p-4 bg-gray-50 rounded-xl">
             <div className="flex items-center justify-between">
-              <span className="text-gray-600">Total Price:</span>
+              <span className="text-gray-600">{t('productDetail.purchase.totalPrice', 'Total Price:')}</span>
               <span className="text-2xl font-bold text-gray-900">
                 {formatPrice(product.price_per_unit * quantity)}
               </span>
@@ -648,19 +758,21 @@ const ProductDetailPage = () => {
               disabled={!product.is_available || quantity < product.min_order_quantity}
               leftIcon={<ShoppingCartIcon className="w-5 h-5" />}
             >
-              Add to Cart
+              {t('product.addToCart', 'Add to Cart')}
             </Button>
           </div>
 
           {isProductSoldOut && product.waitlist_enabled !== false && (
             <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-semibold text-amber-900">المنتج غير متوفر حالياً</p>
+              <p className="text-sm font-semibold text-amber-900">{t('productDetail.waitlist.title', 'This product is currently unavailable')}</p>
               <p className="mt-1 text-sm text-amber-800">
-                سنرسل لك إشعاراً داخل المنصة فور عودة هذا المنتج إلى المخزون.
+                {t('productDetail.waitlist.description', 'We will send you an in-app notification as soon as this product is back in stock.')}
               </p>
               {Number(product.waitlist_count || 0) > 0 && (
                 <p className="mt-2 text-xs text-amber-700">
-                  عدد المنتظرين حالياً: {Number(product.waitlist_count || 0)}
+                  {t('productDetail.waitlist.count', 'Current waitlist: {{count}}', {
+                    count: numberFormatter.format(Number(product.waitlist_count || 0)),
+                  })}
                 </p>
               )}
               <div className="mt-4">
@@ -670,7 +782,9 @@ const ProductDetailPage = () => {
                   disabled={Boolean(waitlistEntry)}
                   isLoading={joiningWaitlist}
                 >
-                  {waitlistEntry ? 'أنت مسجل بالفعل في قائمة الانتظار' : 'انضم إلى قائمة الانتظار'}
+                  {waitlistEntry
+                    ? t('productDetail.waitlist.alreadyJoined', 'You are already on the waitlist')
+                    : t('productDetail.waitlist.join', 'Join the waitlist')}
                 </Button>
               </div>
             </div>
@@ -681,15 +795,15 @@ const ProductDetailPage = () => {
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
               <TruckIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Fast Delivery</p>
-                <p className="text-xs text-gray-500">24-48 hours</p>
+                <p className="text-sm font-medium text-gray-900">{t('productDetail.features.fastDeliveryTitle', 'Fast Delivery')}</p>
+                <p className="text-xs text-gray-500">{t('productDetail.features.fastDeliveryBody', '24-48 hours')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl">
               <ShieldCheckIcon className="w-6 h-6 text-green-600 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Quality Assured</p>
-                <p className="text-xs text-gray-500">Verified vendor</p>
+                <p className="text-sm font-medium text-gray-900">{t('productDetail.features.qualityAssuredTitle', 'Quality Assured')}</p>
+                <p className="text-xs text-gray-500">{t('productDetail.features.qualityAssuredBody', 'Verified vendor')}</p>
               </div>
             </div>
           </div>
@@ -699,7 +813,7 @@ const ProductDetailPage = () => {
       {/* Description */}
       {product.description && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Description</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('product.description', 'Description')}</h2>
           <div className="card p-6">
             <p className="text-gray-600 whitespace-pre-line leading-relaxed">
               {product.description}
@@ -710,32 +824,34 @@ const ProductDetailPage = () => {
 
       {refundPolicy && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">سياسة الاسترجاع</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('productDetail.refund.title', 'Refund Policy')}</h2>
           <div className="card p-6">
             <p className="text-gray-700 leading-7 mb-4">{refundPolicy.policy_text}</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
               <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-gray-500 mb-1">نافذة الإرجاع</p>
-                <p className="font-semibold text-gray-900">{refundPolicy.return_window_days} يوم</p>
+                <p className="text-gray-500 mb-1">{t('productDetail.refund.returnWindow', 'Return window')}</p>
+                <p className="font-semibold text-gray-900">{t('productDetail.refund.returnWindowValue', '{{count}} days', { count: numberFormatter.format(refundPolicy.return_window_days) })}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-gray-500 mb-1">الإرجاع الجزئي</p>
-                <p className="font-semibold text-gray-900">{refundPolicy.allow_partial_returns ? 'مسموح' : 'غير مسموح'}</p>
+                <p className="text-gray-500 mb-1">{t('productDetail.refund.partialReturns', 'Partial returns')}</p>
+                <p className="font-semibold text-gray-900">{refundPolicy.allow_partial_returns ? t('productDetail.refund.allowed', 'Allowed') : t('productDetail.refund.notAllowed', 'Not allowed')}</p>
               </div>
               <div className="rounded-xl bg-gray-50 p-3">
-                <p className="text-gray-500 mb-1">مصاريف الشحن</p>
+                <p className="text-gray-500 mb-1">{t('productDetail.refund.shippingResponsibility', 'Return shipping')}</p>
                 <p className="font-semibold text-gray-900">
                   {refundPolicy.return_shipping_paid_by === 'vendor'
-                    ? 'على البائع'
+                    ? t('productDetail.refund.shippingPaidBy.vendor', 'Paid by the vendor')
                     : refundPolicy.return_shipping_paid_by === 'shared'
-                    ? 'مشاركة بين الطرفين'
-                    : 'على المشتري'}
+                    ? t('productDetail.refund.shippingPaidBy.shared', 'Shared between both parties')
+                    : t('productDetail.refund.shippingPaidBy.buyer', 'Paid by the buyer')}
                 </p>
               </div>
             </div>
             {Array.isArray(refundPolicy.non_returnable_categories) && refundPolicy.non_returnable_categories.length > 0 && (
               <p className="text-xs text-gray-500 mt-4">
-                فئات غير قابلة للإرجاع: {refundPolicy.non_returnable_categories.join('، ')}
+                {t('productDetail.refund.nonReturnable', 'Non-returnable categories: {{categories}}', {
+                  categories: refundPolicy.non_returnable_categories.join(', '),
+                })}
               </p>
             )}
           </div>
@@ -745,23 +861,23 @@ const ProductDetailPage = () => {
       {/* Farming Information */}
       {(product.scientific_name || product.season || product.care_instructions) && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Farming Information</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('productDetail.farming.title', 'Farming Information')}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {product.scientific_name && (
               <div className="card p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Scientific Name</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">{t('productDetail.farming.scientificName', 'Scientific Name')}</h3>
                 <p className="text-gray-900 font-semibold italic">{product.scientific_name}</p>
               </div>
             )}
             {product.season && (
               <div className="card p-4">
-                <h3 className="text-sm font-medium text-gray-500 mb-1">Season</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-1">{t('productDetail.farming.season', 'Season')}</h3>
                 <p className="text-gray-900 font-semibold">{product.season}</p>
               </div>
             )}
             {product.care_instructions && (
               <div className="card p-4 md:col-span-2">
-                <h3 className="text-sm font-medium text-gray-500 mb-2">Care Instructions</h3>
+                <h3 className="text-sm font-medium text-gray-500 mb-2">{t('productDetail.farming.careInstructions', 'Care Instructions')}</h3>
                 <p className="text-gray-600 whitespace-pre-line leading-relaxed">{product.care_instructions}</p>
               </div>
             )}
@@ -772,7 +888,7 @@ const ProductDetailPage = () => {
       {/* Vendor Location */}
       {product.vendor && (product.vendor.latitude || product.vendor.longitude || product.vendor.city) && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Vendor Location</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">{t('productDetail.vendor.locationTitle', 'Vendor Location')}</h2>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-6">
               <h3 className="font-semibold text-gray-900 text-lg mb-2">
@@ -799,7 +915,7 @@ const ProductDetailPage = () => {
                   ? [{
                       lat: product.vendor.latitude,
                       lng: product.vendor.longitude,
-                      popup: product.vendor.store_name || 'Vendor Location'
+                      popup: product.vendor.store_name || t('productDetail.vendor.locationTitle', 'Vendor Location')
                     }]
                   : []
               }
@@ -812,7 +928,7 @@ const ProductDetailPage = () => {
       {/* Reviews Section */}
       <div className="mb-12">
         <h2 className="text-xl font-bold text-gray-900 mb-6">
-          التقييمات ({reviews.length})
+          {t('product.reviews', 'Reviews')} ({numberFormatter.format(reviews.length)})
         </h2>
 
         {/* Rating Summary */}
@@ -829,7 +945,9 @@ const ProductDetailPage = () => {
                 <span className="text-gray-500">/ 5</span>
               </div>
               <p className="text-sm text-gray-500">
-                {reviews.length} {reviews.length === 1 ? 'تقييم' : 'تقييمات'}
+                {t('productDetail.reviews.summary', '{{count}} reviews', {
+                  count: numberFormatter.format(reviews.length),
+                })}
               </p>
             </div>
           </div>
@@ -846,9 +964,9 @@ const ProductDetailPage = () => {
         {/* Write Review */}
         {user ? (
           <div className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">أضف تقييمك</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('productDetail.reviews.writeTitle', 'Write a Review')}</h3>
             <div className="mb-4">
-              <p className="block text-sm font-medium text-gray-700 mb-2">التقييم</p>
+              <p className="block text-sm font-medium text-gray-700 mb-2">{t('productDetail.reviews.ratingLabel', 'Rating')}</p>
               <StarRating
                 rating={userRating}
                 size="lg"
@@ -857,7 +975,7 @@ const ProductDetailPage = () => {
             </div>
             <div className="mb-4">
               <label htmlFor="product-review-text" className="block text-sm font-medium text-gray-700 mb-2">
-                تعليقك (اختياري)
+                {t('productDetail.reviews.yourReviewLabel', 'Your review (optional)')}
               </label>
               <textarea
                 id="product-review-text"
@@ -865,7 +983,7 @@ const ProductDetailPage = () => {
                 onChange={(e) => setReviewText(e.target.value)}
                 rows={3}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="شارك تجربتك مع هذا المنتج..."
+                placeholder={t('productDetail.reviews.yourReviewPlaceholder', 'Share your experience with this product...')}
               />
             </div>
             <button
@@ -873,17 +991,17 @@ const ProductDetailPage = () => {
               disabled={submittingReview || userRating === 0}
               className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submittingReview ? 'جاري الإرسال...' : 'إرسال التقييم'}
+              {submittingReview ? t('productDetail.reviews.submitting', 'Submitting...') : t('productDetail.reviews.submit', 'Submit Review')}
             </button>
           </div>
         ) : (
           <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mb-6 text-center">
             <p className="text-blue-800">
-              يجب{' '}
+              {t('productDetail.reviews.loginPromptPrefix', 'Please')}{' '}
               <Link to="/login" className="font-semibold underline hover:text-blue-600">
-                تسجيل الدخول
+                {t('productDetail.reviews.loginLink', 'login')}
               </Link>
-              {' '}لإضافة تقييم
+              {' '}{t('productDetail.reviews.loginPromptSuffix', 'to write a review')}
             </p>
           </div>
         )}
@@ -892,7 +1010,7 @@ const ProductDetailPage = () => {
         <div className="space-y-4">
           {reviews.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              لا توجد تقييمات بعد لهذا المنتج
+              {t('productDetail.reviews.emptyDescription', 'No reviews yet for this product')}
             </div>
           ) : (
             reviews.map((review) => (
@@ -901,15 +1019,15 @@ const ProductDetailPage = () => {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
                       <span className="text-white font-bold text-sm">
-                        {review.reviewer?.first_name?.[0]}{review.reviewer?.last_name?.[0] || 'م'}
+                        {review.reviewer?.first_name?.[0]}{review.reviewer?.last_name?.[0] || t('productDetail.reviews.anonymousInitial', 'U')}
                       </span>
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : 'مستخدم'}
+                        {review.reviewer ? `${review.reviewer.first_name} ${review.reviewer.last_name}` : t('productDetail.reviews.anonymousUser', 'User')}
                       </p>
                       <p className="text-xs text-gray-500">
-                        {new Date(review.created_at).toLocaleDateString('ar-MA')}
+                        {formatReviewDate(review.created_at)}
                       </p>
                     </div>
                   </div>
@@ -923,10 +1041,10 @@ const ProductDetailPage = () => {
                   <div className="mt-4 ml-6 bg-green-50 border border-green-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-semibold text-green-800">رد البائع</span>
+                      <span className="text-sm font-semibold text-green-800">{t('productDetail.reviews.vendorReply', 'Vendor reply')}</span>
                       {review.vendor_reply_at && (
                         <span className="text-xs text-green-500">
-                          {new Date(review.vendor_reply_at).toLocaleDateString('ar-MA')}
+                          {formatReviewDate(review.vendor_reply_at)}
                         </span>
                       )}
                     </div>

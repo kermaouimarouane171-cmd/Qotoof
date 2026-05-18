@@ -1,8 +1,29 @@
 import express from 'express';
-import { verifyAuth, isAdmin } from '../middleware/auth';
-import { handleError } from '../utils/errorHandler';
+import { verifyAuth, isAdmin } from '../middleware/auth.js';
+import { handleError } from '../utils/errorHandler.js';
+import { db } from '../config/db.js';
 
 const router = express.Router();
+
+// @GET /api/admin/drivers/stats/overview
+// Overall driver statistics
+router.get('/stats/overview', verifyAuth, isAdmin, async (req, res) => {
+  try {
+    const stats = await db.query(
+      `SELECT 
+        COUNT(*) as total_drivers,
+        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_drivers,
+        SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_drivers,
+        AVG(rating) as avg_rating,
+        SUM(total_deliveries) as total_deliveries_platform
+       FROM drivers`
+    );
+
+    res.json(stats.rows[0]);
+  } catch (error) {
+    handleError(error, res);
+  }
+});
 
 // @GET /api/admin/drivers
 // List all drivers with filters
@@ -106,26 +127,6 @@ router.post('/:id/activate', verifyAuth, isAdmin, async (req, res) => {
     }
 
     res.json(result.rows[0]);
-  } catch (error) {
-    handleError(error, res);
-  }
-});
-
-// @GET /api/admin/drivers-stats
-// Overall driver statistics
-router.get('/stats/overview', verifyAuth, isAdmin, async (req, res) => {
-  try {
-    const stats = await db.query(
-      `SELECT 
-        COUNT(*) as total_drivers,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_drivers,
-        SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_drivers,
-        AVG(rating) as avg_rating,
-        SUM(total_deliveries) as total_deliveries_platform
-       FROM drivers`
-    );
-
-    res.json(stats.rows[0]);
   } catch (error) {
     handleError(error, res);
   }

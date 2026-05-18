@@ -3,6 +3,7 @@ import { logger } from '@/utils/logger'
 
 /**
  * CMI (Centre Monétique Interbancaire) Webhook Handler
+ * Legacy reference module only. Active marketplace checkout does not use CMI initiation anymore.
  * CMI is Morocco's national interbank payment network.
  * 
  * NOTE: Webhook verification must be done server-side (Supabase Edge Function).

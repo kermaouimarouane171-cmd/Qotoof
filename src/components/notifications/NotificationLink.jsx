@@ -113,6 +113,19 @@ export default function NotificationLink({
     window.addEventListener(notificationEvents.badge, handleBadgeUpdate)
     window.addEventListener(notificationEvents.preferences, handlePreferencesUpdate)
 
+    const handleWindowFocus = () => {
+      refreshUnreadCount(true)
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshUnreadCount(true)
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     refreshUnreadCount(true)
     loadPreferences()
 
@@ -127,13 +140,15 @@ export default function NotificationLink({
       ) {
         toast(notification.message || notification.title || 'إشعار جديد')
       }
-    })
+    }, { scope: 'badge' })
 
     return () => {
       isMounted = false
       unsubscribe()
       window.removeEventListener(notificationEvents.badge, handleBadgeUpdate)
       window.removeEventListener(notificationEvents.preferences, handlePreferencesUpdate)
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [user?.id])
 

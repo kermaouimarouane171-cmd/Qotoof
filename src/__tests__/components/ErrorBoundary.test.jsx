@@ -5,6 +5,7 @@ import ErrorBoundary, {
   ErrorFallback,
   withErrorBoundary,
 } from '@/components/ErrorBoundary'
+import i18n from '@/i18n'
 import { logger } from '@/utils/logger'
 
 jest.mock('@/utils/logger', () => ({
@@ -29,7 +30,7 @@ describe('ErrorBoundary Component', () => {
     )
 
     expect(screen.getByTestId('child')).toBeInTheDocument()
-    expect(screen.queryByText('حدث خطأ ما')).not.toBeInTheDocument()
+    expect(screen.queryByText(i18n.t('errorBoundary.title', 'Something went wrong'))).not.toBeInTheDocument()
   })
 
   it('renders the fallback details for non-chunk errors', () => {
@@ -40,9 +41,9 @@ describe('ErrorBoundary Component', () => {
       />
     )
 
-    expect(screen.getByText('حدث خطأ ما')).toBeInTheDocument()
-    expect(screen.getByText('عذراً، حدث خطأ غير متوقع في التطبيق.')).toBeInTheDocument()
-    expect(screen.getByText(/الخطأ:/)).toBeInTheDocument()
+    expect(screen.getByText(i18n.t('errorBoundary.title', 'Something went wrong'))).toBeInTheDocument()
+    expect(screen.getByText(i18n.t('errorBoundary.description', 'An unexpected application error occurred.'))).toBeInTheDocument()
+    expect(screen.getAllByText(new RegExp(i18n.t('errorBoundary.errorLabel', 'Error:'), 'i')).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Test error/)).toHaveLength(2)
     expect(logger.error).toHaveBeenCalledWith('Error caught by ErrorBoundary:', expect.any(Error))
   })
@@ -57,7 +58,7 @@ describe('ErrorBoundary Component', () => {
       />
     )
 
-    expect(screen.getByText('جاري محاولة تحديث التطبيق تلقائياً. إذا استمرت المشكلة، أعد تحميل الصفحة يدوياً.')).toBeInTheDocument()
+    expect(screen.getByText(i18n.t('errorBoundary.chunkReloading', 'The app is trying to refresh automatically. If the problem persists, reload the page manually.'))).toBeInTheDocument()
   })
 
   it('clears the chunk reload marker after a repeated chunk load failure', async () => {
@@ -85,7 +86,7 @@ describe('ErrorBoundary Component', () => {
       />
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'حاول مرة أخرى' }))
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('errorBoundary.tryAgain', 'Try Again') }))
 
     expect(resetErrorBoundary).toHaveBeenCalledTimes(1)
   })

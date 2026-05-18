@@ -26,16 +26,20 @@ import { useAuthStore } from '@/store/authStore';
 /**
  * مكون Loading Fallback للـ Suspense
  */
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50">
-    <div className="text-center">
-      <div className="inline-block">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+const LoadingFallback = () => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center">
+        <div className="inline-block">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <p className="mt-4 text-gray-600">{t('common.loading', 'Loading...')}</p>
       </div>
-      <p className="mt-4 text-gray-600">جاري التحميل...</p>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * ProtectedRoute Component
@@ -52,7 +56,10 @@ export const ProtectedRoute = ({
   allowedRoles = [],
 }) => {
   // Use Supabase-based auth store instead of broken custom middleware
-  const { user, profile, loading } = useAuthStore();
+  const { user, profile, loading, mfaRequired, mfaPending } = useAuthStore();
+  const location = useLocation();
+
+  const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
 
   if (loading) {
     return <LoadingFallback />;
@@ -60,7 +67,11 @@ export const ProtectedRoute = ({
 
   // Not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: redirectTarget }} replace />;
+  }
+
+  if (mfaRequired && mfaPending) {
+    return <Navigate to="/mfa-verify" state={{ from: redirectTarget }} replace />;
   }
 
   // Check role authorization using profile.role (from Supabase profiles table)
@@ -167,26 +178,27 @@ const SideNavLink = ({ to, icon: Icon, label }) => {
 export const AdminLayout = () => {
   const { signOut } = useAuthStore();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
 
   const adminLinks = [
-    { to: '/admin/dashboard', icon: HomeIcon, label: 'لوحة التحكم' },
-    { to: '/admin/users', icon: UsersIcon, label: 'المستخدمون' },
-    { to: '/admin/vendors', icon: ShoppingBagIcon, label: 'البائعون' },
-    { to: '/admin/drivers', icon: TruckIcon, label: 'السائقون' },
-    { to: '/admin/products', icon: ShoppingBagIcon, label: 'المنتجات' },
-    { to: '/admin/orders', icon: ClipboardDocumentListIcon, label: 'الطلبات' },
-    { to: '/admin/analytics', icon: ChartBarIcon, label: 'التحليلات' },
-    { to: '/admin/reports', icon: DocumentChartBarIcon, label: 'التقارير' },
-    { to: '/admin/moderation', icon: ShieldCheckIcon, label: 'الإشراف' },
-    { to: '/admin/fraud-reports', icon: FlagIcon, label: 'بلاغات الاحتيال' },
-    { to: '/admin/commissions', icon: CurrencyDollarIcon, label: 'العمولات' },
-    { to: '/admin/commission-management', icon: CurrencyDollarIcon, label: 'إدارة العمولات' },
-    { to: '/admin/disputes', icon: ExclamationTriangleIcon, label: 'نزاعات الدفع' },
-    { to: '/admin/payouts', icon: CurrencyDollarIcon, label: 'المدفوعات' },
-    { to: '/admin/reviews', icon: StarIcon, label: 'التقييمات' },
-    { to: '/admin/support-tickets', icon: ChatBubbleLeftRightIcon, label: 'تذاكر الدعم' },
-    { to: '/admin/security', icon: ShieldCheckIcon, label: 'الأمن' },
-    { to: '/admin/settings', icon: Cog6ToothIcon, label: 'الإعدادات' },
+    { to: '/admin/dashboard', icon: HomeIcon, label: t('layout.admin.links.dashboard', 'Dashboard') },
+    { to: '/admin/users', icon: UsersIcon, label: t('layout.admin.links.users', 'Users') },
+    { to: '/admin/vendors', icon: ShoppingBagIcon, label: t('layout.admin.links.vendors', 'Vendors') },
+    { to: '/admin/drivers', icon: TruckIcon, label: t('layout.admin.links.drivers', 'Drivers') },
+    { to: '/admin/products', icon: ShoppingBagIcon, label: t('layout.admin.links.products', 'Products') },
+    { to: '/admin/orders', icon: ClipboardDocumentListIcon, label: t('layout.admin.links.orders', 'Orders') },
+    { to: '/admin/analytics', icon: ChartBarIcon, label: t('layout.admin.links.analytics', 'Analytics') },
+    { to: '/admin/reports', icon: DocumentChartBarIcon, label: t('layout.admin.links.reports', 'Reports') },
+    { to: '/admin/moderation', icon: ShieldCheckIcon, label: t('layout.admin.links.moderation', 'Moderation') },
+    { to: '/admin/fraud-reports', icon: FlagIcon, label: t('layout.admin.links.fraudReports', 'Fraud Reports') },
+    { to: '/admin/commissions', icon: CurrencyDollarIcon, label: t('layout.admin.links.commissions', 'Commissions') },
+    { to: '/admin/commission-management', icon: CurrencyDollarIcon, label: t('layout.admin.links.commissionManagement', 'Commission Management') },
+    { to: '/admin/disputes', icon: ExclamationTriangleIcon, label: t('layout.admin.links.disputes', 'Payment Disputes') },
+    { to: '/admin/payouts', icon: CurrencyDollarIcon, label: t('layout.admin.links.payouts', 'Payouts') },
+    { to: '/admin/reviews', icon: StarIcon, label: t('layout.admin.links.reviews', 'Reviews') },
+    { to: '/admin/support-tickets', icon: ChatBubbleLeftRightIcon, label: t('layout.admin.links.supportTickets', 'Support Tickets') },
+    { to: '/admin/security', icon: ShieldCheckIcon, label: t('layout.admin.links.security', 'Security') },
+    { to: '/admin/settings', icon: Cog6ToothIcon, label: t('layout.admin.links.settings', 'Settings') },
   ];
 
   return (
@@ -198,7 +210,7 @@ export const AdminLayout = () => {
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
               <ShieldCheckIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-gray-900 dark:text-white">الإدارة</span>
+            <span className="font-bold text-gray-900 dark:text-white">{t('layout.admin.panelTitle', 'Admin')}</span>
           </Link>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -212,7 +224,7 @@ export const AdminLayout = () => {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            تسجيل الخروج
+            {t('nav.logout', 'Sign Out')}
           </button>
         </div>
       </aside>
@@ -221,11 +233,11 @@ export const AdminLayout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {adminLinks.find(l => pathname.startsWith(l.to))?.label || 'الإدارة'}
+            {adminLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.admin.defaultTitle', 'Admin')}
           </h1>
           <div className="flex items-center gap-3">
-            <NotificationLink ariaLabel="الإشعارات" />
-            <Link to="/" className="text-sm text-gray-500 hover:text-green-600">العودة للموقع</Link>
+            <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
+            <Link to="/" className="text-sm text-gray-500 hover:text-green-600">{t('layout.shared.backToSite', 'Back to Site')}</Link>
           </div>
         </header>
         <main className="flex-1 overflow-y-auto p-6">
@@ -242,6 +254,7 @@ export const AdminLayout = () => {
 export const VendorLayout = () => {
   const { signOut, profile } = useAuthStore();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
 
   const hasAcceptedContract = Boolean(profile?.agreement_accepted);
   const isDigitalContractPath = pathname.startsWith('/vendor/digital-contract');
@@ -251,19 +264,19 @@ export const VendorLayout = () => {
   }
 
   const vendorLinks = [
-    { to: '/vendor/dashboard', icon: HomeIcon, label: 'لوحة التحكم' },
-    { to: '/vendor/products', icon: ShoppingBagIcon, label: 'منتجاتي' },
-    { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: 'الطلبات' },
-    { to: '/vendor/delivery-options', icon: TruckIcon, label: 'خيار التوصيل' },
-    { to: '/vendor/driver-preferences', icon: TruckIcon, label: 'السائق المفضل' },
-    { to: '/vendor/find-driver', icon: UsersIcon, label: 'البحث عن سائق' },
-    { to: '/vendor/analytics', icon: ChartBarIcon, label: 'التحليلات' },
-    { to: '/vendor/reviews', icon: StarIcon, label: 'التقييمات' },
-    { to: '/vendor/coupons', icon: CurrencyDollarIcon, label: 'الكوبونات' },
-    { to: '/vendor/schedules', icon: MapIcon, label: 'المواعيد' },
-    { to: '/vendor/location', icon: MapIcon, label: 'الموقع' },
-    { to: '/vendor/profile', icon: Cog6ToothIcon, label: 'الملف الشخصي' },
-    { to: '/vendor/settings', icon: Cog6ToothIcon, label: 'الإعدادات' },
+    { to: '/vendor/dashboard', icon: HomeIcon, label: t('layout.vendor.links.dashboard', 'Dashboard') },
+    { to: '/vendor/products', icon: ShoppingBagIcon, label: t('layout.vendor.links.products', 'My Products') },
+    { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: t('layout.vendor.links.orders', 'Orders') },
+    { to: '/vendor/delivery-options', icon: TruckIcon, label: t('layout.vendor.links.deliveryOptions', 'Delivery Options') },
+    { to: '/vendor/driver-preferences', icon: TruckIcon, label: t('layout.vendor.links.driverPreferences', 'Preferred Driver') },
+    { to: '/vendor/find-driver', icon: UsersIcon, label: t('layout.vendor.links.findDriver', 'Find a Driver') },
+    { to: '/vendor/analytics', icon: ChartBarIcon, label: t('layout.vendor.links.analytics', 'Analytics') },
+    { to: '/vendor/reviews', icon: StarIcon, label: t('layout.vendor.links.reviews', 'Reviews') },
+    { to: '/vendor/coupons', icon: CurrencyDollarIcon, label: t('layout.vendor.links.coupons', 'Coupons') },
+    { to: '/vendor/schedules', icon: MapIcon, label: t('layout.vendor.links.schedules', 'Schedules') },
+    { to: '/vendor/location', icon: MapIcon, label: t('layout.vendor.links.location', 'Location') },
+    { to: '/vendor/profile', icon: Cog6ToothIcon, label: t('layout.vendor.links.profile', 'Profile') },
+    { to: '/vendor/settings', icon: Cog6ToothIcon, label: t('layout.vendor.links.settings', 'Settings') },
   ];
 
   return (
@@ -275,7 +288,7 @@ export const VendorLayout = () => {
             <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">ق</span>
             </div>
-            <span className="font-bold text-gray-900 dark:text-white">متجري</span>
+            <span className="font-bold text-gray-900 dark:text-white">{t('layout.vendor.panelTitle', 'My Store')}</span>
           </Link>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -286,14 +299,14 @@ export const VendorLayout = () => {
         <div className="p-3 space-y-1 border-t border-gray-200 dark:border-gray-700">
           <Link to="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
             <HomeIcon className="w-5 h-5" />
-            العودة للموقع
+            {t('layout.shared.backToSite', 'Back to Site')}
           </Link>
           <button
             onClick={() => signOut()}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            تسجيل الخروج
+            {t('nav.logout', 'Sign Out')}
           </button>
         </div>
       </aside>
@@ -302,9 +315,9 @@ export const VendorLayout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {vendorLinks.find(l => pathname.startsWith(l.to))?.label || 'البائع'}
+            {vendorLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.vendor.defaultTitle', 'Vendor')}
           </h1>
-          <NotificationLink ariaLabel="الإشعارات" />
+          <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />
@@ -320,17 +333,18 @@ export const VendorLayout = () => {
 export const DriverLayout = () => {
   const { signOut } = useAuthStore();
   const { pathname } = useLocation();
+  const { t } = useTranslation();
 
   const driverLinks = [
-    { to: '/driver/dashboard', icon: HomeIcon, label: 'لوحة التحكم' },
-    { to: '/driver/active', icon: TruckIcon, label: 'التوصيلات النشطة' },
-    { to: '/driver/available', icon: MapIcon, label: 'الطلبات المتاحة' },
-    { to: '/driver/vendor-preferences', icon: ShoppingBagIcon, label: 'البائع المفضل' },
-    { to: '/driver/find-vendor', icon: UsersIcon, label: 'البحث عن بائع' },
-    { to: '/driver/history', icon: ClipboardDocumentListIcon, label: 'السجل' },
-    { to: '/driver/earnings', icon: CurrencyDollarIcon, label: 'الأرباح' },
-    { to: '/driver/profile', icon: Cog6ToothIcon, label: 'الملف الشخصي' },
-    { to: '/driver/settings', icon: Cog6ToothIcon, label: 'الإعدادات' },
+    { to: '/driver/dashboard', icon: HomeIcon, label: t('layout.driver.links.dashboard', 'Dashboard') },
+    { to: '/driver/active', icon: TruckIcon, label: t('layout.driver.links.active', 'Active Deliveries') },
+    { to: '/driver/available', icon: MapIcon, label: t('layout.driver.links.available', 'Available Orders') },
+    { to: '/driver/vendor-preferences', icon: ShoppingBagIcon, label: t('layout.driver.links.vendorPreferences', 'Preferred Vendor') },
+    { to: '/driver/find-vendor', icon: UsersIcon, label: t('layout.driver.links.findVendor', 'Find a Vendor') },
+    { to: '/driver/history', icon: ClipboardDocumentListIcon, label: t('layout.driver.links.history', 'History') },
+    { to: '/driver/earnings', icon: CurrencyDollarIcon, label: t('layout.driver.links.earnings', 'Earnings') },
+    { to: '/driver/profile', icon: Cog6ToothIcon, label: t('layout.driver.links.profile', 'Profile') },
+    { to: '/driver/settings', icon: Cog6ToothIcon, label: t('layout.driver.links.settings', 'Settings') },
   ];
 
   return (
@@ -342,7 +356,7 @@ export const DriverLayout = () => {
             <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
               <TruckIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-gray-900 dark:text-white">السائق</span>
+            <span className="font-bold text-gray-900 dark:text-white">{t('layout.driver.panelTitle', 'Driver')}</span>
           </Link>
         </div>
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
@@ -356,7 +370,7 @@ export const DriverLayout = () => {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
           >
             <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            تسجيل الخروج
+            {t('nav.logout', 'Sign Out')}
           </button>
         </div>
       </aside>
@@ -365,9 +379,9 @@ export const DriverLayout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {driverLinks.find(l => pathname.startsWith(l.to))?.label || 'السائق'}
+            {driverLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.driver.defaultTitle', 'Driver')}
           </h1>
-          <NotificationLink ariaLabel="الإشعارات" />
+          <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
         </header>
         <main className="flex-1 overflow-y-auto p-6">
           <Outlet />

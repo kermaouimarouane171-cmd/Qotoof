@@ -36,7 +36,7 @@ export default defineConfig({
       jsxRuntime: 'automatic',
     }),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
       manifest: {
         name: 'Qotoof - B2B Plant Marketplace',
@@ -63,8 +63,8 @@ export default defineConfig({
         // Cleanup old caches on update
         cleanupOutdatedCaches: true,
         // Skip waiting and claim clients for immediate updates
-        clientsClaim: true,
-        skipWaiting: true,
+        clientsClaim: false,
+        skipWaiting: false,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

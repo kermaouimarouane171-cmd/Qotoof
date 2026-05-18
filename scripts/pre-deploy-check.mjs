@@ -128,13 +128,19 @@ console.log(`\n${BOLD}⚙️  متغيرات البيئة:${RESET}`)
 const requiredVars = [
   'VITE_SUPABASE_URL',
   'VITE_SUPABASE_ANON_KEY',
+]
+
+const recommendedFrontendVars = [
   'VITE_APP_NAME',
   'VITE_SUPPORT_EMAIL',
   'VITE_SUPPORT_PHONE',
-  'RESEND_API_KEY',
   'VITE_COMMISSION_RATE',
   'VITE_DELIVERY_BASE_FEE',
   'VITE_DELIVERY_PER_KM_FEE'
+]
+
+const edgeFunctionRuntimeVars = [
+  'RESEND_API_KEY',
 ]
 
 const optionalVars = [
@@ -153,6 +159,24 @@ for (const v of requiredVars) {
   check(hasIssuedValue(value), `${v} موجود وله قيمة`)
 }
 
+for (const v of recommendedFrontendVars) {
+  const value = getEnvValue(v)
+  check(
+    hasIssuedValue(value),
+    `${v} موجود أو له fallback داخل التطبيق`,
+    true
+  )
+}
+
+console.log(`\n${BOLD}🧩 متغيرات Edge Functions وقت التشغيل:${RESET}`)
+for (const v of edgeFunctionRuntimeVars) {
+  const value = getEnvValue(v)
+  check(
+    hasIssuedValue(value),
+    `${v} موجود (مطلوب فقط للوظائف التي تستخدمه مثل send-email وليس لبناء الواجهة)`,
+    true
+  )
+}
 for (const v of optionalVars) {
   const value = getEnvValue(v)
   check(Boolean(value), `${v} موجود`, true)

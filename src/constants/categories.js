@@ -4,11 +4,11 @@
  */
 
 export const PRODUCT_CATEGORIES = [
-  { id: 'plants', label: 'Plants & Trees', labelAr: 'نباتات وأشجار', icon: '🌿' },
-  { id: 'vegetables', label: 'Vegetables', labelAr: 'خضروات', icon: '🥬' },
-  { id: 'fruits', label: 'Fruits', labelAr: 'فواكه', icon: '🍎' },
-  { id: 'herbs', label: 'Herbs & Spices', labelAr: 'أعشاب وتوابل', icon: '🌱' },
-  { id: 'seeds', label: 'Seeds & Bulbs', labelAr: 'بذور وبصلات', icon: '🌰' },
+  { id: 'plants', label: 'Plants & Trees', labelAr: 'نباتات وأشجار', labelFr: 'Plantes et Arbres', icon: '🌿' },
+  { id: 'vegetables', label: 'Vegetables', labelAr: 'خضروات', labelFr: 'Légumes', icon: '🥬' },
+  { id: 'fruits', label: 'Fruits', labelAr: 'فواكه', labelFr: 'Fruits', icon: '🍎' },
+  { id: 'herbs', label: 'Herbs & Spices', labelAr: 'أعشاب وتوابل', labelFr: 'Herbes et Épices', icon: '🌱' },
+  { id: 'seeds', label: 'Seeds & Bulbs', labelAr: 'بذور وبصلات', labelFr: 'Graines et Bulbes', icon: '🌰' },
 ]
 
 // Alias for backward compatibility (used by vendor/Products.jsx)
@@ -39,6 +39,8 @@ export const getCategoryIds = () => PRODUCT_CATEGORIES.map((cat) => cat.id)
 // Helper: get category label (with fallback)
 export const getCategoryLabel = (id, lang = 'en') => {
   const cat = getCategoryById(id)
-  if (lang === 'ar') return cat.labelAr
+  const normalizedLang = String(lang || 'en').slice(0, 2)
+  if (normalizedLang === 'ar') return cat.labelAr
+  if (normalizedLang === 'fr') return cat.labelFr || cat.label
   return cat.label
 }

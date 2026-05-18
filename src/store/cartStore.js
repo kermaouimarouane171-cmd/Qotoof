@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
+import { normalizeQuantity } from '@/utils/cartQuantity'
 import { logger } from '../utils/logger.js'
 
 // Helper: Get i18n translation
@@ -57,11 +58,62 @@ const replacePlaceholders = (str, values) => {
   return str.replace(/\{(\w+)\}/g, (match, key) => values[key] || match)
 }
 
+const getMinimumOrderQuantity = (item = {}) => {
+  const minimum = Number(item.min_order_quantity ?? item.min_quantity ?? 1)
+  return Number.isFinite(minimum) && minimum > 0 ? minimum : 1
+}
+
+const pruneCheckoutVendor = (checkoutVendorId, items = []) => {
+  if (!checkoutVendorId) {
+    return null
+  }
+
+  return items.some((item) => item.vendor_id === checkoutVendorId)
+    ? checkoutVendorId
+    : null
+}
+
+const buildStoredCartItem = (product = {}, quantity) => ({
+  id: product.id,
+  name: product.name,
+  price_per_unit: Number(product.price_per_unit ?? product.price ?? 0),
+  unit_type: product.unit_type || product.unit || 'kg',
+  quantity,
+  min_order_quantity: getMinimumOrderQuantity(product),
+  is_available: product.is_available,
+  available_quantity: product.available_quantity,
+  vendor_id: product.vendor_id,
+  vendor_name: product.vendor?.store_name || product.vendor_name || product.store_name || product.vendor?.first_name || '',
+  image_url: product.images?.[0]?.url || product.image_url || product.image || null,
+  category: product.category,
+  subcategory: product.subcategory || null,
+})
+
+const warnWhenVendorClosed = (vendorId) => {
+  if (!vendorId) {
+    return
+  }
+
+  void supabase.rpc('is_vendor_open', {
+    p_vendor_id: vendorId,
+  }).then(({ data: isOpen }) => {
+    if (isOpen === false) {
+      toast.error(
+        'هذا البائع مغلق حالياً. يمكنك إضافة المنتجات إلى السلة الآن، وسيتم تنفيذ الطلب عند عودته للعمل.',
+        { duration: 6000 }
+      )
+    }
+  }).catch((err) => {
+    logger.debug('Vendor schedule check skipped:', err.message)
+  })
+}
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
       items: [],
       lastValidated: null,
+      checkoutVendorId: null,
 
       /**
        * Add item to cart with validation
@@ -70,8 +122,14 @@ export const useCartStore = create(
        * - Checks available_quantity
        * - Checks vendor operating hours
        */
-      addItem: async (product, quantity) => {
+      addItem: (product, quantity) => {
         const { items } = get()
+        const minQty = getMinimumOrderQuantity(product)
+        const requestedQuantity = normalizeQuantity(quantity, {
+          unitType: product.unit_type || product.unit,
+          minOrderQuantity: minQty,
+          fallbackQuantity: minQty,
+        })
 
         // Check if product is available
         if (product.is_available === false) {
@@ -79,32 +137,13 @@ export const useCartStore = create(
           return false
         }
 
-        // Check if vendor is currently open
-        if (product.vendor_id) {
-          try {
-            const { data: isOpen } = await supabase.rpc('is_vendor_open', {
-              p_vendor_id: product.vendor_id,
-            })
-
-            if (isOpen === false) {
-              toast.error(
-                'This vendor is currently closed. You can still add items to cart, but orders will be processed when they reopen.',
-                { duration: 6000 }
-              )
-              // Allow adding to cart but warn the user
-            }
-          } catch (err) {
-            // RPC might not exist yet — don't block
-            logger.debug('Vendor schedule check skipped:', err.message)
-          }
-        }
+        warnWhenVendorClosed(product.vendor_id)
 
         // Validate min_order_quantity
-        const minQty = product.min_order_quantity || 1
-        if (quantity < minQty) {
+        if (requestedQuantity < minQty) {
           const msg = replacePlaceholders(
             getTranslation('cart.belowMinimum', 'Quantity must be at least {min} {unit}'),
-            { min: minQty, unit: product.unit_type || 'units' }
+            { min: minQty, unit: product.unit_type || product.unit || 'units' }
           )
           toast.error(msg)
           return false
@@ -114,7 +153,11 @@ export const useCartStore = create(
         if (product.available_quantity !== null && product.available_quantity !== undefined) {
           const existingItem = items.find(item => item.id === product.id)
           const currentQty = existingItem?.quantity || 0
-          const totalRequested = currentQty + quantity
+          const totalRequested = normalizeQuantity(currentQty + requestedQuantity, {
+            unitType: product.unit_type || product.unit,
+            minOrderQuantity: minQty,
+            fallbackQuantity: currentQty + requestedQuantity,
+          })
           
           if (totalRequested > product.available_quantity) {
             toast.error(getTranslation('cart.exceedsAvailable', 'Requested quantity exceeds available stock'))
@@ -126,38 +169,37 @@ export const useCartStore = create(
         const existingItem = items.find(item => item.id === product.id)
         
         if (existingItem) {
+          const nextItems = items.map(item =>
+            item.id === product.id
+              ? {
+                  ...item,
+                  quantity: normalizeQuantity(item.quantity + requestedQuantity, {
+                    unitType: product.unit_type || product.unit || item.unit_type,
+                    minOrderQuantity: minQty,
+                    fallbackQuantity: item.quantity + requestedQuantity,
+                  }),
+                  // Update price in case it changed
+                  price_per_unit: Number(product.price_per_unit ?? product.price ?? item.price_per_unit ?? 0),
+                  unit_type: product.unit_type || product.unit || item.unit_type,
+                  min_order_quantity: minQty,
+                  is_available: product.is_available,
+                  available_quantity: product.available_quantity,
+                  image_url: product.images?.[0]?.url || product.image_url || product.image || item.image_url || null,
+                }
+              : item
+          )
+
           set({
-            items: items.map(item =>
-              item.id === product.id
-                ? { 
-                    ...item, 
-                    quantity: item.quantity + quantity,
-                    // Update price in case it changed
-                    price_per_unit: product.price_per_unit || product.price,
-                    is_available: product.is_available,
-                    available_quantity: product.available_quantity
-                  }
-                : item
-            )
+            items: nextItems,
+            checkoutVendorId: pruneCheckoutVendor(get().checkoutVendorId, nextItems),
           })
         } else {
           // Store only essential data to minimize localStorage usage
+          const nextItems = [...items, buildStoredCartItem(product, requestedQuantity)]
+
           set({
-            items: [...items, {
-              id: product.id,
-              name: product.name,
-              price_per_unit: product.price_per_unit || product.price,
-              unit_type: product.unit_type || 'kg',
-              quantity,
-              min_order_quantity: minQty,
-              is_available: product.is_available,
-              available_quantity: product.available_quantity,
-              vendor_id: product.vendor_id,
-              vendor_name: product.vendor?.store_name || product.vendor_name || product.store_name || product.vendor?.first_name || '',
-              image_url: product.images?.[0]?.url || product.image_url || null,
-              category: product.category,
-              subcategory: product.subcategory || null
-            }]
+            items: nextItems,
+            checkoutVendorId: pruneCheckoutVendor(get().checkoutVendorId, nextItems),
           })
         }
 
@@ -169,8 +211,11 @@ export const useCartStore = create(
        * Remove item from cart
        */
       removeItem: (productId) => {
+        const nextItems = get().items.filter(item => item.id !== productId)
+
         set({
-          items: get().items.filter(item => item.id !== productId)
+          items: nextItems,
+          checkoutVendorId: pruneCheckoutVendor(get().checkoutVendorId, nextItems),
         })
         toast.success(getTranslation('cart.removed', 'Removed from cart'))
       },
@@ -186,15 +231,21 @@ export const useCartStore = create(
 
         if (!item) return
 
+        const minQty = getMinimumOrderQuantity(item)
+        const nextQuantity = normalizeQuantity(quantity, {
+          unitType: item.unit_type,
+          minOrderQuantity: minQty,
+          fallbackQuantity: item.quantity,
+        })
+
         // Remove if quantity is 0 or negative
-        if (quantity <= 0) {
+        if (nextQuantity <= 0) {
           get().removeItem(productId)
           return
         }
 
         // Validate min_order_quantity
-        const minQty = item.min_order_quantity || 1
-        if (quantity < minQty) {
+        if (nextQuantity < minQty) {
           const msg = replacePlaceholders(
             getTranslation('cart.belowMinimum', 'Quantity must be at least {min} {unit}'),
             { min: minQty, unit: item.unit_type || 'units' }
@@ -205,26 +256,72 @@ export const useCartStore = create(
 
         // Validate against available_quantity
         if (item.available_quantity !== null && item.available_quantity !== undefined) {
-          if (quantity > item.available_quantity) {
+          if (nextQuantity > item.available_quantity) {
             toast.error(getTranslation('cart.exceedsAvailable', 'Requested quantity exceeds available stock'))
             return
           }
         }
 
+        const nextItems = items.map(i =>
+          i.id === productId ? { ...i, quantity: nextQuantity } : i
+        )
+
         set({
-          items: items.map(i =>
-            i.id === productId ? { ...i, quantity } : i
-          )
+          items: nextItems,
+          checkoutVendorId: pruneCheckoutVendor(get().checkoutVendorId, nextItems),
         })
 
         toast.success(getTranslation('cart.quantityUpdated', 'Quantity updated'))
+      },
+
+      setCheckoutVendor: (vendorId) => {
+        const normalizedVendorId = typeof vendorId === 'string' ? vendorId.trim() : ''
+
+        if (!normalizedVendorId) {
+          set({ checkoutVendorId: null })
+          return false
+        }
+
+        const vendorExists = get().items.some((item) => item.vendor_id === normalizedVendorId)
+        if (!vendorExists) {
+          return false
+        }
+
+        set({ checkoutVendorId: normalizedVendorId })
+        return true
+      },
+
+      clearCheckoutVendor: () => {
+        set({ checkoutVendorId: null })
+      },
+
+      clearVendorItems: (vendorId) => {
+        const normalizedVendorId = typeof vendorId === 'string' ? vendorId.trim() : ''
+        if (!normalizedVendorId) return
+
+        const nextItems = get().items.filter((item) => item.vendor_id !== normalizedVendorId)
+        set({
+          items: nextItems,
+          lastValidated: nextItems.length ? get().lastValidated : null,
+          checkoutVendorId: pruneCheckoutVendor(
+            get().checkoutVendorId === normalizedVendorId ? null : get().checkoutVendorId,
+            nextItems
+          ),
+        })
+      },
+
+      getCheckoutItems: () => {
+        const { items, checkoutVendorId } = get()
+        return checkoutVendorId
+          ? items.filter((item) => item.vendor_id === checkoutVendorId)
+          : items
       },
 
       /**
        * Clear entire cart
        */
       clearCart: () => {
-        set({ items: [], lastValidated: null })
+        set({ items: [], lastValidated: null, checkoutVendorId: null })
         toast.success(getTranslation('cart.cleared', 'Cart cleared'))
       },
 
@@ -296,7 +393,7 @@ export const useCartStore = create(
           const productIds = items.map(item => item.id)
           const { data: freshProducts, error } = await supabase
             .from('products')
-            .select('id, name, price_per_unit, is_available, available_quantity')
+            .select('id, name, price_per_unit, is_available, available_quantity, min_order_quantity')
             .in('id', productIds)
 
           if (error) throw error
@@ -346,9 +443,28 @@ export const useCartStore = create(
 
             // Check if quantity exceeds available
             let adjustedQuantity = item.quantity
+            const nextMinimumQuantity = getMinimumOrderQuantity({
+              min_order_quantity: fresh.min_order_quantity ?? item.min_order_quantity,
+            })
+
             if (fresh.available_quantity !== null && item.quantity > fresh.available_quantity) {
-              adjustedQuantity = fresh.available_quantity
+              adjustedQuantity = normalizeQuantity(fresh.available_quantity, {
+                unitType: item.unit_type,
+                minOrderQuantity: nextMinimumQuantity,
+                fallbackQuantity: fresh.available_quantity,
+              })
               changes.push({ type: 'quantity_adjusted', item, oldQty: item.quantity, newQty: adjustedQuantity })
+            }
+
+            if (adjustedQuantity <= 0 || adjustedQuantity < nextMinimumQuantity) {
+              changes.push({ type: 'removed', item, reason: 'Insufficient quantity available' })
+              toast.error(
+                replacePlaceholders(
+                  getTranslation('cart.unavailable', '{product} is no longer available'),
+                  { product: item.name }
+                )
+              )
+              continue
             }
 
             // Add valid item with updated data
@@ -357,6 +473,7 @@ export const useCartStore = create(
               price_per_unit: newPrice,
               is_available: fresh.is_available,
               available_quantity: fresh.available_quantity,
+              min_order_quantity: nextMinimumQuantity,
               quantity: adjustedQuantity
             })
           }
@@ -364,7 +481,8 @@ export const useCartStore = create(
           // Update cart with valid items
           set({ 
             items: validItems,
-            lastValidated: new Date().toISOString()
+            lastValidated: new Date().toISOString(),
+            checkoutVendorId: pruneCheckoutVendor(get().checkoutVendorId, validItems),
           })
 
           return { valid: changes.length === 0, changes }
@@ -376,7 +494,11 @@ export const useCartStore = create(
     }),
     {
       name: 'cart-storage',
-      version: 2, // Increment version to trigger migration
+      version: 3,
+      partialize: (state) => ({
+        items: state.items,
+        lastValidated: state.lastValidated,
+      }),
       migrate: (persistedState, version) => {
         // Migrate from v1 (stored full products) to v2 (essential data only)
         if (version < 2 && persistedState?.items) {
@@ -395,6 +517,15 @@ export const useCartStore = create(
             category: item.category
           }))
         }
+
+        if (persistedState && !Array.isArray(persistedState.items)) {
+          persistedState.items = []
+        }
+
+        if (persistedState) {
+          delete persistedState.checkoutVendorId
+        }
+
         return persistedState
       }
     }

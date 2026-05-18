@@ -88,6 +88,38 @@
       "plants": "Plantes et Arbres",
       "vegetables": "Légumes",
       "fruits": "Fruits"
+    },
+    "footer": {
+      "description": "La principale marketplace B2B de gros au Maroc pour les produits frais.",
+      "marketplace": "Marché",
+      "allProducts": "Tous les produits",
+      "plants": "Plantes",
+      "vegetables": "Légumes",
+      "fruits": "Fruits",
+      "company": "Entreprise",
+      "aboutUs": "À propos",
+      "becomeVendor": "Devenir vendeur",
+      "contact": "Nous contacter",
+      "support": "Support",
+      "helpCenter": "Centre d'aide",
+      "terms": "Conditions d'utilisation",
+      "privacy": "Politique de confidentialité",
+      "copyright": "© {{year}} Qotoof - قطوف. Tous droits réservés."
+    }
+  },
+  "authLayout": {
+    "hero": {
+      "badge": "Marketplace B2B n°1",
+      "title": "Du frais",
+      "subtitle": "de la ferme à votre activité",
+      "description": "Entrez en contact directement avec les agriculteurs et les pépinières. Achetez en gros et économisez davantage.",
+      "imageAlt": "Produits frais",
+      "stats": {
+        "activeProducts": "Produits actifs",
+        "verifiedVendors": "Vendeurs vérifiés",
+        "ordersCompleted": "Commandes finalisées",
+        "satisfactionRate": "Taux de satisfaction"
+      }
     }
   },
   "marketplace": {
@@ -101,6 +133,31 @@
     },
     "filtersLabel": "Filtres",
     "sortByLabel": "Trier par",
+    "searchPlaceholder": "Rechercher un produit, une catégorie ou une sous-catégorie...",
+    "categoryTabs": "Catégories de produits",
+    "clearAllFilters": "Effacer tous les filtres",
+    "clearAll": "Tout effacer",
+    "subcategory": "Sous-catégorie",
+    "allSubcategories": "Toutes les sous-catégories",
+    "region": "Ville",
+    "allRegions": "Toutes les villes",
+    "priceRange": "Gamme de prix",
+    "min": "Min",
+    "minPrice": "Prix minimum",
+    "max": "Max",
+    "maxPrice": "Prix maximum",
+    "rating": "Note minimale",
+    "anyRating": "Toute note",
+    "inStockOnly": "En stock uniquement",
+    "openFilters": "Ouvrir les filtres",
+    "filtersPanel": "Options de filtre",
+    "showResults": "Afficher {{count}} résultats",
+    "showingResults": "Affichage de {{current}} sur {{total}} produits",
+    "productsGrid": "Liste des produits",
+    "pagination": "Pagination des produits",
+    "previousPage": "Page précédente",
+    "pageNumber": "Page {{num}}",
+    "nextPage": "Page suivante",
     "filters": {
       "priceRange": "Gamme de prix",
       "location": "Localisation",
@@ -112,7 +169,18 @@
       "newest": "Plus récent",
       "priceLow": "Prix : Croissant",
       "priceHigh": "Prix : Décroissant",
-      "rating": "Mieux noté"
+      "rating": "Mieux noté",
+      "name": "Nom : A à Z"
+    },
+    "ratingOptions": {
+      "2": "2+ étoiles",
+      "3": "3+ étoiles",
+      "4": "4+ étoiles"
+    },
+    "empty": {
+      "title": "Aucun produit correspondant",
+      "description": "Essayez d'ajuster votre recherche ou vos filtres pour voir plus de résultats",
+      "clearFilters": "Effacer les filtres"
     },
     "addToCart": "Ajouter au panier",
     "viewDetails": "Voir les détails",
@@ -120,11 +188,220 @@
     "location": "Localisation",
     "minOrder": "Commande minimum"
   },
+  "search": {
+    "filters": "Filtres",
+    "clearFilters": "Effacer les filtres",
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories",
+    "subcategory": "Sous-catégorie",
+    "allSubcategories": "Toutes les sous-catégories",
+    "region": "Ville",
+    "allRegions": "Toutes les villes",
+    "priceRange": "Gamme de prix",
+    "minPrice": "Prix minimum",
+    "maxPrice": "Prix maximum",
+    "rating": "Note minimale",
+    "anyRating": "Toute note",
+    "inStockOnly": "En stock uniquement",
+    "results": "résultats",
+    "forQuery": "pour",
+    "startPrompt": "Commencez une recherche ou choisissez un filtre pour voir les produits correspondants",
+    "noResults": "Aucun résultat correspondant",
+    "tryOther": "Essayez de réduire les filtres ou de modifier vos mots-clés de recherche",
+    "sortBy": {
+      "relevance": "Plus pertinent",
+      "newest": "Plus récent",
+      "priceLow": "Prix : Croissant",
+      "priceHigh": "Prix : Décroissant",
+      "rating": "Mieux noté",
+      "name": "Nom : A à Z"
+    }
+  },
+  "stores": {
+    "title": "Toutes les boutiques",
+    "browseStores": "Parcourez {{count}} boutiques sur Qotoof",
+    "searchPlaceholder": "Rechercher une boutique par nom...",
+    "searchLabel": "Rechercher des boutiques",
+    "filters": {
+      "label": "Filtres",
+      "city": "Filtrer par ville",
+      "allCities": "Toutes les villes",
+      "category": "Filtrer par catégorie",
+      "allCategories": "Toutes les catégories",
+      "sortBy": "Trier les boutiques",
+      "clearAll": "Tout effacer",
+      "removeCity": "Supprimer le filtre de ville",
+      "removeCategory": "Supprimer le filtre de catégorie"
+    },
+    "specialties": {
+      "plants": "Plantes",
+      "vegetables": "Légumes",
+      "fruits": "Fruits",
+      "herbs": "Herbes",
+      "seeds": "Graines"
+    },
+    "sortOptions": {
+      "newest": "Plus récent",
+      "oldest": "Plus ancien",
+      "highest_rated": "Mieux noté",
+      "most_reviewed": "Le plus évalué"
+    },
+    "status": {
+      "online": "En ligne",
+      "offline": "Hors ligne"
+    },
+    "rating": {
+      "noReviews": "Pas encore d'avis"
+    },
+    "cta": {
+      "visitStore": "Visiter la boutique"
+    },
+    "visitStoreCard": "Visiter la boutique : {{storeName}}",
+    "empty": {
+      "title": "Aucune boutique trouvée",
+      "description": "Essayez d'ajuster vos filtres ou vos termes de recherche",
+      "clearFilters": "Effacer les filtres"
+    },
+    "error": {
+      "loadFailed": "Impossible de charger les boutiques. Veuillez réessayer.",
+      "genericTitle": "Une erreur est survenue",
+      "tryAgain": "Réessayer"
+    }
+  },
+  "storeDetail": {
+    "breadcrumb": "Fil d'Ariane",
+    "meta": {
+      "title": "{{storeName}} | Boutiques Qotoof - قطوف",
+      "defaultDescription": "{{storeName}} - Boutique sur la marketplace Qotoof"
+    },
+    "notFound": {
+      "title": "Boutique introuvable",
+      "description": "La boutique que vous recherchez n'existe pas ou a été supprimée."
+    },
+    "error": {
+      "title": "Une erreur est survenue",
+      "loadStoreFailed": "Impossible de charger les informations de la boutique. Veuillez réessayer.",
+      "loadProductsFailed": "Impossible de charger les produits",
+      "followUpdateFailed": "Impossible de mettre à jour le suivi",
+      "submitReviewFailed": "Impossible d'envoyer l'avis",
+      "tryAgain": "Réessayer"
+    },
+    "actions": {
+      "backToStores": "Retour aux boutiques",
+      "shareStore": "Partager la boutique",
+      "followStore": "Suivre la boutique",
+      "following": "Suivie",
+      "callSeller": "Appeler le vendeur",
+      "sendMessage": "Envoyer un message",
+      "clearSearch": "Effacer la recherche",
+      "clearAll": "Tout effacer",
+      "clearFilters": "Effacer les filtres",
+      "shareCopied": "Le lien de la boutique a été copié",
+      "loginToFollow": "Connectez-vous pour suivre les boutiques",
+      "unfollowSuccess": "Vous ne suivez plus cette boutique",
+      "followSuccess": "Vous suivez maintenant cette boutique !",
+      "loginToMessage": "Connectez-vous pour envoyer des messages"
+    },
+    "badges": {
+      "verifiedStore": "Boutique vérifiée"
+    },
+    "setup": {
+      "storeType": "Type de boutique",
+      "deliveryOption": "Option de livraison",
+      "activeProducts": "Produits actifs",
+      "nextTierProgress": "Progression vers le niveau suivant",
+      "activeProductsCountValue": "{{count}} produits",
+      "storeTypes": {
+        "small": "Petite boutique",
+        "medium": "Boutique moyenne",
+        "enterprise": "Boutique entreprise"
+      },
+      "deliveryOptions": {
+        "self": "Livraison autonome",
+        "find_driver": "Trouver un livreur",
+        "own_driver": "Livreur associé"
+      },
+      "progress": {
+        "complete": "Votre boutique a atteint le niveau le plus élevé disponible.",
+        "headline": "Il vous reste {{count}} produits pour atteindre {{nextStoreType}}."
+      }
+    },
+    "stats": {
+      "noReviews": "Pas encore d'avis",
+      "newInMarket": "Nouvelle sur le marché",
+      "monthsInMarket": "{{count}} mois sur le marché",
+      "yearsInMarket": "{{count}}+ ans sur le marché",
+      "respondsIn": "Répond en ~{{hours}}h",
+      "minOrder": "Commande min. : {{amount}}"
+    },
+    "products": {
+      "title": "Produits",
+      "sortAria": "Trier les produits",
+      "searchPlaceholder": "Rechercher des produits dans cette boutique...",
+      "searchLabel": "Rechercher des produits dans la boutique",
+      "filters": "Filtres",
+      "searchTag": "Recherche : \"{{query}}\"",
+      "emptyTitle": "Aucun produit trouvé",
+      "emptyFiltered": "Essayez d'ajuster vos filtres ou vos termes de recherche",
+      "emptyInitial": "Cette boutique n'a pas encore de produits",
+      "categories": {
+        "all": "Tous les produits",
+        "plants": "Plantes et Arbres",
+        "vegetables": "Légumes",
+        "fruits": "Fruits",
+        "herbs": "Herbes",
+        "seeds": "Graines"
+      },
+      "sortOptions": {
+        "newest": "Plus récent",
+        "priceLow": "Prix : Croissant",
+        "priceHigh": "Prix : Décroissant",
+        "name": "Nom A-Z"
+      },
+      "pagination": {
+        "previous": "Précédent",
+        "page": "Page {{current}} sur {{total}}",
+        "next": "Suivant"
+      }
+    },
+    "location": {
+      "title": "Emplacement de la boutique",
+      "address": "Adresse",
+      "phone": "Téléphone",
+      "email": "E-mail",
+      "status": "Statut",
+      "checking": "Vérification...",
+      "openNow": "Ouverte maintenant",
+      "closed": "Fermée",
+      "businessHours": "Horaires d'ouverture",
+      "noPhone": "Aucun numéro de téléphone disponible"
+    },
+    "reviews": {
+      "title": "Avis",
+      "summary": "{{count}} avis",
+      "writeTitle": "Rédiger un avis",
+      "ratingLabel": "Note",
+      "yourReviewLabel": "Votre avis (facultatif)",
+      "yourReviewPlaceholder": "Partagez votre expérience avec cette boutique...",
+      "submitting": "Envoi en cours...",
+      "submit": "Publier l'avis",
+      "loginPromptPrefix": "Veuillez",
+      "loginLink": "vous connecter",
+      "loginPromptSuffix": "pour rédiger un avis",
+      "emptyTitle": "Pas encore d'avis",
+      "emptyDescription": "Soyez le premier à évaluer cette boutique",
+      "anonymousUser": "Utilisateur",
+      "loginRequired": "Veuillez vous connecter pour ajouter un avis",
+      "selectRating": "Veuillez sélectionner une note",
+      "submitSuccess": "Avis envoyé avec succès !"
+    }
+  },
   "product": {
     "details": "Détails du produit",
     "description": "Description",
     "price": "Prix",
     "perUnit": "par {{unit}}",
+    "breadcrumb": "Fil d'Ariane",
     "available": "Disponible",
     "outOfStock": "Rupture de stock",
     "quantity": "Quantité",
@@ -134,7 +411,96 @@
     "viewStore": "Voir la boutique",
     "reviews": "Avis",
     "noReviews": "Pas encore d'avis",
-    "relatedProducts": "Produits similaires"
+    "relatedProducts": "Produits similaires",
+    "previousImage": "Image précédente",
+    "nextImage": "Image suivante",
+    "imageThumbnail": "Afficher l'image {{num}}",
+    "minOrder": "La commande minimale est de {{min}} {{unit}}",
+    "exceedsStock": "La quantité demandée dépasse le stock disponible ({{max}} {{unit}})",
+    "notFound": {
+      "title": "Produit introuvable",
+      "description": "Le produit que vous recherchez n'existe pas ou a été supprimé.",
+      "backToMarketplace": "Retour au marché"
+    }
+  },
+  "productDetail": {
+    "meta": {
+      "title": "{{productName}} | Qotoof - قطوف",
+      "defaultDescription": "{{productName}} - {{category}} disponible sur la marketplace Qotoof"
+    },
+    "vendor": {
+      "unknown": "Vendeur inconnu",
+      "locationTitle": "Emplacement du vendeur"
+    },
+    "badges": {
+      "lowStock": "Stock faible",
+      "organic": "Bio",
+      "local": "Local"
+    },
+    "purchase": {
+      "minOrder": "Commande min. : {{quantity}} {{unit}}",
+      "available": "Disponible : {{quantity}} {{unit}}",
+      "quantityLabel": "Quantité ({{unit}})",
+      "quantityMultiple": "La quantité doit être un multiple de {{quantity}} {{unit}}",
+      "totalPrice": "Prix total :"
+    },
+    "waitlist": {
+      "title": "Ce produit est actuellement indisponible",
+      "description": "Nous vous enverrons une notification dans l'application dès que ce produit sera de nouveau en stock.",
+      "count": "Liste d'attente actuelle : {{count}}",
+      "alreadyJoined": "Vous êtes déjà inscrit sur la liste d'attente",
+      "join": "Rejoindre la liste d'attente",
+      "loginRequired": "Veuillez vous connecter d'abord pour rejoindre la liste d'attente",
+      "joinSuccess": "Vous avez été ajouté à la liste d'attente avec succès",
+      "joinFailed": "Impossible de vous ajouter à la liste d'attente"
+    },
+    "features": {
+      "fastDeliveryTitle": "Livraison rapide",
+      "fastDeliveryBody": "Sous 24 à 48 heures",
+      "qualityAssuredTitle": "Qualité assurée",
+      "qualityAssuredBody": "Vendeur vérifié"
+    },
+    "refund": {
+      "title": "Politique de remboursement",
+      "returnWindow": "Délai de retour",
+      "returnWindowValue": "{{count}} jours",
+      "partialReturns": "Retours partiels",
+      "allowed": "Autorisé",
+      "notAllowed": "Non autorisé",
+      "shippingResponsibility": "Frais de retour",
+      "shippingPaidBy": {
+        "vendor": "Pris en charge par le vendeur",
+        "shared": "Partagés entre les deux parties",
+        "buyer": "Pris en charge par l'acheteur"
+      },
+      "nonReturnable": "Catégories non retournables : {{categories}}"
+    },
+    "farming": {
+      "title": "Informations agricoles",
+      "scientificName": "Nom scientifique",
+      "season": "Saison",
+      "careInstructions": "Conseils d'entretien"
+    },
+    "reviews": {
+      "summary": "{{count}} avis",
+      "writeTitle": "Rédiger un avis",
+      "ratingLabel": "Note",
+      "yourReviewLabel": "Votre avis (facultatif)",
+      "yourReviewPlaceholder": "Partagez votre expérience avec ce produit...",
+      "submitting": "Envoi en cours...",
+      "submit": "Publier l'avis",
+      "loginPromptPrefix": "Veuillez",
+      "loginLink": "vous connecter",
+      "loginPromptSuffix": "pour rédiger un avis",
+      "emptyDescription": "Pas encore d'avis pour ce produit",
+      "anonymousInitial": "U",
+      "anonymousUser": "Utilisateur",
+      "vendorReply": "Réponse du vendeur",
+      "loginRequired": "Veuillez vous connecter pour ajouter un avis",
+      "selectRating": "Veuillez sélectionner une note",
+      "submitSuccess": "Avis envoyé avec succès !",
+      "submitFailed": "Impossible d'envoyer l'avis"
+    }
   },
   "cart": {
     "title": "Panier",
@@ -1445,7 +1811,7 @@
   },
   "orderTracking": {
     "title": "Suivre votre commande",
-    "subtitle": "Entrez votre numéro de commande ou votre numéro de téléphone enregistré pour vérifier le statut de votre livraison.",
+    "subtitle": "Entrez votre numéro de commande et votre numéro de téléphone enregistré pour vérifier le statut de votre livraison.",
     "unknownProduct": "Produit inconnu",
     "form": {
       "orderNumber": {
@@ -1454,6 +1820,7 @@
         "hint": "Trouvez votre numéro de commande dans l'e-mail de confirmation"
       },
       "or": "OU",
+      "and": "ET",
       "phone": {
         "label": "Numéro de téléphone",
         "placeholder": "+212 6XX-XXXXXX",
@@ -1475,7 +1842,7 @@
         "max": "Le numéro de téléphone est trop long",
         "format": "Entrez un numéro de téléphone marocain valide (ex : +212612345678)"
       },
-      "atLeastOne": "Veuillez entrer un numéro de commande ou un numéro de téléphone",
+      "atLeastOne": "Veuillez entrer votre numéro de commande et votre numéro de téléphone",
       "xssDetected": "Caractères invalides détectés",
       "sqlDetected": "Caractères invalides détectés"
     },
@@ -1516,8 +1883,8 @@
         "desc": "Trouvez-le dans votre e-mail de confirmation ou l'historique des commandes de votre compte"
       },
       "step2": {
-        "title": "Ou utilisez le numéro de téléphone",
-        "desc": "Entrez le numéro de téléphone marocain que vous avez utilisé lors de la commande"
+        "title": "Entrez votre numéro de téléphone",
+        "desc": "Utilisez le même numéro de téléphone marocain que celui utilisé lors de la commande"
       },
       "step3": {
         "title": "Suivre la livraison",
@@ -1543,6 +1910,7 @@
     },
     "errors": {
       "rateLimited": "Trop de tentatives. Veuillez patienter {{minutes}} minutes avant de réessayer.",
+      "requiresOrderAndPhone": "Veuillez saisir à la fois le numéro de commande et le numéro de téléphone pour des raisons de sécurité.",
       "searchFailed": "Échec de la recherche. Veuillez réessayer."
     }
   },
@@ -2659,6 +3027,7 @@
       "trackLive": "Suivre en direct",
       "track": "Suivre",
       "callDriver": "Appeler le livreur",
+      "driverPhoneUnavailable": "Numéro du livreur indisponible pour le moment",
       "selectionCount": "commande(s) sélectionnée(s)",
       "clearSelection": "Effacer la sélection",
       "selectAll": "Tout sélectionner",
@@ -2905,6 +3274,28 @@
     "helpText": "Si vous pensez qu'il s'agit d'une erreur, veuillez",
     "contactSupport": "contacter le support"
   },
+  "internalServerError": {
+    "title": "Erreur interne du serveur",
+    "description": "Un problème inattendu est survenu. Veuillez réessayer sous peu ou revenir à l'accueil.",
+    "retry": "Réessayer",
+    "backHome": "Retour à l'accueil"
+  },
+  "serviceUnavailable": {
+    "title": "Service temporairement indisponible",
+    "description": "La plateforme est peut-être en maintenance ou subit un trafic élevé. Veuillez réessayer dans quelques minutes.",
+    "retry": "Réessayer",
+    "backHome": "Retour à l'accueil"
+  },
+  "errorBoundary": {
+    "title": "Une erreur s'est produite",
+    "description": "Une erreur inattendue s'est produite dans l'application.",
+    "chunkReloading": "L'application tente de se recharger automatiquement. Si le problème persiste, rechargez la page manuellement.",
+    "errorLabel": "Erreur :",
+    "fullDetails": "Détails complets",
+    "tryAgain": "Réessayer",
+    "backHome": "Retour à l'accueil",
+    "sentryFallback": "Une erreur inattendue s'est produite. Veuillez actualiser la page."
+  },
   "becomeVendor": {
     "title": "Devenir vendeur",
     "subtitle": "Commencez à vendre sur Qotoof",
@@ -2957,9 +3348,11 @@
   "helpCenter": {
     "title": "Centre d'aide",
     "subtitle": "Trouvez des réponses ou contactez le support",
+    "loginRequired": "Veuillez vous connecter pour soumettre un ticket de support.",
     "contact": {
       "ticket": "Ticket de support",
       "ticketDesc": "Soumettre un ticket",
+      "ticketLoginDesc": "Connectez-vous pour soumettre un ticket de support",
       "call": "Appelez-nous",
       "email": "E-mail"
     },
@@ -3071,6 +3464,90 @@
       "shipping": "Livraison",
       "browse": "Parcourir",
       "casablancaMorocco": "Casablanca, Maroc"
+    },
+    "shared": {
+      "backToSite": "Retour au site"
+    },
+    "admin": {
+      "panelTitle": "Administration",
+      "defaultTitle": "Administration",
+      "links": {
+        "dashboard": "Tableau de bord",
+        "users": "Utilisateurs",
+        "vendors": "Vendeurs",
+        "drivers": "Chauffeurs",
+        "products": "Produits",
+        "orders": "Commandes",
+        "analytics": "Analytique",
+        "reports": "Rapports",
+        "moderation": "Modération",
+        "fraudReports": "Signalements de fraude",
+        "commissions": "Commissions",
+        "commissionManagement": "Gestion des commissions",
+        "disputes": "Litiges de paiement",
+        "payouts": "Paiements",
+        "reviews": "Avis",
+        "supportTickets": "Tickets de support",
+        "security": "Sécurité",
+        "settings": "Paramètres"
+      }
+    },
+    "vendor": {
+      "panelTitle": "Ma boutique",
+      "defaultTitle": "Vendeur",
+      "links": {
+        "dashboard": "Tableau de bord",
+        "products": "Mes produits",
+        "orders": "Commandes",
+        "deliveryOptions": "Options de livraison",
+        "driverPreferences": "Chauffeur préféré",
+        "findDriver": "Trouver un chauffeur",
+        "analytics": "Analytique",
+        "reviews": "Avis",
+        "coupons": "Coupons",
+        "premium": "Premium",
+        "rfqBoard": "Demandes de devis",
+        "schedules": "Horaires",
+        "location": "Localisation",
+        "profile": "Profil",
+        "settings": "Paramètres"
+      }
+    },
+    "driver": {
+      "panelTitle": "Chauffeur",
+      "defaultTitle": "Chauffeur",
+      "links": {
+        "dashboard": "Tableau de bord",
+        "active": "Livraisons actives",
+        "available": "Commandes disponibles",
+        "vendorPreferences": "Vendeur préféré",
+        "findVendor": "Trouver un vendeur",
+        "history": "Historique",
+        "earnings": "Gains",
+        "profile": "Profil",
+        "settings": "Paramètres"
+      }
+    },
+    "buyer": {
+      "links": {
+        "dashboard": "Tableau de bord",
+        "orders": "Commandes",
+        "addresses": "Adresses",
+        "shoppingLists": "Listes d'achat",
+        "myRequests": "Mes demandes",
+        "loyalty": "Fidélité",
+        "settings": "Paramètres"
+      }
+    },
+    "dashboard": {
+      "closeMenu": "Fermer le menu",
+      "preferences": "Préférences",
+      "roles": {
+        "admin": "Administration",
+        "vendor": "Vendeur",
+        "driver": "Chauffeur",
+        "buyer": "Acheteur"
+      }
     }
   }
   ,

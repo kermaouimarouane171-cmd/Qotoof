@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { MapPinIcon, ClockIcon, CurrencyDollarIcon, CheckCircleIcon, XCircleIcon, TruckIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/services/supabase'
+import { deliveriesApi } from '@/services/deliveries'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
@@ -12,38 +13,12 @@ const DeliveryRequestCard = ({ request, onAccept, onReject }) => {
     setResponding(true)
     try {
       if (status === 'accepted') {
-        // Update order with driver assignment
-        const { error } = await supabase
-          .from('orders')
-          .update({
-            driver_id: request.driver_id,
-            driver_assigned_at: new Date().toISOString(),
-            status: 'driver_assigned',
-          })
-          .eq('id', request.order_id)
-
-        if (error) throw error
-
-        // Notify buyer and vendor
-        await supabase
-          .from('notifications')
-          .insert([
-            {
-              user_id: request.buyer_id,
-              title: 'Driver Accepted Your Delivery',
-              message: `A driver has accepted your delivery request for order #${request.order_id?.slice(0, 8) || 'N/A'}.`,
-              type: 'driver_accepted',
-            },
-            {
-              user_id: request.vendor_id,
-              title: 'Driver Assigned to Order',
-              message: `A driver has been assigned to deliver order #${request.order_id?.slice(0, 8) || 'N/A'}.`,
-              type: 'driver_assigned',
-            },
-          ])
+        await deliveriesApi.acceptDelivery(request.id, request.driver_id)
 
         toast.success('✅ Delivery accepted!')
       } else {
+        await deliveriesApi.rejectDelivery(request.id, 'Driver declined delivery request')
+
         // Notify system to find another driver
         await supabase
           .from('notifications')

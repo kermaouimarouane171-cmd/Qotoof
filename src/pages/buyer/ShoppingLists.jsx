@@ -4,6 +4,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { useTranslation } from 'react-i18next'
+import { hydrateRowsWithProductItems, isProductImagesRelationError } from '@/services/productImages'
 import { supabase } from '@/services/supabase'
 import { formatPrice } from '@/utils/currency'
 import {
@@ -38,16 +39,36 @@ const ShoppingLists = () => {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
+      const buildQuery = (selectClause) => supabase
         .from('shopping_lists')
-        .select(`
-          *,
-          items:shopping_list_items(*, product:products(name, price_per_unit, unit_type, images:product_images(url, is_primary)))
-        `)
+        .select(selectClause)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      let result = await buildQuery(`
+        *,
+        items:shopping_list_items(*, product:products(id, name, price_per_unit, unit_type, images:product_images(url, is_primary)))
+      `)
+
+      if (result.error) {
+        if (!isProductImagesRelationError(result.error)) throw result.error
+
+        logger.warn('Shopping lists: product_images relation missing, hydrating separately', result.error)
+
+        const fallbackResult = await buildQuery(`
+          *,
+          items:shopping_list_items(*, product:products(id, name, price_per_unit, unit_type))
+        `)
+
+        if (fallbackResult.error) throw fallbackResult.error
+
+        result = {
+          ...fallbackResult,
+          data: await hydrateRowsWithProductItems(fallbackResult.data || []),
+        }
+      }
+
+      const { data } = result
       setLists(data || [])
     } catch (error) {
       logger.error('Error loading shopping lists:', error)

@@ -1,7 +1,7 @@
 /**
  * Payment constants for Qotoof marketplace.
  * Centralizes all payment-related constants:
- * - Payment methods (CMI, COD, Bank Transfer)
+ * - Payment methods (active methods plus historical aliases)
  * - Payment statuses
  * - Status colors (Tailwind + hex)
  *
@@ -67,9 +67,9 @@ export const PAYMENT_METHODS = [
     labelFr: 'CMI (Maroc)',
     labelEn: 'CMI (Morocco)',
     icon: '🇲🇦',
-    available: !!import.meta.env.VITE_CMI_MERCHANT_ID,
+    available: false,
     requiresRedirect: true,
-    descriptionAr: 'ادفع عبر بوابة CMI المغربية',
+    descriptionAr: 'بوابة قديمة محتفظ بها فقط من أجل السجلات التاريخية',
   },
 ]
 

@@ -4,6 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
 
 // ============================================
 // Environment Configuration
@@ -24,7 +25,11 @@ const corsHeaders = {
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { value: unknown; expiresAt: number }>()
-const rateLimit = new Map<string, { count: number; resetAt: number }>()
+const BANK_DETAILS_REQUEST_LIMIT = {
+  maxAttempts: 60,
+  windowSeconds: 60,
+  blockSeconds: 60,
+}
 
 // ============================================
 // Main Handler
@@ -47,31 +52,6 @@ serve(async (req) => {
       )
     }
 
-    // Basic per-IP rate limiting to reduce abuse on a public endpoint
-    const forwardedFor = req.headers.get('x-forwarded-for') || ''
-    const clientIp = forwardedFor.split(',')[0]?.trim() || 'unknown'
-    const now = Date.now()
-    const rlRecord = rateLimit.get(clientIp)
-    if (!rlRecord || now > rlRecord.resetAt) {
-      rateLimit.set(clientIp, { count: 1, resetAt: now + 60_000 })
-    } else {
-      rlRecord.count += 1
-      if (rlRecord.count > 60) {
-        return new Response(
-          JSON.stringify({ error: 'Too many requests, try again later' }),
-          {
-            status: 429,
-            headers: {
-              'Content-Type': 'application/json',
-              'Retry-After': '60',
-              ...corsHeaders,
-            },
-          }
-        )
-      }
-    }
-
-    // Initialize Supabase client
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       console.error('Supabase configuration error')
       return new Response(
@@ -83,7 +63,33 @@ serve(async (req) => {
       )
     }
 
+    // Public endpoint abuse protection must be distributed, not instance-local.
+    const clientIp = getClientIp(req)
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const rateLimitResult = await enforceServerRateLimit({
+      supabase,
+      scope: 'get_bank_details_request',
+      identifierParts: ['get-bank-details', clientIp],
+      maxAttempts: BANK_DETAILS_REQUEST_LIMIT.maxAttempts,
+      windowSeconds: BANK_DETAILS_REQUEST_LIMIT.windowSeconds,
+      blockSeconds: BANK_DETAILS_REQUEST_LIMIT.blockSeconds,
+    })
+
+    if (!rateLimitResult.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'Too many requests, try again later' }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateLimitResult.retry_after_seconds || BANK_DETAILS_REQUEST_LIMIT.blockSeconds),
+            ...corsHeaders,
+          },
+        }
+      )
+    }
+
+    const now = Date.now()
 
     // Parse request body (optional bankCode filter)
     let bankCode: string | undefined

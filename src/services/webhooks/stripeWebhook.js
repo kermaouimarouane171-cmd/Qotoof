@@ -4,6 +4,7 @@ import { withRetry } from '@/utils/withRetry'
 
 /**
  * Stripe Webhook Handler
+ * Legacy reference module only. Active marketplace checkout does not use Stripe order payments.
  * NOTE: In a Vite SPA, webhooks must be processed server-side.
  * This module provides:
  *  1. A Supabase Edge Function payload format (deploy to supabase/functions/stripe-webhook/)
