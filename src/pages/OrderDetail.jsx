@@ -33,6 +33,7 @@ import LiveDriverMap from '@/components/maps/LiveDriverMap'
 import RouteMap from '@/components/ui/RouteMap'
 import { formatPrice } from '@/utils/currency'
 import { ordersApi } from '@/services/deliveries'
+import { submitReturnRequest } from '@/services/ordersService'
 import { orderTimelineApi } from '@/services/favorites'
 import { confirmOrderPayment } from '@/services/paymentService'
 import { driverLocationService } from '@/services/driverLocationService'
@@ -464,17 +465,13 @@ const OrderDetail = () => {
 
     setSubmitting(true)
     try {
-      const { error } = await supabase.from('return_requests').insert({
-        order_id: id,
-        buyer_id: user?.id,
+      await submitReturnRequest({
+        orderId: id,
+        buyerId: user?.id,
         reason: returnReason,
         description: returnDescription,
-        item_ids: returnItems,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-      }).select().single()
-
-      if (error) throw error
+        itemIds: returnItems,
+      })
 
       toast.success(t('orderDetail.notifications.returnSubmitted', 'Return request submitted!'))
       setReturnModalOpen(false)

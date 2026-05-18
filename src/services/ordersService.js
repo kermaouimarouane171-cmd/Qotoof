@@ -49,6 +49,31 @@ export const fetchBuyerOrdersAll = async (buyerId) => {
   return data || []
 }
 
+/**
+ * Submit a return request for an order.
+ *
+ * @param {{ orderId: string, buyerId: string, reason: string, description: string, itemIds: string[] }} payload
+ * @returns {Promise<Object>} Inserted return_request row
+ */
+export const submitReturnRequest = async ({ orderId, buyerId, reason, description, itemIds }) => {
+  const { data, error } = await supabase
+    .from('return_requests')
+    .insert({
+      order_id: orderId,
+      buyer_id: buyerId,
+      reason,
+      description,
+      item_ids: itemIds,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
 export const fetchVendorOrders = async (vendorId) => {
   const { data, error } = await supabase
     .from('orders')
