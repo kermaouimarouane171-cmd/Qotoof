@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
@@ -6,6 +6,7 @@ import { mfaService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
+import { useSecurity } from '@/hooks/useSecurity'
 import {
   KeyIcon,
   DevicePhoneMobileIcon,
@@ -18,40 +19,17 @@ import {
 } from '@heroicons/react/24/outline'
 import { maskData } from '@/utils/encryption'
 import toast from 'react-hot-toast'
-import { logger } from '@/utils/logger'
 
 const DriverSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { profile, getMFASettings, getActiveSessions, revokeAllOtherSessions } = useAuthStore()
-  const [mfaSettings, setMfaSettings] = useState(null)
-  const [sessionCount, setSessionCount] = useState(0)
+  const { profile, revokeAllOtherSessions } = useAuthStore()
+  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [disablingMFA, setDisablingMFA] = useState(false)
   const [showLocationInfo, setShowLocationInfo] = useState(false)
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 10 })
-
-  const loadSecurityData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const mfa = await getMFASettings()
-      setMfaSettings(mfa)
-
-      const sessions = await getActiveSessions()
-      setSessionCount(sessions.length)
-    } catch (error) {
-      logger.error('Load security data error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [getActiveSessions, getMFASettings])
-
-  useEffect(() => {
-    loadSecurityData()
-  }, [loadSecurityData])
 
   const handleDisableMFA = async () => {
     if (!confirm(t('driver.security.disableMFAConfirm', 'Are you sure you want to disable two-factor authentication?'))) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -10,6 +10,7 @@ import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
 import ErrorBoundary from '@/components/ErrorBoundary'
+import { useSecurity, validatePasswordStrength } from '@/hooks/useSecurity'
 import {
   ShieldCheckIcon,
   KeyIcon,
@@ -30,14 +31,11 @@ const VendorSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile, getMFASettings, getActiveSessions, revokeAllOtherSessions, updatePassword } = useAuthStore()
-  const [mfaSettings, setMfaSettings] = useState(null)
+  const { user, profile, revokeAllOtherSessions, updatePassword } = useAuthStore()
+  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [trustScore, setTrustScore] = useState(null)
-  const [sessionCount, setSessionCount] = useState(0)
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [disablingMFA, setDisablingMFA] = useState(false)
   const [showPersonalInfo, setShowPersonalInfo] = useState(false)
 
   // Get MFA enforcement state from ProtectedRoute
@@ -67,62 +65,13 @@ const VendorSecurityPage = () => {
     }
   }, [mfaEnforcementState, profile])
 
-  const loadSecurityData = useCallback(async () => {
-    if (!user?.id) {
-      setMfaSettings(null)
-      setTrustScore(null)
-      setSessionCount(0)
-      setLoading(false)
-      return
-    }
-
-    try {
-      setLoading(true)
-
-      // Load MFA settings
-      const mfa = await getMFASettings()
-      setMfaSettings(mfa)
-
-      // Load trust score
-      const trust = await trustScoreService.getTrustScore(user?.id)
-      setTrustScore(trust)
-
-      // Load session count
-      const sessions = await getActiveSessions()
-      setSessionCount(sessions.length)
-    } catch (error) {
-      logger.error('Load security data error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [getActiveSessions, getMFASettings, user?.id])
-
+  // Vendor-specific: load trust score after base security data is loaded
   useEffect(() => {
-    loadSecurityData()
-  }, [loadSecurityData])
-
-  // ============================================================
-  // PASSWORD STRENGTH VALIDATION
-  // ============================================================
-  const validatePasswordStrength = (password) => {
-    const errors = []
-
-    if (password.length < 8) errors.push(t('vendor.security.errors.passwordTooShort', 'Password must be at least 8 characters'))
-    if (password.length > 128) errors.push(t('vendor.security.errors.passwordTooLong', 'Password must be less than 128 characters'))
-    if (!/[A-Z]/.test(password)) errors.push(t('vendor.security.errors.passwordNoUppercase', 'Password must contain at least one uppercase letter'))
-    if (!/[a-z]/.test(password)) errors.push(t('vendor.security.errors.passwordNoLowercase', 'Password must contain at least one lowercase letter'))
-    if (!/[0-9]/.test(password)) errors.push(t('vendor.security.errors.passwordNoNumber', 'Password must contain at least one number'))
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push(t('vendor.security.errors.passwordNoSpecial', 'Password must contain at least one special character'))
-
-    const commonPasswords = ['password', '12345678', 'qwerty123', 'admin123']
-    if (commonPasswords.includes(password.toLowerCase())) errors.push(t('vendor.security.errors.passwordCommon', 'Password is too common'))
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      strength: errors.length === 0 ? 'strong' : errors.length <= 2 ? 'medium' : 'weak'
-    }
-  }
+    if (!user?.id) return
+    trustScoreService.getTrustScore(user.id)
+      .then(trust => setTrustScore(trust))
+      .catch(err => logger.error('Trust score load error:', err))
+  }, [user?.id])
 
   // ============================================================
   // SEND SECURITY CHANGE EMAIL NOTIFICATION
@@ -176,7 +125,7 @@ const VendorSecurityPage = () => {
       return
     }
 
-    const passwordValidation = validatePasswordStrength(newPassword)
+    const passwordValidation = validatePasswordStrength(newPassword, t, 'vendor.security.errors')
     if (!passwordValidation.valid) {
       setPasswordError(passwordValidation.errors.join('. '))
       return

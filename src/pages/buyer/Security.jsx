@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
@@ -10,6 +10,7 @@ import SessionManager from '@/components/auth/SessionManager'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
+import { useSecurity, validatePasswordStrength } from '@/hooks/useSecurity'
 import {
   KeyIcon,
   DevicePhoneMobileIcon,
@@ -26,13 +27,10 @@ import toast from 'react-hot-toast'
 const BuyerSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user, profile, getMFASettings, getActiveSessions, revokeAllOtherSessions, updatePassword } = useAuthStore()
-  const [mfaSettings, setMfaSettings] = useState(null)
-  const [sessionCount, setSessionCount] = useState(0)
+  const { user, profile, revokeAllOtherSessions, updatePassword } = useAuthStore()
+  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [disablingMFA, setDisablingMFA] = useState(false)
   const [showPersonalInfo, setShowPersonalInfo] = useState(false)
 
   // Password change state
@@ -49,48 +47,6 @@ const BuyerSecurityPage = () => {
   const [pendingNewPassword, setPendingNewPassword] = useState('')
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 10 })
-
-  const loadSecurityData = useCallback(async () => {
-    try {
-      setLoading(true)
-      const mfa = await getMFASettings()
-      setMfaSettings(mfa)
-
-      const sessions = await getActiveSessions()
-      setSessionCount(sessions.length)
-    } catch (error) {
-      logger.error('Load security data error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [getActiveSessions, getMFASettings])
-
-  useEffect(() => {
-    loadSecurityData()
-  }, [loadSecurityData])
-
-  // ============================================================
-  // PASSWORD STRENGTH VALIDATION
-  // ============================================================
-  const validatePasswordStrength = (password) => {
-    const errors = []
-
-    if (password.length < 8) errors.push(t('buyerSecurity.errors.passwordTooShort', 'Password must be at least 8 characters'))
-    if (password.length > 128) errors.push(t('buyerSecurity.errors.passwordTooLong', 'Password must be less than 128 characters'))
-    if (!/[A-Z]/.test(password)) errors.push(t('buyerSecurity.errors.passwordNeedsUppercase', 'Password must contain at least one uppercase letter'))
-    if (!/[a-z]/.test(password)) errors.push(t('buyerSecurity.errors.passwordNeedsLowercase', 'Password must contain at least one lowercase letter'))
-    if (!/[0-9]/.test(password)) errors.push(t('buyerSecurity.errors.passwordNeedsNumber', 'Password must contain at least one number'))
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) errors.push(t('buyerSecurity.errors.passwordNeedsSpecial', 'Password must contain at least one special character'))
-
-    const commonPasswords = ['password', '12345678', 'qwerty123', 'admin123']
-    if (commonPasswords.includes(password.toLowerCase())) errors.push(t('buyerSecurity.errors.passwordTooCommon', 'Password is too common'))
-
-    return {
-      valid: errors.length === 0,
-      errors,
-      strength: errors.length === 0 ? 'strong' : errors.length <= 2 ? 'medium' : 'weak'
-    }
-  }
 
   // ============================================================
   // PASSWORD CHANGE HANDLER
@@ -114,7 +70,7 @@ const BuyerSecurityPage = () => {
       return
     }
 
-    const passwordValidation = validatePasswordStrength(newPassword)
+    const passwordValidation = validatePasswordStrength(newPassword, t, 'buyerSecurity.errors')
     if (!passwordValidation.valid) {
       setPasswordError(passwordValidation.errors.join('. '))
       return

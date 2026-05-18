@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/services/supabase'
+import { fetchVendorOrders } from '@/services/ordersService'
 import { ordersApi, deliveriesApi } from '@/services/deliveries'
 import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -41,28 +41,8 @@ const VendorOrders = () => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          buyer:profiles!buyer_id(first_name, last_name, phone),
-          items:order_items(*, product:products(name)),
-          deliveries:deliveries(
-            id,
-            driver_id,
-            status,
-            driver:profiles!driver_id(first_name, last_name, phone),
-            current_latitude,
-            current_longitude,
-            delivery_latitude,
-            delivery_longitude
-          )
-        `)
-        .eq('vendor_id', profile.id)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setOrders(data || [])
+      const data = await fetchVendorOrders(profile.id)
+      setOrders(data)
     } catch (error) {
       logger.error('Error loading orders:', error)
     }

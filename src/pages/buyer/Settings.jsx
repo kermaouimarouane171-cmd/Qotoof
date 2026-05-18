@@ -5,6 +5,8 @@ import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import { supabase } from '@/services/supabase'
+import { fetchProfile } from '@/services/profilesService'
+import { fetchBuyerOrdersAll } from '@/services/ordersService'
 import {
   ArrowLeftIcon,
   BellIcon,
@@ -169,9 +171,9 @@ const BuyerSettings = () => {
   const handleExportData = async () => {
     setDataExporting(true)
     try {
-      const [{ data: orders }, { data: profileData }, { data: favorites }] = await Promise.all([
-        supabase.from('orders').select('*').eq('buyer_id', user.id),
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
+      const [orders, profileData, { data: favorites }] = await Promise.all([
+        fetchBuyerOrdersAll(user.id),
+        fetchProfile(user.id),
         supabase.from('favorites').select('*').eq('user_id', user.id),
       ])
 
@@ -200,7 +202,7 @@ const BuyerSettings = () => {
 
   const handleViewData = async () => {
     try {
-      const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+      const data = await fetchProfile(user.id)
       setUserData(data)
       setShowUserData(true)
     } catch {

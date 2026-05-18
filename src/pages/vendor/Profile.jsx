@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { fetchProfile, updateProfile } from '@/services/profilesService'
 import { Card, Input, LoadingSpinner } from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -107,8 +108,7 @@ const StoreInfoTab = () => {
       const { data: { publicUrl } } = supabase.storage.from('store-logos').getPublicUrl(filePath)
       setUrl(publicUrl)
       const updateField = type === 'logo' ? 'store_logo' : 'store_banner'
-      const { error: updateError } = await supabase.from('profiles').update({ [updateField]: publicUrl }).eq('id', user.id)
-      if (updateError) throw updateError
+      await updateProfile(user.id, { [updateField]: publicUrl })
       await auditLogger.logProfileAction('PROFILE_IMAGE_UPDATED', { ...profile, [updateField]: publicUrl }, profile)
       toast.success(t('vendor.profile.imageUpdated', '{{type}} updated!', { type: type === 'logo' ? 'Store logo' : 'Store banner' }))
       setHasChanges(true)
@@ -125,9 +125,8 @@ const StoreInfoTab = () => {
     if (Object.keys(validationErrors).length > 0) { setErrors(validationErrors); toast.error(t('vendor.profile.errors.fixErrors', 'Please fix the errors before saving')); return }
     setLoading(true); setErrors({})
     try {
-      const { data: oldProfile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      const { data: updatedProfile, error } = await supabase.from('profiles').update(payload).eq('id', user.id).select().single()
-      if (error) throw error
+      const oldProfile = await fetchProfile(user.id)
+      const updatedProfile = await updateProfile(user.id, payload)
       useAuthStore.setState((state) => ({
         ...state,
         profile: state.profile ? { ...state.profile, ...updatedProfile } : state.profile,
