@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService } from '@/services/authServices'
+import { mfaService, sessionService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import MFASetup from '@/components/auth/MFASetup'
@@ -27,7 +27,7 @@ import toast from 'react-hot-toast'
 const BuyerSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user, profile, revokeAllOtherSessions, updatePassword } = useAuthStore()
+  const { user, profile, updatePassword } = useAuthStore()
   const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
@@ -168,7 +168,7 @@ const BuyerSecurityPage = () => {
     }
 
     try {
-      const result = await revokeAllOtherSessions()
+      const result = await sessionService.revokeAllOtherSessions()
       if (result.success) {
         toast.success('تم تسجيل الخروج من جميع الأجهزة')
         await loadSecurityData()

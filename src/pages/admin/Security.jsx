@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService } from '@/services/authServices'
+import { mfaService, sessionService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import {
   getSecurityAlerts,
@@ -64,7 +64,7 @@ const alertTypeLabels = {
 
 const AdminSecurityPage = () => {
   const { t } = useTranslation()
-  const { user, profile, getMFASettings, getActiveSessions, revokeAllOtherSessions } = useAuthStore()
+  const { user, profile } = useAuthStore()
   const [mfaSettings, setMfaSettings] = useState(null)
   const [sessionCount, setSessionCount] = useState(0)
   const [showMFASetup, setShowMFASetup] = useState(false)
@@ -152,10 +152,10 @@ const AdminSecurityPage = () => {
   const loadSecurityData = async () => {
     try {
       setLoading(true)
-      const mfa = await getMFASettings()
+      const mfa = await mfaService.getSettings()
       setMfaSettings(mfa)
 
-      const sessions = await getActiveSessions()
+      const sessions = await sessionService.getActiveSessions()
       setSessionCount(sessions.length)
     } catch (error) {
       logger.error('Load security data error:', error)
@@ -262,7 +262,7 @@ const AdminSecurityPage = () => {
     }
 
     try {
-      const result = await revokeAllOtherSessions()
+      const result = await sessionService.revokeAllOtherSessions()
       if (result.success) {
         toast.success(t('admin.security.sessionsRevoked', 'Signed out from all devices'))
         await loadSecurityData()

@@ -7,8 +7,28 @@ import { emailService } from '@/services/emailService'
 import { useCartStore } from '@/store/cartStore'
 import { useFavoritesStore } from '@/store/favoritesStore'
 import { generateDeviceFingerprint, secureStorage, clearSupabaseLocalStorage } from '@/utils/encryption'
+import {
+  DEFAULT_AUTH_REDIRECT,
+  clearPendingAuthRedirect,
+  consumePendingAuthRedirect,
+  resolveSafeAuthRedirect,
+  setPendingAuthRedirect,
+} from '@/utils/authRedirects'
 import { checkLoginRate, checkPasswordResetRate, enforceRateLimit } from '@/utils/rateLimiter'
+import { signInWithServerRateLimit } from '@/services/authGateway'
 import { logger } from '../utils/logger.js'
+
+const OAUTH_STATE_PREFIX = 'oauth_'
+const OAUTH_STATE_STORAGE_KEY = 'oauth_state'
+
+const createOAuthState = () => {
+  if (typeof window !== 'undefined' && typeof window.crypto?.randomUUID === 'function') {
+    return `${OAUTH_STATE_PREFIX}${window.crypto.randomUUID()}`
+  }
+
+  const randomSuffix = Math.random().toString(36).slice(2)
+  return `${OAUTH_STATE_PREFIX}${Date.now()}_${randomSuffix}`
+}
 
 export const useAuthStore = create((set, get) => ({
   user: null,
@@ -20,6 +40,7 @@ export const useAuthStore = create((set, get) => ({
   // Enhanced security state
   mfaRequired: false,
   mfaPending: false,
+  passwordRecoveryMode: false,
   deviceFingerprint: null,
   autoLogoutWarning: false,
   securityInitialized: false,
@@ -201,6 +222,7 @@ export const useAuthStore = create((set, get) => ({
                 loading: false,
                 mfaRequired: true,
                 mfaPending: true,
+                passwordRecoveryMode: false,
               })
               break
             }
@@ -215,6 +237,7 @@ export const useAuthStore = create((set, get) => ({
               loading: false,
               mfaRequired: false,
               mfaPending: false,
+              passwordRecoveryMode: false,
             })
           }
           break
@@ -231,11 +254,13 @@ export const useAuthStore = create((set, get) => ({
             loading: false,
             mfaRequired: false,
             mfaPending: false,
+            passwordRecoveryMode: false,
             deviceFingerprint: null
           })
 
           // Clear secure storage (sessionStorage)
           secureStorage.clear()
+          clearPendingAuthRedirect()
 
           // Clear Supabase auth tokens from localStorage
           clearSupabaseLocalStorage()
@@ -268,13 +293,30 @@ export const useAuthStore = create((set, get) => ({
           break
 
         case 'PASSWORD_RECOVERY':
-          // Handle password recovery event
+          if (session?.user) {
+            autoLogoutService.stop()
+            set({
+              user: session.user,
+              session,
+              loading: false,
+              mfaRequired: false,
+              mfaPending: false,
+              passwordRecoveryMode: true,
+            })
+          }
           break
 
         case 'TOKEN_REFRESH_FAILED':
           // Could not refresh token — session is expired/invalid
           logger.warn('Token refresh failed — clearing auth state')
-          set({ user: null, session: null, profile: null, loading: false })
+          set({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            passwordRecoveryMode: false,
+          })
+          clearPendingAuthRedirect()
           // Navigate to login without a full page reload — React Router handles it
           window.dispatchEvent(new CustomEvent('auth:sessionExpired'))
           break
@@ -453,49 +495,54 @@ export const useAuthStore = create((set, get) => ({
   // ============================================
   // ENHANCED SIGN IN WITH RATE LIMITING & MFA
   // ============================================
-  signIn: async (email, password, captchaToken = null) => {
+  signIn: async (email, password, captchaToken = null, preferredRedirect = null) => {
     try {
       set({ loading: true, _signingInProgress: true })
+      const safeRedirect = setPendingAuthRedirect(preferredRedirect)
 
       // Check rate limit
       enforceRateLimit(checkLoginRate, email)
 
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { user, session } = await signInWithServerRateLimit({
         email,
         password,
-        options: captchaToken ? { captchaToken } : undefined,
+        captchaToken,
       })
 
-      if (error) {
+      if (!user || !session) {
         // SECURITY: Log failed login WITHOUT exposing user-provided data
         auditLogger.logAuthAction('LOGIN_FAILED', null, {
           timestamp: new Date().toISOString(),
-          errorType: error.name || 'Unknown',
-          errorMessage: error.message?.substring(0, 100) || 'Unknown error'
+          errorType: 'ServerLoginError',
+          errorMessage: 'Missing authenticated session'
         }).catch(() => {})
 
         // SECURITY: Never expose specific error details to the client
-        throw error
+        throw new Error('Invalid login credentials')
       }
 
       // Run profile fetch and MFA check in parallel to save time
       const [profile, mfaSettings] = await Promise.all([
-        get().fetchProfile(data.user.id),
+        get().fetchProfile(user.id),
         mfaService?.getSettings ? mfaService.getSettings() : Promise.resolve(null),
       ])
 
+      const deviceFingerprint = await generateDeviceFingerprint()
+      set({ deviceFingerprint })
+
       if (mfaSettings?.is_enabled) {
         set({
-          user: data.user,
-          session: data.session,
+          user,
+          session,
           profile,
           loading: false,
           _signingInProgress: false,
           mfaRequired: true,
-          mfaPending: true
+          mfaPending: true,
+          passwordRecoveryMode: false,
         })
 
-        auditLogger.logAuthAction('MFA_REQUIRED', data.user.id).catch(() => {})
+        auditLogger.logAuthAction('MFA_REQUIRED', user.id).catch(() => {})
 
         return {
           success: true,
@@ -506,32 +553,49 @@ export const useAuthStore = create((set, get) => ({
 
       // No MFA - complete login
       set({
-        user: data.user,
-        session: data.session,
+        user,
+        session,
         profile,
         loading: false,
         _signingInProgress: false,
         mfaRequired: false,
-        mfaPending: false
+        mfaPending: false,
+        passwordRecoveryMode: false,
       })
+
+      if (sessionService?.registerSession) {
+        await sessionService.registerSession()
+      }
 
       // Start auto logout (non-blocking)
       get().startAutoLogout()
 
       // Log successful login (non-blocking - don't await)
-      auditLogger.logAuthAction('SIGNED_IN', data.user.id, {
+      auditLogger.logAuthAction('SIGNED_IN', user.id, {
         role: profile?.role
       }).catch(() => {})
 
+      const redirect = consumePendingAuthRedirect(
+        get().getRedirectPath(profile?.role)
+      )
+
       toast.success('Welcome back!')
-      return { success: true, redirect: get().getRedirectPath(profile?.role) }
+      return { success: true, redirect }
     } catch (error) {
       set({ loading: false, _signingInProgress: false })
 
+      if (!preferredRedirect) {
+        clearPendingAuthRedirect()
+      }
+
       // SECURITY: Show generic error message to prevent user enumeration
       const genericError = 'Invalid email or password. Please try again.'
+      const isRateLimited = error?.name === 'RateLimitError' ||
+        error?.status === 429 ||
+        error?.message?.toLowerCase?.().includes('too many') ||
+        error?.message?.toLowerCase?.().includes('rate limit')
 
-      if (error.name === 'RateLimitError') {
+      if (isRateLimited) {
         toast.error(error.message) // Rate limit message is OK to show
       } else {
         toast.error(genericError)
@@ -557,10 +621,15 @@ export const useAuthStore = create((set, get) => ({
         return result
       }
 
+      if (sessionService?.registerSession) {
+        await sessionService.registerSession()
+      }
+
       // MFA verified - complete login
       set({
         mfaRequired: false,
-        mfaPending: false
+        mfaPending: false,
+        passwordRecoveryMode: false,
       })
 
       // Start auto logout
@@ -570,11 +639,14 @@ export const useAuthStore = create((set, get) => ({
       await auditLogger.logAuthAction('MFA_VERIFIED', user.id)
 
       const profile = get().profile
+      const redirect = consumePendingAuthRedirect(
+        get().getRedirectPath(profile?.role)
+      )
       toast.success('Authentication verified!')
       
       return { 
         success: true, 
-        redirect: get().getRedirectPath(profile?.role)
+        redirect
       }
     } catch (error) {
       logger.error('MFA verify error:', error)
@@ -591,7 +663,8 @@ export const useAuthStore = create((set, get) => ({
       (remainingMs) => {
         set({ autoLogoutWarning: true })
         const remainingMinutes = Math.ceil(remainingMs / 60000)
-        toast.warning(`You will be logged out in ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''} due to inactivity`, {
+        toast(`You will be logged out in ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''} due to inactivity`, {
+          icon: '⚠️',
           duration: 10000
         })
       },
@@ -625,9 +698,9 @@ export const useAuthStore = create((set, get) => ({
         await auditLogger.logAuthAction('SIGNED_OUT', user.id)
       }
 
-      // Revoke all sessions
-      if (sessionService?.revokeAllOtherSessions) {
-        await sessionService.revokeAllOtherSessions()
+      // Mark only the current tracked browser session as inactive.
+      if (sessionService?.revokeCurrentSession) {
+        await sessionService.revokeCurrentSession()
       }
 
       const { error } = await supabase.auth.signOut()
@@ -640,12 +713,14 @@ export const useAuthStore = create((set, get) => ({
         loading: false,
         mfaRequired: false,
         mfaPending: false,
+        passwordRecoveryMode: false,
         deviceFingerprint: null,
         autoLogoutWarning: false
       })
 
       // Clear secure storage (sessionStorage)
       secureStorage.clear()
+      clearPendingAuthRedirect()
 
       // Clear Supabase auth tokens from localStorage
       clearSupabaseLocalStorage()
@@ -655,8 +730,10 @@ export const useAuthStore = create((set, get) => ({
       useFavoritesStore.getState().clearFavorites()
 
       toast.success('Signed out successfully')
+      return { success: true }
     } catch (error) {
       toast.error(error.message || 'Failed to sign out')
+      return { success: false, error: error.message }
     }
   },
 
@@ -719,7 +796,30 @@ export const useAuthStore = create((set, get) => ({
         // If there's a session, email confirmation is disabled
         if (data.session) {
           const profile = await get().fetchProfile(data.user.id)
-          set({ user: data.user, session: data.session, profile, loading: false, _signingInProgress: false })
+
+          const deviceFingerprint = await generateDeviceFingerprint()
+
+          set({
+            user: data.user,
+            session: data.session,
+            profile,
+            deviceFingerprint,
+            loading: false,
+            _signingInProgress: false,
+            mfaRequired: false,
+            mfaPending: false,
+            passwordRecoveryMode: false,
+          })
+
+          if (sessionService?.registerSession) {
+            await sessionService.registerSession()
+          }
+
+          get().startAutoLogout()
+          auditLogger.logAuthAction('SIGNED_UP', data.user.id, {
+            role: profile?.role || userData.role,
+          }).catch(() => {})
+
           toast.success('Account created successfully!')
           return {
             success: true,
@@ -766,16 +866,25 @@ export const useAuthStore = create((set, get) => ({
   // ============================================
   signInWithGoogle: async (redirectTo) => {
     try {
+      const safeRedirect = resolveSafeAuthRedirect(redirectTo, DEFAULT_AUTH_REDIRECT)
+      const oauthState = createOAuthState()
+
+      sessionStorage.setItem(OAUTH_STATE_STORAGE_KEY, oauthState)
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(redirectTo || '/marketplace')}`
+          redirectTo: `${window.location.origin}/auth/callback?redirect_to=${encodeURIComponent(safeRedirect)}`,
+          queryParams: {
+            state: oauthState,
+          },
         }
       })
 
       if (error) throw error
       return { success: true }
     } catch (error) {
+      sessionStorage.removeItem(OAUTH_STATE_STORAGE_KEY)
       toast.error(error.message || 'Failed to sign in with Google')
       return { success: false, error: error.message }
     }
@@ -869,6 +978,7 @@ export const useAuthStore = create((set, get) => ({
       }
 
       toast.success('Password updated successfully! All other sessions have been signed out.')
+      set({ passwordRecoveryMode: false })
       return { success: true }
     } catch (error) {
       toast.error(error.message || 'Failed to update password')
@@ -964,77 +1074,6 @@ export const useAuthStore = create((set, get) => ({
       toast.error(error.message || 'Failed to update availability')
       return { success: false, error: error.message }
     }
-  },
-
-  // ============================================
-  // UPDATE DRIVER LOCATION (unchanged)
-  // ============================================
-  updateDriverLocation: async (latitude, longitude) => {
-    try {
-      const { user, profile } = get()
-      if (!user || profile?.role !== 'driver') return
-
-      const { data: activeDelivery } = await supabase
-        .from('deliveries')
-        .select('id')
-        .eq('driver_id', user.id)
-        .in('status', ['accepted', 'picked_up', 'on_the_way'])
-        .single()
-
-      if (activeDelivery) {
-        await supabase
-          .from('deliveries')
-          .update({
-            current_latitude: latitude,
-            current_longitude: longitude,
-            last_location_update: new Date().toISOString(),
-          })
-          .eq('id', activeDelivery.id)
-      }
-
-      await supabase
-        .from('profiles')
-        .update({
-          latitude,
-          longitude,
-          last_seen_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
-    } catch (error) {
-      logger.error('Error updating driver location:', error)
-    }
-  },
-
-  // ============================================
-  // GET MFA SETTINGS
-  // ============================================
-  getMFASettings: async () => {
-    if (!mfaService?.getSettings) return null
-    return await mfaService.getSettings()
-  },
-
-  // ============================================
-  // GET ACTIVE SESSIONS
-  // ============================================
-  getActiveSessions: async () => {
-    if (!sessionService?.getActiveSessions) return []
-    return await sessionService.getActiveSessions()
-  },
-
-  // ============================================
-  // REVOKE SESSION
-  // ============================================
-  revokeSession: async (sessionId) => {
-    if (!sessionService?.revokeSession) return { success: false, error: 'Not available' }
-    return await sessionService.revokeSession(sessionId)
-  },
-
-  // ============================================
-  // REVOKE ALL OTHER SESSIONS
-  // ============================================
-  revokeAllOtherSessions: async () => {
-    if (!sessionService?.revokeAllOtherSessions) return { success: false, error: 'Not available' }
-    return await sessionService.revokeAllOtherSessions()
   },
 
   // ============================================

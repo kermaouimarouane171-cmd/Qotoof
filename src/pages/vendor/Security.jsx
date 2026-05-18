@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { mfaService } from '@/services/authServices'
+import { mfaService, sessionService } from '@/services/authServices'
 import { trustScoreService } from '@/services/vendorSecurity'
 import { useAuditLogs } from '@/services/auditLogger'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
@@ -31,7 +31,7 @@ const VendorSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, profile, revokeAllOtherSessions, updatePassword } = useAuthStore()
+  const { user, profile, updatePassword } = useAuthStore()
   const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [trustScore, setTrustScore] = useState(null)
   const [showMFASetup, setShowMFASetup] = useState(false)
@@ -249,7 +249,7 @@ const VendorSecurityPage = () => {
     }
 
     try {
-      const result = await revokeAllOtherSessions()
+      const result = await sessionService.revokeAllOtherSessions()
 
       if (result.success) {
         // ✅ Send security email notification

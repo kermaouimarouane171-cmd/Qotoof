@@ -15,12 +15,10 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { useAuthStore } from '@/store/authStore'
+import { mfaService, sessionService } from '@/services/authServices'
 import { logger } from '@/utils/logger'
 
 export const useSecurity = () => {
-  const { getMFASettings, getActiveSessions } = useAuthStore()
-
   const [mfaSettings, setMfaSettings] = useState(null)
   const [sessionCount, setSessionCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -29,17 +27,17 @@ export const useSecurity = () => {
   const loadSecurityData = useCallback(async () => {
     try {
       setLoading(true)
-      const mfa = await getMFASettings()
+      const mfa = await mfaService.getSettings()
       setMfaSettings(mfa)
 
-      const sessions = await getActiveSessions()
+      const sessions = await sessionService.getActiveSessions()
       setSessionCount(sessions.length)
     } catch (error) {
       logger.error('Load security data error:', error)
     } finally {
       setLoading(false)
     }
-  }, [getMFASettings, getActiveSessions])
+  }, [])
 
   useEffect(() => {
     loadSecurityData()

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAuthStore } from '@/store/authStore'
-import { sessionService } from '@/services/vendorSecurity'
+import { sessionService } from '@/services/authServices'
 import {
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
@@ -12,7 +11,6 @@ import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
 const SessionManager = ({ isOpen, onClose }) => {
-  const { revokeSession, revokeAllOtherSessions } = useAuthStore()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [revoking, setRevoking] = useState(null)
@@ -38,7 +36,7 @@ const SessionManager = ({ isOpen, onClose }) => {
   const handleRevokeSession = async (sessionId) => {
     try {
       setRevoking(sessionId)
-      const result = await revokeSession(sessionId)
+      const result = await sessionService.revokeSession(sessionId)
 
       if (result.success) {
         toast.success('Session revoked')
@@ -59,7 +57,7 @@ const SessionManager = ({ isOpen, onClose }) => {
     }
 
     try {
-      const result = await revokeAllOtherSessions()
+      const result = await sessionService.revokeAllOtherSessions()
 
       if (result.success) {
         toast.success('All other sessions revoked')

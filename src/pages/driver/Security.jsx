@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService } from '@/services/authServices'
+import { mfaService, sessionService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
@@ -23,7 +23,7 @@ import toast from 'react-hot-toast'
 const DriverSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { profile, revokeAllOtherSessions } = useAuthStore()
+  const { profile } = useAuthStore()
   const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
@@ -59,7 +59,7 @@ const DriverSecurityPage = () => {
     }
 
     try {
-      const result = await revokeAllOtherSessions()
+      const result = await sessionService.revokeAllOtherSessions()
       if (result.success) {
         toast.success(t('driver.security.revokeSuccess', 'Signed out from all devices'))
         await loadSecurityData()
