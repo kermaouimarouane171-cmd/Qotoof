@@ -264,6 +264,10 @@ export const useAuthStore = create((set, get) => ({
 
           // Clear Supabase auth tokens from localStorage
           clearSupabaseLocalStorage()
+
+          // Clear persisted cart/favorites to prevent cross-user data leak
+          useCartStore.setState({ items: [], lastValidated: null, checkoutVendorId: null })
+          useFavoritesStore.setState({ favorites: [], favoriteIds: new Set(), userId: null, error: null })
           break
 
         case 'TOKEN_REFRESHED':
@@ -317,6 +321,11 @@ export const useAuthStore = create((set, get) => ({
             passwordRecoveryMode: false,
           })
           clearPendingAuthRedirect()
+
+          // Clear persisted cart/favorites to prevent cross-user data leak
+          useCartStore.setState({ items: [], lastValidated: null, checkoutVendorId: null })
+          useFavoritesStore.setState({ favorites: [], favoriteIds: new Set(), userId: null, error: null })
+
           // Navigate to login without a full page reload — React Router handles it
           window.dispatchEvent(new CustomEvent('auth:sessionExpired'))
           break

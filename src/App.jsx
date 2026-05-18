@@ -12,6 +12,7 @@
 import { Suspense, lazy, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 // === Imports ===
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -30,17 +31,23 @@ import {
 } from '@/services/phoneOtpService';
 import { useAuthStore } from '@/store/authStore';
 
+const AUTH_SESSION_EXPIRED_EVENT = 'auth:sessionExpired';
+
 // === Loading Fallback Component ===
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen bg-gray-50">
-    <div className="text-center">
-      <div className="inline-block">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+const LoadingFallback = () => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center">
+        <div className="inline-block">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        <p className="mt-4 text-gray-600">{t('common.loading', 'Loading...')}</p>
       </div>
-      <p className="mt-4 text-gray-600">جاري التحميل...</p>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * === LAZY LOADED PAGES ===
@@ -56,6 +63,7 @@ const RegisterPage = lazy(() => import('@/pages/auth/Register'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPassword'));
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPassword'));
 const VerifyEmailPage = lazy(() => import('@/pages/auth/VerifyEmail'));
+const TwoFactorPage = lazy(() => import('@/features/auth/components/TwoFactor'));
 const PhoneVerificationPage = lazy(() => import('@/components/auth/PhoneVerification'));
 
 // Onboarding Pages
@@ -69,7 +77,6 @@ const MarketplacePage = lazy(() => import('@/pages/Marketplace'));
 const ProductDetailPage = lazy(() => import('@/pages/ProductDetail'));
 const StoresPage = lazy(() => import('@/pages/Stores'));
 const StoreDetailPage = lazy(() => import('@/pages/StoreDetail'));
-const OrdersPage = lazy(() => import('@/pages/Orders'));
 const OrderDetailPage = lazy(() => import('@/pages/OrderDetail'));
 const CartPage = lazy(() => import('@/pages/Cart'));
 const CheckoutPage = lazy(() => import('@/pages/CheckoutSimplified'));
@@ -227,6 +234,27 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const handleSessionExpired = () => {
+      if (location.pathname === '/login') {
+        return;
+      }
+
+      navigate('/login?expired=true', {
+        replace: true,
+        state: {
+          from: `${location.pathname}${location.search}${location.hash}`,
+        },
+      });
+    };
+
+    window.addEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EXPIRED_EVENT, handleSessionExpired);
+    };
+  }, [location.hash, location.pathname, location.search, navigate]);
+
+  useEffect(() => {
     if (
       user?.id &&
       pendingPhoneVerification?.userId === user.id &&
@@ -353,6 +381,7 @@ function App() {
           <Route path="/forgot-password" element={<SuspenseRoute><ForgotPasswordPage /></SuspenseRoute>} />
           <Route path="/reset-password" element={<SuspenseRoute><ResetPasswordPage /></SuspenseRoute>} />
           <Route path="/verify-email" element={<SuspenseRoute><VerifyEmailPage /></SuspenseRoute>} />
+          <Route path="/mfa-verify" element={<SuspenseRoute><TwoFactorPage /></SuspenseRoute>} />
           <Route path="/verify-phone" element={<SuspenseRoute><PhoneVerificationPage /></SuspenseRoute>} />
           <Route path="/auth/callback" element={<SuspenseRoute><AuthCallbackPage /></SuspenseRoute>} />
 
@@ -370,23 +399,12 @@ function App() {
             <Route index element={<SuspenseRoute><HomePage /></SuspenseRoute>} />
             <Route path="marketplace" element={<SuspenseRoute><MarketplacePage /></SuspenseRoute>} />
             <Route path="product/:id" element={<SuspenseRoute><ProductDetailPage /></SuspenseRoute>} />
+            <Route path="products/:id" element={<SuspenseRoute><ProductDetailPage /></SuspenseRoute>} />
             <Route path="stores" element={<SuspenseRoute><StoresPage /></SuspenseRoute>} />
             <Route path="stores/:id" element={<SuspenseRoute><StoreDetailPage /></SuspenseRoute>} />
             <Route path="cart" element={<SuspenseRoute><CartPage /></SuspenseRoute>} />
             <Route path="search" element={<SuspenseRoute><SearchResultsPage /></SuspenseRoute>} />
-            <Route path="orders" element={<SuspenseRoute><OrdersPage /></SuspenseRoute>} />
-            <Route path="orders/:id" element={<SuspenseRoute><OrderDetailPage /></SuspenseRoute>} />
-            <Route path="orders/:id/condition" element={<SuspenseRoute><ProductConditionPage /></SuspenseRoute>} />
-            <Route path="order-confirmation" element={<SuspenseRoute><OrderConfirmationPage /></SuspenseRoute>} />
-            <Route path="order-confirmation/:id" element={<SuspenseRoute><OrderConfirmationPage /></SuspenseRoute>} />
-            <Route path="tracking/:id" element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
-            <Route path="favorites" element={<SuspenseRoute><FavoritesPage /></SuspenseRoute>} />
-            <Route path="notifications" element={<SuspenseRoute><NotificationsPage /></SuspenseRoute>} />
-            <Route path="profile" element={<SuspenseRoute><ProfilePage /></SuspenseRoute>} />
-            <Route path="checkout" element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
-            <Route path="chat" element={<SuspenseRoute><ChatPage /></SuspenseRoute>} />
-            <Route path="messages" element={<SuspenseRoute><MessagesPage /></SuspenseRoute>} />
-            <Route path="bank-account" element={<SuspenseRoute><BankAccountPage /></SuspenseRoute>} />
+            <Route path="orders" element={<Navigate to="/buyer/orders" replace />} />
             {/* Static / Info Pages */}
             <Route path="about" element={<SuspenseRoute><AboutPage /></SuspenseRoute>} />
             <Route path="contact" element={<SuspenseRoute><ContactPage /></SuspenseRoute>} />
@@ -397,9 +415,25 @@ function App() {
             <Route path="returns" element={<SuspenseRoute><ReturnsPage /></SuspenseRoute>} />
             <Route path="shipping" element={<SuspenseRoute><ShippingPage /></SuspenseRoute>} />
             <Route path="tracking" element={<SuspenseRoute><TrackingPage /></SuspenseRoute>} />
-            <Route path="activity-log" element={<SuspenseRoute><ActivityLogPage /></SuspenseRoute>} />
             <Route path="marketplace/seasonal" element={<SuspenseRoute><SeasonalPage /></SuspenseRoute>} />
             <Route path="vendor/public/:id" element={<SuspenseRoute><VendorPublicProfile /></SuspenseRoute>} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="orders/:id" element={<SuspenseRoute><OrderDetailPage /></SuspenseRoute>} />
+              <Route path="orders/:id/tracking" element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
+              <Route path="orders/:id/condition" element={<SuspenseRoute><ProductConditionPage /></SuspenseRoute>} />
+              <Route path="order-confirmation" element={<SuspenseRoute><OrderConfirmationPage /></SuspenseRoute>} />
+              <Route path="order-confirmation/:id" element={<SuspenseRoute><OrderConfirmationPage /></SuspenseRoute>} />
+              <Route path="order-tracking/:id" element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
+              <Route path="tracking/:id" element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
+              <Route path="favorites" element={<SuspenseRoute><FavoritesPage /></SuspenseRoute>} />
+              <Route path="notifications" element={<SuspenseRoute><NotificationsPage /></SuspenseRoute>} />
+              <Route path="profile" element={<SuspenseRoute><ProfilePage /></SuspenseRoute>} />
+              <Route path="checkout" element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
+              <Route path="chat" element={<SuspenseRoute><ChatPage /></SuspenseRoute>} />
+              <Route path="messages" element={<SuspenseRoute><MessagesPage /></SuspenseRoute>} />
+              <Route path="bank-account" element={<SuspenseRoute><BankAccountPage /></SuspenseRoute>} />
+              <Route path="activity-log" element={<SuspenseRoute><ActivityLogPage /></SuspenseRoute>} />
+            </Route>
             {/* Buyer Dashboard */}
             <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.BUYER]} />}>
               <Route path="buyer/dashboard" element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
