@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { fetchVendorOrders } from '@/services/ordersService'
+import { fetchVendorOrders, subscribeToVendorOrders } from '@/services/ordersService'
 import { ordersApi, deliveriesApi } from '@/services/deliveries'
-import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline } from '@/components/ui'
+import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline, EmptyState } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
 import { formatPrice } from '@/utils/currency'
@@ -41,8 +41,9 @@ const VendorOrders = () => {
     }
 
     try {
-      const data = await fetchVendorOrders(profile.id)
-      setOrders(data)
+      const { data, error } = await fetchVendorOrders(profile.id)
+      if (error) throw error
+      setOrders(data || [])
     } catch (error) {
       logger.error('Error loading orders:', error)
     }
@@ -54,7 +55,7 @@ const VendorOrders = () => {
     loadOrders()
 
     // Subscribe to real-time updates with notification
-    const channel = ordersApi.subscribeToVendorOrders(
+    const unsubscribe = subscribeToVendorOrders(
       profile.id,
       (payload) => {
         // ✅ Show toast for new pending orders
@@ -72,7 +73,7 @@ const VendorOrders = () => {
       }
     )
 
-    return () => channel.unsubscribe()
+    return unsubscribe
   }, [loadOrders, profile?.id, t])
 
   const loadAvailableDrivers = async () => {
@@ -230,10 +231,11 @@ const VendorOrders = () => {
       {/* Orders List */}
       <div className="space-y-4">
         {filteredOrders.length === 0 ? (
-          <Card className="p-12 text-center">
-            <TruckIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No orders found</p>
-          </Card>
+          <EmptyState
+            icon="truck"
+            title={t('vendor.orders.emptyTitle', 'No orders found')}
+            description={t('vendor.orders.emptyDescription', 'New orders will appear here once customers place them.')}
+          />
         ) : (
           filteredOrders.map((order) => (
             <Card key={order.id} className="p-6">
@@ -272,6 +274,7 @@ const VendorOrders = () => {
                           leftIcon={<CheckCircleIcon className="w-4 h-4" />}
                           onClick={() => handleAcceptOrder(order.id)}
                           disabled={processingOrder === order.id}
+                          data-cy={`accept-order-${order.id}`}
                         >
                           {processingOrder === order.id ? t('vendor.orders.accepting', 'Accepting...') : t('vendor.orders.accept', 'Accept')}
                         </Button>
@@ -281,6 +284,7 @@ const VendorOrders = () => {
                           leftIcon={<XCircleIcon className="w-4 h-4" />}
                           onClick={() => handleRejectOrder(order.id)}
                           disabled={processingOrder === order.id}
+                          data-cy={`reject-order-${order.id}`}
                         >
                           {processingOrder === order.id ? t('vendor.orders.rejecting', 'Rejecting...') : t('vendor.orders.reject', 'Reject')}
                         </Button>
@@ -293,6 +297,7 @@ const VendorOrders = () => {
                         size="sm"
                         leftIcon={<TruckIcon className="w-4 h-4" />}
                         onClick={() => handleOpenAssignModal(order)}
+                        data-cy={`assign-driver-${order.id}`}
                       >
                         Assign Driver
                       </Button>
@@ -361,6 +366,7 @@ const VendorOrders = () => {
                 <button
                   key={driver.driver_id}
                   onClick={() => setSelectedDriver(driver)}
+                  data-cy={`assign-driver-option-${driver.driver_id}`}
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
                     selectedDriver?.driver_id === driver.driver_id
                       ? 'border-green-500 bg-green-50'
@@ -404,6 +410,7 @@ const VendorOrders = () => {
               className="flex-1"
               onClick={handleAssignDriver}
               disabled={!selectedDriver}
+              data-cy="assign-driver-confirm"
             >
               Assign Driver
             </Button>

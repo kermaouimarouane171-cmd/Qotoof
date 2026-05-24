@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.200.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { enforceServerRateLimit, getClientIp, json, jsonHeaders } from '../_shared/serverRateLimit.ts'
+import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID')
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN')
@@ -15,14 +16,27 @@ const SMS_REQUEST_LIMIT = {
   blockSeconds: 60,
 }
 
-serve(async (req) => {
-  try {
-    if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: jsonHeaders })
-    }
+const json = (
+  body: unknown,
+  status = 200,
+  req?: Request,
+  extraHeaders: Record<string, string> = {},
+) => new Response(JSON.stringify(body), {
+  status,
+  headers: {
+    ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}),
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  },
+})
 
+serve(async (req) => {
+  const optionsResponse = handleOptions(req)
+  if (optionsResponse) return optionsResponse
+
+  try {
     if (req.method !== 'POST') {
-      return json({ error: 'Method not allowed' }, 405)
+      return json({ error: 'Method not allowed' }, 405, req)
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -45,6 +59,7 @@ serve(async (req) => {
       return json(
         { error: 'Too many requests, try again later' },
         429,
+        req,
         { 'Retry-After': String(rateLimitResult.retry_after_seconds || SMS_REQUEST_LIMIT.blockSeconds) },
       )
     }
@@ -52,19 +67,19 @@ serve(async (req) => {
     const { to, message } = await req.json()
 
     if (!to || !message) {
-      return json({ error: 'Missing required fields: to, message' }, 400)
+      return json({ error: 'Missing required fields: to, message' }, 400, req)
     }
 
     if (typeof to !== 'string' || !to.startsWith('+')) {
-      return json({ error: 'Invalid phone number format' }, 400)
+      return json({ error: 'Invalid phone number format' }, 400, req)
     }
 
     if (typeof message !== 'string' || message.length > 600) {
-      return json({ error: 'Invalid message body' }, 400)
+      return json({ error: 'Invalid message body' }, 400, req)
     }
 
     if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || (!TWILIO_MESSAGING_SERVICE_SID && !TWILIO_FROM_NUMBER)) {
-      return json({ error: 'Twilio environment variables are not configured' }, 503)
+      return json({ error: 'Twilio environment variables are not configured' }, 503, req)
     }
 
     const payload = new URLSearchParams()
@@ -92,11 +107,11 @@ serve(async (req) => {
 
     const result = await response.json()
     if (!response.ok) {
-      return json({ error: result?.message || 'Failed to send SMS' }, response.status)
+      return json({ error: result?.message || 'Failed to send SMS' }, response.status, req)
     }
 
-    return json({ success: true, sid: result.sid }, 200)
+    return json({ success: true, sid: result.sid }, 200, req)
   } catch (error) {
-    return json({ error: error?.message || 'Failed to send SMS' }, 500)
+    return json({ error: error?.message || 'Failed to send SMS' }, 500, req)
   }
 })

@@ -1,347 +1,334 @@
-/**
- * Tests for deliveries service
- * Note: We test the delivery logic in isolation due to supabase/withRetry dependencies.
- */
+jest.mock('@/services/supabase', () => ({
+  supabase: mockSupabase,
+}))
 
-describe('deliveriesApi', () => {
-  // Simulated deliveries API
-  const createDeliveriesApi = () => {
-    let deliveries = [
-      { id: 'd1', driver_id: 'drv1', status: 'assigned', order_id: 'o1' },
-      { id: 'd2', driver_id: null, status: 'unassigned', order_id: 'o2' },
-    ]
-    let orders = [
-      { id: 'o1', order_number: 'ORD-001', status: 'pending', buyer_id: 'b1', vendor_id: 'v1' },
-      { id: 'o2', order_number: 'ORD-002', status: 'pending', buyer_id: 'b2', vendor_id: 'v1' },
-    ]
+jest.mock('@/utils/withRetry', () => ({
+  withRetry: (fn) => fn,
+}))
 
-    return {
-      async getDriverDeliveries(driverId, status = null) {
-        let result = deliveries.filter(d => d.driver_id === driverId)
-        if (status) result = result.filter(d => d.status === status)
-        return result
-      },
+jest.mock('@/utils/logger', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
+}))
 
-      async getUnassignedDeliveries(vendorId) {
-        return deliveries.filter(d => d.status === 'unassigned')
-      },
+const mockSupabaseState = {
+  queryResolver: jest.fn(),
+}
 
-      async assignDriver(deliveryId, driverId) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery || !['unassigned', 'driver_assigned'].includes(delivery.status)) {
-          throw new Error('This delivery has already been assigned or accepted')
-        }
-        delivery.driver_id = driverId
-        delivery.status = 'assigned'
-        delivery.assigned_at = new Date().toISOString()
-        return delivery
-      },
+const mockDeliveryChannel = {
+  topic: 'delivery:del-1',
+  unsubscribe: jest.fn(),
+}
 
-      async acceptDelivery(deliveryId) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery || delivery.status !== 'assigned') {
-          throw new Error('This delivery has already been accepted by another driver')
-        }
-        delivery.status = 'accepted'
-        delivery.accepted_at = new Date().toISOString()
-        const order = orders.find(o => o.id === delivery.order_id)
-        if (order) order.status = 'driver_accepted'
-        return delivery
-      },
+const mockDeliveryChannelBuilder = {
+  lastCallback: null,
+  lastFilter: null,
+  on: jest.fn((event, filter, callback) => {
+    mockDeliveryChannelBuilder.lastCallback = callback
+    mockDeliveryChannelBuilder.lastFilter = filter
+    return mockDeliveryChannelBuilder
+  }),
+  subscribe: jest.fn(() => mockDeliveryChannel),
+}
 
-      async rejectDelivery(deliveryId, reason = '') {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery) throw new Error('Delivery not found')
-        delivery.driver_id = null
-        delivery.status = 'unassigned'
-        delivery.driver_notes = reason
-        const order = orders.find(o => o.id === delivery.order_id)
-        if (order) order.status = 'vendor_accepted'
-        return delivery
-      },
-
-      async markPickedUp(deliveryId) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery || delivery.status !== 'accepted') {
-          throw new Error('This delivery is not in a state to be picked up')
-        }
-        delivery.status = 'picked_up'
-        delivery.picked_up_at = new Date().toISOString()
-        const order = orders.find(o => o.id === delivery.order_id)
-        if (order) order.status = 'driver_picked_up'
-        return delivery
-      },
-
-      async markOnTheWay(deliveryId) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery || delivery.status !== 'picked_up') {
-          throw new Error('This delivery has not been picked up yet')
-        }
-        delivery.status = 'on_the_way'
-        const order = orders.find(o => o.id === delivery.order_id)
-        if (order) order.status = 'on_the_way'
-        return delivery
-      },
-
-      async markDelivered(deliveryId, proofUrl = null, signatureUrl = null) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery) throw new Error('Delivery not found')
-        delivery.status = 'delivered'
-        delivery.delivered_at = new Date().toISOString()
-        delivery.delivery_proof_url = proofUrl
-        delivery.signature_url = signatureUrl
-        const order = orders.find(o => o.id === delivery.order_id)
-        if (order) {
-          order.status = 'delivered'
-          order.delivered_at = new Date().toISOString()
-        }
-        return delivery
-      },
-
-      async updateLocation(deliveryId, latitude, longitude) {
-        const delivery = deliveries.find(d => d.id === deliveryId)
-        if (!delivery) throw new Error('Delivery not found')
-        delivery.current_latitude = latitude
-        delivery.current_longitude = longitude
-        delivery.last_location_update = new Date().toISOString()
-      },
-
-      async getById(deliveryId) {
-        return deliveries.find(d => d.id === deliveryId) || null
-      },
-
-      async getBuyerActiveDelivery(buyerId) {
-        const buyerOrders = orders.filter(o => o.buyer_id === buyerId)
-        const orderIds = buyerOrders.map(o => o.id)
-        return deliveries.find(d =>
-          orderIds.includes(d.order_id) &&
-          ['accepted', 'picked_up', 'on_the_way'].includes(d.status)
-        ) || null
-      },
-    }
+const mockCreateQueryBuilder = (table) => {
+  const state = {
+    table,
+    action: null,
+    payload: null,
+    selection: null,
+    filters: [],
+    terminal: null,
   }
 
-  let api
-
-  beforeEach(() => {
-    api = createDeliveriesApi()
-  })
-
-  describe('getDriverDeliveries', () => {
-    it('should fetch deliveries for a driver', async () => {
-      const result = await api.getDriverDeliveries('drv1')
-
-      expect(result).toHaveLength(1)
-      expect(result[0].driver_id).toBe('drv1')
-    })
-
-    it('should filter by status when provided', async () => {
-      const result = await api.getDriverDeliveries('drv1', 'assigned')
-
-      expect(result).toHaveLength(1)
-    })
-  })
-
-  describe('getUnassignedDeliveries', () => {
-    it('should fetch unassigned deliveries for vendor', async () => {
-      const result = await api.getUnassignedDeliveries('v1')
-
-      expect(result).toHaveLength(1)
-      expect(result[0].status).toBe('unassigned')
-    })
-  })
-
-  describe('assignDriver', () => {
-    it('should assign driver to unassigned delivery', async () => {
-      const result = await api.assignDriver('d2', 'drv1')
-
-      expect(result.driver_id).toBe('drv1')
-      expect(result.status).toBe('assigned')
-    })
-
-    it('should fail if delivery already assigned', async () => {
-      await expect(api.assignDriver('d1', 'drv2')).rejects.toThrow('already been assigned')
-    })
-  })
-
-  describe('acceptDelivery', () => {
-    it('should accept an assigned delivery', async () => {
-      await api.assignDriver('d2', 'drv1')
-      const result = await api.acceptDelivery('d2')
-
-      expect(result.status).toBe('accepted')
-    })
-
-    it('should fail if delivery not in assigned state', async () => {
-      await expect(api.acceptDelivery('d2')).rejects.toThrow('already been accepted')
-    })
-  })
-
-  describe('markPickedUp', () => {
-    it('should mark accepted delivery as picked up', async () => {
-      await api.assignDriver('d2', 'drv1')
-      await api.acceptDelivery('d2')
-      const result = await api.markPickedUp('d2')
-
-      expect(result.status).toBe('picked_up')
-    })
-
-    it('should fail if delivery not accepted', async () => {
-      await expect(api.markPickedUp('d2')).rejects.toThrow('not in a state to be picked up')
-    })
-  })
-
-  describe('markOnTheWay', () => {
-    it('should mark picked up delivery as on the way', async () => {
-      await api.assignDriver('d2', 'drv1')
-      await api.acceptDelivery('d2')
-      await api.markPickedUp('d2')
-      const result = await api.markOnTheWay('d2')
-
-      expect(result.status).toBe('on_the_way')
-    })
-  })
-
-  describe('markDelivered', () => {
-    it('should mark on_the_way delivery as delivered', async () => {
-      await api.assignDriver('d2', 'drv1')
-      await api.acceptDelivery('d2')
-      await api.markPickedUp('d2')
-      await api.markOnTheWay('d2')
-      const result = await api.markDelivered('d2')
-
-      expect(result.status).toBe('delivered')
-      expect(result.delivered_at).toBeDefined()
-    })
-  })
-
-  describe('updateLocation', () => {
-    it('should update driver location', async () => {
-      await expect(api.updateLocation('d1', 33.5731, -7.5898)).resolves.toBeUndefined()
-    })
-  })
-
-  describe('getById', () => {
-    it('should fetch delivery by ID', async () => {
-      const result = await api.getById('d1')
-
-      expect(result).toBeDefined()
-      expect(result.id).toBe('d1')
-    })
-
-    it('should return null for unknown ID', async () => {
-      const result = await api.getById('unknown')
-
-      expect(result).toBeNull()
-    })
-  })
-
-  describe('getBuyerActiveDelivery', () => {
-    it('should return active delivery for buyer', async () => {
-      const result = await api.getBuyerActiveDelivery('b1')
-
-      expect(result).toBeNull() // d1 is assigned, not active for buyer tracking
-    })
-  })
-})
-
-describe('ordersApi (deliveries)', () => {
-  const createOrdersApi = () => {
-    let orders = [
-      { id: 'o1', order_number: 'ORD-001', status: 'pending', buyer_id: 'b1', vendor_id: 'v1' },
-    ]
-    const notifications = []
-
-    return {
-      async acceptOrder(orderId) {
-        const order = orders.find(o => o.id === orderId)
-        if (!order) throw new Error('Order not found')
-        order.status = 'vendor_accepted'
-        order.accepted_at = new Date().toISOString()
-        notifications.push({
-          user_id: order.buyer_id,
-          type: 'order_update',
-          title: 'Order Accepted',
-          message: `Your order ${order.order_number} has been accepted`,
-          order_id: orderId,
-        })
-        return order
-      },
-
-      async rejectOrder(orderId, reason = '') {
-        const order = orders.find(o => o.id === orderId)
-        if (!order) throw new Error('Order not found')
-        order.status = 'vendor_rejected'
-        order.cancelled_at = new Date().toISOString()
-        order.cancellation_reason = reason
-        notifications.push({
-          user_id: order.buyer_id,
-          type: 'order_update',
-          title: 'Order Rejected',
-          message: `Your order ${order.order_number} has been rejected`,
-          order_id: orderId,
-        })
-        return order
-      },
-
-      getNotifications() {
-        return notifications
-      },
-    }
+  const builder = {
+    select: jest.fn((selection) => {
+      state.selection = selection
+      return builder
+    }),
+    insert: jest.fn((payload) => {
+      state.action = 'insert'
+      state.payload = payload
+      return builder
+    }),
+    update: jest.fn((payload) => {
+      state.action = 'update'
+      state.payload = payload
+      return builder
+    }),
+    eq: jest.fn((field, value) => {
+      state.filters.push({ field, value })
+      return builder
+    }),
+    maybeSingle: jest.fn(() => {
+      state.terminal = 'maybeSingle'
+      return builder
+    }),
+    single: jest.fn(() => {
+      state.terminal = 'single'
+      return builder
+    }),
+    then: (resolve, reject) => {
+      try {
+        return Promise.resolve(mockSupabaseState.queryResolver(state)).then(resolve, reject)
+      } catch (error) {
+        return Promise.reject(error).then(resolve, reject)
+      }
+    },
   }
 
-  let api
+  return builder
+}
 
-  beforeEach(() => {
-    api = createOrdersApi()
-  })
+jest.mock('@/services/supabase', () => {
+  const mockSupabase = {
+    from: jest.fn((table) => mockCreateQueryBuilder(table)),
+    channel: jest.fn(() => mockDeliveryChannelBuilder),
+    removeChannel: jest.fn(),
+    auth: {
+      getUser: jest.fn(async () => ({
+        data: { user: { id: 'driver-1' } },
+        error: null,
+      })),
+    },
+    functions: {
+      invoke: jest.fn(),
+    },
+  }
 
-  describe('acceptOrder', () => {
-    it('should accept order and create notification', async () => {
-      const result = await api.acceptOrder('o1')
+  globalThis.__mockSupabase = mockSupabase
 
-      expect(result.status).toBe('vendor_accepted')
-      expect(api.getNotifications()).toHaveLength(1)
-    })
-  })
-
-  describe('rejectOrder', () => {
-    it('should reject order with reason', async () => {
-      const result = await api.rejectOrder('o1', 'Out of stock')
-
-      expect(result.status).toBe('vendor_rejected')
-      expect(result.cancellation_reason).toBe('Out of stock')
-    })
-  })
+  return {
+    supabase: mockSupabase,
+  }
 })
 
-describe('delivery state machine', () => {
-  it('should follow valid state transitions: unassigned -> assigned -> accepted -> picked_up -> on_the_way -> delivered', () => {
-    const states = ['unassigned', 'assigned', 'accepted', 'picked_up', 'on_the_way', 'delivered']
-    const validTransitions = {
-      unassigned: ['assigned'],
-      assigned: ['accepted'],
-      accepted: ['picked_up'],
-      picked_up: ['on_the_way'],
-      on_the_way: ['delivered'],
-      delivered: [],
-    }
+import {
+  assignDriver,
+  createDelivery,
+  fetchDeliveryById,
+  markDelivered,
+  subscribeToDeliveryUpdates,
+  updateDeliveryStatus,
+} from '@/services/deliveries'
 
-    expect(Object.keys(validTransitions)).toEqual(states)
-    expect(validTransitions.delivered).toEqual([])
+const mockSupabase = globalThis.__mockSupabase
+
+describe('deliveries service', () => {
+  const fixedNow = new Date('2026-05-23T10:00:00.000Z')
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    jest.useFakeTimers()
+    jest.setSystemTime(fixedNow)
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: null,
+      error: null,
+    }))
   })
 
-  it('should prevent invalid transitions', () => {
-    const invalidTransitions = [
-      { from: 'unassigned', to: 'delivered' },
-      { from: 'assigned', to: 'picked_up' },
-      { from: 'accepted', to: 'on_the_way' },
-      { from: 'delivered', to: 'assigned' },
-    ]
+  afterEach(() => {
+    jest.useRealTimers()
+  })
 
-    invalidTransitions.forEach(({ from, to }) => {
-      expect(from).toBeDefined()
-      expect(to).toBeDefined()
+  it('fetchDeliveryById returns the joined delivery row', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'del-1',
+          order_id: 'order-1',
+          status: 'assigned',
+          order: { id: 'order-1', order_number: 'ORD-001' },
+        },
+        error: null,
+      }
+    })
+
+    const result = await fetchDeliveryById('del-1')
+
+    expect(result).toEqual({
+      data: {
+        id: 'del-1',
+        order_id: 'order-1',
+        status: 'assigned',
+        order: { id: 'order-1', order_number: 'ORD-001' },
+      },
+      error: null,
+    })
+    expect(mockSupabase.from).toHaveBeenCalledWith('deliveries')
+    expect(capturedState.selection).toContain('order:orders(')
+    expect(capturedState.filters).toEqual([{ field: 'id', value: 'del-1' }])
+    expect(capturedState.terminal).toBe('maybeSingle')
+  })
+
+  it('updateDeliveryStatus updates status and timestamps', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'del-2',
+          ...state.payload,
+        },
+        error: null,
+      }
+    })
+
+    const result = await updateDeliveryStatus('del-2', 'picked_up')
+
+    expect(result.error).toBeNull()
+    expect(result.data).toMatchObject({
+      id: 'del-2',
+      status: 'picked_up',
+      updated_at: fixedNow.toISOString(),
+      picked_up_at: fixedNow.toISOString(),
+    })
+    expect(capturedState.payload).toMatchObject({
+      status: 'picked_up',
+      updated_at: fixedNow.toISOString(),
+      picked_up_at: fixedNow.toISOString(),
+    })
+  })
+
+  it('subscribeToDeliveryUpdates creates the realtime channel and unsubscribes it', () => {
+    const callback = jest.fn()
+    const unsubscribe = subscribeToDeliveryUpdates('del-3', callback)
+
+    expect(mockSupabase.channel).toHaveBeenCalledWith('delivery:del-3')
+    expect(mockDeliveryChannelBuilder.on).toHaveBeenCalledWith(
+      'postgres_changes',
+      expect.objectContaining({
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'deliveries',
+        filter: 'id=eq.del-3',
+      }),
+      expect.any(Function)
+    )
+
+    mockDeliveryChannelBuilder.lastCallback({ new: { id: 'del-3', status: 'delivered' } })
+
+    expect(callback).toHaveBeenCalledWith({ id: 'del-3', status: 'delivered' })
+
+    unsubscribe()
+
+    expect(mockSupabase.removeChannel).toHaveBeenCalledWith(mockDeliveryChannel)
+  })
+
+  it('createDelivery creates a delivery with the initial status', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'del-4',
+          ...state.payload,
+          created_at: fixedNow.toISOString(),
+        },
+        error: null,
+      }
+    })
+
+    const result = await createDelivery({
+      orderId: 'order-4',
+      vendorId: 'vendor-4',
+      driverId: 'driver-4',
+      status: 'assigned',
+    })
+
+    expect(result.data).toMatchObject({
+      id: 'del-4',
+      order_id: 'order-4',
+      vendor_id: 'vendor-4',
+      driver_id: 'driver-4',
+      status: 'assigned',
+    })
+    expect(capturedState.action).toBe('insert')
+    expect(capturedState.payload).toEqual({
+      order_id: 'order-4',
+      vendor_id: 'vendor-4',
+      driver_id: 'driver-4',
+      status: 'assigned',
+    })
+  })
+
+  it('assignDriver updates driver_id and status', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'del-5',
+          ...state.payload,
+        },
+        error: null,
+      }
+    })
+
+    const result = await assignDriver('del-5', 'driver-5')
+
+    expect(result.data).toMatchObject({
+      id: 'del-5',
+      driver_id: 'driver-5',
+      status: 'assigned',
+      assigned_at: fixedNow.toISOString(),
+    })
+    expect(capturedState.payload).toMatchObject({
+      driver_id: 'driver-5',
+      status: 'assigned',
+      assigned_at: fixedNow.toISOString(),
+    })
+  })
+
+  it('markDelivered sets delivered_at and proof photo url', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'del-6',
+          ...state.payload,
+        },
+        error: null,
+      }
+    })
+
+    const result = await markDelivered('del-6', 'https://cdn.example.com/proof.jpg')
+
+    expect(result.data).toMatchObject({
+      id: 'del-6',
+      status: 'delivered',
+      delivered_at: fixedNow.toISOString(),
+      proof_photo_url: 'https://cdn.example.com/proof.jpg',
+    })
+    expect(capturedState.payload).toMatchObject({
+      status: 'delivered',
+      delivered_at: fixedNow.toISOString(),
+      proof_photo_url: 'https://cdn.example.com/proof.jpg',
+    })
+  })
+
+  it.each([
+    ['createDelivery', () => createDelivery({ orderId: 'order-err' })],
+    ['fetchDeliveryById', () => fetchDeliveryById('del-err')],
+    ['updateDeliveryStatus', () => updateDeliveryStatus('del-err', 'accepted')],
+    ['assignDriver', () => assignDriver('del-err', 'driver-err')],
+    ['markDelivered', () => markDelivered('del-err', 'proof-url')],
+  ])('%s returns wrapped errors when supabase fails', async (_label, call) => {
+    const error = new Error('supabase exploded')
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: null,
+      error,
+    }))
+
+    await expect(call()).resolves.toEqual({
+      data: null,
+      error,
     })
   })
 })

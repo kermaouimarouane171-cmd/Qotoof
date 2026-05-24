@@ -2,127 +2,90 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { Button, Input, LoadingSpinner } from '@/components/ui'
-
-// Helper to mask email for privacy
-const maskEmail = (email) => {
-  if (!email || !email.includes('@')) return email
-  const [name, domain] = email.split('@')
-  if (name.length < 2) return `***@${domain}`
-  const maskedName = name.charAt(0) + '***' + name.charAt(name.length - 1)
-  return `${maskedName}@${domain}`
-}
+import { Input, Button } from '@/components/ui'
+import { passwordResetSchema } from '@/utils/validationSchemas'
 
 const ForgotPasswordPage = () => {
   const { t } = useTranslation()
-  const { resetPassword } = useAuthStore()
+  const resetPassword = useAuthStore((s) => s.resetPassword)
 
   const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  const validateEmail = (email) => {
-    // More robust email validation
-    const re = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
-    return re.test(email) && email.length <= 254
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
     setError('')
 
-    if (!email) {
-      setError(t('auth.forgotPassword.errors.emailRequired', 'Please enter your email'))
-      return
-    }
-
-    if (!validateEmail(email)) {
-      setError(t('auth.forgotPassword.errors.invalidEmail', 'Please enter a valid email address'))
+    const parsed = passwordResetSchema.safeParse({ email })
+    if (!parsed.success) {
+      setError(parsed.error.issues?.[0]?.message || t('auth.forgotPassword.validation.email', 'يرجى إدخال بريد إلكتروني صحيح'))
       return
     }
 
     setLoading(true)
-    const result = await resetPassword(email)
+    const result = await resetPassword(parsed.data.email)
     setLoading(false)
 
-    // SECURITY: Always show success regardless of whether email exists
-    // This prevents user enumeration attacks
-    if (result.success) {
-      setSuccess(true)
-    } else if (result.rateLimited) {
-      // Show specific rate limit message
-      setError(result.message || t('auth.forgotPassword.errors.rateLimited', 'Too many attempts. Please wait before trying again.'))
-    } else {
-      // For any other error, still show success to prevent enumeration
-      setSuccess(true)
+    if (!result.success && result.rateLimited) {
+      setError(result.message || t('auth.forgotPassword.validation.rateLimited', 'محاولات كثيرة، يرجى المحاولة لاحقًا'))
+      return
     }
-  }
 
-  if (success) {
-    return (
-      <div className="text-center">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          {t('auth.forgotPassword.successTitle', 'Check your email')}
-        </h2>
-        <p className="text-gray-600 mb-6">
-          {t('auth.forgotPassword.successMessage',
-            'If an account exists with {{email}}, you will receive a password reset link shortly. Please check your inbox.',
-            { email: maskEmail(email) })}
-        </p>
-        <Link to="/login" className="text-green-600 font-medium hover:underline">
-          {t('auth.forgotPassword.backToLogin', 'Back to login')}
-        </Link>
-      </div>
-    )
+    // Intentionally show success in all non-rate-limit cases.
+    setSuccess(true)
   }
 
   return (
-    <div>
+    <div className="max-w-md mx-auto" dir="rtl" data-cy="forgot-password-page">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        {t('auth.forgotPassword.title', 'Reset Password')}
+        {t('auth.forgotPassword.title', 'نسيت كلمة المرور')}
       </h2>
-      <p className="text-gray-500 mb-6">
-        {t('auth.forgotPassword.subtitle', 'Enter your email and we\'ll send you a link to reset your password.')}
+      <p className="text-gray-600 mb-6">
+        {t('auth.forgotPassword.subtitle', 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور')}
       </p>
 
-      {error && (
-        <div className="alert-error mb-6" role="alert">
-          {error}
+      {success ? (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4" data-cy="forgot-password-success">
+          <p className="text-green-700 text-sm">
+            {t('auth.forgotPassword.success', 'تم إرسال رابط إعادة التعيين إذا كان البريد الإلكتروني مسجلًا لدينا.')}
+          </p>
+          <Link to="/login" className="inline-block mt-3 text-green-700 font-semibold hover:underline" data-cy="forgot-password-back-login">
+            {t('auth.forgotPassword.backToLogin', 'العودة لتسجيل الدخول')}
+          </Link>
         </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4" data-cy="forgot-password-form">
+          {error && (
+            <div className="alert-error" data-cy="forgot-password-error">{error}</div>
+          )}
+
+          <Input
+            label={t('auth.forgotPassword.emailLabel', 'البريد الإلكتروني')}
+            type="email"
+            name="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              if (error) setError('')
+            }}
+            placeholder={t('auth.forgotPassword.emailPlaceholder', 'name@example.com')}
+            data-cy="forgot-password-email-input"
+          />
+
+          <Button type="submit" variant="primary" className="w-full" isLoading={loading} data-cy="forgot-password-submit-button">
+            {t('auth.forgotPassword.submit', 'إرسال رابط إعادة التعيين')}
+          </Button>
+
+          <p className="text-sm text-center text-gray-600">
+            {t('auth.forgotPassword.haveAccount', 'تذكرت كلمة المرور؟')}{' '}
+            <Link to="/login" className="text-green-600 hover:underline font-semibold" data-cy="forgot-password-login-link">
+              {t('auth.forgotPassword.login', 'تسجيل الدخول')}
+            </Link>
+          </p>
+        </form>
       )}
-
-      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-        <Input
-          label={t('auth.forgotPassword.emailLabel', 'Email address')}
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder={t('auth.forgotPassword.emailPlaceholder', 'Enter your email address')}
-          autoComplete="email"
-          required
-          aria-describedby={error ? 'forgot-password-error' : undefined}
-          aria-invalid={!!error}
-        />
-
-        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading}>
-          {loading
-            ? t('auth.forgotPassword.sending', 'Sending...')
-            : t('auth.forgotPassword.sendLink', 'Send Reset Link')}
-        </Button>
-      </form>
-
-      <p className="mt-6 text-center text-sm text-gray-500">
-        {t('auth.forgotPassword.rememberPassword', 'Remember your password?')}{' '}
-        <Link to="/login" className="text-green-600 font-medium hover:underline">
-          {t('auth.forgotPassword.signIn', 'Sign in')}
-        </Link>
-      </p>
     </div>
   )
 }

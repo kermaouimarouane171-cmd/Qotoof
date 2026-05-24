@@ -1,5 +1,4 @@
 import { supabase } from '@/services/supabase'
-import { logger } from '@/utils/logger'
 
 /**
  * CMI (Centre Monétique Interbancaire) Webhook Handler
@@ -16,8 +15,6 @@ import { logger } from '@/utils/logger'
 export const CMI_EDGE_FUNCTION = `
 import { createClient } from 'https://esm.sh/@supabase/supabase-js'
 import { createHash } from 'https://deno.land/std/hash/mod.ts'
-
-const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
 
 function verifyCMISignature(payload, signature, storeKey) {
   const sortedKeys = Object.keys(payload).filter(k => k !== 'HASH').sort()
@@ -41,12 +38,11 @@ Deno.serve(async (req) => {
 
   try {
     if (status === '00') {
-      await supabase.from('payments').update({ status: 'succeeded', cmi_transaction_id: transactionId, paid_at: new Date().toISOString() }).eq('cmi_order_id', body.OID)
-      await supabase.from('orders').update({ status: 'confirmed', payment_status: 'paid' }).eq('id', body.OID)
-      await supabase.from('audit_logs').insert({ action: 'cmi_payment_succeeded', entity_type: 'payment', entity_id: body.OID, metadata: { amount: body.AMOUNT, currency: body.CURRENCY } })
+      // Delegate state transition to payment-status-write edge function
+      // provider: 'cmi', status: 'succeeded', referenceId: body.OID, transactionId: transactionId
     } else {
-      await supabase.from('payments').update({ status: 'failed', failure_reason: \`CMI RETCODE: \${status}\` }).eq('cmi_order_id', body.OID)
-      await supabase.from('orders').update({ status: 'payment_failed', payment_status: 'failed' }).eq('id', body.OID)
+      // Delegate state transition to payment-status-write edge function
+      // provider: 'cmi', status: 'failed', referenceId: body.OID
     }
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 })
@@ -59,6 +55,35 @@ Deno.serve(async (req) => {
   })
 })
 `
+
+/**
+ * Secure payment state write through Edge Function.
+ * Requires authenticated user; authorization is enforced server-side.
+ */
+export async function writeCMIPaymentStatus({
+  status,
+  referenceId,
+  orderId,
+  failureReason,
+  transactionId,
+}) {
+  const { data, error } = await supabase.functions.invoke('payment-status-write', {
+    body: {
+      provider: 'cmi',
+      status,
+      referenceId,
+      orderId,
+      failureReason,
+      transactionId,
+    },
+  })
+
+  if (error) {
+    return { success: false, error: error.message || 'Edge function invocation failed' }
+  }
+
+  return data
+}
 
 /**
  * Subscribe to real-time CMI payment updates
@@ -84,7 +109,7 @@ export function subscribeToCMIPaymentUpdates(orderId, callback) {
 /**
  * Build CMI payment form parameters (client-side redirect to CMI portal)
  */
-export function buildCMIPaymentParams({ orderId, amount, currency = 'MAD', customer }) {
+export function buildCMIPaymentParams({ orderId, amount, currency: _currency = 'MAD', customer }) {
   const merchantId = import.meta.env.VITE_CMI_MERCHANT_ID
   const callbackUrl = `${window.location.origin}/api/webhooks/cmi`
   const okUrl = `${window.location.origin}/orders/${orderId}/confirmation`

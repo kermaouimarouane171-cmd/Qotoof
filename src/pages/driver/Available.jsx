@@ -31,6 +31,7 @@ const DriverAvailable = () => {
 
   useEffect(() => {
     loadAvailableDeliveries()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
   const loadAvailableDeliveries = async () => {

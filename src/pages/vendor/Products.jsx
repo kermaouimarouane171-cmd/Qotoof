@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { runProductImageFallbackQuery } from '@/services/productImages'
-import { Button, Card, Modal, Input, Map, LoadingSpinner, VendorAlerts } from '@/components/ui'
+import { Button, Card, Modal, Input, Map, LoadingSpinner, VendorAlerts, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import InventoryManager from '@/components/vendor/InventoryManager'
 import { ImageUploader } from '@/components/vendor/ProductForm'
 import { formatPrice } from '@/utils/currency'
@@ -597,8 +597,14 @@ const VendorProducts = () => {
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, index) => <Skeleton.Card key={index} />)}
+        </div>
       </div>
     )
   }
@@ -645,14 +651,13 @@ const VendorProducts = () => {
       {/* Products Table */}
       <Card>
         {products.length === 0 ? (
-          <div className="p-12 text-center">
-            <PhotoIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No products yet</h3>
-            <p className="text-gray-500 mb-6">Add your first product to start selling</p>
-            <Button variant="primary" leftIcon={<PlusIcon className="w-5 h-5" />} onClick={() => handleOpenModal()}>
-              Add Your First Product
-            </Button>
-          </div>
+          <EmptyState
+            icon="products"
+            title={t('vendor.products.emptyTitle', 'No products yet')}
+            description={t('vendor.products.emptyDescription', 'Add your first product to start selling')}
+            actionLabel={t('vendor.products.addFirst', 'Add Your First Product')}
+            onAction={() => handleOpenModal()}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="table">

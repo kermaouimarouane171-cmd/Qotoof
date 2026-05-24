@@ -90,6 +90,7 @@ const PaymentPolicySettings = ({ value, onChange, disabled = false, error }) => 
             const checked = Boolean(value?.[option.key])
 
             return (
+              // eslint-disable-next-line jsx-a11y/label-has-associated-control
               <label
                 key={option.key}
                 className={`block rounded-2xl border p-4 transition-all ${option.panelClassName} ${checked ? 'ring-2 ring-offset-2 ring-emerald-400' : ''} ${disabled ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer hover:shadow-sm'}`}

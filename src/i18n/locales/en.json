@@ -2217,7 +2217,7 @@
     "errors": {
       "fillAllFields": "Please fill in all fields",
       "invalidEmail": "Please enter a valid email address",
-      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordTooShort": "Password must be 8 characters minimum",
       "invalidCredentials": "Invalid email or password. Please try again."
     },
     "forgotPassword": {
@@ -2495,7 +2495,7 @@
   "buyerSecurity": {
     "passwordUpdated": "Password updated successfully! All other sessions have been signed out.",
     "errors": {
-      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordTooShort": "Password must be 8 characters minimum",
       "passwordTooLong": "Password must be less than 128 characters",
       "passwordNeedsUppercase": "Password must contain at least one uppercase letter",
       "passwordNeedsLowercase": "Password must contain at least one lowercase letter",

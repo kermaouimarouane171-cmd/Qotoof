@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import { supabase } from '@/services/supabase'
-import { fetchProfile } from '@/services/profilesService'
+import { fetchProfile, profilesService } from '@/services/profilesService'
 import { fetchBuyerOrdersAll } from '@/services/ordersService'
 import {
   ArrowLeftIcon,
@@ -101,13 +101,10 @@ const BuyerSettings = () => {
     if (!user?.id) return
 
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('email_notifications, order_updates, marketing_emails, data_sharing')
-        .eq('id', user.id)
-        .maybeSingle()
-
+      const { data, error } = await profilesService.fetchProfile(user.id)
       if (error?.code === '42703') return // columns not yet in schema
+      if (error) throw error
+
       if (data) {
         setPrivacyPrefs({
           email_notifications: data.email_notifications ?? true,
@@ -148,10 +145,7 @@ const BuyerSettings = () => {
   const handleSavePrivacy = async () => {
     setPrivacySaving(true)
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(privacyPrefs)
-        .eq('id', user.id)
+      const { error } = await profilesService.updateProfile(user.id, privacyPrefs)
 
       if (error?.code === '42703') {
         toast.error(t('privacySettings.preferencesNotAvailable', 'Privacy preferences will be available in the next update'))

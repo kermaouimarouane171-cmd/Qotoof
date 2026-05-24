@@ -75,7 +75,7 @@ export default function Reports() {
 
       {/* Report type selector */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {REPORT_TYPES.map(({ key, label, icon: Icon, color }) => (
+        {REPORT_TYPES.map(({ key, label, icon: Icon, color: _color }) => (
           <button
             key={key}
             onClick={() => { setReportType(key); setGenerated(false) }}

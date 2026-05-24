@@ -7,12 +7,10 @@ import {
   StarIcon,
   EyeIcon,
   CheckCircleIcon,
-  XCircleIcon,
   TrashIcon,
   FlagIcon,
   ChatBubbleLeftIcon,
   UserIcon,
-  ExclamationTriangleIcon,
   ShieldCheckIcon
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
@@ -102,8 +100,7 @@ const AdminReviews = () => {
           title,
           message,
           type,
-          data: { admin_id: user.id, timestamp: new Date().toISOString() },
-        })
+          data: { admin_id: user.id, timestamp: new Date().toISOString() }})
         .select()
         .single()
 
@@ -127,8 +124,7 @@ const AdminReviews = () => {
         .update({
           is_flagged: true,
           flagged_at: new Date().toISOString(),
-          admin_notes: adminNotes || 'Flagged by admin',
-        })
+          admin_notes: adminNotes || 'Flagged by admin'})
         .eq('id', reviewId)
 
       if (error) throw error
@@ -157,8 +153,7 @@ const AdminReviews = () => {
           is_flagged: false,
           admin_notes: adminNotes || 'Approved by admin',
           approved_by: user.id,
-          approved_at: new Date().toISOString(),
-        })
+          approved_at: new Date().toISOString()})
         .eq('id', reviewId)
 
       if (error) throw error
@@ -205,8 +200,7 @@ const AdminReviews = () => {
           deleted_at: new Date().toISOString(),
           admin_notes: reason,
           approved_by: user.id,
-          approved_at: new Date().toISOString(),
-        })
+          approved_at: new Date().toISOString()})
         .eq('id', reviewId)
 
       if (error) throw error
@@ -241,8 +235,7 @@ const AdminReviews = () => {
         .from('reviews')
         .update({
           is_flagged: false,
-          admin_notes: adminNotes || 'Unflagged by admin',
-        })
+          admin_notes: adminNotes || 'Unflagged by admin'})
         .eq('id', reviewId)
 
       if (error) throw error
@@ -273,12 +266,11 @@ const AdminReviews = () => {
   // Helpers
   // ============================================
 
-  const getFilterStats = () => ({
+  const _getFilterStats = () => ({
     all: totalCount,
     flagged: reviews.filter(r => r.is_flagged).length,
     withReply: reviews.filter(r => r.vendor_reply).length,
-    withoutReply: reviews.filter(r => !r.vendor_reply).length,
-  })
+    withoutReply: reviews.filter(r => !r.vendor_reply).length})
 
   if (loading && reviews.length === 0) {
     return (

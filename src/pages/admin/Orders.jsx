@@ -7,7 +7,7 @@ import { paymentGateway } from '@/services/paymentGateway'
 import { resolvePaymentMethod } from '@/services/paymentRecords'
 import { createOrderPaymentRecord } from '@/services/paymentService'
 import { auditLogger, useEntityAuditLogs } from '@/services/auditLogger'
-import { Card, LoadingSpinner } from '@/components/ui'
+import { Card, LoadingSpinner, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
 import {
@@ -27,7 +27,7 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-import { ORDER_STATUS_COLORS, getOrderStatusLabel, ACTIVE_ORDER_STATUSES } from '@/constants/orderStatuses'
+import { getOrderStatusConfig, ACTIVE_ORDER_STATUSES } from '@/constants/orderStatuses'
 
 // ============================================
 // Constants
@@ -46,17 +46,6 @@ const STATUS_ICONS_ADMIN = {
   cancelled:        XMarkIcon,
   refunded:         ArrowPathIcon,
 }
-
-// Thin wrapper over canonical constants — same interface as before, zero call-site changes.
-const getSTATUS_CONFIG = (t) => Object.fromEntries(
-  Object.entries(ORDER_STATUS_COLORS).map(([s, c]) => [s, {
-    label: getOrderStatusLabel(s, t),
-    color: c.hex,
-    bg:    c.bg,
-    text:  c.text,
-    icon:  STATUS_ICONS_ADMIN[s] || ClockIcon,
-  }])
-)
 
 const getPAYMENT_STATUS_CONFIG = (t) => ({
   pending:          { label: t('admin.orders.paymentStatus.pending', 'Payment Pending'),  color: '#F59E0B', bg: 'bg-amber-100',    text: 'text-amber-700' },
@@ -100,9 +89,6 @@ const AdminOrders = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user, profile } = useAuthStore()
-
-  // Memoised config — recomputed only when `t` changes (i.e. on language switch)
-  const statusConfig   = useMemo(() => getSTATUS_CONFIG(t),         [t])
 
   // State
   const [orders, setOrders] = useState([])
@@ -268,7 +254,8 @@ const AdminOrders = () => {
         },
       })
 
-      toast.success(t('admin.orders.notifications.statusUpdated', 'Order status updated to {{status}}', { status: statusConfig[newStatus]?.label || newStatus }).replace('{{status}}', statusConfig[newStatus]?.label || newStatus))
+      const updatedStatusLabel = getOrderStatusConfig(newStatus, t).label
+      toast.success(t('admin.orders.notifications.statusUpdated', 'Order status updated to {{status}}', { status: updatedStatusLabel || newStatus }).replace('{{status}}', updatedStatusLabel || newStatus))
       setShowStatusModal(false)
       setSelectedOrder(data)
       loadOrders()
@@ -308,7 +295,7 @@ const AdminOrders = () => {
       // 1. Find the payment record for this order
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
-        .select('*')
+        .select('id, order_id, status, amount, payment_method, method, gateway, transaction_id, created_at, metadata')
         .eq('order_id', selectedOrder.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
@@ -442,7 +429,7 @@ const AdminOrders = () => {
     try {
       const { data: returnReq, error: fetchError } = await supabase
         .from('return_requests')
-        .select('*')
+        .select('id, order_id, buyer_id, status, reason, description, item_ids, admin_response, admin_id, created_at, updated_at')
         .eq('id', returnId)
         .single()
 
@@ -535,7 +522,19 @@ const AdminOrders = () => {
   // ============================================
 
   if (loading && orders.length === 0) {
-    return <LoadingSpinner size="lg" />
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, index) => <Skeleton.Card key={index} />)}
+        </div>
+        <Skeleton.Card className="h-16" />
+        <Skeleton.Table rows={6} columns={8} />
+      </div>
+    )
   }
 
   return (
@@ -678,8 +677,8 @@ const AdminOrders = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {orders.map((order) => {
-                    const statusCfg = statusConfig[order.status] || statusConfig.pending
-                    const StatusIcon = statusCfg.icon
+                    const statusCfg = getOrderStatusConfig(order.status, t)
+                    const StatusIcon = STATUS_ICONS_ADMIN[order.status] || ClockIcon
                     return (
                       <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
@@ -867,10 +866,11 @@ const ReturnRequestsList = ({ returns, onAction, loading }) => {
 
   if (returns.length === 0) {
     return (
-      <Card className="p-12 text-center">
-        <ArrowPathIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500">{t('admin.orders.returnRequests.noRequests', 'No return requests found')}</p>
-      </Card>
+      <EmptyState
+        icon="refresh"
+        title={t('admin.orders.returnRequests.noRequests', 'No return requests found')}
+        description={t('admin.orders.returnRequests.noRequestsDesc', 'Return requests will appear here when buyers submit them.')}
+      />
     )
   }
 
@@ -1246,7 +1246,7 @@ const StatusUpdateModal = ({
             </button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
-            {t('admin.orders.statusModal.orderInfo', 'Order')}: {order.order_number || order.id} | {t('admin.orders.statusModal.current', 'Current')}: {statusConfig[order.status]?.label || order.status}
+            {t('admin.orders.statusModal.orderInfo', 'Order')}: {order.order_number || order.id} | {t('admin.orders.statusModal.current', 'Current')}: {getOrderStatusConfig(order.status, t).label || order.status}
           </p>
         </div>
 
@@ -1256,7 +1256,7 @@ const StatusUpdateModal = ({
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.orders.statusModal.newStatus', 'New Status')}</label>
             <div className="grid grid-cols-2 gap-2">
               {availableStatuses.map((status) => {
-                const cfg = statusConfig[status]
+                const cfg = getOrderStatusConfig(status, t)
                 const isSelected = newStatus === status
                 return (
                   <button

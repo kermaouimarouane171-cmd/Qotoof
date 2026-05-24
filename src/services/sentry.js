@@ -11,6 +11,7 @@
 let _sentry = null
 
 import { sentryDsnLooksIssued } from '@/utils/envValidators'
+import { logger } from '@/utils/logger'
 
 /**
  * Initialize Sentry asynchronously.
@@ -140,9 +141,7 @@ export const startSpan = (name, callback) => {
  * دالة مساعدة موحدة لتسجيل الأخطاء محليا وإرسالها إلى Sentry.
  */
 export const logError = (error, context = {}) => {
-  if (import.meta.env.DEV) {
-    console.error('خطأ مسجل:', error)
-  }
+  logger.error('خطأ مسجل:', error)
   captureException(error instanceof Error ? error : new Error(String(error)), context)
 }
 

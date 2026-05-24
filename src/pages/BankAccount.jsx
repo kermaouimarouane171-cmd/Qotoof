@@ -295,7 +295,7 @@ const BankAccountPage = () => {
       setBankAccount(null)
       setFormData({ bank_name: '', account_holder: '', rib: '', iban: '' })
       setEditing(false)
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('bankAccount.errors.deleteFailed', 'Failed to delete bank account'))
     } finally {
       setDeleting(false)
@@ -595,6 +595,7 @@ const BankAccountPage = () => {
                 onKeyDown={(e) => e.key === 'Enter' && handleReAuthenticate()}
                 className="input"
                 placeholder={t('bankAccount.auth.passwordPlaceholder', 'Enter your password')}
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
               />
               {authError && (

@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, Badge, Button, Map, LoadingSpinner, Modal } from '@/components/ui'
+import { Card, Badge, Button, LoadingSpinner, Modal } from '@/components/ui'
 import {
   CheckIcon,
   XMarkIcon,
   MapPinIcon,
   ExclamationTriangleIcon,
   EyeIcon,
-  BellIcon,
-  UserIcon,
+  BellIcon
 } from '@heroicons/react/24/outline'
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
@@ -63,6 +62,7 @@ const AdminVendors = () => {
 
   useEffect(() => {
     loadVendors()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadVendors = async () => {

@@ -8,14 +8,10 @@ import {
   FlagIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ExclamationTriangleIcon,
   EyeIcon,
-  UserIcon,
   ClockIcon,
   ShieldExclamationIcon,
-  BoltIcon,
-  BellIcon,
-} from '@heroicons/react/24/outline'
+  BoltIcon} from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
@@ -134,8 +130,7 @@ const AdminModerationPage = () => {
         type,
         data: JSON.stringify(data),
         is_read: false,
-        created_at: new Date().toISOString(),
-      })
+        created_at: new Date().toISOString()})
       if (error) {
         logger.error('Failed to notify user:', error)
       }
@@ -164,8 +159,7 @@ const AdminModerationPage = () => {
           admin_notes: notes || actionNotes,
           suspension_duration_hours: action === 'suspension' ? suspensionHours : null,
           resolved_by: user.id,
-          resolved_at: new Date().toISOString(),
-        })
+          resolved_at: new Date().toISOString()})
         .eq('id', reportId)
 
       if (reportError) throw reportError
@@ -184,8 +178,7 @@ const AdminModerationPage = () => {
           reportedUserId: report.reported_user_id,
           reporterId: report.reporter_id,
           suspensionHours: action === 'suspension' ? suspensionHours : null,
-          resolvedBy: user?.email || 'admin',
-        }
+          resolvedBy: user?.email || 'admin'}
       })
 
       // If action requires user suspension
@@ -194,8 +187,7 @@ const AdminModerationPage = () => {
           p_user_id: report.reported_user_id,
           p_reason: notes || actionNotes,
           p_duration_hours: suspensionHours,
-          p_admin_id: user.id,
-        })
+          p_admin_id: user.id})
 
         if (suspendError) throw suspendError
 
@@ -214,8 +206,7 @@ const AdminModerationPage = () => {
         const { error: banError } = await supabase.rpc('ban_user_permanently', {
           p_user_id: report.reported_user_id,
           p_reason: notes || actionNotes,
-          p_admin_id: user.id,
-        })
+          p_admin_id: user.id})
 
         if (banError) throw banError
 
@@ -279,8 +270,7 @@ const AdminModerationPage = () => {
           status: 'dismissed',
           admin_notes: actionNotes || 'No violation found',
           resolved_by: user.id,
-          resolved_at: new Date().toISOString(),
-        })
+          resolved_at: new Date().toISOString()})
         .eq('id', reportId)
 
       if (error) throw error
@@ -297,8 +287,7 @@ const AdminModerationPage = () => {
           reportType: report.report_type,
           priority: report.priority,
           reportedUserId: report.reported_user_id,
-          dismissedBy: user?.email || 'admin',
-        }
+          dismissedBy: user?.email || 'admin'}
       })
 
       // ✅ FIX: Optionally notify the reported user that they were cleared
@@ -336,8 +325,7 @@ const AdminModerationPage = () => {
       setStats(prev => ({
         ...prev,
         pending: prev.pending - 1,
-        reviewing: prev.reviewing + 1,
-      }))
+        reviewing: prev.reviewing + 1}))
       toast.success(t('admin.moderation.reportMarkedReviewing', 'Report marked as reviewing'))
     } catch (error) {
       logger.error('Start review error:', error)

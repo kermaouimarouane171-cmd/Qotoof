@@ -192,6 +192,19 @@ serve(async (req) => {
       throw updateError || new Error('Failed to update order payment receipt')
     }
 
+    // Outbox: async SMS to vendor notifying of receipt upload — non-blocking
+    await supabase.from('domain_events_outbox').insert({
+      event_type: 'payment.receipt_uploaded',
+      payload: {
+        order_id: orderId,
+        order_number: updatedOrder.order_number ?? null,
+        buyer_id: user.id,
+        vendor_id: updatedOrder.vendor_id ?? null,
+        stage,
+      },
+      source_function: 'register-payment-receipt',
+    })
+
     return new Response(
       JSON.stringify({ success: true, order: updatedOrder }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

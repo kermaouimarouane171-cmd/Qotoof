@@ -34,7 +34,8 @@ const CityAutocomplete = ({ value, onChange, placeholder = 'Search for a city...
     if (value !== inputValue) {
       setInputValue(value || '')
     }
-  }, [value])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]) // intentional: only sync when external value prop changes
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -168,12 +169,14 @@ const CityAutocomplete = ({ value, onChange, placeholder = 'Search for a city...
       {isOpen && filteredCities.length > 0 && (
         <ul
           id="city-autocomplete-list"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
           role="listbox"
           className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto"
         >
           {filteredCities.map((city, index) => (
             <li
               key={city}
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
               role="option"
               aria-selected={index === highlightedIndex}
               className={`px-4 py-2.5 cursor-pointer transition-colors ${

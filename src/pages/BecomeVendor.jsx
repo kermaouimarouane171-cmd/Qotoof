@@ -8,7 +8,6 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
 import { emailService } from '@/services/emailService'
 import { logger } from '@/utils/logger'
-import { storeSchema } from '@/utils/validationSchemas'
 
 // Moroccan phone validation
 const MOROCCAN_PHONE_REGEX = /^(\+212|0)([5-7]\d{8})$/

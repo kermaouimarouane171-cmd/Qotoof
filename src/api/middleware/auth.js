@@ -13,7 +13,7 @@ export const verifyAuth = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     return next();
-  } catch (error) {
+  } catch (_error) {
     return next(new AppError('Invalid or expired token.', 401));
   }
 };

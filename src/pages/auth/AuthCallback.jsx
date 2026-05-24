@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { LoadingSpinner } from '@/components/ui'
@@ -108,9 +107,8 @@ const getOAuthErrorMessage = (error, errorDescription) => {
 }
 
 const AuthCallback = () => {
-  const { t } = useTranslation()
   const navigate = useNavigate()
-  const location = useLocation()
+  const _location = useLocation()
   const { initialize, profile, loading } = useAuthStore()
   const [error, setError] = useState(null)
   const [errorType, setErrorType] = useState('') // 'oauth' | 'session' | 'timeout' | 'profile'
@@ -159,7 +157,7 @@ const AuthCallback = () => {
         setTimeout(() => reject(new Error('Session check timed out')), CALLBACK_TIMEOUT_MS)
       )
 
-      const { data: { session }, error: sessionError } = await Promise.race([
+      const { data: { session: _session }, error: sessionError } = await Promise.race([
         sessionPromise,
         timeoutPromise,
       ])

@@ -13,7 +13,6 @@ import {
   TrashIcon,
   ShoppingCartIcon,
   ArrowLeftIcon,
-  PencilIcon,
   XMarkIcon,
   CheckIcon,
 } from '@heroicons/react/24/outline'
@@ -183,6 +182,7 @@ const ShoppingLists = () => {
               onKeyDown={(e) => e.key === 'Enter' && createList()}
               placeholder={t('buyer.shoppingLists.placeholder', 'e.g., Weekly Vegetables')}
               className="input flex-1"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
             <button onClick={createList} className="p-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700">

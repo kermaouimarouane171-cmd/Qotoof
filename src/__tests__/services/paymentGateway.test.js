@@ -1,226 +1,408 @@
-/**
- * Tests for paymentGateway service
- * Note: PaymentGateway class uses import.meta.env which isn't available in Jest.
- * We test the logic by creating a controlled instance.
- */
+jest.mock('@/services/supabase', () => ({
+  supabase: mockSupabase,
+}))
 
-describe('PaymentGateway', () => {
-  let PaymentGateway
+jest.mock('@/utils/withRetry', () => ({
+  withRetry: (fn) => fn(),
+}))
+
+jest.mock('@/utils/logger', () => ({
+  logger: {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+  },
+}))
+
+const mockSupabaseState = {
+  queryResolver: jest.fn(),
+  invokeResolver: jest.fn(),
+}
+
+const mockCreateQueryBuilder = (table) => {
+  const state = {
+    table,
+    action: null,
+    payload: null,
+    selection: null,
+    filters: [],
+    terminal: null,
+  }
+
+  const builder = {
+    select: jest.fn((selection) => {
+      state.selection = selection
+      return builder
+    }),
+    insert: jest.fn((payload) => {
+      state.action = 'insert'
+      state.payload = payload
+      return builder
+    }),
+    update: jest.fn((payload) => {
+      state.action = 'update'
+      state.payload = payload
+      return builder
+    }),
+    eq: jest.fn((field, value) => {
+      state.filters.push({ field, value })
+      return builder
+    }),
+    or: jest.fn((filter) => {
+      state.filters.push({ op: 'or', value: filter })
+      return builder
+    }),
+    in: jest.fn((field, values) => {
+      state.filters.push({ field, value: values })
+      return builder
+    }),
+    order: jest.fn(() => builder),
+    range: jest.fn(() => builder),
+    limit: jest.fn(() => builder),
+    maybeSingle: jest.fn(() => {
+      state.terminal = 'maybeSingle'
+      return builder
+    }),
+    single: jest.fn(() => {
+      state.terminal = 'single'
+      return builder
+    }),
+    then: (resolve, reject) => {
+      try {
+        return Promise.resolve(mockSupabaseState.queryResolver(state)).then(resolve, reject)
+      } catch (error) {
+        return Promise.reject(error).then(resolve, reject)
+      }
+    },
+  }
+
+  return builder
+}
+
+jest.mock('@/services/supabase', () => {
+  const mockSupabase = {
+    from: jest.fn((table) => mockCreateQueryBuilder(table)),
+    functions: {
+      invoke: jest.fn((name, options) => Promise.resolve(mockSupabaseState.invokeResolver(name, options))),
+    },
+    auth: {
+      getUser: jest.fn(async () => ({
+        data: { user: { id: 'user-1' } },
+        error: null,
+      })),
+    },
+  }
+
+  globalThis.__mockSupabase = mockSupabase
+
+  return {
+    supabase: mockSupabase,
+  }
+})
+
+import {
+  confirmPayment,
+  createPaymentIntent,
+  getPaymentById,
+  paymentGateway,
+} from '@/services/paymentGateway'
+
+const mockSupabase = globalThis.__mockSupabase
+
+describe('paymentGateway', () => {
+  const fixedNow = new Date('2026-05-23T10:00:00.000Z')
 
   beforeEach(() => {
-    // Create a mock PaymentGateway class that mimics the real one without import.meta.env
-    PaymentGateway = class {
-      constructor() {
-        this.paypalClientId = 'paypal_test_123'
-        this.isTestMode = true
-      }
+    jest.clearAllMocks()
+    jest.useFakeTimers()
+    jest.setSystemTime(fixedNow)
+    paymentGateway.bankDetailsCache.clear()
+    paymentGateway.paymentIntentCache.clear()
+    paymentGateway.paypalClientId = 'paypal-client'
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: null,
+      error: null,
+    }))
+    mockSupabaseState.invokeResolver.mockImplementation(() => ({
+      data: null,
+      error: null,
+    }))
+  })
 
-      async initializePayment({ orderId, amount, method, currency = 'MAD', customer }) {
-        switch (method) {
-          case 'paypal':
-            return this.processPayPalPayment({ orderId, amount, currency, customer })
-          case 'cmi':
-            throw new Error('CMI is retired for marketplace checkout. Use PayPal or bank transfer instead.')
-          case 'cod':
-            return this.processCodPayment({ orderId, amount, customer })
-          case 'bank':
-            return this.processBankTransfer({ orderId, amount, customer })
-          default:
-            throw new Error('Unsupported payment method')
-        }
-      }
+  afterEach(() => {
+    jest.useRealTimers()
+  })
 
-      async processPayPalPayment({ orderId, amount, currency }) {
-        if (!this.paypalClientId) throw new Error('PayPal not configured')
-        return {
-          method: 'paypal',
-          orderId: 'pp_order_123',
+  it('createPaymentIntent creates a payment record with the right amount and currency', async () => {
+    let capturedInsert = null
+
+    mockSupabaseState.invokeResolver.mockImplementation((name, options) => {
+      expect(name).toBe('create-paypal-order')
+      expect(options.body).toMatchObject({
+        orderId: 'order-1',
+        amount: 250,
+        currency: 'MAD',
+      })
+
+      return {
+        data: {
+          orderId: 'pp-order-1',
           approvalUrl: 'https://paypal.example.com/checkout',
-          status: 'requires_confirmation',
-        }
+        },
+        error: null,
       }
+    })
 
-      async processCodPayment({ orderId, amount, customer }) {
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedInsert = state
+      return {
+        data: {
+          id: 'payment-1',
+          ...state.payload,
+        },
+        error: null,
+      }
+    })
+
+    const result = await createPaymentIntent({
+      orderId: 'order-1',
+      amount: 250,
+      currency: 'MAD',
+      paymentMethod: 'paypal',
+      customer: { email: 'buyer@example.com', name: 'Buyer Name' },
+    })
+
+    expect(result.error).toBeNull()
+    expect(result.data).toMatchObject({
+      paymentId: 'payment-1',
+      orderId: 'pp-order-1',
+      approvalUrl: 'https://paypal.example.com/checkout',
+      status: 'redirecting',
+    })
+    expect(capturedInsert.action).toBe('insert')
+    expect(capturedInsert.payload).toMatchObject({
+      order_id: 'order-1',
+      amount: 250,
+      payment_method: 'paypal',
+      status: 'pending',
+      transaction_id: 'pp-order-1',
+    })
+  })
+
+  it('confirmPayment updates payment status to confirmed', async () => {
+    let updateState = null
+
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      if (state.action === 'update') {
+        updateState = state
         return {
-          method: 'cod',
-          paymentId: 'pay_1',
-          status: 'confirmed',
-          message: 'سيتم الدفع عند الاستلام',
+          data: {
+            id: 'payment-2',
+            status: 'confirmed',
+          },
+          error: null,
         }
       }
 
-      async processBankTransfer({ orderId, amount, customer }) {
-        const referenceNumber = `BANK-${orderId}-${Date.now()}`
+      return {
+        data: {
+          id: 'payment-2',
+          status: 'pending',
+          payment_method: 'bank',
+        },
+        error: null,
+      }
+    })
+
+    const result = await confirmPayment('payment-2')
+
+    expect(result.error).toBeNull()
+    expect(result.data).toMatchObject({
+      id: 'payment-2',
+      status: 'confirmed',
+    })
+    expect(updateState.payload).toMatchObject({
+      status: 'confirmed',
+      confirmed_at: fixedNow.toISOString(),
+    })
+  })
+
+  it('refundPayment creates a refund record and updates the payment', async () => {
+    const queryStates = []
+
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      queryStates.push(state)
+
+      if (state.table === 'refunds') {
         return {
-          method: 'bank',
-          paymentId: 'pay_1',
-          status: 'awaiting_transfer',
-          referenceNumber,
-          bankDetails: { reference: referenceNumber },
-          message: 'يرجى إكمال التحويل خلال 24 ساعة',
-          deadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          data: { id: 'refund-1' },
+          error: null,
         }
       }
 
-      async getPaymentStatus(orderId) {
-        return { id: 'pay_1', order_id: orderId, status: 'completed', amount: 100 }
-      }
-
-      async refundPayment(paymentId, amount, reason = '') {
-        return { success: true, status: 'refunded' }
-      }
-
-      async verifyCmiCallback(callbackData) {
-        const { txnStatus } = callbackData
-        const status = txnStatus === 'Approved' ? 'completed' : 'failed'
-        return { success: status === 'completed', paymentId: 'pay_1', status }
-      }
-
-      getAvailableMethods() {
-        const methods = [
-          { id: 'cod', name: 'الدفع عند الاستلام', icon: '💵', available: true },
-          { id: 'bank', name: 'تحويل بنكي', icon: '🏦', available: true },
-        ]
-        if (this.paypalClientId) {
-          methods.push({ id: 'paypal', name: 'PayPal', icon: '🅿️', available: true })
+      if (state.action === 'update') {
+        return {
+          data: {
+            id: 'payment-3',
+            status: 'refunded',
+          },
+          error: null,
         }
-        return methods
       }
-    }
-  })
 
-  describe('initializePayment', () => {
-    it('should initialize PayPal payment', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.initializePayment({
-        orderId: 'o1',
-        amount: 100,
-        method: 'paypal',
-        currency: 'MAD',
-        customer: { email: 'test@test.com', name: 'Test User' },
-      })
-
-      expect(result.method).toBe('paypal')
-      expect(result.orderId).toBe('pp_order_123')
+      return {
+        data: {
+          id: 'payment-3',
+          order_id: 'order-3',
+          payment_method: 'bank',
+          transaction_id: 'txn-3',
+        },
+        error: null,
+      }
     })
 
-    it('should reject retired CMI checkout', async () => {
-      const gateway = new PaymentGateway()
-      await expect(gateway.initializePayment({
-        orderId: 'o1',
-        amount: 100,
-        method: 'cmi',
-        currency: 'MAD',
-        customer: { email: 'test@test.com', name: 'Test User', phone: '0612345678' },
-      })).rejects.toThrow('CMI is retired for marketplace checkout')
+    const result = await paymentGateway.refundPayment('payment-3', 125, 'customer_request')
+
+    expect(result).toEqual({ success: true, status: 'refunded' })
+    expect(queryStates[1].payload).toMatchObject({
+      status: 'refunded',
+      refund_amount: 125,
+      refund_reason: 'customer_request',
+      refunded_at: fixedNow.toISOString(),
     })
-
-    it('should initialize COD payment', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.initializePayment({
-        orderId: 'o1',
-        amount: 100,
-        method: 'cod',
-        customer: { name: 'Test User', phone: '0612345678' },
-      })
-
-      expect(result.method).toBe('cod')
-      expect(result.status).toBe('confirmed')
-    })
-
-    it('should initialize bank transfer payment', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.initializePayment({
-        orderId: 'o1',
-        amount: 100,
-        method: 'bank',
-        customer: { name: 'Test User' },
-      })
-
-      expect(result.method).toBe('bank')
-      expect(result.status).toBe('awaiting_transfer')
-      expect(result.referenceNumber).toMatch(/^BANK-o1-/)
-    })
-
-    it('should throw on unsupported payment method', async () => {
-      const gateway = new PaymentGateway()
-      await expect(gateway.initializePayment({
-        orderId: 'o1',
-        amount: 100,
-        method: 'bitcoin',
-      })).rejects.toThrow('Unsupported payment method')
+    expect(queryStates[2].table).toBe('refunds')
+    expect(queryStates[2].payload).toMatchObject({
+      payment_id: 'payment-3',
+      order_id: 'order-3',
+      amount: 125,
+      reason: 'customer_request',
+      status: 'refunded',
     })
   })
 
-  describe('getPaymentStatus', () => {
-    it('should return payment status', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.getPaymentStatus('o1')
+  it('getPaymentById returns the payment row with joins', async () => {
+    let capturedState = null
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      capturedState = state
+      return {
+        data: {
+          id: 'payment-4',
+          order: {
+            id: 'order-4',
+            order_number: 'ORD-004',
+            buyer: { id: 'buyer-4', first_name: 'Amina' },
+            vendor: { id: 'vendor-4', first_name: 'Youssef', store_name: 'Farm Shop' },
+          },
+        },
+        error: null,
+      }
+    })
 
-      expect(result.status).toBe('completed')
+    const result = await getPaymentById('payment-4')
+
+    expect(result.error).toBeNull()
+    expect(result.data.order.vendor.store_name).toBe('Farm Shop')
+    expect(capturedState.selection).toContain('order:orders(')
+    expect(capturedState.filters).toEqual([{ field: 'id', value: 'payment-4' }])
+    expect(capturedState.terminal).toBe('single')
+  })
+
+  it('bankDetailsCache returns the cached result on the second call', async () => {
+    mockSupabaseState.invokeResolver.mockImplementation((name, options) => ({
+      data: {
+        bankName: 'Bank of Morocco',
+        iban: 'MA0000000000000000000000000',
+        referenceNumber: options.body.referenceNumber,
+      },
+      error: null,
+    }))
+
+    const first = await paymentGateway.getCachedBankDetails('ref-1')
+    const second = await paymentGateway.getCachedBankDetails('ref-1')
+
+    expect(first).toEqual(second)
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledTimes(1)
+  })
+
+  it('createPaymentIntent is idempotent for the same order', async () => {
+    mockSupabaseState.invokeResolver.mockImplementation(() => ({
+      data: { orderId: 'pp-order-2', approvalUrl: 'https://paypal.example.com/checkout' },
+      error: null,
+    }))
+
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: {
+        id: 'payment-5',
+      },
+      error: null,
+    }))
+
+    const first = await createPaymentIntent({
+      orderId: 'order-5',
+      amount: 300,
+      currency: 'MAD',
+      paymentMethod: 'paypal',
+      customer: { email: 'buyer@example.com', name: 'Buyer Name' },
+    })
+    const second = await createPaymentIntent({
+      orderId: 'order-5',
+      amount: 300,
+      currency: 'MAD',
+      paymentMethod: 'paypal',
+      customer: { email: 'buyer@example.com', name: 'Buyer Name' },
+    })
+
+    expect(second).toBe(first)
+    expect(mockSupabase.functions.invoke).toHaveBeenCalledTimes(1)
+    expect(mockSupabase.from).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['createPaymentIntent', () => createPaymentIntent({
+      orderId: 'error-order',
+      amount: 99,
+      currency: 'MAD',
+      paymentMethod: 'paypal',
+      customer: { email: 'buyer@example.com', name: 'Buyer Name' },
+    })],
+    ['confirmPayment', () => confirmPayment('error-payment')],
+    ['getPaymentById', () => getPaymentById('error-payment')],
+  ])('%s returns wrapped errors on supabase failure', async (_label, call) => {
+    const error = new Error('supabase exploded')
+
+    mockSupabaseState.invokeResolver.mockImplementation(() => ({
+      data: null,
+      error,
+    }))
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: null,
+      error,
+    }))
+
+    const result = await call()
+
+    expect(result).toEqual({
+      data: null,
+      error,
     })
   })
 
-  describe('refundPayment', () => {
-    it('should refund payment', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.refundPayment('pay_1', 100, 'customer_request')
+  it('refundPayment throws when supabase fails', async () => {
+    mockSupabaseState.queryResolver.mockImplementation(() => ({
+      data: null,
+      error: new Error('supabase exploded'),
+    }))
 
-      expect(result.success).toBe(true)
-      expect(result.status).toBe('refunded')
-    })
+    await expect(paymentGateway.refundPayment('error-payment', 50, 'error')).rejects.toThrow('supabase exploded')
   })
 
-  describe('verifyCmiCallback', () => {
-    it('should verify successful CMI payment', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.verifyCmiCallback({
-        authCode: '123456',
-        txnStatus: 'Approved',
-        oid: 'txn_123',
-      })
+  it('getCachedBankDetails returns null when supabase returns an error', async () => {
+    const error = new Error('bank lookup failed')
+    mockSupabaseState.invokeResolver.mockImplementation(() => ({
+      data: null,
+      error,
+    }))
 
-      expect(result.success).toBe(true)
-      expect(result.status).toBe('completed')
-    })
-
-    it('should handle failed CMI verification', async () => {
-      const gateway = new PaymentGateway()
-      const result = await gateway.verifyCmiCallback({
-        authCode: '',
-        txnStatus: 'Declined',
-        oid: 'txn_123',
-      })
-
-      expect(result.success).toBe(false)
-    })
-  })
-
-  describe('getAvailableMethods', () => {
-    it('should return available payment methods', () => {
-      const gateway = new PaymentGateway()
-      const methods = gateway.getAvailableMethods()
-
-      expect(methods).toContainEqual(expect.objectContaining({ id: 'cod' }))
-      expect(methods).toContainEqual(expect.objectContaining({ id: 'bank' }))
-      expect(methods).toContainEqual(expect.objectContaining({ id: 'paypal' }))
-      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'cmi' }))
-    })
-
-    it('should exclude PayPal when not configured', () => {
-      const gateway = new PaymentGateway()
-      gateway.paypalClientId = null
-      const methods = gateway.getAvailableMethods()
-
-      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'paypal' }))
-    })
-
-    it('should keep CMI hidden even if legacy config exists', () => {
-      const gateway = new PaymentGateway()
-      gateway.cmiMerchantId = 'legacy_only'
-      const methods = gateway.getAvailableMethods()
-
-      expect(methods).not.toContainEqual(expect.objectContaining({ id: 'cmi' }))
-    })
+    await expect(paymentGateway.getCachedBankDetails('ref-error')).resolves.toBeNull()
   })
 })

@@ -60,17 +60,49 @@ export const enforceServerRateLimit = async ({
   return data
 }
 
+import { getCorsHeaders as getSharedCorsHeaders } from './cors.ts'
+
+export const getCorsHeaders = (req: Request): Record<string, string> => {
+  return getSharedCorsHeaders(req.headers.get('Origin')) as Record<string, string>
+}
+
+/**
+ * Legacy static headers kept for OPTIONS responses in older functions.
+ * Prefer getCorsHeaders(req) in all new and updated handlers.
+ * NOTE: 'Access-Control-Allow-Origin' is intentionally absent here;
+ * call getCorsHeaders(req) to obtain origin-scoped CORS headers.
+ */
 export const jsonHeaders = {
-  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-export const json = (body: unknown, status = 200, extraHeaders: Record<string, string> = {}) => new Response(JSON.stringify(body), {
-  status,
-  headers: {
-    ...jsonHeaders,
-    ...extraHeaders,
-    'Content-Type': 'application/json',
-  },
-})
+/**
+ * Build a JSON Response with correct CORS headers.
+ *
+ * Overloads:
+ *   json(body, status?)                           — no CORS (internal use only)
+ *   json(body, status, req)                        — CORS from request origin
+ *   json(body, status, extraHeaders)               — no CORS + extra headers
+ *   json(body, status, req, extraHeaders)          — CORS from request + extra headers
+ */
+export const json = (
+  body: unknown,
+  status = 200,
+  reqOrExtraHeaders?: Request | Record<string, string>,
+  extraHeaders: Record<string, string> = {},
+): Response => {
+  const req = reqOrExtraHeaders instanceof Request ? reqOrExtraHeaders : undefined
+  const extra: Record<string, string> = reqOrExtraHeaders instanceof Request
+    ? extraHeaders
+    : (reqOrExtraHeaders ?? {})
+  const corsHdrs = req ? getCorsHeaders(req) : {}
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHdrs,
+      ...extra,
+      'Content-Type': 'application/json',
+    },
+  })
+}

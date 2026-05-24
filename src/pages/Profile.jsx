@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { Button, Input, Card, Map, CINInput, TrustBadges, LoadingSpinner } from '@/components/ui'
+import { Button, Input, Card, Map, CINInput, TrustBadges,} from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { UserCircleIcon, ShieldCheckIcon, CheckCircleIcon, ClockIcon, XCircleIcon, CameraIcon } from '@heroicons/react/24/outline'
+import { UserCircleIcon, ShieldCheckIcon, CheckCircleIcon, ClockIcon, CameraIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-import { formatCIN, maskCIN, getVerificationStatus, validateCIN } from '@/utils/cinValidation'
+import { formatCIN, maskCIN, validateCIN } from '@/utils/cinValidation'
 import { logger } from '@/utils/logger'
 
 // ============================================================
@@ -277,6 +277,7 @@ const ProfilePage = () => {
           <div className="relative">
             <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
               {avatarUrl && !avatarLoadFailed ? (
+                // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
                 <img
                   src={avatarUrl}
                   alt="Profile"

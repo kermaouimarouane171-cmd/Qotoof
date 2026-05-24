@@ -1,11 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
+import { requireRole } from '../_shared/auth.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+// CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
+// See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
 
 const COMMISSION_RATE = 0.03
 const DELIVERY_WORKFLOW_STATUSES = new Set([
@@ -17,9 +16,9 @@ const DELIVERY_WORKFLOW_STATUSES = new Set([
   'delivered',
 ])
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (body: unknown, status = 200, req?: Request) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  headers: { ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}), 'Content-Type': 'application/json' },
 })
 
 const getMonthYear = (date = new Date()) => ({
@@ -155,13 +154,12 @@ const confirmSaleAndCalculate = async (supabase: ReturnType<typeof createClient>
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const optionsResponse = handleOptions(req)
+  if (optionsResponse) return optionsResponse
 
   try {
     if (req.method !== 'POST') {
-      return json({ success: false, error: 'Method not allowed' }, 405)
+      return json({ success: false, error: 'Method not allowed' }, 405, req)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -173,23 +171,30 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey)
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return json({ success: false, error: 'Authentication required' }, 401)
+    let auth
+    try {
+      auth = await requireRole(req, ['vendor', 'admin'])
+    } catch (error) {
+      if (error instanceof Response) {
+        const payload = await error.text()
+        return new Response(payload, {
+          status: error.status,
+          headers: {
+            ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}),
+            'Content-Type': 'application/json',
+          },
+        })
+      }
+      return json({ success: false, error: 'Authentication failed' }, 401, req)
     }
 
-    const token = authHeader.split(' ')[1]
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return json({ success: false, error: 'Invalid or expired token' }, 401)
-    }
+    const user = { id: auth.userId }
 
     const body = await req.json()
     const orderId = typeof body?.orderId === 'string' && body.orderId.trim() ? body.orderId.trim() : ''
 
     if (!orderId) {
-      return json({ success: false, error: 'Order ID is required' }, 400)
+      return json({ success: false, error: 'Order ID is required' }, 400, req)
     }
 
     const { data: order, error: orderError } = await supabase
@@ -214,16 +219,16 @@ serve(async (req) => {
       .single()
 
     if (orderError || !order) {
-      return json({ success: false, error: 'Order not found' }, 404)
+      return json({ success: false, error: 'Order not found' }, 404, req)
     }
 
     if (order.vendor_id !== user.id) {
-      return json({ success: false, error: 'You do not have access to this order' }, 403)
+      return json({ success: false, error: 'You do not have access to this order' }, 403, req)
     }
 
     const saleAmount = Number(order.subtotal || order.total || order.buyer_total || 0)
     if (!saleAmount || Number.isNaN(saleAmount) || saleAmount <= 0) {
-      return json({ success: false, error: 'قيمة البيع غير صالحة' }, 400)
+      return json({ success: false, error: 'قيمة البيع غير صالحة' }, 400, req)
     }
 
     const hasPendingFirstReceiptVerification = Boolean(order.first_payment_receipt_url) && order.first_payment_status === 'paid'
@@ -231,7 +236,7 @@ serve(async (req) => {
     const needsCommissionConfirmation = hasPendingFirstReceiptVerification || (order.payment_type === 'cod' && !order.payment_received_at)
 
     if (!hasPendingFirstReceiptVerification && !hasPendingSecondReceiptVerification && !needsCommissionConfirmation) {
-      return json({ success: false, error: 'No pending payment confirmation action for this order' }, 400)
+      return json({ success: false, error: 'No pending payment confirmation action for this order' }, 400, req)
     }
 
     let commission = null
@@ -280,7 +285,7 @@ serve(async (req) => {
         hasPendingSecondReceiptVerification,
         needsCommissionConfirmation,
       },
-    })
+    }, 200, req)
   } catch (error) {
     console.error('Confirm order payment error:', error)
     return json(

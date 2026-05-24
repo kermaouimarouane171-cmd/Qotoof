@@ -215,7 +215,6 @@ const RequestTab = ({ t, user, navigate }) => {
       }
     }
     loadOrders()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, t])
 
   useEffect(() => {
@@ -231,7 +230,8 @@ const RequestTab = ({ t, user, navigate }) => {
       if (data) { setSelectedItems([]); setReturnReason(''); setReturnDescription(''); setReturnImages([]) }
     }
     checkExisting()
-  }, [selectedOrder])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOrder]) // user.id is stable for the lifetime of this component
 
   const handleItemSelect = (itemId) => {
     setSelectedItems(prev => prev.includes(itemId) ? prev.filter(id => id !== itemId) : [...prev, itemId])
@@ -428,7 +428,7 @@ const RequestTab = ({ t, user, navigate }) => {
             <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-4">
               {returnImages.map((img, index) => (
                 <div key={index} className="relative aspect-square rounded-xl overflow-hidden border-2 border-gray-200">
-                  <img src={URL.createObjectURL(img)} alt={`Return image ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={URL.createObjectURL(img)} alt={`Return attachment ${index + 1}`} className="w-full h-full object-cover" />
                   <button type="button" onClick={() => setReturnImages(prev => prev.filter((_, i) => i !== index))}
                     className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center">
                     <XMarkIcon className="w-4 h-4" />
@@ -481,7 +481,6 @@ const HistoryTab = ({ t, user, navigate }) => {
       }
     }
     loadReturns()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id])
 
   const statusConfig = {

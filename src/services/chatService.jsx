@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { realtimeService } from '@/services/realtime'
 import { withRetry } from '@/utils/withRetry'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
@@ -52,7 +50,30 @@ class ChatService {
   /**
    * Send message - with retry logic
    */
-  async sendMessage(conversationId, senderId, content, attachments = []) {
+  async sendMessage(
+    conversationIdOrPayload,
+    senderIdArg,
+    contentArg,
+    attachmentsArg = [],
+    _authToken = null
+  ) {
+    const payload =
+      typeof conversationIdOrPayload === 'object' && conversationIdOrPayload !== null
+        ? conversationIdOrPayload
+        : {
+            conversationId: conversationIdOrPayload,
+            senderId: senderIdArg,
+            content: contentArg,
+            attachments: attachmentsArg,
+          }
+
+    const {
+      conversationId,
+      senderId,
+      content,
+      attachments = [],
+    } = payload
+
     return withRetry(async () => {
       const { data: message, error } = await supabase
         .from('messages')
@@ -238,7 +259,7 @@ class ChatService {
       const fileExt = file.name.split('.').pop()
       const fileName = `${conversationId}/${Date.now()}.${fileExt}`
 
-      const { data, error } = await supabase.storage
+      const { data: _data, error } = await supabase.storage
         .from('chat-attachments')
         .upload(fileName, file)
 
@@ -298,8 +319,8 @@ export const chatService = new ChatService()
  * Chat Component
  * Ready-to-use chat interface
  */
-export const ChatComponent = ({ conversationId, otherUser }) => {
-  const { user } = useAuthStore()
+export const ChatComponent = ({ conversationId, otherUser, currentUserId }) => {
+  const userId = currentUserId || null
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -325,8 +346,8 @@ export const ChatComponent = ({ conversationId, otherUser }) => {
     }
 
     loadMessages()
-    chatService.markMessagesAsRead(conversationId, user?.id)
-  }, [conversationId, user?.id])
+    chatService.markMessagesAsRead(conversationId, userId)
+  }, [conversationId, userId])
 
   // Subscribe to new messages
   useEffect(() => {
@@ -355,7 +376,7 @@ export const ChatComponent = ({ conversationId, otherUser }) => {
     try {
       await chatService.sendMessage(
         conversationId,
-        user.id,
+        userId,
         newMessage
       )
       setNewMessage('')
@@ -366,7 +387,7 @@ export const ChatComponent = ({ conversationId, otherUser }) => {
     } finally {
       setSending(false)
     }
-  }, [newMessage, sending, conversationId, user?.id])
+  }, [newMessage, sending, conversationId, userId])
 
   // Handle enter key
   const handleKeyPress = (e) => {
@@ -415,7 +436,7 @@ export const ChatComponent = ({ conversationId, otherUser }) => {
           </div>
         ) : (
           messages.map((message) => {
-            const isOwn = message.sender_id === user?.id
+            const isOwn = message.sender_id === userId
             return (
               <div
                 key={message.id}

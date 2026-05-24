@@ -54,7 +54,8 @@ export const OptimizedImage = ({
     }
 
     return () => observer.disconnect()
-  }, [priority, threshold, rootMargin])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priority, threshold, rootMargin]) // isInView excluded: once in view observer disconnects
 
   // Handle image load
   const handleLoad = useCallback(() => {
@@ -143,6 +144,7 @@ export const OptimizedImage = ({
 
       {/* Actual Image */}
       {isInView && (
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <img
           src={currentSrc}
           alt={alt}
@@ -207,7 +209,7 @@ export const ImageGallery = ({
 export const ResponsiveImage = ({
   src,
   alt,
-  sizes,
+  sizes: _sizes,
   className = '',
   aspectRatio = null, // '16/9', '4/3', '1/1', etc.
   ...props

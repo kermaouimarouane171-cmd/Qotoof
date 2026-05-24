@@ -21,7 +21,7 @@ import toast from 'react-hot-toast'
 
 const AdminDashboard = () => {
   const { t } = useTranslation()
-  const { profile } = useAuthStore()
+  const { _profile } = useAuthStore()
   const channelRef = useRef(null)
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -45,6 +45,7 @@ const AdminDashboard = () => {
     return () => {
       cleanupRealtimeSubscriptions()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // NOTE: Role protection is handled by <ProtectedRoute allowedRoles={['admin']}> in App.jsx.

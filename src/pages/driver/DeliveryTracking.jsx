@@ -63,6 +63,7 @@ const DriverDeliveryTracking = () => {
   useEffect(() => {
     loadDelivery()
     return () => stopTracking()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loadDelivery])
 
   const sendLocationToBackend = useCallback(async (location, retryCount = 0) => {

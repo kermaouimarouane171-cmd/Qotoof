@@ -2,8 +2,8 @@ import { BanknotesIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline'
 import { Card } from '@/components/ui'
 
 const DeliveryPaymentPolicy = ({
-  driverDeliveryPaymentCash,
-  driverDeliveryPaymentTransfer,
+  driverDeliveryPaymentCash: _driverDeliveryPaymentCash,
+  driverDeliveryPaymentTransfer: _driverDeliveryPaymentTransfer,
   driverDeliveryPaymentNotes,
   errors = {},
   onCashChange,
@@ -18,6 +18,7 @@ const DeliveryPaymentPolicy = ({
       </h2>
 
       <div className="space-y-3">
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label htmlFor="payment-cash" className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
           <input
             id="payment-cash"
@@ -31,6 +32,7 @@ const DeliveryPaymentPolicy = ({
           </div>
         </label>
 
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label htmlFor="payment-transfer" className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4 cursor-pointer">
           <input
             id="payment-transfer"

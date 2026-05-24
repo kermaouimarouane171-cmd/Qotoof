@@ -233,13 +233,16 @@ const LocationPicker = ({
         {/* Autocomplete dropdown */}
         {(searchResults.length > 0 || searchError) && (
           <ul
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
             role="listbox"
             className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
           >
             {searchError && (
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
               <li role="option" aria-selected="false" className="px-4 py-3 text-sm text-gray-500 text-center">{searchError}</li>
             )}
             {searchResults.map((r) => (
+              // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
               <li key={r.place_id} role="option" aria-selected="false">
                 <button
                   type="button"

@@ -71,7 +71,7 @@ export const useCurrentUser = (options = {}) => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, role, first_name, last_name, email, phone, phone_verified, avatar_url, city, country, address, latitude, longitude, store_name, store_description, store_type, delivery_option, bio, cin, cin_verified, is_verified, is_approved, onboarding_completed, mfa_enabled, referral_code, referred_by, has_own_driver, has_preferred_vendor, preferred_driver_id, partnership_status, accepted_cargo_sizes, vehicle_type, vehicle_plate, rating, cod_restricted_until, last_seen_at, created_at, operating_hours')
         .eq('id', session.user.id)
         .single()
 

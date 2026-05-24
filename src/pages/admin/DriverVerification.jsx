@@ -31,6 +31,7 @@ const AdminDriverVerification = () => {
 
   useEffect(() => {
     loadDocuments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter])
 
   const loadDocuments = async () => {

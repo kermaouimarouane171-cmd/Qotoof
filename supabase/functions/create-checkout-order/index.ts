@@ -16,16 +16,15 @@ import {
   rollbackCheckoutRecords,
   CheckoutWriteVendorOrder,
 } from '../_shared/checkoutPersistence.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
+import { requireAuth } from '../_shared/auth.ts'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+// CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
+// See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+const json = (body: unknown, status = 200, req?: Request) => new Response(JSON.stringify(body), {
   status,
-  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  headers: { ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}), 'Content-Type': 'application/json' },
 })
 
 type SupabaseClient = ReturnType<typeof createClient>
@@ -54,9 +53,8 @@ const asString = (value: unknown): string => {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  const optionsResponse = handleOptions(req)
+  if (optionsResponse) return optionsResponse
 
   const createdOrderIds: string[] = []
   const reservedInventoryItems: InventoryReservationItem[] = []
@@ -78,18 +76,17 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey)
     activeSupabase = supabase
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader?.startsWith('Bearer ')) {
+    let auth
+    try {
+      auth = await requireAuth(req)
+    } catch (error) {
+      if (error instanceof Response) {
+        throw new HttpError(error.status === 401 ? 'Authentication required' : 'Forbidden', error.status)
+      }
       throw new HttpError('Authentication required', 401)
     }
 
-    const token = authHeader.split(' ')[1]
-    const { data: authData, error: authError } = await supabase.auth.getUser(token)
-    if (authError || !authData?.user) {
-      throw new HttpError('Invalid or expired token', 401)
-    }
-
-    const user = authData.user
+    const user = { id: auth.userId }
     authenticatedUserId = user.id
 
     const payload = asObject(await req.json())
@@ -99,7 +96,7 @@ serve(async (req) => {
       const checkoutRequestClaim = await claimCheckoutRequest(supabase, user.id, idempotencyKey, payload)
 
       if (checkoutRequestClaim?.cached_response) {
-        return json(checkoutRequestClaim.cached_response, 200)
+        return json(checkoutRequestClaim.cached_response, 200, req)
       }
 
       if (checkoutRequestClaim?.in_progress && !checkoutRequestClaim?.can_proceed) {
@@ -109,6 +106,7 @@ serve(async (req) => {
             error: 'يجري تنفيذ نفس الطلب حالياً. انتظر قليلاً ثم أعد المحاولة إذا لزم الأمر.',
           },
           409,
+          req,
         )
       }
     }
@@ -164,7 +162,7 @@ serve(async (req) => {
       orderIds: createdOrderIds,
     })
 
-    return json(responsePayload, 200)
+    return json(responsePayload, 200, req)
   } catch (rawError) {
     const error = rawError instanceof Error ? rawError : new Error('Failed to create checkout order')
     const rollbackIssues: string[] = []
@@ -222,6 +220,7 @@ serve(async (req) => {
         error: error.message,
       },
       status,
+      req,
     )
   }
 })

@@ -112,7 +112,8 @@ const CommissionManagementPage = () => {
 
   useEffect(() => {
     loadRows()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // intentional: run on mount only
 
   const periodOptions = useMemo(() => {
     const uniquePeriods = new Map()
@@ -155,7 +156,7 @@ const CommissionManagementPage = () => {
       const matchesCity = filters.city === 'all' || row.vendor?.city === filters.city
       return matchesSearch && matchesStatus && matchesPeriod && matchesCity
     })
-  }, [rows, filters])
+  }, [rows, filters, t])
 
   const summary = useMemo(() => {
     const pending = filteredRows.filter((r) => r.status === 'pending' || r.status === 'overdue')

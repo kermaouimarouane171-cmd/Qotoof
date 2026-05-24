@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, Suspense, lazy } from 'react'
+import React, { useState, useEffect, useCallback, useRef, lazy } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
@@ -9,6 +9,9 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import CommissionDashboard from '@/components/vendor/CommissionDashboard'
 import StoreEvolutionNotification from '@/components/vendor/StoreEvolutionNotification'
 import PartnershipRequests from '@/components/shared/PartnershipRequests'
+import PendingOrdersPanel from '@/components/vendor/PendingOrdersPanel'
+import RevenueChart from '@/components/vendor/RevenueChart'
+import RecentOrdersWidget from '@/components/vendor/RecentOrdersWidget'
 import {
   Card,
   LoadingSpinner,
@@ -16,34 +19,25 @@ import {
   VendorGuidelines,
   StarRating,
   Modal,
+  StateSkeleton as Skeleton,
 } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
 import {
   CurrencyDollarIcon,
   ShoppingBagIcon,
-  ClockIcon,
   CubeIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  CheckIcon,
-  XMarkIcon,
   ExclamationTriangleIcon,
-  MapPinIcon,
-  UserIcon,
-  EyeIcon,
   TruckIcon,
   UsersIcon,
-  ChatBubbleLeftRightIcon,
   BellIcon,
   SparklesIcon,
   CalendarIcon,
-  PhoneIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { ChartSkeleton } from '@/components/ui'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
-import { getOrderStatusColors, STATUS_I18N_KEYS, getOrderStatusLabel } from '@/constants/orderStatuses'
 
 // Lazy load chart components for better initial load performance
 const Line = lazy(() =>
@@ -76,25 +70,9 @@ const Line = lazy(() =>
 const VendorLocationSetup = React.lazy(() => import('./LocationSetup'))
 
 // ============================================================
-// STATUS CONFIG
-// ============================================================
-// Icon map (page-specific)
-const STATUS_ICONS_VENDOR = {
-  pending:          ClockIcon,
-  vendor_accepted:  CheckIcon,
-  vendor_rejected:  XMarkIcon,
-  driver_assigned:  TruckIcon,
-  on_the_way:       TruckIcon,
-  delivered:        CheckIcon,
-  cancelled:        XMarkIcon,
-}
-
-
-
-// ============================================================
 // HELPER: Days ago label
 // ============================================================
-const getDayLabel = (dateStr) => {
+const _getDayLabel = (dateStr) => {
   const date = new Date(dateStr)
   const today = new Date()
   const diff = Math.floor((today - date) / (1000 * 60 * 60 * 24))
@@ -166,7 +144,7 @@ const VendorDashboard = () => {
       const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
       const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString()
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
+      const _fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
       // ---- 1. Products count ----
       const { count: productCount } = await supabase
@@ -408,7 +386,7 @@ const VendorDashboard = () => {
     } finally {
       setLoading(false)
     }
-  }, [profile?.id, t, i18n.language])
+  }, [profile?.id, profile?.low_stock_threshold, t, i18n.language])
 
   // Keep ref up-to-date so realtime callbacks always call the latest version
   useEffect(() => {
@@ -454,6 +432,7 @@ const VendorDashboard = () => {
         labels: newLabels,
       }))
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [i18n.language])
   // (salesChartData.labels is derived from i18n.language and need not re-run on labels change)
 
@@ -643,8 +622,19 @@ const VendorDashboard = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Array.from({ length: 2 }).map((_, index) => <Skeleton.Card key={index} className="h-28" />)}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, index) => <Skeleton.Card key={index} />)}
+        </div>
+        <Skeleton.Card className="min-h-[320px]" />
+        <Skeleton.Table rows={4} columns={4} />
       </div>
     )
   }
@@ -983,335 +973,38 @@ const VendorDashboard = () => {
       {/* ============================================================
           SECTION 3: SALES CHART (7 Days)
           ============================================================ */}
-      <Card className="p-4 sm:p-6 mb-6 sm:mb-8">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-              {t('vendor.dashboard.charts.salesTrend', 'Sales Trend')}
-            </h3>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              {t('vendor.dashboard.charts.last7Days', 'Last 7 days')}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-lg">
-            <ArrowUpIcon className="w-3.5 h-3.5 text-green-600" />
-            <span className="text-xs font-medium text-green-700">
-              {t('vendor.dashboard.charts.live', 'Live')}
-            </span>
-          </div>
-        </div>
-        <div className="h-56 sm:h-64">
-          {salesChartData.labels.length > 0 ? (
-            <Suspense fallback={<ChartSkeleton />}>
-              <Line data={salesChartData} options={chartOptions} />
-            </Suspense>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gray-50 rounded-xl">
-              <p className="text-sm text-gray-400">
-                {t('vendor.dashboard.charts.noData', 'No sales data yet for this period')}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
+      <RevenueChart
+        salesChartData={salesChartData}
+        chartOptions={chartOptions}
+        LineComponent={Line}
+        t={t}
+      />
 
       {/* ============================================================
           SECTION 4: QUICK ORDER ACTIONS
           ============================================================ */}
-      {pendingOrders.length > 0 && (
-        <Card className="p-4 sm:p-6 mb-6 sm:mb-8 border-2 border-green-100">
-          <div className="flex items-center justify-between mb-4 sm:mb-6">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <ClockIcon className="w-4 h-4 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-                  {t('vendor.dashboard.quickActions.title', 'Quick Order Actions')}
-                </h3>
-                <p className="text-xs text-gray-500">
-                  {t('vendor.dashboard.quickActions.subtitle', '{{count}} orders awaiting your response', {
-                    count: pendingOrders.length,
-                  })}
-                </p>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 bg-red-500 text-white text-xs font-bold rounded-full animate-pulse">
-              {pendingOrders.length}
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {pendingOrders.map((order) => {
-              const timeRemaining = getTimeRemaining(order.created_at)
-              return (
-                <div
-                  key={order.id}
-                  className="p-3 sm:p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-green-200 transition-colors"
-                >
-                  {/* Order Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-green-600 text-sm">
-                        {order.order_number || order.id?.slice(0, 8)}
-                      </span>
-                      {timeRemaining.expired ? (
-                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full">
-                          {t('vendor.dashboard.quickActions.expired', 'Expired')}
-                        </span>
-                      ) : timeRemaining.urgent ? (
-                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-medium rounded-full animate-pulse">
-                          {timeRemaining.text} {t('vendor.dashboard.quickActions.left', 'left')}
-                        </span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                          {timeRemaining.text} {t('vendor.dashboard.quickActions.left', 'left')}
-                        </span>
-                      )}
-                    </div>
-                    <span className="font-bold text-gray-900">{formatPrice(order.total)}</span>
-                  </div>
-
-                  {/* Buyer Info */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-3 text-xs text-gray-600">
-                    <div className="flex items-center gap-1.5">
-                      <UserIcon className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="font-medium">
-                        {order.buyer?.first_name} {order.buyer?.last_name}
-                      </span>
-                    </div>
-                    {order.shipping_city && (
-                      <div className="flex items-center gap-1.5">
-                        <MapPinIcon className="w-3.5 h-3.5 text-gray-400" />
-                        <span>{order.shipping_city}</span>
-                      </div>
-                    )}
-                    {order.buyer?.phone && (
-                      <a
-                        href={`tel:${order.buyer.phone}`}
-                        className="flex items-center gap-1.5 text-green-600 hover:underline"
-                      >
-                        <PhoneIcon className="w-3.5 h-3.5" />
-                        {order.buyer.phone}
-                      </a>
-                    )}
-                  </div>
-
-                  {/* Product Thumbnails */}
-                  {order.items && order.items.length > 0 && (
-                    <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
-                      {order.items.slice(0, 4).map((item) => {
-                        const productImage = item.product?.image_url
-                        const productName = item.product?.name || 'Product'
-                        return (
-                          <div key={item.id} className="flex-shrink-0 w-14 text-center">
-                            <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 mb-1">
-                              {productImage ? (
-                                <img
-                                  src={productImage}
-                                  alt={productName}
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <CubeIcon className="w-4 h-4 text-gray-300" />
-                                </div>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500 truncate" title={productName}>
-                              {productName}
-                            </p>
-                            <p className="text-xs text-gray-400">×{item.quantity}</p>
-                          </div>
-                        )
-                      })}
-                      {order.items.length > 4 && (
-                        <div className="flex-shrink-0 w-14 flex items-center justify-center">
-                          <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <span className="text-xs font-bold text-gray-500">
-                              +{order.items.length - 4}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleAcceptOrder(order.id)}
-                      disabled={processingAction === order.id || timeRemaining.expired}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white font-semibold text-sm rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[48px] shadow-sm shadow-green-200"
-                    >
-                      {processingAction === order.id ? (
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : (
-                        <CheckIcon className="w-5 h-5" />
-                      )}
-                      {t('vendor.dashboard.quickActions.accept', 'Accept')}
-                    </button>
-                    <button
-                      onClick={() => handleRejectClick(order.id)}
-                      disabled={processingAction === order.id || timeRemaining.expired}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white font-semibold text-sm rounded-xl hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all min-h-[48px] shadow-sm shadow-red-200"
-                    >
-                      {processingAction === order.id ? (
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                      ) : (
-                        <XMarkIcon className="w-5 h-5" />
-                      )}
-                      {t('vendor.dashboard.quickActions.reject', 'Reject')}
-                    </button>
-                    <button
-                      onClick={() => navigate(`/orders/${order.id}`)}
-                      className="px-4 py-3 bg-white border border-gray-200 text-gray-700 font-medium text-sm rounded-xl hover:bg-gray-50 transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center"
-                      aria-label="View details"
-                    >
-                      <EyeIcon className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
+      <PendingOrdersPanel
+        pendingOrders={pendingOrders}
+        processingAction={processingAction}
+        getTimeRemaining={getTimeRemaining}
+        onAcceptOrder={handleAcceptOrder}
+        onRejectOrder={handleRejectClick}
+        onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
+        formatPrice={formatPrice}
+        t={t}
+      />
 
       {/* ============================================================
           SECTION 5: RECENT ORDERS TABLE
           ============================================================ */}
-      <Card className="p-4 sm:p-6">
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">
-            {t('vendor.dashboard.recentOrders.title', 'Recent Orders')}
-          </h3>
-          <button
-            onClick={() => navigate('/vendor/orders')}
-            className="text-sm text-green-600 font-medium hover:underline"
-          >
-            {t('common.viewAll', 'View All')}
-          </button>
-        </div>
-
-        {/* Desktop Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>{t('vendor.orders.orderId', 'Order ID')}</th>
-                <th>{t('vendor.orders.buyer', 'Buyer')}</th>
-                <th>{t('vendor.orders.total', 'Total')}</th>
-                <th>{t('vendor.orders.status', 'Status')}</th>
-                <th>{t('vendor.orders.date', 'Date')}</th>
-                <th>{t('vendor.dashboard.recentOrders.actions', 'Actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500">
-                    {t('vendor.dashboard.recentOrders.noOrders', 'No orders yet')}
-                  </td>
-                </tr>
-              ) : (
-                recentOrders.slice(0, 8).map((order) => {
-                  const sc = getOrderStatusColors(order.status)
-                  const Icon = STATUS_ICONS_VENDOR[order.status] || ClockIcon
-                  return (
-                    <tr key={order.id}>
-                      <td>
-                        <span className="font-semibold text-green-600 text-sm">
-                          {order.order_number || order.id?.slice(0, 8)}
-                        </span>
-                      </td>
-                      <td className="font-medium text-sm">
-                        {order.buyer?.first_name} {order.buyer?.last_name}
-                      </td>
-                      <td className="font-semibold text-sm">{formatPrice(order.total)}</td>
-                      <td>
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold ${sc.bg} ${sc.text} border ${sc.border}`}>
-                          <Icon className="w-3 h-3" />
-                          {t(STATUS_I18N_KEYS[order.status] || `admin.orders.status.${order.status}`, getOrderStatusLabel(order.status))}
-                        </span>
-                      </td>
-                      <td className="text-gray-500 text-sm">
-                        {new Date(order.created_at).toLocaleDateString(
-                          i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US',
-                          { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                          className="text-sm text-green-600 hover:underline font-medium"
-                        >
-                          {t('vendor.dashboard.recentOrders.view', 'View')}
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile Cards */}
-        <div className="sm:hidden space-y-3">
-          {recentOrders.length === 0 ? (
-            <p className="text-center py-8 text-gray-500 text-sm">
-              {t('vendor.dashboard.recentOrders.noOrders', 'No orders yet')}
-            </p>
-          ) : (
-            recentOrders.slice(0, 5).map((order) => {
-              const sc = getOrderStatusColors(order.status)
-              const Icon = STATUS_ICONS_VENDOR[order.status] || ClockIcon
-              return (
-                <div
-                  key={order.id}
-                  className="p-4 bg-gray-50 rounded-xl border border-gray-100"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-green-600 text-sm">
-                      {order.order_number || order.id?.slice(0, 8)}
-                    </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold ${sc.bg} ${sc.text} border ${sc.border}`}>
-                      <Icon className="w-3 h-3" />
-                      {t(STATUS_I18N_KEYS[order.status] || `admin.orders.status.${order.status}`, getOrderStatusLabel(order.status))}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600">
-                      {order.buyer?.first_name} {order.buyer?.last_name}
-                    </span>
-                    <span className="font-bold text-gray-900">{formatPrice(order.total)}</span>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(order.created_at).toLocaleDateString(
-                      i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US',
-                      { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                    )}
-                  </p>
-                  <button
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                    className="w-full mt-3 py-2.5 text-sm font-medium text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors min-h-[44px]"
-                  >
-                    {t('vendor.dashboard.recentOrders.viewDetails', 'View Details')}
-                  </button>
-                </div>
-              )
-            })
-          )}
-        </div>
-      </Card>
+      <RecentOrdersWidget
+        recentOrders={recentOrders}
+        formatPrice={formatPrice}
+        locale={i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US'}
+        onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
+        onViewAll={() => navigate('/vendor/orders')}
+        t={t}
+      />
 
       {/* ============================================================
           REJECT ORDER MODAL

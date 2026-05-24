@@ -5,6 +5,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY')
@@ -17,11 +18,8 @@ const SMTP_CONFIG = {
   password: Deno.env.get('SMTP_PASSWORD'),
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
+// CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
+// See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
 
 const EMAIL_REQUEST_LIMIT = {
   maxAttempts: 60,
@@ -29,10 +27,10 @@ const EMAIL_REQUEST_LIMIT = {
   blockSeconds: 60,
 }
 
-function jsonResponse(body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
+function jsonResponse(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders, ...extraHeaders },
+    headers: { ...getCorsHeaders(req.headers.get('Origin')), 'Content-Type': 'application/json', ...extraHeaders },
   })
 }
 
@@ -214,16 +212,15 @@ const defaultTemplate = (data) => ({
 serve(async (req) => {
   try {
     // CORS headers
-    if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders })
-    }
+    const optionsResponse = handleOptions(req)
+    if (optionsResponse) return optionsResponse
 
     if (req.method !== 'POST') {
-      return jsonResponse({ error: 'Method not allowed' }, 405)
+      return jsonResponse(req, { error: 'Method not allowed' }, 405)
     }
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return jsonResponse({ error: 'Supabase environment variables are not configured' }, 500)
+      return jsonResponse(req, { error: 'Supabase environment variables are not configured' }, 500)
     }
 
     const clientIp = getClientIp(req)
@@ -240,6 +237,7 @@ serve(async (req) => {
 
     if (!rateLimitResult.allowed) {
       return jsonResponse(
+        req,
         { error: 'Too many requests, try again later' },
         429,
         { 'Retry-After': String(rateLimitResult.retry_after_seconds || EMAIL_REQUEST_LIMIT.blockSeconds) },
@@ -249,15 +247,15 @@ serve(async (req) => {
     const { to, toName, from, fromName, subject, template, data } = await req.json()
 
     if (!to || !subject) {
-      return jsonResponse({ error: 'Missing required fields: to, subject' }, 400)
+      return jsonResponse(req, { error: 'Missing required fields: to, subject' }, 400)
     }
 
     if (typeof to !== 'string' || !to.includes('@')) {
-      return jsonResponse({ error: 'Invalid recipient email' }, 400)
+      return jsonResponse(req, { error: 'Invalid recipient email' }, 400)
     }
 
     if (typeof subject !== 'string' || subject.length > 200) {
-      return jsonResponse({ error: 'Invalid subject' }, 400)
+      return jsonResponse(req, { error: 'Invalid subject' }, 400)
     }
 
     // Get template
@@ -286,7 +284,7 @@ serve(async (req) => {
         throw new Error(result.message || 'Failed to send email')
       }
 
-      return jsonResponse({ success: true, messageId: result.id }, 200)
+      return jsonResponse(req, { success: true, messageId: result.id }, 200)
     }
 
     // Fallback: Send using SendGrid
@@ -310,13 +308,13 @@ serve(async (req) => {
         throw new Error(error)
       }
 
-      return jsonResponse({ success: true }, 200)
+      return jsonResponse(req, { success: true }, 200)
     }
 
     // No email provider configured
-    return jsonResponse({ success: true, skipped: true, message: 'No email provider configured' }, 200)
+    return jsonResponse(req, { success: true, skipped: true, message: 'No email provider configured' }, 200)
 
   } catch (error) {
-    return jsonResponse({ error: error.message || 'Failed to send email' }, 500)
+    return jsonResponse(req, { error: error.message || 'Failed to send email' }, 500)
   }
 })

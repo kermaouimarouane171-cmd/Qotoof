@@ -8,7 +8,7 @@
  * 4. رفع أخطاء مناسبة في حالة الفشل
  */
 
-import { USER_ROLES, PUBLIC_PATHS } from '@/constants/roles';
+import {  PUBLIC_PATHS } from '@/constants/roles';
 import { getAuthToken } from '@/services/axiosInstance';
 
 /**
@@ -138,7 +138,7 @@ export const getCurrentUser = () => {
       iat: payload.iat,
       exp: payload.exp,
     };
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };

@@ -22,6 +22,7 @@ import {
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/authStore';
+import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator';
 
 /**
  * مكون Loading Fallback للـ Suspense
@@ -57,11 +58,12 @@ export const ProtectedRoute = ({
 }) => {
   // Use Supabase-based auth store instead of broken custom middleware
   const { user, profile, loading, mfaRequired, mfaPending } = useAuthStore();
+  const { isBlocking } = useOnboardingGate();
   const location = useLocation();
 
   const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
 
-  if (loading) {
+  if (loading || isBlocking) {
     return <LoadingFallback />;
   }
 

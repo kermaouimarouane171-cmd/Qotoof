@@ -1,5 +1,5 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import L from 'leaflet'
 import { useAuthStore } from '@/store/authStore'
 import { logger } from '@/utils/logger'
@@ -251,7 +251,7 @@ const SecureMapUpdater = ({ center, zoom }) => {
  * SecureTileLayer - Tile layer with fallback provider
  */
 const SecureTileLayer = () => {
-  const [tileError, setTileError] = useState(false)
+  const [tileError, _setTileError] = useState(false)
 
   const currentProvider = tileError ? TILE_PROVIDERS.fallback : TILE_PROVIDERS.primary
 

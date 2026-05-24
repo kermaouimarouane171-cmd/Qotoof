@@ -18,6 +18,7 @@ const VendorAlerts = () => {
 
   useEffect(() => {
     if (user) loadAlerts()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const loadAlerts = async () => {

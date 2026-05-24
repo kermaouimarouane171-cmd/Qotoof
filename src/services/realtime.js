@@ -1,14 +1,21 @@
-import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
+import {
+  subscribe as managerSubscribe,
+  unsubscribeAll as managerUnsubscribeAll,
+  getActiveChannelsCount,
+} from '@/services/realtimeManager'
 
 /**
  * Real-time Service
- * Provides live updates for orders, notifications, products, and deliveries
- * Uses Supabase Realtime (WebSocket) under the hood
+ * Provides live updates for orders, notifications, products, and deliveries.
+ *
+ * Channel deduplication is now delegated to realtimeManager so that multiple
+ * components watching the same logical feed share a single WebSocket subscription.
  */
 class RealtimeService {
   constructor() {
+    /** Maps channel keys → unsubscribe functions returned by realtimeManager */
     this.channels = new Map()
     this.isConnected = false
     this.reconnectAttempts = 0
@@ -21,22 +28,14 @@ class RealtimeService {
    */
   async initialize() {
     if (this.isConnected) return
-
-    try {
-      // Supabase realtime is handled through channel subscriptions
-      // We just need to track connection state
-      this.isConnected = true
-      this.reconnectAttempts = 0
-      logger.info('Realtime service initialized')
-    } catch (error) {
-      logger.error('Failed to initialize realtime:', error)
-      this.isConnected = false
-    }
+    this.isConnected = true
+    this.reconnectAttempts = 0
+    logger.info('Realtime service initialized')
   }
 
   /**
-    * Subscribe to buyer order changes
-    * @param {string} userId - Buyer user ID
+   * Subscribe to buyer order changes
+   * @param {string} userId - Buyer user ID
    * @param {function} callback - Callback function for order changes
    * @returns {function} Unsubscribe function
    */
@@ -46,55 +45,26 @@ class RealtimeService {
       return () => {}
     }
 
-    const channelName = `orders:${userId}`
-    
-    // Unsubscribe if already subscribed
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = `orders:${userId}`
+    // Remove previous registration for same key before re-subscribing
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedCallback = (payload) => {
+      logger.info('Order changed:', payload)
+      callback(payload)
+      if (payload.eventType === 'INSERT') {
+        toast.success('📦 طلب جديد تم استلامه!')
+      } else if (payload.eventType === 'UPDATE') {
+        const status = payload.new?.status
+        if (status === 'confirmed') toast.success('✅ تم تأكيد طلبك')
+        else if (status === 'shipped') toast.success('🚚 طلبك في الطريق!')
+        else if (status === 'delivered') toast.success('✓ تم تسليم طلبك')
+      }
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // INSERT, UPDATE, DELETE
-          schema: 'public',
-          table: 'orders',
-          filter: `buyer_id=eq.${userId}`,
-        },
-        (payload) => {
-          logger.info('Order changed:', payload)
-          callback(payload)
-          
-          // Show toast for new orders
-          if (payload.eventType === 'INSERT') {
-            toast.success('📦 طلب جديد تم استلامه!')
-          } else if (payload.eventType === 'UPDATE') {
-            const status = payload.new?.status
-            if (status === 'confirmed') {
-              toast.success('✅ تم تأكيد طلبك')
-            } else if (status === 'shipped') {
-              toast.success('🚚 طلبك في الطريق!')
-            } else if (status === 'delivered') {
-              toast.success('✓ تم تسليم طلبك')
-            }
-          }
-        }
-      )
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          logger.info(`Subscribed to ${channelName}`)
-        } else if (status === 'CHANNEL_ERROR') {
-          logger.error(`Channel error: ${channelName}`)
-          this.handleReconnect(channelName, () => this.subscribeToOrders(userId, callback))
-        }
-      })
-
-    this.channels.set(channelName, channel)
-
-    // Return unsubscribe function
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('orders', `buyer_id=eq.${userId}`, wrappedCallback)
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -109,45 +79,26 @@ class RealtimeService {
       return () => {}
     }
 
-    const channelName = `vendor-orders:${vendorId}`
-    
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = `vendor-orders:${vendorId}`
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedInsert = (payload) => {
+      logger.info('New vendor order:', payload)
+      callback(payload)
+      toast.success('🎉 طلب جديد من عميل!')
+    }
+    const wrappedUpdate = (payload) => {
+      logger.info('Vendor order updated:', payload)
+      callback(payload)
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `vendor_id=eq.${vendorId}`,
-        },
-        (payload) => {
-          logger.info('New vendor order:', payload)
-          callback(payload)
-          toast.success('🎉 طلب جديد من عميل!')
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `vendor_id=eq.${vendorId}`,
-        },
-        (payload) => {
-          logger.info('Vendor order updated:', payload)
-          callback(payload)
-        }
-      )
-      .subscribe()
+    // Two callbacks on the same channel key — manager fan-outs them both
+    const unsubInsert = managerSubscribe('orders', `vendor_id=eq.${vendorId}`, wrappedInsert, 'INSERT')
+    const unsubUpdate = managerSubscribe('orders', `vendor_id=eq.${vendorId}`, wrappedUpdate, 'UPDATE')
 
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = () => { unsubInsert(); unsubUpdate() }
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -162,37 +113,19 @@ class RealtimeService {
       return () => {}
     }
 
-    const channelName = `notifications:${userId}`
-    
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = `notifications:${userId}`
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedCallback = (payload) => {
+      logger.info('New notification:', payload)
+      callback(payload)
+      const notification = payload.new
+      if (notification) toast.info(notification.message || 'إشعار جديد')
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          logger.info('New notification:', payload)
-          callback(payload)
-          
-          // Show notification toast
-          const notification = payload.new
-          if (notification) {
-            toast.info(notification.message || 'إشعار جديد')
-          }
-        }
-      )
-      .subscribe()
-
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('notifications', `user_id=eq.${userId}`, wrappedCallback, 'INSERT')
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -201,30 +134,17 @@ class RealtimeService {
    * @returns {function} Unsubscribe function
    */
   subscribeToProducts(callback) {
-    const channelName = 'products:all'
-    
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = 'products:all'
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedCallback = (payload) => {
+      logger.info('Product changed:', payload)
+      callback(payload)
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products',
-        },
-        (payload) => {
-          logger.info('Product changed:', payload)
-          callback(payload)
-        }
-      )
-      .subscribe()
-
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('products', '', wrappedCallback)
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -239,42 +159,24 @@ class RealtimeService {
       return () => {}
     }
 
-    const channelName = `deliveries:${driverId}`
-    
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = `deliveries:${driverId}`
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedCallback = (payload) => {
+      logger.info('Delivery changed:', payload)
+      callback(payload)
+      if (payload.eventType === 'INSERT') {
+        toast.success('🚚 طلب توصيل جديد!')
+      } else if (payload.eventType === 'UPDATE') {
+        const status = payload.new?.status
+        if (status === 'picked_up') toast.info('📦 تم استلام الطلب')
+        else if (status === 'delivered') toast.success('✓ تم التوصيل بنجاح!')
+      }
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deliveries',
-          filter: `driver_id=eq.${driverId}`,
-        },
-        (payload) => {
-          logger.info('Delivery changed:', payload)
-          callback(payload)
-          
-          if (payload.eventType === 'INSERT') {
-            toast.success('🚚 طلب توصيل جديد!')
-          } else if (payload.eventType === 'UPDATE') {
-            const status = payload.new?.status
-            if (status === 'picked_up') {
-              toast.info('📦 تم استلام الطلب')
-            } else if (status === 'delivered') {
-              toast.success('✓ تم التوصيل بنجاح!')
-            }
-          }
-        }
-      )
-      .subscribe()
-
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('deliveries', `driver_id=eq.${driverId}`, wrappedCallback)
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -283,31 +185,17 @@ class RealtimeService {
    * @returns {function} Unsubscribe function
    */
   subscribeToNewDeliveryRequests(callback) {
-    const channelName = 'deliveries:unassigned'
+    const key = 'deliveries:unassigned'
+    if (this.channels.has(key)) this.unsubscribe(key)
 
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const wrappedCallback = (payload) => {
+      logger.info('New delivery request:', payload)
+      callback(payload)
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'deliveries',
-          filter: 'status=eq.unassigned',
-        },
-        (payload) => {
-          logger.info('New delivery request:', payload)
-          callback(payload)
-        }
-      )
-      .subscribe()
-
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('deliveries', 'status=eq.unassigned', wrappedCallback, 'INSERT')
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
@@ -319,67 +207,50 @@ class RealtimeService {
   subscribeToProductStock(productId, callback) {
     if (!productId) return () => {}
 
-    const channelName = `product-stock:${productId}`
-    
-    if (this.channels.has(channelName)) {
-      this.unsubscribe(channelName)
+    const key = `product-stock:${productId}`
+    if (this.channels.has(key)) this.unsubscribe(key)
+
+    const wrappedCallback = (payload) => {
+      logger.info('Product stock changed:', payload)
+      callback(payload)
+      const newQty = payload.new?.available_quantity
+      if (newQty === 0) toast.error('⚠️ نفذ المنتج من المخزون')
+      else if (newQty <= 10) toast(`مخزون منخفض: ${newQty} متبقي`, { icon: '⚠️' })
     }
 
-    const channel = supabase
-      .channel(channelName)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'products',
-          filter: `id=eq.${productId}`,
-        },
-        (payload) => {
-          logger.info('Product stock changed:', payload)
-          callback(payload)
-          
-          const newQty = payload.new?.available_quantity
-          if (newQty === 0) {
-            toast.error('⚠️ نفذ المنتج من المخزون')
-          } else if (newQty <= 10) {
-            toast(`مخزون منخفض: ${newQty} متبقي`, { icon: '⚠️' })
-          }
-        }
-      )
-      .subscribe()
-
-    this.channels.set(channelName, channel)
-    return () => this.unsubscribe(channelName)
+    const unsub = managerSubscribe('products', `id=eq.${productId}`, wrappedCallback, 'UPDATE')
+    this.channels.set(key, unsub)
+    return () => this.unsubscribe(key)
   }
 
   /**
-   * Unsubscribe from a channel
-   * @param {string} channelName - Channel name
+   * Unsubscribe from a specific channel key
+   * @param {string} channelName - Channel key
    */
   unsubscribe(channelName) {
-    const channel = this.channels.get(channelName)
-    if (channel) {
-      supabase.removeChannel(channel)
+    const unsub = this.channels.get(channelName)
+    if (unsub) {
+      unsub()
       this.channels.delete(channelName)
       logger.info(`Unsubscribed from ${channelName}`)
     }
   }
 
   /**
-   * Unsubscribe from all channels
+   * Unsubscribe from all channels registered by this service instance
    */
   unsubscribeAll() {
-    this.channels.forEach((channel, name) => {
-      supabase.removeChannel(channel)
+    this.channels.forEach((unsub, name) => {
+      unsub()
       logger.info(`Unsubscribed from ${name}`)
     })
     this.channels.clear()
+    managerUnsubscribeAll()
     this.isConnected = false
   }
 
   /**
-   * Handle reconnection
+   * Handle reconnection (kept for API compatibility — manager handles this internally)
    * @param {string} channelName - Channel name
    * @param {function} subscribeFn - Subscribe function
    */
@@ -400,11 +271,11 @@ class RealtimeService {
   }
 
   /**
-   * Get active channels count
+   * Get active channels count — reflects deduplicated channels in realtimeManager
    * @returns {number}
    */
   getActiveChannelsCount() {
-    return this.channels.size
+    return getActiveChannelsCount()
   }
 }
 

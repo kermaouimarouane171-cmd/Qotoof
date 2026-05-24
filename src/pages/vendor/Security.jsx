@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { mfaService, sessionService } from '@/services/authServices'
 import { trustScoreService } from '@/services/vendorSecurity'
 import { useAuditLogs } from '@/services/auditLogger'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useSecurity, validatePasswordStrength } from '@/hooks/useSecurity'
+import { useSecurityData, usePasswordStrength, useSecurityActions } from '@/hooks/useSecurity'
 import {
   ShieldCheckIcon,
   KeyIcon,
@@ -32,7 +31,9 @@ const VendorSecurityPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, profile, updatePassword } = useAuthStore()
-  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
+  const { mfaSettings, sessions, loading, reload: loadSecurityData } = useSecurityData()
+  const sessionCount = sessions.length
+  const { disableMFA, revokeAllSessions, isPending: disablingMFA } = useSecurityActions()
   const [trustScore, setTrustScore] = useState(null)
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
@@ -55,6 +56,7 @@ const VendorSecurityPage = () => {
   const [passwordError, setPasswordError] = useState('')
   const [showPhoneVerification, setShowPhoneVerification] = useState(false)
   const [pendingNewPassword, setPendingNewPassword] = useState('')
+  const strengthResult = usePasswordStrength(newPassword)
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 10 })
 
@@ -125,9 +127,28 @@ const VendorSecurityPage = () => {
       return
     }
 
-    const passwordValidation = validatePasswordStrength(newPassword, t, 'vendor.security.errors')
-    if (!passwordValidation.valid) {
-      setPasswordError(passwordValidation.errors.join('. '))
+    if (!strengthResult.checks.minLength) {
+      setPasswordError(t('vendor.security.errors.passwordTooShort', 'Password must be 8 characters minimum'))
+      return
+    }
+
+    if (!strengthResult.checks.uppercase) {
+      setPasswordError(t('vendor.security.errors.passwordNeedsUppercase', 'Password must contain at least one uppercase letter'))
+      return
+    }
+
+    if (!strengthResult.checks.lowercase) {
+      setPasswordError(t('vendor.security.errors.passwordNeedsLowercase', 'Password must contain at least one lowercase letter'))
+      return
+    }
+
+    if (!strengthResult.checks.number) {
+      setPasswordError(t('vendor.security.errors.passwordNeedsNumber', 'Password must contain at least one number'))
+      return
+    }
+
+    if (!strengthResult.checks.special) {
+      setPasswordError(t('vendor.security.errors.passwordNeedsSpecial', 'Password must contain at least one special character'))
       return
     }
 
@@ -199,8 +220,6 @@ const VendorSecurityPage = () => {
     if (!password) return
 
     try {
-      setDisablingMFA(true)
-
       // Verify password first
       const { error: verifyError } = await supabase.auth.signInWithPassword({
         email: user.email,
@@ -213,25 +232,19 @@ const VendorSecurityPage = () => {
       }
 
       // Password verified - disable MFA
-      const result = await mfaService.disable()
+      await disableMFA()
 
-      if (result.success) {
-        // ✅ Send security email notification
-        await sendSecurityEmail('Two-Factor Authentication Disabled')
+      // ✅ Send security email notification
+      await sendSecurityEmail('Two-Factor Authentication Disabled')
 
-        // Log the MFA disable action
-        await auditLogger.logMFAAction('MFA_DISABLED', user.id)
+      // Log the MFA disable action
+      await auditLogger.logMFAAction('MFA_DISABLED', user.id)
 
-        toast.success(t('vendor.security.mfaDisabled', 'Two-factor authentication disabled'))
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || t('vendor.security.errors.mfaDisableFailed', 'Failed to disable MFA'))
-      }
+      toast.success(t('vendor.security.mfaDisabled', 'Two-factor authentication disabled'))
+      await loadSecurityData()
     } catch (error) {
       logger.error('Disable MFA error:', error)
       toast.error(t('vendor.security.errors.mfaDisableFailed', 'Failed to disable MFA'))
-    } finally {
-      setDisablingMFA(false)
     }
   }
 
@@ -249,20 +262,16 @@ const VendorSecurityPage = () => {
     }
 
     try {
-      const result = await sessionService.revokeAllOtherSessions()
+      await revokeAllSessions()
 
-      if (result.success) {
-        // ✅ Send security email notification
-        await sendSecurityEmail('All Other Sessions Revoked')
+      // ✅ Send security email notification
+      await sendSecurityEmail('All Other Sessions Revoked')
 
-        // Log the session revocation
-        await auditLogger.logSessionAction('SESSIONS_REVOKED_ALL', user.id)
+      // Log the session revocation
+      await auditLogger.logSessionAction('SESSIONS_REVOKED_ALL', user.id)
 
-        toast.success(t('vendor.security.sessionsRevoked', 'All other sessions revoked'))
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || t('vendor.security.errors.revokeFailed', 'Failed to revoke sessions'))
-      }
+      toast.success(t('vendor.security.sessionsRevoked', 'All other sessions revoked'))
+      await loadSecurityData()
     } catch (error) {
       logger.error('Revoke sessions error:', error)
       toast.error(t('vendor.security.errors.revokeFailed', 'Failed to revoke sessions'))

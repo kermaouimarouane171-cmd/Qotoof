@@ -1,510 +1,302 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
-import { Card, LoadingSpinner, SimpleRating } from '@/components/ui'
-import ErrorBoundary from '@/components/ErrorBoundary'
+import profilesService from '@/services/profilesService'
 import {
+  BuildingStorefrontIcon,
   MagnifyingGlassIcon,
   MapPinIcon,
-  AdjustmentsHorizontalIcon,
-  XMarkIcon,
-  CheckBadgeIcon,
-  ArrowTopRightOnSquareIcon,
+  StarIcon,
 } from '@heroicons/react/24/outline'
-import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-import { filterPublicVendors } from '@/utils/publicVisibility'
 
-const SPECIALTY_OPTIONS = [
-  { id: 'plants', defaultLabel: 'Plants', emoji: '🌿' },
-  { id: 'vegetables', defaultLabel: 'Vegetables', emoji: '🥬' },
-  { id: 'fruits', defaultLabel: 'Fruits', emoji: '🍎' },
-  { id: 'herbs', defaultLabel: 'Herbs', emoji: '🌱' },
-  { id: 'seeds', defaultLabel: 'Seeds', emoji: '🌰' },
+const ITEMS_PER_PAGE = 10
+
+const MOROCCAN_CITIES = [
+  'Casablanca',
+  'Rabat',
+  'Marrakech',
+  'Fes',
+  'Tangier',
+  'Agadir',
+  'Meknes',
+  'Oujda',
+  'Kenitra',
+  'Tetouan',
+  'Safi',
+  'El Jadida',
+  'Beni Mellal',
+  'Nador',
+  'Taza',
+]
+
+const CATEGORY_OPTIONS = [
+  { value: 'vegetables', label: 'خضروات' },
+  { value: 'fruits', label: 'فواكه' },
+  { value: 'plants', label: 'نباتات' },
+  { value: 'herbs', label: 'أعشاب' },
+  { value: 'seeds', label: 'بذور' },
 ]
 
 const SORT_OPTIONS = [
-  { id: 'newest', defaultLabel: 'Newest First' },
-  { id: 'oldest', defaultLabel: 'Oldest First' },
-  { id: 'highest_rated', defaultLabel: 'Highest Rated' },
-  { id: 'most_reviewed', defaultLabel: 'Most Reviewed' },
+  { value: 'rating', label: 'الأعلى تقييماً' },
+  { value: 'newest', label: 'الأحدث' },
+  { value: 'most_orders', label: 'الأكثر طلبات' },
 ]
 
+const StoreCardSkeleton = () => (
+  <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm animate-pulse">
+    <div className="flex items-start gap-3">
+      <div className="h-12 w-12 rounded-full bg-emerald-100" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 w-2/3 rounded bg-emerald-100" />
+        <div className="h-3 w-1/3 rounded bg-emerald-100" />
+      </div>
+    </div>
+    <div className="mt-4 h-3 w-1/2 rounded bg-emerald-100" />
+    <div className="mt-2 h-3 w-1/3 rounded bg-emerald-100" />
+    <div className="mt-5 h-10 w-full rounded-xl bg-emerald-100" />
+  </div>
+)
+
 const Stores = () => {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [stores, setStores] = useState([])
+  const { i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState(searchParams.get('search') || '')
-  const [cityFilter, setCityFilter] = useState(searchParams.get('city') || '')
-  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') || '')
-  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest')
-  const [storeRatings, setStoreRatings] = useState({})
-  const [storeCategories, setStoreCategories] = useState({})
-  const [filtersOpen, setFiltersOpen] = useState(false)
-  const [error, setError] = useState(null)
-  const [searchTimeout, setSearchTimeout] = useState(null)
-  const specialtyOptions = SPECIALTY_OPTIONS.map((option) => ({
-    ...option,
-    label: t(`stores.specialties.${option.id}`, option.defaultLabel),
-  }))
-  const sortOptions = SORT_OPTIONS.map((option) => ({
-    ...option,
-    label: t(`stores.sortOptions.${option.id}`, option.defaultLabel),
-  }))
+  const [stores, setStores] = useState([])
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('')
+  const [city, setCity] = useState('')
+  const [ratingFilter, setRatingFilter] = useState('')
+  const [sortBy, setSortBy] = useState('rating')
+  const [page, setPage] = useState(1)
 
-  // Update URL when filters change
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (search) params.set('search', search)
-    if (cityFilter) params.set('city', cityFilter)
-    if (categoryFilter) params.set('category', categoryFilter)
-    if (sortBy !== 'newest') params.set('sort', sortBy)
-    setSearchParams(params)
-  }, [search, cityFilter, categoryFilter, sortBy])
+  const isArabic = (i18n.language || 'ar').toLowerCase().startsWith('ar')
 
-  // Sync from URL changes (browser back/forward)
   useEffect(() => {
-    setSearch(searchParams.get('search') || '')
-    setCityFilter(searchParams.get('city') || '')
-    setCategoryFilter(searchParams.get('category') || '')
-    setSortBy(searchParams.get('sort') || 'newest')
-  }, [searchParams])
+    const loadStores = async () => {
+      setLoading(true)
+      try {
+        const { data: vendors, error: vendorsError } = await profilesService.fetchActiveVerifiedVendors()
+        if (vendorsError) throw vendorsError
 
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) clearTimeout(searchTimeout)
+        const vendorIds = (vendors || []).map((vendor) => vendor.id)
+        if (vendorIds.length === 0) {
+          setStores([])
+          return
+        }
+
+        const [productsResult, ordersResult] = await Promise.all([
+          supabase
+            .from('products')
+            .select('vendor_id, category')
+            .in('vendor_id', vendorIds)
+            .eq('approval_status', 'approved')
+            .eq('is_available', true),
+          supabase
+            .from('orders')
+            .select('vendor_id')
+            .in('vendor_id', vendorIds),
+        ])
+
+        if (productsResult.error) throw productsResult.error
+        if (ordersResult.error) throw ordersResult.error
+
+        const productCounts = {}
+        const categoriesByVendor = {}
+        for (const row of productsResult.data || []) {
+          productCounts[row.vendor_id] = (productCounts[row.vendor_id] || 0) + 1
+          if (!categoriesByVendor[row.vendor_id]) categoriesByVendor[row.vendor_id] = new Set()
+          if (row.category) categoriesByVendor[row.vendor_id].add(row.category)
+        }
+
+        const orderCounts = {}
+        for (const row of ordersResult.data || []) {
+          orderCounts[row.vendor_id] = (orderCounts[row.vendor_id] || 0) + 1
+        }
+
+        const enriched = (vendors || []).map((vendor) => ({
+          ...vendor,
+          productCount: productCounts[vendor.id] || 0,
+          orderCount: orderCounts[vendor.id] || 0,
+          categories: Array.from(categoriesByVendor[vendor.id] || []),
+          score: Number(vendor.rating || 0),
+        }))
+
+        setStores(enriched)
+      } catch (error) {
+        logger.error('Failed to load stores list:', error)
+        setStores([])
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [searchTimeout])
 
-  useEffect(() => {
     loadStores()
   }, [])
 
-  const loadStores = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'vendor')
-        .order('created_at', { ascending: false })
+  const filteredStores = useMemo(() => {
+    const query = search.trim().toLowerCase()
 
-      if (error) throw error
-      const visibleStores = filterPublicVendors(data || [])
-      setStores(visibleStores)
-
-      // Batch fetch ratings and categories (NOT N+1!)
-      if (visibleStores.length > 0) {
-        const vendorIds = visibleStores.map((store) => store.id)
-
-        // Fetch all reviews at once
-        const { data: allReviews } = await supabase
-          .from('reviews')
-          .select('vendor_id, rating')
-          .in('vendor_id', vendorIds)
-          .eq('is_flagged', false)
-          .is('deleted_at', null)
-
-        // Fetch all product categories at once
-        const { data: allProducts } = await supabase
-          .from('products')
-          .select('vendor_id, category')
-          .in('vendor_id', vendorIds)
-          .eq('is_available', true)
-          .eq('approval_status', 'approved')
-
-        // Process reviews into ratings
-        const ratings = {}
-        vendorIds.forEach(id => { ratings[id] = { average: 0, count: 0 } })
-
-        if (allReviews && allReviews.length > 0) {
-          const grouped = allReviews.reduce((acc, r) => {
-            if (!acc[r.vendor_id]) acc[r.vendor_id] = []
-            acc[r.vendor_id].push(r.rating)
-            return acc
-          }, {})
-
-          Object.entries(grouped).forEach(([vendorId, ratingsList]) => {
-            ratings[vendorId] = {
-              average: ratingsList.reduce((a, b) => a + b, 0) / ratingsList.length,
-              count: ratingsList.length
-            }
-          })
-        }
-
-        // Process products into categories
-        const categories = {}
-        vendorIds.forEach(id => { categories[id] = [] })
-
-        if (allProducts && allProducts.length > 0) {
-          const grouped = allProducts.reduce((acc, p) => {
-            if (!acc[p.vendor_id]) acc[p.vendor_id] = new Set()
-            acc[p.vendor_id].add(p.category)
-            return acc
-          }, {})
-
-          Object.entries(grouped).forEach(([vendorId, catSet]) => {
-            categories[vendorId] = [...catSet]
-          })
-        }
-
-        setStoreRatings(ratings)
-        setStoreCategories(categories)
-      }
-    } catch (error) {
-      logger.error('Error loading stores:', error)
-      const loadFailedMessage = t('stores.error.loadFailed', 'Failed to load stores. Please try again.')
-      setError(loadFailedMessage)
-      toast.error(loadFailedMessage)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredAndSortedStores = useMemo(() => {
-    let result = stores.filter(store => {
-      const matchesSearch = search === '' ||
-        store.store_name?.toLowerCase().includes(search.toLowerCase()) ||
-        store.first_name?.toLowerCase().includes(search.toLowerCase()) ||
-        store.last_name?.toLowerCase().includes(search.toLowerCase())
-      const matchesCity = cityFilter === '' || store.city?.toLowerCase().includes(cityFilter.toLowerCase())
-      const matchesCategory = categoryFilter === '' || (storeCategories[store.id] || []).includes(categoryFilter)
-      return matchesSearch && matchesCity && matchesCategory
+    const result = stores.filter((store) => {
+      const storeName = (store.store_name || `${store.first_name || ''} ${store.last_name || ''}`).trim().toLowerCase()
+      const matchesSearch = !query || storeName.includes(query)
+      const matchesCategory = !category || store.categories.includes(category)
+      const matchesCity = !city || (store.city || '').toLowerCase() === city.toLowerCase()
+      const matchesRating = !ratingFilter || store.score >= Number(ratingFilter)
+      return matchesSearch && matchesCategory && matchesCity && matchesRating
     })
 
-    // Sort
     result.sort((a, b) => {
-      switch (sortBy) {
-        case 'oldest':
-          return new Date(a.created_at) - new Date(b.created_at)
-        case 'highest_rated':
-          return (storeRatings[b.id]?.average || 0) - (storeRatings[a.id]?.average || 0)
-        case 'most_reviewed':
-          return (storeRatings[b.id]?.count || 0) - (storeRatings[a.id]?.count || 0)
-        case 'newest':
-        default:
-          return new Date(b.created_at) - new Date(a.created_at)
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       }
+      if (sortBy === 'most_orders') {
+        return b.orderCount - a.orderCount
+      }
+      return b.score - a.score
     })
 
     return result
-  }, [stores, search, cityFilter, categoryFilter, sortBy, storeRatings, storeCategories])
+  }, [category, city, ratingFilter, search, sortBy, stores])
 
-  const cities = useMemo(() => [...new Set(stores.map(s => s.city).filter(Boolean))], [stores])
+  const totalPages = Math.max(1, Math.ceil(filteredStores.length / ITEMS_PER_PAGE))
+  const paginatedStores = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE
+    return filteredStores.slice(start, start + ITEMS_PER_PAGE)
+  }, [filteredStores, page])
 
-  const activeSpecialtyTags = useMemo(() => {
-    const allCats = new Set(Object.values(storeCategories).flat())
-    return specialtyOptions.filter(opt => allCats.has(opt.id))
-  }, [specialtyOptions, storeCategories])
-
-  const clearAllFilters = () => {
-    setSearch('')
-    setCityFilter('')
-    setCategoryFilter('')
-    setSortBy('newest')
-  }
-
-  const hasActiveFilters = search || cityFilter || categoryFilter || sortBy !== 'newest'
-
-  // Debounced search handler
-  const handleSearchChange = useCallback((e) => {
-    const value = e.target.value
-    setSearch(value)
-
-    if (searchTimeout) clearTimeout(searchTimeout)
-
-    const timeout = setTimeout(() => {
-      // URL update handled by useEffect
-    }, 500)
-
-    setSearchTimeout(timeout)
-  }, [searchTimeout])
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
-        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
-          <XMarkIcon className="w-10 h-10 text-red-400" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('stores.error.genericTitle', 'Something went wrong')}</h2>
-        <p className="text-gray-500 mb-6">{error}</p>
-        <button onClick={loadStores} className="btn-primary">{t('stores.error.tryAgain', 'Try Again')}</button>
-      </div>
-    )
-  }
+  useEffect(() => {
+    setPage(1)
+  }, [search, category, city, ratingFilter, sortBy])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
+    <div dir={isArabic ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-          {t('stores.title', 'All Stores')}
-        </h1>
-        <p className="text-gray-600">
-          {t('stores.browseStores', 'Browse {{count}} stores on Qotoof', { count: stores.length })}
-        </p>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">المتاجر</h1>
+        <p className="mt-1 text-sm text-gray-500">اكتشف كل البائعين الموثقين والنشطين في قطوف</p>
       </div>
 
-      {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <div className="mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="relative lg:col-span-2">
+          <MagnifyingGlassIcon className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
-            placeholder={t('stores.searchPlaceholder', 'Search stores by name...')}
             value={search}
-            onChange={handleSearchChange}
-            className="input pl-12 pr-4 py-3 text-base"
-            aria-label={t('stores.searchLabel', 'Search stores')}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="ابحث باسم المتجر"
+            className="h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/30 pr-9 pl-3 text-sm outline-none ring-emerald-300 transition focus:ring"
           />
         </div>
-      </div>
 
-      {/* Filter Bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        {/* City Filter */}
-        <select
-          value={cityFilter}
-          onChange={(e) => setCityFilter(e.target.value)}
-          className="input text-sm py-2"
-          aria-label={t('stores.filters.city', 'Filter by city')}
-        >
-          <option value="">{t('stores.filters.allCities', 'All Cities')}</option>
-          {cities.map(city => (
-            <option key={city} value={city}>{city}</option>
+        <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-3 text-sm outline-none ring-emerald-300 focus:ring">
+          <option value="">كل الفئات</option>
+          {CATEGORY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
 
-        {/* Category Filter */}
-        <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter(e.target.value)}
-          className="input text-sm py-2"
-          aria-label={t('stores.filters.category', 'Filter by category')}
-        >
-          <option value="">{t('stores.filters.allCategories', 'All Categories')}</option>
-          {activeSpecialtyTags.map(cat => (
-            <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
+        <select value={city} onChange={(event) => setCity(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-3 text-sm outline-none ring-emerald-300 focus:ring">
+          <option value="">كل المدن</option>
+          {MOROCCAN_CITIES.map((cityName) => (
+            <option key={cityName} value={cityName}>{cityName}</option>
           ))}
         </select>
 
-        {/* Sort */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="input text-sm py-2"
-          aria-label={t('stores.filters.sortBy', 'Sort stores')}
-        >
-          {sortOptions.map(opt => (
-            <option key={opt.id} value={opt.id}>{opt.label}</option>
-          ))}
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-2 text-sm outline-none ring-emerald-300 focus:ring">
+            <option value="">التقييم</option>
+            <option value="4">4+ ⭐</option>
+            <option value="3">3+ ⭐</option>
+            <option value="2">2+ ⭐</option>
+          </select>
 
-        {/* Clear Filters */}
-        {hasActiveFilters && (
-          <button
-            onClick={clearAllFilters}
-            className="text-sm text-green-600 hover:underline flex items-center gap-1"
-            aria-label={t('stores.filters.clearAll', 'Clear all filters')}
-          >
-            <XMarkIcon className="w-4 h-4" />
-            {t('stores.filters.clearAll', 'Clear all')}
-          </button>
-        )}
-
-        {/* Mobile Filters Toggle */}
-        <button
-          onClick={() => setFiltersOpen(!filtersOpen)}
-          className="lg:hidden ml-auto flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"
-          aria-label={t('stores.filters.label', 'Filters')}
-        >
-          <AdjustmentsHorizontalIcon className="w-5 h-5" />
-          {t('stores.filters.label', 'Filters')}
-        </button>
-      </div>
-
-      {/* Active Filter Tags */}
-      {hasActiveFilters && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {cityFilter && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
-              <MapPinIcon className="w-3.5 h-3.5" />
-              {cityFilter}
-              <button onClick={() => setCityFilter('')} className="hover:text-green-900" aria-label={t('stores.filters.removeCity', 'Remove city filter')}>
-                <XMarkIcon className="w-3 h-3" />
-              </button>
-            </span>
-          )}
-          {categoryFilter && (
-            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm">
-              {specialtyOptions.find(c => c.id === categoryFilter)?.emoji} {specialtyOptions.find(c => c.id === categoryFilter)?.label}
-              <button onClick={() => setCategoryFilter('')} className="hover:text-green-900" aria-label={t('stores.filters.removeCategory', 'Remove category filter')}>
-                <XMarkIcon className="w-3 h-3" />
-              </button>
-            </span>
-          )}
+          <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-2 text-sm outline-none ring-emerald-300 focus:ring">
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
         </div>
-      )}
+      </div>
 
-      {/* Stores Grid */}
-      {filteredAndSortedStores.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedStores.map((store) => {
-            const rating = storeRatings[store.id] || { average: 0, count: 0 }
-            const categories = storeCategories[store.id] || []
-            const displayName = store.store_name || `${store.first_name} ${store.last_name}`
-            const storeLogo = store.store_logo
-
-            return (
-              <Card
-                key={store.id}
-                className="group cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-1 border border-gray-100"
-                onClick={() => navigate(`/stores/${store.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    navigate(`/stores/${store.id}`)
-                  }
-                }}
-                tabIndex={0}
-                role="link"
-                aria-label={t('stores.visitStoreCard', 'Visit store: {{storeName}}', { storeName: displayName })}
-              >
-                {/* Store Image / Placeholder */}
-                <div className="relative aspect-video bg-gradient-to-br from-green-100 to-emerald-50 rounded-t-xl overflow-hidden">
-                  {storeLogo ? (
-                    <img
-                      src={storeLogo}
-                      alt={displayName}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-5xl font-bold text-green-300">
-                        {displayName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Verified Badge */}
-                  {store.is_verified && (
-                    <div className="absolute top-3 right-3">
-                      <CheckBadgeIcon className="w-7 h-7 text-green-500 drop-shadow-sm" />
-                    </div>
-                  )}
-
-                  {/* Online/Offline Indicator */}
-                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full shadow-sm">
-                    <span className={`w-2 h-2 rounded-full ${store.is_online ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
-                    <span className="text-xs text-gray-600">{store.is_online ? t('stores.status.online', 'Online') : t('stores.status.offline', 'Offline')}</span>
-                  </div>
-                </div>
-
-                {/* Store Info */}
-                <div className="p-4">
-                  {/* Store Name */}
-                  <h3 className="font-semibold text-gray-900 text-lg mb-1 group-hover:text-green-600 transition-colors">
-                    {displayName}
-                  </h3>
-
-                  {/* Location */}
-                  {store.city && (
-                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
-                      <MapPinIcon className="w-4 h-4 flex-shrink-0" />
-                      <span className="truncate">{store.city}{store.country ? `, ${store.country}` : ''}</span>
-                    </div>
-                  )}
-
-                  {/* Specialty Tags */}
-                  {categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {categories.slice(0, 3).map(catId => {
-                        const cat = SPECIALTY_OPTIONS.find(c => c.id === catId)
-                        return cat ? (
-                          <span
-                            key={catId}
-                            className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-gray-100 text-gray-600 rounded-md text-xs font-medium"
-                          >
-                            {cat.emoji} {cat.label}
-                          </span>
-                        ) : null
-                      })}
-                      {categories.length > 3 && (
-                        <span className="inline-flex items-center px-2 py-0.5 bg-gray-100 text-gray-500 rounded-md text-xs">
-                          +{categories.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Description */}
-                  {store.description && (
-                    <p className="text-sm text-gray-600 line-clamp-2 mb-3">{store.description}</p>
-                  )}
-
-                  {/* Rating & CTA */}
-                  <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <div className="flex items-center gap-2">
-                      {rating.count > 0 ? (
-                        <>
-                          <SimpleRating rating={rating.average} size="sm" showValue />
-                          <span className="text-xs text-gray-400">({rating.count})</span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-gray-400">{t('stores.rating.noReviews', 'No reviews yet')}</span>
-                      )}
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-sm font-medium text-green-600 group-hover:gap-2 transition-all">
-                      {t('stores.cta.visitStore', 'Visit Store')}
-                      <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            )
-          })}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <StoreCardSkeleton key={`store-skeleton-${index}`} />
+          ))}
+        </div>
+      ) : paginatedStores.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-14 text-center text-sm text-gray-500">
+          لا توجد متاجر مطابقة للفلاتر الحالية.
         </div>
       ) : (
-        <div className="text-center py-16">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MagnifyingGlassIcon className="w-10 h-10 text-gray-400" />
+        <>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedStores.map((store) => {
+              const storeName = (store.store_name || `${store.first_name || ''} ${store.last_name || ''}`).trim() || 'متجر بدون اسم'
+              return (
+                <article key={store.id} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="flex items-start gap-3">
+                    <div className="h-12 w-12 overflow-hidden rounded-full bg-emerald-100">
+                      {store.avatar_url ? (
+                        <img src={store.avatar_url} alt={storeName} className="h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-emerald-700">
+                          <BuildingStorefrontIcon className="h-6 w-6" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="line-clamp-1 text-sm font-semibold text-gray-900">{storeName}</h3>
+                      <div className="mt-1 flex items-center gap-1 text-xs text-amber-500">
+                        <StarIcon className="h-4 w-4" />
+                        <span className="font-medium text-gray-700">{Number(store.score || 0).toFixed(1)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 space-y-2 text-xs text-gray-600">
+                    <p className="flex items-center gap-1">
+                      <MapPinIcon className="h-4 w-4 text-emerald-600" />
+                      {store.city || 'غير محدد'}
+                    </p>
+                    <p>عدد المنتجات: <span className="font-semibold text-gray-800">{store.productCount}</span></p>
+                    <p>عدد الطلبات: <span className="font-semibold text-gray-800">{store.orderCount}</span></p>
+                  </div>
+
+                  <Link to={`/stores/${store.id}`} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                    View Store
+                  </Link>
+                </article>
+              )
+            })}
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {t('stores.empty.title', 'No stores found')}
-          </h3>
-          <p className="text-gray-500 mb-4">
-            {t('stores.empty.description', 'Try adjusting your filters or search terms')}
-          </p>
-          {hasActiveFilters && (
-            <button onClick={clearAllFilters} className="btn-primary">
-              {t('stores.empty.clearFilters', 'Clear Filters')}
+
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              disabled={page === 1}
+              className="h-9 rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              السابق
             </button>
-          )}
-        </div>
+
+            <span className="px-3 text-sm text-gray-600">{page} / {totalPages}</span>
+
+            <button
+              type="button"
+              onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={page === totalPages}
+              className="h-9 rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              التالي
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
 }
 
-// Wrap with Error Boundary to prevent page crashes
-const StoresWithErrorBoundary = () => (
-  <ErrorBoundary componentName="StoresPage">
-    <Stores />
-  </ErrorBoundary>
-)
-
-export default StoresWithErrorBoundary
+export default Stores

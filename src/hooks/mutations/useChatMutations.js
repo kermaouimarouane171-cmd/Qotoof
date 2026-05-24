@@ -57,7 +57,7 @@ export function useDeleteConversation() {
   const { user } = useAuthStore()
 
   return useMutation({
-    mutationFn: (conversationId) => chatService.deleteConversation(conversationId),
+    mutationFn: (conversationId) => chatService.deleteConversation(conversationId, user?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat', 'conversations', user?.id] })
     }

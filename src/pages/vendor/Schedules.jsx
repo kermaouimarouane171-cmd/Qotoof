@@ -5,7 +5,6 @@ import { supabase } from '@/services/supabase'
 import deliveryScheduleService from '@/services/deliveryScheduleService'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
-  ClockIcon,
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,

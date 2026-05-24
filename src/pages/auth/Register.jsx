@@ -1,114 +1,155 @@
-import { useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useMemo, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import toast from 'react-hot-toast'
+import Recaptcha from '@/components/ui/Recaptcha'
+import TrustBadges from '@/components/ui/TrustBadges'
+import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
+import CINInput from '@/components/ui/CINInput'
 import { useAuthStore } from '@/store/authStore'
-import { Button, Input, CINInput, TrustBadges, VehiclePhotoUpload, MoroccoNotice } from '@/components/ui'
-import Recaptcha, { isRecaptchaSiteKeyConfigured } from '@/components/ui/Recaptcha'
-import { EyeIcon, EyeSlashIcon, ShieldCheckIcon, LockClosedIcon, TruckIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
-import { validateCIN } from '@/utils/cinValidation'
-import { sanitizeText, sanitizeEmail } from '@/utils/sanitization'
 import { checkSignupRate } from '@/utils/rateLimiter'
-import { registerSchema } from '@/utils/validationSchemas'
-import { getOnboardingPathForRole } from '@/services/onboardingService'
-import { setPendingPhoneVerification } from '@/services/phoneOtpService'
-import { resolveSafeAuthRedirect } from '@/utils/authRedirects'
+import {
+  registerSchema,
+  registerBuyerProfileSchema,
+  registerVendorProfileSchema,
+  registerDriverProfileSchema,
+} from '@/utils/validationSchemas'
+import { logger } from '@/utils/logger'
 
-const RegisterPage = () => {
+const TOTAL_STEPS = 4
+
+const STEP_LABELS = [
+  'auth.register.steps.role',
+  'auth.register.steps.basicInfo',
+  'auth.register.steps.profile',
+  'auth.register.steps.confirm',
+]
+
+const CITIES = [
+  'الدار البيضاء',
+  'الرباط',
+  'مراكش',
+  'فاس',
+  'طنجة',
+  'أكادير',
+  'مكناس',
+  'وجدة',
+  'القنيطرة',
+  'تطوان',
+]
+
+const emptyErrors = {
+  role: '',
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  password: '',
+  confirmPassword: '',
+  deliveryAddress: '',
+  preferredPaymentMethod: '',
+  storeName: '',
+  storeType: '',
+  city: '',
+  cin: '',
+  vehicleType: '',
+  vehiclePlate: '',
+  terms: '',
+  general: '',
+}
+
+function RegisterPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const { signUp, loading } = useAuthStore()
-  const defaultRole = searchParams.get('role') || 'buyer'
-  const postVerifyRedirect = resolveSafeAuthRedirect(searchParams.get('redirect_to'), null)
+  const recaptchaRef = useRef(null)
+  const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [captchaRequired, setCaptchaRequired] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const [agreeTerms, setAgreeTerms] = useState(false)
+  const [errors, setErrors] = useState(emptyErrors)
+
+  const signUp = useAuthStore((s) => s.signUp)
+  const setPendingPhoneVerification = useAuthStore((s) => s.setPendingPhoneVerification)
+  const setPostVerifyRedirect = useAuthStore((s) => s.setPostVerifyRedirect)
 
   const [formData, setFormData] = useState({
+    role: '',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    referralCode: (searchParams.get('ref') || '').toUpperCase(),
-    cin: '',
     password: '',
     confirmPassword: '',
-    role: defaultRole,
-    vehicleType: 'van',
+    deliveryAddress: '',
+    preferredPaymentMethod: 'cash',
+    storeName: '',
+    storeType: '',
+    city: '',
+    cin: '',
+    vehicleType: 'motorcycle',
     vehiclePlate: '',
-    vehiclePhoto: '',
   })
-  const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [cinError, setCINError] = useState('')
-  const [vehiclePhotoError, setVehiclePhotoError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState({})
-  const [agreeTerms, setAgreeTerms] = useState(false)
-  const [captchaToken, setCaptchaToken] = useState(null)
-  const recaptchaRef = useRef(null)
-  const recaptchaSiteKey = typeof import.meta.env.VITE_RECAPTCHA_SITE_KEY === 'string'
-    ? import.meta.env.VITE_RECAPTCHA_SITE_KEY.trim()
-    : ''
-  const captchaRequired = isRecaptchaSiteKeyConfigured(recaptchaSiteKey)
-  
-  const validateEmail = (email) => {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return re.test(email)
+
+  const roleLabel = useMemo(() => {
+    if (formData.role === 'buyer') return t('auth.register.role.buyer', 'مشتري')
+    if (formData.role === 'vendor') return t('auth.register.role.vendor', 'بائع')
+    if (formData.role === 'driver') return t('auth.register.role.driver', 'سائق')
+    return t('auth.register.role.none', 'غير محدد')
+  }, [formData.role, t])
+
+  const setFieldError = (field, message) => {
+    setErrors((prev) => ({ ...prev, [field]: message }))
   }
 
-  // Password strength checker
-  const getPasswordStrength = (password) => {
-    const checks = {
-      length: password.length >= 8,
-      uppercase: /[A-Z]/.test(password),
-      lowercase: /[a-z]/.test(password),
-      number: /[0-9]/.test(password),
-      special: /[^A-Za-z0-9]/.test(password),
-    }
-    const score = Object.values(checks).filter(Boolean).length
-    const labels = ['ضعيفة جداً', 'ضعيفة', 'متوسطة', 'قوية', 'قوية جداً']
-    const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500']
-    const idx = Math.min(score, 5)
-    return {
-      checks,
-      score,
-      label: labels[idx - 1] || '',
-      color: colors[idx - 1] || 'bg-gray-200',
-    }
+  const clearFieldError = (field) => {
+    if (!errors[field]) return
+    setErrors((prev) => ({ ...prev, [field]: '' }))
   }
 
-  const passwordStrength = getPasswordStrength(formData.password)
-
-  const resetCaptcha = () => {
-    setCaptchaToken(null)
-    recaptchaRef.current?.reset?.()
+  const handleChange = (event) => {
+    const { name, value } = event.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    clearFieldError(name)
   }
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-    // Clear field error on change
-    if (fieldErrors[e.target.name]) {
-      setFieldErrors({ ...fieldErrors, [e.target.name]: null })
-    }
+  const handleRoleChange = (role) => {
+    setFormData((prev) => ({ ...prev, role }))
+    clearFieldError('role')
   }
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setError('')
-    setCINError('')
-    setVehiclePhotoError('')
-    setFieldErrors({})
 
-    // 1. Check rate limit
-    const rateResult = checkSignupRate(formData.email.toLowerCase())
-    if (!rateResult.allowed) {
-      const minutes = Math.ceil(rateResult.retryAfter / 60000)
-      setError(t('auth.register.errors.tooManyAttempts', 'Too many signup attempts. Please wait {{minutes}} minute(s) before trying again.', { minutes }))
-      return
+  const validateCIN = (cin) => {
+    if (!cin || typeof cin !== 'string') {
+      return { valid: false, error: t('auth.register.validation.cin.required', 'رقم البطاقة الوطنية مطلوب') }
     }
 
-    // 2. Validate with Zod schema (strong password, name format, etc.)
-    const validationResult = registerSchema.safeParse({
+    const cleaned = cin.trim().toUpperCase().replace(/\s/g, '')
+    const cinRegex = /^[A-Z]{1,2}\d{6,7}$/
+
+    if (!cinRegex.test(cleaned)) {
+      return {
+        valid: false,
+        error: t(
+          'auth.register.validation.cin.invalid',
+          'صيغة رقم البطاقة الوطنية غير صحيحة (مثال: AB123456)'
+        ),
+      }
+    }
+
+    return { valid: true, cleaned }
+  }
+
+  const validateStep1 = () => {
+    if (formData.role) return true
+    setFieldError('role', t('auth.register.validation.role.required', 'يرجى اختيار نوع الحساب'))
+    return false
+  }
+
+  const validateStep2 = () => {
+    const payload = {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
@@ -116,406 +157,614 @@ const RegisterPage = () => {
       confirmPassword: formData.confirmPassword,
       role: formData.role,
       phone: formData.phone || undefined,
+    }
+
+    const result = registerSchema.safeParse(payload)
+    const nextErrors = { ...emptyErrors }
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const field = issue.path?.[0]
+        if (typeof field === 'string' && field in nextErrors) {
+          nextErrors[field] = issue.message
+        }
+      })
+    }
+
+    if (!formData.phone.trim()) {
+      nextErrors.phone = t('auth.register.validation.phone.required', 'رقم الهاتف مطلوب')
+    }
+
+    setErrors((prev) => ({ ...prev, ...nextErrors }))
+    return Object.values(nextErrors).every((value) => !value)
+  }
+
+  const validateBuyerStep = () => {
+    const result = registerBuyerProfileSchema.safeParse({
+      deliveryAddress: formData.deliveryAddress,
+      preferredPaymentMethod: formData.preferredPaymentMethod,
+    })
+    const nextErrors = { ...emptyErrors }
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const field = issue.path?.[0]
+        if (typeof field === 'string' && field in nextErrors) {
+          nextErrors[field] = issue.message
+        }
+      })
+    }
+
+    setErrors((prev) => ({ ...prev, ...nextErrors }))
+    return Object.values(nextErrors).every((value) => !value)
+  }
+
+  const validateVendorStep = () => {
+    const result = registerVendorProfileSchema.safeParse({
+      storeName: formData.storeName,
+      city: formData.city,
+      storeType: formData.storeType,
+      cin: formData.cin,
     })
 
-    if (!validationResult.success) {
-      console.error('[REGISTER VALIDATION ERROR]', validationResult.error)
-      const fieldErrMap = {}
-      const errors = validationResult.error.errors || []
-      const firstError = errors[0]
-      if (firstError && firstError.path && firstError.path.length > 0) {
-        fieldErrMap[firstError.path[0]] = firstError.message
-      }
-      setFieldErrors(fieldErrMap)
-      setError(firstError?.message || t('auth.register.errors.validation', 'Validation failed. Please check your input.'))
-      return
+    const nextErrors = { ...emptyErrors }
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const field = issue.path?.[0]
+        if (typeof field === 'string' && field in nextErrors) {
+          nextErrors[field] = issue.message
+        }
+      })
     }
 
-    // 3. Sanitize all inputs
-    const sanitizedData = {
-      firstName: sanitizeText(formData.firstName, { maxLength: 50 }),
-      lastName: sanitizeText(formData.lastName, { maxLength: 50 }),
-      email: sanitizeEmail(formData.email),
-      phone: formData.phone ? sanitizeText(formData.phone, { maxLength: 20 }) : '',
-      referralCode: formData.role === 'buyer' && formData.referralCode
-        ? sanitizeText(formData.referralCode.toUpperCase(), { maxLength: 16 })
-        : '',
-      cin: sanitizeText(formData.cin, { maxLength: 10 }),
-      role: formData.role,
+    const cinValidation = validateCIN(formData.cin)
+    if (!cinValidation.valid) {
+      nextErrors.cin = cinValidation.error
+    }
+
+    setErrors((prev) => ({ ...prev, ...nextErrors }))
+    return Object.values(nextErrors).every((value) => !value)
+  }
+
+  const validateDriverStep = () => {
+    const result = registerDriverProfileSchema.safeParse({
       vehicleType: formData.vehicleType,
-      vehiclePlate: formData.vehiclePlate ? sanitizeText(formData.vehiclePlate, { maxLength: 20 }) : '',
-      vehiclePhoto: formData.vehiclePhoto,
+      vehiclePlate: formData.vehiclePlate,
+      cin: formData.cin,
+    })
+
+    const nextErrors = { ...emptyErrors }
+
+    if (!result.success) {
+      result.error.issues.forEach((issue) => {
+        const field = issue.path?.[0]
+        if (typeof field === 'string' && field in nextErrors) {
+          nextErrors[field] = issue.message
+        }
+      })
     }
 
-    // 4. Validate CIN
-    const cinResult = validateCIN(sanitizedData.cin)
-    if (!cinResult.valid) {
-      setCINError(cinResult.error)
+    const cinValidation = validateCIN(formData.cin)
+    if (!cinValidation.valid) {
+      nextErrors.cin = cinValidation.error
+    }
+
+    setErrors((prev) => ({ ...prev, ...nextErrors }))
+    return Object.values(nextErrors).every((value) => !value)
+  }
+
+  const validateStep3 = () => {
+    if (formData.role === 'buyer') return validateBuyerStep()
+    if (formData.role === 'vendor') return validateVendorStep()
+    if (formData.role === 'driver') return validateDriverStep()
+    return false
+  }
+
+  const goNext = () => {
+    let valid = false
+
+    if (step === 1) valid = validateStep1()
+    if (step === 2) valid = validateStep2()
+    if (step === 3) valid = validateStep3()
+
+    if (!valid) return
+    setStep((prev) => Math.min(prev + 1, TOTAL_STEPS))
+  }
+
+  const goBack = () => {
+    setStep((prev) => Math.max(prev - 1, 1))
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+
+    if (step !== 4) {
+      goNext()
       return
     }
 
-    // 5. Validate vehicle photo for drivers
-    if (sanitizedData.role === 'driver' && !sanitizedData.vehiclePhoto) {
-      setVehiclePhotoError(t('auth.register.errors.vehiclePhotoRequired', 'Vehicle photo is required for driver registration'))
-      return
-    }
-
-    // 6. Terms acceptance
     if (!agreeTerms) {
-      setError(t('auth.register.errors.termsRequired', 'You must accept the Terms of Service and Privacy Policy to create an account'))
+      setFieldError('terms', t('auth.register.validation.terms.required', 'يرجى الموافقة على الشروط والأحكام'))
       return
     }
 
-    if (captchaRequired && !captchaToken) {
-      setError(t('auth.errors.captchaRequired', 'Please complete the security verification before continuing.'))
+    setFieldError('terms', '')
+
+    const rateLimit = checkSignupRate(formData.email)
+    if (!rateLimit.allowed) {
+      setCaptchaRequired(true)
+      setFieldError('general', t('auth.register.validation.rateLimit', 'تم تجاوز عدد المحاولات، يرجى حل التحقق أولاً'))
       return
     }
 
-    // 7. Submit with sanitized data
-    const result = await signUp(sanitizedData.email, formData.password, {
-      ...sanitizedData,
-      cin: cinResult.cin,
-    }, captchaToken)
+    setLoading(true)
 
-    if (!result.success && captchaRequired) {
-      resetCaptcha()
-    }
+    try {
+      const signupPayload = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        role: formData.role,
+        phone: formData.phone,
+        cin: formData.role === 'buyer' ? null : formData.cin,
+        storeName: formData.role === 'vendor' ? formData.storeName : null,
+        storeType: formData.role === 'vendor' ? formData.storeType : null,
+        city: formData.role === 'vendor' ? formData.city : null,
+        deliveryAddress: formData.role === 'buyer' ? formData.deliveryAddress : null,
+        preferredPaymentMethod: formData.role === 'buyer' ? formData.preferredPaymentMethod : null,
+        vehicleType: formData.role === 'driver' ? formData.vehicleType : null,
+        vehiclePlate: formData.role === 'driver' ? formData.vehiclePlate : null,
+      }
 
-    if (result.success) {
-      if (result.requiresPhoneVerification && result.userId && result.phone) {
-        setPendingPhoneVerification({
-          userId: result.userId,
-          phone: result.phone,
-          purpose: 'registration',
-          successPath: getOnboardingPathForRole(result.role || sanitizedData.role),
-        })
+      const result = await signUp(formData.email, formData.password, signupPayload, captchaToken)
+
+      if (!result.success) {
+        throw new Error(result.error || t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
       }
 
       if (result.needsEmailVerification) {
-        sessionStorage.setItem('pendingVerificationEmail', sanitizedData.email)
-
-        if (postVerifyRedirect) {
-          sessionStorage.setItem('redirect_after_verification', postVerifyRedirect)
-        }
-
-        navigate('/verify-email')
-      } else if (result.requiresPhoneVerification && result.userId && result.phone) {
-        navigate('/verify-phone')
-      } else {
-        navigate(result.redirect || '/marketplace')
+        setPostVerifyRedirect('/dashboard')
+        navigate('/verify-email', {
+          state: {
+            email: formData.email,
+            role: formData.role,
+            message: t('auth.register.verifyEmail.notice', 'تم إنشاء الحساب، يرجى تأكيد بريدك الإلكتروني للمتابعة'),
+          },
+        })
+        return
       }
+
+      if (result.requiresPhoneVerification) {
+        setPendingPhoneVerification({
+          userId: result.userId,
+          phone: result.phone,
+          role: result.role,
+        })
+
+        navigate('/verify-phone', {
+          state: {
+            userId: result.userId,
+            phone: result.phone,
+            role: result.role,
+          },
+        })
+        return
+      }
+
+      navigate(result.redirect || '/dashboard')
+    } catch (error) {
+      logger.error('Registration failed:', error)
+      setFieldError('general', error.message || t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
+      toast.error(error.message || t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
+      recaptchaRef.current?.reset()
+      setCaptchaToken(null)
+    } finally {
+      setLoading(false)
     }
   }
-  
+
+  const progressPercent = Math.round((step / TOTAL_STEPS) * 100)
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('auth.register.createAccount', 'Create Account')}</h2>
-      <p className="text-gray-500 mb-4">
-        {t('auth.register.signInLink', 'Already have an account?')}{' '}
-        <Link to="/login" className="text-green-600 font-semibold hover:underline">
-          {t('auth.register.signIn', 'Sign in')}
-        </Link>
-      </p>
-
-      {/* Morocco Availability Notice */}
-      <div className="mb-6">
-        <MoroccoNotice variant="default" />
-      </div>
-      
-      {error && (
-        <div className="alert-error mb-6">
-          {error}
-        </div>
-      )}
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Input
-              label={t('auth.register.firstName', 'First Name')}
-              name="firstName"
-              value={formData.firstName}
-              onChange={handleChange}
-              placeholder={t('auth.register.firstNamePlaceholder', 'First name')}
-              required
-            />
-            {fieldErrors.firstName && <p className="text-red-500 text-xs mt-1">{fieldErrors.firstName}</p>}
-          </div>
-          <div>
-            <Input
-              label={t('auth.register.lastName', 'Last Name')}
-              name="lastName"
-              value={formData.lastName}
-              onChange={handleChange}
-              placeholder={t('auth.register.lastNamePlaceholder', 'Last name')}
-              required
-            />
-            {fieldErrors.lastName && <p className="text-red-500 text-xs mt-1">{fieldErrors.lastName}</p>}
-          </div>
-        </div>
-
-        <div>
-          <Input
-            label={t('auth.register.emailAddress', 'Email address')}
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder={t('auth.register.emailPlaceholder', 'Enter your email address')}
-            required
-          />
-          {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
-        </div>
-
-        <Input
-          label={t('auth.register.phoneNumber', 'Phone Number')}
-          name="phone"
-          type="tel"
-          value={formData.phone}
-          onChange={handleChange}
-          placeholder={t('auth.register.phonePlaceholder', '+212 674 841 248')}
-        />
-
-        {formData.role === 'buyer' && (
-          <Input
-            label={t('auth.register.referralCode', 'Referral Code (optional)')}
-            name="referralCode"
-            value={formData.referralCode}
-            onChange={(event) => setFormData({
-              ...formData,
-              referralCode: event.target.value.toUpperCase(),
-            })}
-            placeholder={t('auth.register.referralCodePlaceholder', 'Enter invitation code if you have one')}
-          />
-        )}
-
-        {/* National ID (CIN) */}
-        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
-          <div className="flex items-center gap-2 mb-3">
-            <ShieldCheckIcon className="w-5 h-5 text-green-600" />
-            <h3 className="font-semibold text-green-800">{t('auth.register.identityVerification', 'Identity Verification')}</h3>
-          </div>
-          <p className="text-xs text-green-700 mb-3">
-            {t('auth.register.cinDescription', 'Your National ID (CIN) is required by Moroccan law for B2B transactions. It\'s encrypted and never shared with third parties.')}
+    <div className="max-w-3xl mx-auto p-4 sm:p-6" dir="rtl">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sm:p-8">
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+            {t('auth.register.title', 'إنشاء حساب جديد')}
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {t('auth.register.subtitle', 'أكمل الخطوات التالية للانضمام إلى منصة قطوف')}
           </p>
-          <CINInput
-            value={formData.cin}
-            onChange={(value) => { setFormData({ ...formData, cin: value }); setCINError('') }}
-            error={cinError}
-            showHelp={false}
-          />
         </div>
 
-        <div>
-          <Input
-            label={t('auth.register.password', 'Password')}
-            name="password"
-            type={showPassword ? 'text' : 'password'}
-            value={formData.password}
-            onChange={handleChange}
-            placeholder={t('auth.register.passwordPlaceholder', 'At least 8 characters')}
-            required
-            rightIcon={
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? (
-                  <EyeSlashIcon className="w-5 h-5" />
-                ) : (
-                  <EyeIcon className="w-5 h-5" />
-                )}
-              </button>
-            }
-          />
-          {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
+        <div className="mb-8">
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-2">
+            <span>{t('auth.register.progress.label', 'التقدم')}</span>
+            <span>
+              {t('auth.register.progress.step', 'الخطوة')} {step} / {TOTAL_STEPS}
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full bg-green-600 transition-all duration-300"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {STEP_LABELS.map((label, index) => {
+              const current = index + 1
+              const isActive = step === current
+              const isDone = step > current
 
-          {/* Password Strength Indicator */}
-          {formData.password && (
-            <div className="mt-2 p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-600">{t('auth.register.passwordStrength', 'Password Strength')}</span>
-                <span className={`text-xs font-semibold ${
-                  passwordStrength.score >= 4 ? 'text-green-600' :
-                  passwordStrength.score >= 3 ? 'text-yellow-600' :
-                  'text-red-600'
-                }`}>
-                  {passwordStrength.label}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
+              return (
                 <div
-                  className={`h-1.5 rounded-full transition-all duration-300 ${passwordStrength.color}`}
-                  style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-1">
-                {[
-                  { key: 'length', label: '8+ chars' },
-                  { key: 'uppercase', label: 'Uppercase' },
-                  { key: 'lowercase', label: 'Lowercase' },
-                  { key: 'number', label: 'Number' },
-                  { key: 'special', label: 'Special char' },
-                ].map(({ key, label }) => (
-                  <div key={key} className={`flex items-center gap-1 text-xs ${
-                    passwordStrength.checks[key] ? 'text-green-600' : 'text-gray-400'
-                  }`}>
-                    {passwordStrength.checks[key] ? (
-                      <CheckCircleIcon className="w-3.5 h-3.5" />
-                    ) : (
-                      <XCircleIcon className="w-3.5 h-3.5" />
-                    )}
-                    {label}
-                  </div>
-                ))}
-              </div>
+                  key={label}
+                  className={`text-center rounded-lg px-2 py-1.5 text-xs border ${
+                    isDone
+                      ? 'bg-green-50 border-green-200 text-green-700'
+                      : isActive
+                        ? 'bg-blue-50 border-blue-200 text-blue-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-500'
+                  }`}
+                >
+                  {t(label, `خطوة ${current}`)}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          {errors.general && (
+            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">
+              {errors.general}
             </div>
           )}
-        </div>
 
-        <div>
-          <Input
-            label={t('auth.register.confirmPassword', 'Confirm Password')}
-            name="confirmPassword"
-            type={showPassword ? 'text' : 'password'}
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            placeholder={t('auth.register.confirmPasswordPlaceholder', 'Repeat your password')}
-            required
-          />
-          {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
-        </div>
-        
-        {/* Role Selection */}
-        <div>
-          <label className="input-label">{t('auth.register.roleLabel', 'I am a...')}</label>
-          <div className="grid grid-cols-3 gap-3">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, role: 'buyer' })}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                formData.role === 'buyer'
-                  ? 'border-green-500 bg-green-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-3xl mb-2">🛒</div>
-              <div className="font-semibold text-gray-900">{t('auth.register.buyer.label', 'Buyer')}</div>
-              <div className="text-xs text-gray-500 mt-1">{t('auth.register.buyer.description', 'Buy wholesale products')}</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, role: 'vendor' })}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                formData.role === 'vendor'
-                  ? 'border-green-500 bg-green-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-3xl mb-2">🌱</div>
-              <div className="font-semibold text-gray-900">{t('auth.register.vendor.label', 'Vendor')}</div>
-              <div className="text-xs text-gray-500 mt-1">{t('auth.register.vendor.description', 'Sell your products')}</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, role: 'driver' })}
-              className={`p-4 rounded-xl border-2 text-center transition-all ${
-                formData.role === 'driver'
-                  ? 'border-green-500 bg-green-50 shadow-sm'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-            >
-              <div className="text-3xl mb-2">🚚</div>
-              <div className="font-semibold text-gray-900">{t('auth.register.driver.label', 'Driver')}</div>
-              <div className="text-xs text-gray-500 mt-1">{t('auth.register.driver.description', 'Deliver orders')}</div>
-            </button>
+          {step === 1 && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('auth.register.step1.title', 'اختر نوع حسابك')}
+              </h2>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('buyer')}
+                  className={`rounded-xl border-2 p-4 text-right transition ${
+                    formData.role === 'buyer'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">🛒</div>
+                  <div className="font-semibold text-gray-900">{t('auth.register.role.buyer', 'مشتري')}</div>
+                  <div className="text-xs text-gray-500">{t('auth.register.role.buyerDesc', 'شراء المنتجات بالجملة')}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('vendor')}
+                  className={`rounded-xl border-2 p-4 text-right transition ${
+                    formData.role === 'vendor'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">🏪</div>
+                  <div className="font-semibold text-gray-900">{t('auth.register.role.vendor', 'بائع')}</div>
+                  <div className="text-xs text-gray-500">{t('auth.register.role.vendorDesc', 'عرض منتجاتك وإدارة متجرك')}</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRoleChange('driver')}
+                  className={`rounded-xl border-2 p-4 text-right transition ${
+                    formData.role === 'driver'
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-2xl mb-2">🚚</div>
+                  <div className="font-semibold text-gray-900">{t('auth.register.role.driver', 'سائق')}</div>
+                  <div className="text-xs text-gray-500">{t('auth.register.role.driverDesc', 'توصيل الطلبات للعملاء')}</div>
+                </button>
+              </div>
+
+              {errors.role && <p className="text-sm text-red-600">{errors.role}</p>}
+            </section>
+          )}
+
+          {step === 2 && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('auth.register.step2.title', 'المعلومات الأساسية')}
+              </h2>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  label={t('auth.register.firstName', 'الاسم الشخصي')}
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  error={errors.firstName}
+                  placeholder={t('auth.register.firstNamePlaceholder', 'أدخل الاسم الشخصي')}
+                />
+
+                <Input
+                  label={t('auth.register.lastName', 'الاسم العائلي')}
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  error={errors.lastName}
+                  placeholder={t('auth.register.lastNamePlaceholder', 'أدخل الاسم العائلي')}
+                />
+              </div>
+
+              <Input
+                type="email"
+                label={t('auth.register.email', 'البريد الإلكتروني')}
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                error={errors.email}
+                placeholder={t('auth.register.emailPlaceholder', 'example@email.com')}
+              />
+
+              <Input
+                type="tel"
+                label={t('auth.register.phone', 'رقم الهاتف')}
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+                error={errors.phone}
+                placeholder={t('auth.register.phonePlaceholder', '+212600000000')}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  type="password"
+                  label={t('auth.register.password', 'كلمة المرور')}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  error={errors.password}
+                  placeholder={t('auth.register.passwordPlaceholder', 'أدخل كلمة المرور')}
+                />
+
+                <Input
+                  type="password"
+                  label={t('auth.register.confirmPassword', 'تأكيد كلمة المرور')}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  error={errors.confirmPassword}
+                  placeholder={t('auth.register.confirmPasswordPlaceholder', 'أعد إدخال كلمة المرور')}
+                />
+              </div>
+            </section>
+          )}
+
+          {step === 3 && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('auth.register.step3.title', 'معلومات الملف الشخصي')}
+              </h2>
+
+              {formData.role === 'buyer' && (
+                <>
+                  <Input
+                    label={t('auth.register.deliveryAddress', 'عنوان التوصيل')}
+                    name="deliveryAddress"
+                    value={formData.deliveryAddress}
+                    onChange={handleChange}
+                    error={errors.deliveryAddress}
+                    placeholder={t('auth.register.deliveryAddressPlaceholder', 'المدينة، الحي، الشارع، رقم الباب')}
+                  />
+
+                  <div>
+                    <label className="input-label">
+                      {t('auth.register.preferredPaymentMethod', 'طريقة الدفع المفضلة')}
+                    </label>
+                    <select
+                      name="preferredPaymentMethod"
+                      value={formData.preferredPaymentMethod}
+                      onChange={handleChange}
+                      className="input"
+                    >
+                      <option value="cash">{t('auth.register.payment.cash', 'الدفع عند الاستلام')}</option>
+                      <option value="bank_transfer">{t('auth.register.payment.bankTransfer', 'تحويل بنكي')}</option>
+                      <option value="paypal">{t('auth.register.payment.paypal', 'بايبال')}</option>
+                    </select>
+                    {errors.preferredPaymentMethod && (
+                      <p className="mt-1 text-sm text-red-600">{errors.preferredPaymentMethod}</p>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {formData.role === 'vendor' && (
+                <>
+                  <Input
+                    label={t('auth.register.storeName', 'اسم المتجر')}
+                    name="storeName"
+                    value={formData.storeName}
+                    onChange={handleChange}
+                    error={errors.storeName}
+                    placeholder={t('auth.register.storeNamePlaceholder', 'أدخل اسم المتجر')}
+                  />
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label className="input-label">{t('auth.register.storeType', 'نوع المتجر')}</label>
+                      <select name="storeType" value={formData.storeType} onChange={handleChange} className="input">
+                        <option value="">{t('auth.register.storeType.placeholder', 'اختر نوع المتجر')}</option>
+                        <option value="farm">{t('auth.register.storeType.farm', 'مزرعة')}</option>
+                        <option value="cooperative">{t('auth.register.storeType.cooperative', 'تعاونية')}</option>
+                        <option value="wholesale">{t('auth.register.storeType.wholesale', 'جملة')}</option>
+                        <option value="retail">{t('auth.register.storeType.retail', 'تجزئة')}</option>
+                      </select>
+                      {errors.storeType && <p className="mt-1 text-sm text-red-600">{errors.storeType}</p>}
+                    </div>
+
+                    <div>
+                      <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
+                      <select name="city" value={formData.city} onChange={handleChange} className="input">
+                        <option value="">{t('auth.register.city.placeholder', 'اختر المدينة')}</option>
+                        {CITIES.map((city) => (
+                          <option key={city} value={city}>
+                            {city}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
+                    </div>
+                  </div>
+
+                  <CINInput
+                    value={formData.cin}
+                    onChange={(cinValue) => {
+                      setFormData((prev) => ({ ...prev, cin: cinValue }))
+                      clearFieldError('cin')
+                    }}
+                    error={errors.cin}
+                    required
+                  />
+                </>
+              )}
+
+              {formData.role === 'driver' && (
+                <>
+                  <div>
+                    <label className="input-label">{t('auth.register.vehicleType', 'نوع المركبة')}</label>
+                    <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} className="input">
+                      <option value="motorcycle">{t('auth.register.vehicle.motorcycle', 'دراجة نارية')}</option>
+                      <option value="car">{t('auth.register.vehicle.car', 'سيارة')}</option>
+                      <option value="van">{t('auth.register.vehicle.van', 'شاحنة صغيرة')}</option>
+                      <option value="truck">{t('auth.register.vehicle.truck', 'شاحنة')}</option>
+                    </select>
+                    {errors.vehicleType && <p className="mt-1 text-sm text-red-600">{errors.vehicleType}</p>}
+                  </div>
+
+                  <Input
+                    label={t('auth.register.vehiclePlate', 'رقم لوحة المركبة')}
+                    name="vehiclePlate"
+                    value={formData.vehiclePlate}
+                    onChange={handleChange}
+                    error={errors.vehiclePlate}
+                    placeholder={t('auth.register.vehiclePlatePlaceholder', '123-أ-45')}
+                  />
+
+                  <CINInput
+                    value={formData.cin}
+                    onChange={(cinValue) => {
+                      setFormData((prev) => ({ ...prev, cin: cinValue }))
+                      clearFieldError('cin')
+                    }}
+                    error={errors.cin}
+                    required
+                  />
+                </>
+              )}
+            </section>
+          )}
+
+          {step === 4 && (
+            <section className="space-y-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('auth.register.step4.title', 'تأكيد البيانات')}
+              </h2>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 space-y-2">
+                <p>
+                  <span className="font-semibold">{t('auth.register.summary.role', 'نوع الحساب')}:</span> {roleLabel}
+                </p>
+                <p>
+                  <span className="font-semibold">{t('auth.register.summary.name', 'الاسم')}:</span>{' '}
+                  {formData.firstName} {formData.lastName}
+                </p>
+                <p>
+                  <span className="font-semibold">{t('auth.register.summary.email', 'البريد الإلكتروني')}:</span> {formData.email}
+                </p>
+                <p>
+                  <span className="font-semibold">{t('auth.register.summary.phone', 'رقم الهاتف')}:</span> {formData.phone}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                {t(
+                  'auth.register.verifyEmail.notice',
+                  'بعد إنشاء الحساب ستتلقى رسالة تأكيد عبر البريد الإلكتروني. يرجى تأكيد البريد لتفعيل الحساب.'
+                )}
+              </div>
+
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreeTerms}
+                    onChange={(e) => {
+                      setAgreeTerms(e.target.checked)
+                      clearFieldError('terms')
+                    }}
+                    className="mt-1 w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                  />
+                  <div className="text-sm text-gray-700">
+                    <p className="font-medium text-gray-900 mb-1">
+                      {t('auth.register.termsAgreement', 'أوافق على')}{' '}
+                      <Link to="/terms" target="_blank" className="text-green-600 hover:underline font-semibold">
+                        {t('auth.register.termsOfService', 'شروط الاستخدام')}
+                      </Link>{' '}
+                      {t('auth.register.and', 'و')}{' '}
+                      <Link to="/privacy" target="_blank" className="text-green-600 hover:underline font-semibold">
+                        {t('auth.register.privacyPolicy', 'سياسة الخصوصية')}
+                      </Link>
+                    </p>
+                    <p className="text-gray-500">
+                      {t('auth.register.termsDescription', 'أتعهد بتقديم معلومات صحيحة والالتزام بقواعد المنصة والقوانين المغربية.')}
+                    </p>
+                  </div>
+                </label>
+                {errors.terms && <p className="mt-2 text-sm text-red-600">{errors.terms}</p>}
+              </div>
+
+              {captchaRequired && (
+                <div className="flex justify-center pt-2">
+                  <Recaptcha ref={recaptchaRef} siteKey={recaptchaSiteKey} onChange={setCaptchaToken} />
+                </div>
+              )}
+            </section>
+          )}
+
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <Button type="button" variant="ghost" onClick={goBack} disabled={step === 1 || loading}>
+              {t('auth.register.actions.back', 'السابق')}
+            </Button>
+
+            {step < TOTAL_STEPS ? (
+              <Button type="button" variant="primary" onClick={goNext}>
+                {t('auth.register.actions.next', 'التالي')}
+              </Button>
+            ) : (
+              <Button type="submit" variant="primary" isLoading={loading}>
+                {t('auth.register.actions.submit', 'إنشاء الحساب')}
+              </Button>
+            )}
           </div>
-        </div>
-        
-        {/* Driver-specific fields */}
-        {formData.role === 'driver' && (
-          <div className="space-y-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <TruckIcon className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-blue-800">{t('auth.register.driverInfo.title', 'Driver Information')}</h3>
-            </div>
 
-            <div>
-              <label className="input-label">{t('auth.register.driverInfo.vehicleType', 'Vehicle Type')}</label>
-              <select
-                value={formData.vehicleType}
-                onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                className="input"
-              >
-                <option value="motorcycle">{t('auth.register.vehicleTypes.motorcycle', 'Motorcycle')}</option>
-                <option value="car">{t('auth.register.vehicleTypes.car', 'Car')}</option>
-                <option value="van">{t('auth.register.vehicleTypes.van', 'Van')}</option>
-                <option value="truck">{t('auth.register.vehicleTypes.truck', 'Truck')}</option>
-              </select>
-            </div>
+          <p className="text-sm text-gray-600 text-center pt-2">
+            {t('auth.register.haveAccount', 'لديك حساب بالفعل؟')}{' '}
+            <Link to="/login" className="text-green-600 hover:underline font-semibold">
+              {t('auth.register.loginLink', 'تسجيل الدخول')}
+            </Link>
+          </p>
 
-            <Input
-              label={t('auth.register.driverInfo.vehiclePlate', 'Vehicle Plate Number')}
-              name="vehiclePlate"
-              value={formData.vehiclePlate}
-              onChange={handleChange}
-              placeholder={t('auth.register.driverInfo.vehiclePlatePlaceholder', 'ABC-1234')}
-            />
-
-            <VehiclePhotoUpload
-              value={formData.vehiclePhoto}
-              onChange={(url) => { setFormData({ ...formData, vehiclePhoto: url }); setVehiclePhotoError('') }}
-              error={vehiclePhotoError}
-            />
+          <div className="pt-2 border-t border-gray-200">
+            <TrustBadges variant="compact" />
           </div>
-        )}
-        
-        {captchaRequired && (
-          <div className="flex justify-center pt-2">
-            <Recaptcha
-              ref={recaptchaRef}
-              siteKey={recaptchaSiteKey}
-              onChange={setCaptchaToken}
-            />
-          </div>
-        )}
-
-        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading}>
-          {t('auth.register.createAccountButton', 'Create Account')}
-        </Button>
-        {/* Terms & Conditions Checkbox */}
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="mt-1 w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500"
-            />
-            <div className="text-sm text-gray-700">
-              <p className="font-medium text-gray-900 mb-1">
-                {t('auth.register.termsAgreement', 'I agree to the')}{' '}
-                <Link to="/terms" target="_blank" className="text-green-600 hover:underline font-semibold">
-                  {t('auth.register.termsOfService', 'Terms of Service')}
-                </Link>
-                {' '}and{' '}
-                <Link to="/privacy" target="_blank" className="text-green-600 hover:underline font-semibold">
-                  {t('auth.register.privacyPolicy', 'Privacy Policy')}
-                </Link>
-              </p>
-              <p className="text-gray-500">
-                {t('auth.register.termsDescription', 'By creating an account, you commit to providing accurate information and complying with all platform rules and Moroccan laws.')}
-              </p>
-            </div>
-          </label>
-        </div>
-
-        {/* Trust Badges */}
-        <div className="pt-4 border-t border-gray-200">
-          <TrustBadges variant="compact" />
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

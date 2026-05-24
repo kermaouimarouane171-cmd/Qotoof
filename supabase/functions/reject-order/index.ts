@@ -85,6 +85,19 @@ serve(async (req) => {
         created_at: cancelledAt,
       })
 
+    // Outbox: async email notification — non-blocking
+    await adminClient.from('domain_events_outbox').insert({
+      event_type: 'order.rejected',
+      payload: {
+        order_id: orderId,
+        order_number: rejectedOrder.order_number,
+        buyer_id: rejectedOrder.buyer_id,
+        vendor_id: user.id,
+        reason,
+      },
+      source_function: 'reject-order',
+    })
+
     return json({
       success: true,
       order: rejectedOrder,

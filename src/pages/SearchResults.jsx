@@ -68,6 +68,8 @@ const SearchResults = () => {
     }
   }, [])
 
+  const searchParamsKey = searchParams.toString()
+
   useEffect(() => {
     let cancelled = false
 
@@ -103,7 +105,8 @@ const SearchResults = () => {
     return () => {
       cancelled = true
     }
-  }, [hasActiveSearch, searchParams.toString()])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasActiveSearch, searchParamsKey]) // filters is derived from searchParams; searchParamsKey is the stable serial
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const nextParams = new URLSearchParams(searchParams)

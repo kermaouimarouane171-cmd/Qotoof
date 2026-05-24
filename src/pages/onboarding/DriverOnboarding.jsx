@@ -41,6 +41,7 @@ const DRIVER_SLIDES = [
 const DriverOnboarding = () => {
   return (
     <OnboardingFlow
+      // eslint-disable-next-line jsx-a11y/aria-role
       role="driver"
       roleLabel="تهيئة السائق"
       slides={DRIVER_SLIDES}

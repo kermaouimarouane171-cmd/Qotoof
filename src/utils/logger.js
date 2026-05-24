@@ -1,52 +1,11 @@
-/**
- * Logger utility - replaces console.* statements
- * In production: only errors are logged
- * In development: all logs are enabled
- */
-
-const isDev = import.meta.env?.DEV ?? true
+/* eslint-disable no-console */
+const isDev = import.meta.env.DEV
+const isTest = import.meta.env.MODE === 'test'
 
 export const logger = {
-  /**
-   * Log only in development
-   */
-  log: (...args) => {
-    if (isDev) {
-      console.log(...args)
-    }
-  },
-
-  /**
-   * Warn only in development
-   */
-  warn: (...args) => {
-    if (isDev) {
-      console.warn(...args)
-    }
-  },
-
-  /**
-   * Always log errors (even in production)
-   */
-  error: (...args) => {
-    console.error(...args)
-  },
-
-  /**
-   * Debug logging (development only)
-   */
-  debug: (...args) => {
-    if (isDev) {
-      console.debug(...args)
-    }
-  },
-
-  /**
-   * Info logging (development only)
-   */
-  info: (...args) => {
-    if (isDev) {
-      console.info(...args)
-    }
-  }
+  log: (...args) => isDev && console.log('[Qotoof]', ...args),
+  warn: (...args) => isDev && console.warn('[Qotoof]', ...args),
+  error: (...args) => !isTest && console.error('[Qotoof]', ...args),
+  debug: (...args) => isDev && console.debug('[Qotoof]', ...args),
+  info: (...args) => isDev && console.info('[Qotoof]', ...args),
 }

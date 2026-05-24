@@ -99,6 +99,7 @@ const PhoneVerification = ({
 
     hasAutoSentRef.current = true
     void handleSendCode()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, resolvedPhone, resolvedUserId])
 
   if (loading && !resolvedUserId) {

@@ -10,6 +10,133 @@ const requireAuthenticatedUserId = async () => {
   return user.id
 }
 
+const toServiceResult = async (operation) => {
+  try {
+    const data = await operation()
+    return { data, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+const deliverySelect = `
+  id,
+  order_id,
+  driver_id,
+  status,
+  created_at,
+  assigned_at,
+  accepted_at,
+  picked_up_at,
+  delivered_at,
+  proof_photo_url,
+  order:orders(
+    id,
+    order_number,
+    total,
+    buyer:profiles!buyer_id(id, first_name, last_name, phone, email),
+    vendor:profiles!vendor_id(id, first_name, store_name)
+  ),
+  driver:profiles!driver_id(id, first_name, last_name, phone, avatar_url)
+`
+
+const statusTimestampField = {
+  assigned: 'assigned_at',
+  accepted: 'accepted_at',
+  picked_up: 'picked_up_at',
+  delivered: 'delivered_at',
+}
+
+export const createDelivery = async ({ orderId, vendorId = null, driverId = null, status = 'unassigned' }) => toServiceResult(async () => {
+  const { data, error } = await supabase
+    .from('deliveries')
+    .insert({
+      order_id: orderId,
+      vendor_id: vendorId,
+      driver_id: driverId,
+      status,
+    })
+    .select(deliverySelect)
+    .single()
+
+  if (error) throw error
+  return data
+})
+
+export const fetchDeliveryById = async (deliveryId) => toServiceResult(async () => {
+  const { data, error } = await supabase
+    .from('deliveries')
+    .select(deliverySelect)
+    .eq('id', deliveryId)
+    .maybeSingle()
+
+  if (error) throw error
+  return data
+})
+
+export const updateDeliveryStatus = async (deliveryId, status, values = {}) => toServiceResult(async () => {
+  const now = new Date().toISOString()
+  const payload = {
+    ...values,
+    status,
+    updated_at: now,
+  }
+
+  const timestampField = statusTimestampField[status]
+  if (timestampField && !payload[timestampField]) {
+    payload[timestampField] = now
+  }
+
+  const { data, error } = await supabase
+    .from('deliveries')
+    .update(payload)
+    .eq('id', deliveryId)
+    .select(deliverySelect)
+    .single()
+
+  if (error) throw error
+  return data
+})
+
+export const assignDriver = async (deliveryId, driverId) => updateDeliveryStatus(deliveryId, 'assigned', {
+  driver_id: driverId,
+  assigned_at: new Date().toISOString(),
+})
+
+export const markDelivered = async (deliveryId, proofPhotoUrl = null) => updateDeliveryStatus(deliveryId, 'delivered', {
+  proof_photo_url: proofPhotoUrl,
+  delivered_at: new Date().toISOString(),
+})
+
+export const subscribeToDeliveryUpdates = (deliveryId, callback) => {
+  const channel = supabase
+    .channel(`delivery:${deliveryId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'deliveries',
+        filter: `id=eq.${deliveryId}`,
+      },
+      (payload) => {
+        callback(payload.new)
+      }
+    )
+    .subscribe()
+
+  return () => {
+    if (typeof supabase.removeChannel === 'function') {
+      supabase.removeChannel(channel)
+      return
+    }
+
+    if (typeof channel.unsubscribe === 'function') {
+      channel.unsubscribe()
+    }
+  }
+}
+
 // Deliveries API
 export const deliveriesApi = {
   // Get deliveries for driver - Optimized: pagination + minimal joins
@@ -290,7 +417,10 @@ export const deliveriesApi = {
     const { data, error } = await supabase
       .from('deliveries')
       .select(`
-        *,
+        id, order_id, driver_id, status,
+        current_latitude, current_longitude,
+        created_at, delivered_at,
+        proof_photo_url,
         driver:profiles!driver_id(first_name, last_name, phone, avatar_url, vehicle_type, vehicle_plate),
         order:orders(order_number, total)
       `)

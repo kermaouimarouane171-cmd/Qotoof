@@ -38,6 +38,7 @@ const AdminSupportTickets = () => {
 
   useEffect(() => {
     loadTickets()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter])
 
   const updateTicket = async (ticketId, updates) => {

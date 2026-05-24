@@ -1,45 +1,33 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
-import { Card, LoadingSpinner } from '@/components/ui'
+import { Card, LoadingSpinner, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import { useTranslation } from 'react-i18next'
 import { ordersApi, deliveriesApi } from '@/services/deliveries'
-import { formatPrice } from '@/utils/currency'
+import { fetchBuyerOrders } from '@/services/ordersService'
+import { supabase } from '@/services/supabase'
 import {
-  MagnifyingGlassIcon,
   XMarkIcon,
-  AdjustmentsHorizontalIcon,
-  ChevronDownIcon,
+  CheckCircleIcon,
+  ShoppingBagIcon,
+  TruckIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-import { hydrateRowsWithProductItems, isProductImagesRelationError } from '@/services/productImages'
-import { supabase } from '@/services/supabase'
 import reviewService from '@/services/reviewService'
 import invoiceService from '@/services/invoiceService'
 import loyaltyApi from '@/services/loyalty'
-import { getOrderStatusColors, getOrderStatusLabel, ACTIVE_ORDER_STATUSES } from '@/constants/orderStatuses'
-import BuyerOrderCard from '@/components/orders/BuyerOrderCard'
-import ReviewModal from '@/components/orders/ReviewModal'
-import AdvancedFiltersPanel from '@/components/orders/AdvancedFiltersPanel'
+// STATUS_CONFIG migrated -> constants/orderStatuses.js
+import OrderCard from '@/components/buyer/OrderCard'
+import ReviewModal from '@/components/buyer/ReviewModal'
+import OrderFilters from '@/components/buyer/OrderFilters'
 // @react-pdf/renderer is loaded dynamically inside handleDownloadInvoice (see below)
 
 // ============================================
 // Constants & Helpers
 // ============================================
-
-const BUYER_ORDERS_SELECT = `
-  *,
-  vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name, images:product_images(url, is_primary)))
-`
-
-const BUYER_ORDERS_SELECT_WITHOUT_IMAGES = `
-  *,
-  vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name))
-`
 
 const FILTER_TABS = [
   { id: 'all', label: 'All Orders' },
@@ -47,12 +35,6 @@ const FILTER_TABS = [
   { id: 'delivered', label: 'Completed' },
   { id: 'cancelled', label: 'Cancelled' },
 ]
-
-// ACTIVE_STATUSES imported as ACTIVE_ORDER_STATUSES from @/constants/orderStatuses
-
-// ============================================
-// Main Orders Page
-// ============================================
 
 // ============================================
 // Main Orders Page
@@ -106,12 +88,14 @@ const OrdersPage = () => {
     )
 
     return () => channel.unsubscribe()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id, filter, advancedFilters.dateFrom, advancedFilters.dateTo])
 
   // Load active delivery
   useEffect(() => {
     if (!profile?.id) return
     loadActiveDelivery()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
   useEffect(() => {
@@ -135,6 +119,7 @@ const OrdersPage = () => {
     return () => {
       cancelled = true
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
   /**
@@ -152,58 +137,22 @@ const OrdersPage = () => {
     try {
       const pageEndIndex = pageNum * PAGE_SIZE - 1
 
-      const buildQuery = (selectClause) => {
-        let query = supabase
-          .from('orders')
-          .select(selectClause, { count: 'exact' })
-          .eq('buyer_id', profile.id)
+      const { data, error, total } = await fetchBuyerOrders(profile.id, {
+        status: filter,
+        dateFrom: advancedFilters.dateFrom,
+        dateTo: advancedFilters.dateTo,
+        page: pageNum,
+        limit: PAGE_SIZE,
+      })
 
-        if (filter === 'active') {
-          query = query.in('status', ACTIVE_ORDER_STATUSES)
-        } else if (filter === 'delivered') {
-          query = query.eq('status', 'delivered')
-        } else if (filter === 'cancelled') {
-          query = query.in('status', ['cancelled', 'vendor_rejected'])
-        }
-
-        if (advancedFilters.dateFrom) {
-          query = query.gte('created_at', new Date(advancedFilters.dateFrom).toISOString())
-        }
-
-        if (advancedFilters.dateTo) {
-          const endDate = new Date(advancedFilters.dateTo)
-          endDate.setHours(23, 59, 59, 999)
-          query = query.lte('created_at', endDate.toISOString())
-        }
-
-        const from = (pageNum - 1) * PAGE_SIZE
-        const to = from + PAGE_SIZE - 1
-
-        return query
-          .order('created_at', { ascending: false })
-          .range(from, to)
+      if (error) {
+        throw error
       }
 
-      let result = await buildQuery(BUYER_ORDERS_SELECT)
+      const count = total || 0
 
-      if (result.error) {
-        if (!isProductImagesRelationError(result.error)) throw result.error
-
-        logger.warn('Buyer orders: product_images relation missing, hydrating separately', result.error)
-
-        const fallbackResult = await buildQuery(BUYER_ORDERS_SELECT_WITHOUT_IMAGES)
-        if (fallbackResult.error) throw fallbackResult.error
-
-        result = {
-          ...fallbackResult,
-          data: await hydrateRowsWithProductItems(fallbackResult.data || []),
-        }
-      }
-
-      const { data, count } = result
-
-      setTotalCount(count || 0)
-      setHasMore((count || 0) > pageEndIndex + 1)
+      setTotalCount(count)
+      setHasMore(count > pageEndIndex + 1)
 
       if (pageNum === 1) {
         setOrders(data || [])
@@ -469,8 +418,17 @@ const OrdersPage = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <LoadingSpinner size="lg" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <Skeleton.Card className="h-32" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton.Card key={index} className="h-72" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -560,7 +518,7 @@ const OrdersPage = () => {
                 const isCurrent = index === currentIndex
 
                 return (
-                  <div key={step.status} className="flex items-center flex-1">
+                  <div key={step.status} className="flex items-center flex-1" data-cy={`order-status-${step.status}`}>
                     <div className="flex flex-col items-center">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
                         isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'
@@ -587,82 +545,27 @@ const OrdersPage = () => {
       )}
 
       {/* ===== Search & Filter Tabs ===== */}
-      <div className="mb-6 space-y-4">
-        {/* Search with Suggestions */}
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder={t('buyer.orders.searchPlaceholder', 'Search by order number, vendor, or product...')}
-            value={searchQuery}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            onFocus={() => searchSuggestionsList.length > 0 && setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            className="input pl-12 pr-10 py-3"
-            aria-label={t('buyer.orders.searchPlaceholder', 'Search orders')}
-            role="combobox"
-            aria-expanded={showSuggestions}
-            aria-controls="buyer-orders-search-suggestions"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); setShowSuggestions(false) }}
-              className="absolute right-4 top-1/2 -translate-y-1/2"
-              aria-label="Clear search"
-            >
-              <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-            </button>
-          )}
-
-          {/* Search Suggestions Dropdown */}
-          {showSuggestions && searchSuggestionsList.length > 0 && (
-            <div id="buyer-orders-search-suggestions" className="absolute left-0 right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-20 overflow-hidden">
-              {searchSuggestionsList.map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  onMouseDown={() => handleSuggestionClick(suggestion)}
-                  className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <MagnifyingGlassIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{suggestion}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Filter Tabs + Advanced Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin flex-1">
-            {FILTER_TABS.map(tab => {
-              const isActive = filter === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilter(tab.id)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                    isActive
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {t(`buyer.orders.filters.${tab.id}`, tab.label)}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Advanced Filters */}
-          <AdvancedFiltersPanel
-            filters={advancedFilters}
-            onChange={handleAdvancedFilterChange}
-            onClear={handleClearAdvancedFilters}
-            orderCount={totalCount}
-            t={t}
-          />
-        </div>
-      </div>
+      <OrderFilters
+        t={t}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onClearSearch={() => {
+          setSearchQuery('')
+          setShowSuggestions(false)
+        }}
+        onSearchFocus={() => searchSuggestionsList.length > 0 && setShowSuggestions(true)}
+        onSearchBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+        showSuggestions={showSuggestions}
+        suggestions={searchSuggestionsList}
+        onSuggestionClick={handleSuggestionClick}
+        filter={filter}
+        onFilterChange={setFilter}
+        filterTabs={FILTER_TABS}
+        advancedFilters={advancedFilters}
+        onAdvancedFilterChange={handleAdvancedFilterChange}
+        onClearAdvancedFilters={handleClearAdvancedFilters}
+        totalCount={totalCount}
+      />
 
       {/* ===== Selection Bar ===== */}
       {selectedOrders.size > 0 && (
@@ -703,32 +606,26 @@ const OrdersPage = () => {
 
       {/* ===== Orders Grid ===== */}
       {filteredOrders.length === 0 ? (
-        <Card className="p-12 text-center">
-          <ShoppingBagIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          {orders.length === 0 ? (
-            <>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('buyer.orders.emptyState.noOrdersYet', 'No orders yet')}</h3>
-              <p className="text-gray-500 mb-6">{t('buyer.orders.emptyState.browseMarketplace', 'Browse the marketplace to place your first order')}</p>
-              <button
-                onClick={() => navigate('/marketplace')}
-                className="btn-primary inline-flex items-center gap-2"
-              >
-                <ShoppingBagIcon className="w-5 h-5" />
-                {t('buyer.orders.emptyState.startShopping', 'Start Shopping')}
-              </button>
-            </>
-          ) : (
-            <>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('buyer.orders.emptyState.noMatch', 'No matching orders')}</h3>
-              <p className="text-gray-500">{t('buyer.orders.emptyState.tryAdjusting', 'Try adjusting your search or filter criteria')}</p>
-            </>
-          )}
-        </Card>
+        orders.length === 0 ? (
+          <EmptyState
+            icon="shopping"
+            title={t('buyer.orders.emptyState.noOrdersYet', 'No orders yet')}
+            description={t('buyer.orders.emptyState.browseMarketplace', 'Browse the marketplace to place your first order')}
+            actionLabel={t('buyer.orders.emptyState.startShopping', 'Start Shopping')}
+            onAction={() => navigate('/marketplace')}
+          />
+        ) : (
+          <EmptyState
+            icon="search"
+            title={t('buyer.orders.emptyState.noMatch', 'No matching orders')}
+            description={t('buyer.orders.emptyState.tryAdjusting', 'Try adjusting your search or filter criteria')}
+          />
+        )
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {filteredOrders.map((order) => (
-              <BuyerOrderCard
+              <OrderCard
                 key={order.id}
                 order={order}
                 onReorder={handleReorder}
@@ -738,6 +635,8 @@ const OrdersPage = () => {
                 onDownloadInvoice={handleDownloadInvoice}
                 isSelected={selectedOrders.has(order.id)}
                 onSelect={handleSelectOrder}
+                cardDataCy={`order-card-${order.id}`}
+                statusDataCy={`order-status-${order.status}-${order.id}`}
                 t={t}
               />
             ))}

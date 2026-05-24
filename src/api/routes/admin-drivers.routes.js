@@ -7,6 +7,7 @@ const router = express.Router();
 
 // @GET /api/admin/drivers/stats/overview
 // Overall driver statistics
+// @deprecated RETIRE — replace with Supabase: profiles?role=driver + aggregate query
 router.get('/stats/overview', verifyAuth, isAdmin, async (req, res) => {
   try {
     const stats = await db.query(
@@ -27,6 +28,7 @@ router.get('/stats/overview', verifyAuth, isAdmin, async (req, res) => {
 
 // @GET /api/admin/drivers
 // List all drivers with filters
+// @deprecated RETIRE — replace with Supabase: profiles?role=driver (supports same filters via PostgREST)
 router.get('/', verifyAuth, isAdmin, async (req, res) => {
   try {
     const { search, status, limit = 50, offset = 0 } = req.query;
@@ -59,6 +61,7 @@ router.get('/', verifyAuth, isAdmin, async (req, res) => {
 
 // @GET /api/admin/drivers/:id
 // Get driver details
+// @deprecated RETIRE — replace with Supabase: profiles?id=:id + deliveries aggregate
 router.get('/:id', verifyAuth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -92,6 +95,7 @@ router.get('/:id', verifyAuth, isAdmin, async (req, res) => {
 
 // @POST /api/admin/drivers/:id/suspend
 // Suspend a driver
+// @deprecated KEEP (temporary) — no Supabase Edge Function equivalent yet; writes to legacy `drivers` table
 router.post('/:id/suspend', verifyAuth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;
@@ -113,6 +117,7 @@ router.post('/:id/suspend', verifyAuth, isAdmin, async (req, res) => {
 
 // @POST /api/admin/drivers/:id/activate
 // Activate a driver
+// @deprecated KEEP (temporary) — no Supabase Edge Function equivalent yet; writes to legacy `drivers` table
 router.post('/:id/activate', verifyAuth, isAdmin, async (req, res) => {
   try {
     const { id } = req.params;

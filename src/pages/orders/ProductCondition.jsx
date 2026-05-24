@@ -267,6 +267,7 @@ const ProductConditionPage = () => {
               </div>
 
               <div className="mb-5">
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="input-label">ملاحظات إضافية</label>
                 <textarea
                   value={notes}

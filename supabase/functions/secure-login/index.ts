@@ -1,6 +1,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { enforceServerRateLimit, getClientIp, getClientUserAgent, json, jsonHeaders } from '../_shared/serverRateLimit.ts'
+import { enforceServerRateLimit, getClientIp, getClientUserAgent } from '../_shared/serverRateLimit.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 const PUBLIC_REQUEST_LIMIT = {
   maxAttempts: 60,
@@ -14,14 +15,27 @@ const LOGIN_LIMIT = {
   blockSeconds: 30 * 60,
 }
 
+const json = (
+  body: unknown,
+  status = 200,
+  req?: Request,
+  extraHeaders: Record<string, string> = {},
+) => new Response(JSON.stringify(body), {
+  status,
+  headers: {
+    ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}),
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  },
+})
+
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: jsonHeaders })
-  }
+  const optionsResponse = handleOptions(req)
+  if (optionsResponse) return optionsResponse
 
   try {
     if (req.method !== 'POST') {
-      return json({ success: false, error: 'Method not allowed' }, 405)
+      return json({ success: false, error: 'Method not allowed' }, 405, req)
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
@@ -40,7 +54,7 @@ serve(async (req) => {
       : null
 
     if (!email || !password) {
-      return json({ success: false, error: 'Email and password are required' }, 400)
+      return json({ success: false, error: 'Email and password are required' }, 400, req)
     }
 
     const clientIp = getClientIp(req)
@@ -60,6 +74,7 @@ serve(async (req) => {
       return json(
         { success: false, error: 'Too many requests. Please try again later.' },
         429,
+        req,
         { 'Retry-After': String(publicRequestResult.retry_after_seconds || PUBLIC_REQUEST_LIMIT.blockSeconds) },
       )
     }
@@ -77,6 +92,7 @@ serve(async (req) => {
       return json(
         { success: false, error: 'Too many login attempts. Please try again later.' },
         429,
+        req,
         { 'Retry-After': String(loginResult.retry_after_seconds || LOGIN_LIMIT.blockSeconds) },
       )
     }
@@ -95,7 +111,7 @@ serve(async (req) => {
     })
 
     if (error || !data?.session || !data?.user) {
-      return json({ success: false, error: 'Invalid login credentials' }, 400)
+      return json({ success: false, error: 'Invalid login credentials' }, 400, req)
     }
 
     return json({
@@ -108,7 +124,7 @@ serve(async (req) => {
         expires_in: data.session.expires_in,
         token_type: data.session.token_type,
       },
-    })
+    }, 200, req)
   } catch (error) {
     console.error('secure-login error:', error)
     return json({

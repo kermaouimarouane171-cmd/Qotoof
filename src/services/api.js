@@ -5,7 +5,6 @@ import {
   isProductImagesRelationError,
   runProductImageFallbackQuery,
 } from './productImages'
-import { useAuthStore } from '@/store/authStore'
 import { withRetry } from '@/utils/withRetry'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
 
@@ -22,13 +21,21 @@ const PRODUCT_LIST_SELECT = `
 `
 
 const PRODUCT_DETAIL_SELECT = `
-  *,
+  id, name, description, category, subcategory,
+  price_per_unit, unit_type, unit:unit_type,
+  stock_quantity, min_order_quantity,
+  vendor_id, is_available, approval_status,
+  created_at, updated_at,
   product_images(url, is_primary),
   reviews!inner(rating, comment, created_at)
 `
 
 const PRODUCT_DETAIL_SELECT_WITHOUT_IMAGES = `
-  *,
+  id, name, description, category, subcategory,
+  price_per_unit, unit_type, unit:unit_type,
+  stock_quantity, min_order_quantity,
+  vendor_id, is_available, approval_status,
+  created_at, updated_at,
   reviews!inner(rating, comment, created_at)
 `
 
@@ -46,14 +53,20 @@ const PENDING_PRODUCT_SELECT_WITHOUT_IMAGES = `
 `
 
 const ORDER_DETAIL_SELECT = `
-  *,
+  id, order_number, buyer_id, vendor_id,
+  status, total, payment_status, payment_method,
+  shipping_address, shipping_city,
+  created_at, updated_at,
   buyer:profiles!buyer_id(id, first_name, last_name, avatar_url, phone, email),
   vendor:profiles!vendor_id(id, first_name, last_name, avatar_url, phone, store_name),
   items:order_items(id, product_id, quantity, unit_price, product:products(id, name, images:product_images(url, is_primary)))
 `
 
 const ORDER_DETAIL_SELECT_WITHOUT_IMAGES = `
-  *,
+  id, order_number, buyer_id, vendor_id,
+  status, total, payment_status, payment_method,
+  shipping_address, shipping_city,
+  created_at, updated_at,
   buyer:profiles!buyer_id(id, first_name, last_name, avatar_url, phone, email),
   vendor:profiles!vendor_id(id, first_name, last_name, avatar_url, phone, store_name),
   items:order_items(id, product_id, quantity, unit_price, product:products(id, name))
@@ -192,8 +205,12 @@ export const productsApi = {
       const { data, error } = await supabase
         .from('products')
         .select(`
-          *,
-          vendor:profiles(first_name, last_name, avatar_url, store_name)
+          id, name, description, category, subcategory,
+          price_per_unit, unit_type, unit:unit_type,
+          stock_quantity, min_order_quantity,
+          vendor_id, is_available, approval_status,
+          created_at, updated_at, deleted_at,
+          vendor:profiles(id, role, first_name, last_name, store_name, phone, avatar_url)
         `)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false })
@@ -223,14 +240,13 @@ export const productsApi = {
   },
 
   // Admin: Approve product
-  approve: async (id) => {
+  approve: async (id, adminId = null) => {
     return withRetry(async () => {
-      const { data: profile } = useAuthStore.getState()
       const { data, error } = await supabase
         .from('products')
         .update({
           approval_status: 'approved',
-          approved_by: profile?.id,
+          approved_by: adminId,
           approved_at: new Date().toISOString(),
           is_available: true,
         })
@@ -263,14 +279,13 @@ export const productsApi = {
   },
 
   // Admin: Bulk approve products
-  bulkApprove: async (ids) => {
+  bulkApprove: async (ids, adminId = null) => {
     return withRetry(async () => {
-      const { data: profile } = useAuthStore.getState()
       const { data, error } = await supabase
         .from('products')
         .update({
           approval_status: 'approved',
-          approved_by: profile?.id,
+          approved_by: adminId,
           approved_at: new Date().toISOString(),
           is_available: true,
         })
@@ -429,9 +444,11 @@ export const ordersApi = {
       const { data, error } = await supabase
         .from('orders')
         .select(`
-          *,
-          buyer:profiles!buyer_id(first_name, last_name),
-          vendor:profiles!vendor_id(first_name, last_name)
+          id, order_number, buyer_id, vendor_id,
+          status, total, payment_status, payment_method,
+          created_at, updated_at, deleted_at,
+          buyer:profiles!buyer_id(id, role, first_name, last_name, store_name, phone),
+          vendor:profiles!vendor_id(id, role, first_name, last_name, store_name, phone)
         `)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false })
@@ -512,8 +529,9 @@ export const reviewsApi = {
       const { data, error } = await supabase
         .from('reviews')
         .select(`
-          *,
-          buyer:profiles(first_name, last_name, avatar_url)
+          id, rating, comment, created_at, updated_at,
+          product_id, vendor_id, buyer_id, deleted_at,
+          buyer:profiles(id, role, first_name, last_name, store_name, phone, avatar_url)
         `)
         .not('deleted_at', 'is', null)
         .order('deleted_at', { ascending: false })
@@ -614,13 +632,11 @@ export const usersApi = {
     }, { maxRetries: 3, baseDelay: 1000 })()
   },
 
-  getById: async (id) => {
+  getById: async (_id) => {
     return withRetry(async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single()
+          .select('id, first_name, last_name, email, phone, store_name, store_description, avatar_url, city, country, latitude, longitude, rating, bio, created_at, is_verified, is_approved, operating_hours, role, delivery_option, store_type, accepted_cargo_sizes, vehicle_type, vehicle_plate, has_own_driver, preferred_driver_id, partnership_status')
 
       if (error) throw error
       return data
@@ -696,12 +712,12 @@ export const analyticsApi = {
       const [totalOrdersResult, pendingOrdersResult, completedRevenueResult] = await Promise.all([
         supabase
           .from('orders')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('vendor_id', vendorId)
           .is('deleted_at', null),
         supabase
           .from('orders')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .eq('vendor_id', vendorId)
           .eq('status', 'pending')
           .is('deleted_at', null),
@@ -736,15 +752,15 @@ export const analyticsApi = {
       const [usersResult, productsResult, ordersResult, revenueResult] = await Promise.all([
         supabase
           .from('profiles')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .is('deleted_at', null),
         supabase
           .from('products')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .is('deleted_at', null),
         supabase
           .from('orders')
-          .select('*', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true })
           .is('deleted_at', null),
         supabase
           .from('orders')

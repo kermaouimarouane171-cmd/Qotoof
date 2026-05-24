@@ -91,6 +91,7 @@ const CommissionDashboard = ({ vendorId }) => {
 
   useEffect(() => {
     loadData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorId])
 
   const currentMonthKey = `${summary?.month || ''}-${summary?.year || ''}`

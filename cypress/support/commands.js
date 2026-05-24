@@ -73,6 +73,21 @@ Cypress.Commands.add('loginAsDriver', () => {
 })
 
 /**
+ * Generic role-based login helper.
+ * Example: cy.loginAs('buyer')
+ */
+Cypress.Commands.add('loginAs', (role = 'buyer') => {
+  const normalizedRole = String(role || 'buyer').trim().toLowerCase()
+
+  if (normalizedRole === 'buyer') return cy.loginAsBuyer()
+  if (normalizedRole === 'vendor') return cy.loginAsVendor()
+  if (normalizedRole === 'driver') return cy.loginAsDriver()
+  if (normalizedRole === 'admin') return cy.loginAsAdmin()
+
+  throw new Error(`Unsupported role for cy.loginAs(): ${role}`)
+})
+
+/**
  * Logout
  */
 Cypress.Commands.add('logout', () => {
@@ -152,6 +167,75 @@ Cypress.Commands.add('createProduct', (productData) => {
  */
 Cypress.Commands.add('createOrder', (orderData) => {
   cy.request('POST', '/api/test/orders', orderData)
+})
+
+/**
+ * Add a fixture-backed product directly to persisted cart storage.
+ */
+Cypress.Commands.add('addToCart', (productId) => {
+  cy.fixture('products').then((fixture) => {
+    const products = fixture?.products || []
+    const product = products.find((entry) => entry.id === productId)
+
+    if (!product) {
+      throw new Error(`Product not found in fixtures: ${productId}`)
+    }
+
+    cy.window().then((win) => {
+      const rawCart = win.localStorage.getItem('cart-storage')
+      let parsedCart = { state: { items: [], lastValidated: null, checkoutVendorId: null }, version: 0 }
+
+      if (rawCart) {
+        try {
+          parsedCart = JSON.parse(rawCart)
+        } catch (_e) {
+          parsedCart = { state: { items: [], lastValidated: null, checkoutVendorId: null }, version: 0 }
+        }
+      }
+
+      const state = parsedCart.state || {}
+      const existingItems = Array.isArray(state.items) ? [...state.items] : []
+      const existingIndex = existingItems.findIndex((item) => item.id === product.id)
+
+      const cartItem = {
+        id: product.id,
+        name: product.name,
+        price_per_unit: Number(product.price_per_unit || product.price || 0),
+        unit_type: product.unit_type || 'kg',
+        quantity: Number(product.min_order_quantity || 1),
+        min_order_quantity: Number(product.min_order_quantity || 1),
+        is_available: product.is_available !== false,
+        available_quantity: Number(product.available_quantity || 999),
+        vendor_id: product.vendor_id,
+        vendor_name: product.vendor_name || product.store_name || 'Vendor',
+        image_url: product.image_url || null,
+        category: product.category || 'produce',
+        subcategory: product.subcategory || null,
+      }
+
+      if (existingIndex >= 0) {
+        existingItems[existingIndex] = {
+          ...existingItems[existingIndex],
+          ...cartItem,
+          quantity: Number(existingItems[existingIndex].quantity || 0) + cartItem.quantity,
+        }
+      } else {
+        existingItems.push(cartItem)
+      }
+
+      const nextCart = {
+        ...parsedCart,
+        state: {
+          ...state,
+          items: existingItems,
+          checkoutVendorId: product.vendor_id || null,
+          lastValidated: null,
+        },
+      }
+
+      win.localStorage.setItem('cart-storage', JSON.stringify(nextCart))
+    })
+  })
 })
 
 /**

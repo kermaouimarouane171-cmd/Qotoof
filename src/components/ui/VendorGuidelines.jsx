@@ -181,6 +181,7 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
 
       {/* Acceptance */}
       <div className="p-6 border-t border-gray-200 bg-gray-50">
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label htmlFor="vendor-guidelines-agree" className="flex items-start gap-3 cursor-pointer">
           <input
             id="vendor-guidelines-agree"

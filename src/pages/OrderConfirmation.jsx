@@ -1,15 +1,16 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CheckCircleIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { LoadingSpinner, Receipt } from '@/components/ui'
 import PaymentReceiptUpload from '@/components/orders/PaymentReceiptUpload'
-import { supabase } from '@/services/supabase'
 import { paymentGateway } from '@/services/paymentGateway'
-import { getLatestOrderPaymentRecord, updateOrderPaymentRecord } from '@/services/paymentService'
+import { updateOrderPaymentRecord, getLatestOrderPaymentRecord } from '@/services/paymentService'
 import { useAuthStore } from '@/store/authStore'
 import { logger } from '@/utils/logger'
+import { useOrderView } from '@/hooks/useOrderView'
+import { supabase } from '@/services/supabase'
 
 const OrderConfirmation = () => {
   const { t } = useTranslation()
@@ -19,7 +20,6 @@ const OrderConfirmation = () => {
   const [searchParams] = useSearchParams()
   const { user } = useAuthStore()
   const [order, setOrder] = useState(null)
-  const [loadingOrder, setLoadingOrder] = useState(Boolean(routeOrderId || location.state?.order?.id))
   const [errorState, setErrorState] = useState(null)
   const [paypalMessage, setPaypalMessage] = useState('')
   const [processingPayPal, setProcessingPayPal] = useState(false)
@@ -29,121 +29,54 @@ const OrderConfirmation = () => {
   const paypalToken = searchParams.get('token')
   const confirmationPath = routeOrderId ? `/order-confirmation/${routeOrderId}` : '/order-confirmation'
 
-  const loadOrder = useCallback(async (orderId) => {
-    if (!orderId || !user?.id) {
-      return { data: null, error: 'login_required' }
+  const targetOrderId = user?.id ? (routeOrderId || location.state?.order?.id) : null
+  const {
+    data: orderView,
+    isLoading: loadingOrder,
+    error: queryError,
+    refetch,
+  } = useOrderView(targetOrderId)
+
+  // Redirect unauthenticated visitors
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { state: { from: confirmationPath } })
     }
+  }, [user, navigate, confirmationPath])
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return { data: null, error: 'login_required' }
+  // Map RPC response → component order state
+  useEffect(() => {
+    if (!targetOrderId && !loadingOrder) {
+      setOrder(null)
+      setErrorState('missing_order')
+      return
     }
-
-    const { data: orderData, error: orderError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id},driver_id.eq.${user.id}`)
-      .maybeSingle()
-
-    if (orderError) {
-      logger.error('Failed to load order confirmation data:', orderError)
-      return { data: null, error: 'load_failed' }
+    if (queryError) {
+      logger.error('Failed to load order confirmation data:', queryError)
+      setOrder(null)
+      setErrorState('load_failed')
+      return
     }
-
-    if (!orderData) {
-      return { data: null, error: 'forbidden' }
-    }
-
-    const [itemsResult, paymentData, buyerResult, vendorResult] = await Promise.all([
-      supabase
-        .from('order_items')
-        .select('*, product:products(name)')
-        .eq('order_id', orderId),
-      getLatestOrderPaymentRecord({
-        orderId,
-        select: 'payment_method, method, status, transaction_id',
-        allowMissing: true,
-      }),
-      supabase
-        .from('profiles')
-        .select('first_name, last_name, email, phone')
-        .eq('id', orderData.buyer_id)
-        .maybeSingle(),
-      supabase
-        .from('profiles')
-        .select('store_name, city')
-        .eq('id', orderData.vendor_id)
-        .maybeSingle(),
-    ])
-
-    return {
-      data: {
-        ...orderData,
-        items: (itemsResult.data || []).map((item) => ({
+    if (orderView) {
+      setOrder({
+        ...orderView.order,
+        items: (orderView.items || []).map((item) => ({
           ...item,
           price: item.unit_price ?? item.price ?? 0,
         })),
-        payment_method: paymentData?.payment_method || orderData.payment_method || null,
-        payment_record_status: paymentData?.status || null,
-        payment_transaction_id: paymentData?.transaction_id || null,
-        buyer: buyerResult.data || {},
-        vendor: vendorResult.data || {},
-      },
-      error: null,
+        payment_method: orderView.payment?.payment_method || orderView.order?.payment_method || null,
+        payment_record_status: orderView.payment?.status || null,
+        payment_transaction_id: orderView.payment?.transaction_id || null,
+        buyer: orderView.buyer || {},
+        vendor: orderView.vendor || {},
+      })
+      setErrorState(null)
     }
-  }, [user?.id])
+  }, [orderView, queryError, targetOrderId, loadingOrder])
 
   useEffect(() => {
     paypalHandledRef.current = false
   }, [routeOrderId])
-
-  useEffect(() => {
-    let active = true
-
-    const hydrateOrder = async () => {
-      if (!user) {
-        navigate('/login', { state: { from: confirmationPath } })
-        return
-      }
-
-      const targetOrderId = routeOrderId || location.state?.order?.id
-      if (!targetOrderId) {
-        if (active) {
-          setOrder(null)
-          setErrorState('missing_order')
-          setLoadingOrder(false)
-        }
-        return
-      }
-
-      setLoadingOrder(true)
-      setErrorState(null)
-      const result = await loadOrder(targetOrderId)
-      if (!active) return
-
-      if (result.error === 'login_required') {
-        navigate('/login', { state: { from: confirmationPath } })
-        return
-      }
-
-      if (result.error) {
-        setOrder(null)
-        setErrorState(result.error)
-        setLoadingOrder(false)
-        return
-      }
-
-      setOrder(result.data)
-      setLoadingOrder(false)
-    }
-
-    hydrateOrder()
-
-    return () => {
-      active = false
-    }
-  }, [confirmationPath, loadOrder, location.state, navigate, routeOrderId, user])
 
   useEffect(() => {
     let active = true
@@ -177,9 +110,20 @@ const OrderConfirmation = () => {
         const result = await paymentGateway.confirmPayPalPayment(paypalToken)
 
         if (result.status === 'completed') {
-          const refreshedOrder = await loadOrder(order.id)
-          if (active && refreshedOrder.data) {
-            setOrder(refreshedOrder.data)
+          const { data: refreshed } = await refetch()
+          if (active && refreshed) {
+            setOrder({
+              ...refreshed.order,
+              items: (refreshed.items || []).map((item) => ({
+                ...item,
+                price: item.unit_price ?? item.price ?? 0,
+              })),
+              payment_method: refreshed.payment?.payment_method || refreshed.order?.payment_method || null,
+              payment_record_status: refreshed.payment?.status || null,
+              payment_transaction_id: refreshed.payment?.transaction_id || null,
+              buyer: refreshed.buyer || {},
+              vendor: refreshed.vendor || {},
+            })
           }
           if (active) {
             setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
@@ -206,7 +150,7 @@ const OrderConfirmation = () => {
     return () => {
       active = false
     }
-  }, [loadOrder, order?.id, order?.payment_method, order?.payment_record_status, paypalAction, paypalToken])
+  }, [refetch, order?.id, order?.payment_method, order?.payment_record_status, paypalAction, paypalToken])
 
   const restartPayPalCheckout = async () => {
     if (!order?.id) return

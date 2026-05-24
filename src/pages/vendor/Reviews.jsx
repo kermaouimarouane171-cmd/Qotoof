@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { Card, LoadingSpinner, StarRating } from '@/components/ui'
+import { Card, LoadingSpinner } from '@/components/ui'
 import reviewService from '@/services/reviewService'
 import {
-  StarIcon,
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   XMarkIcon,
@@ -282,6 +281,7 @@ const VendorReviews = () => {
                     rows={3}
                     className="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                     placeholder="اكتب ردك هنا..."
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                   />
                   <div className="flex gap-2 mt-3">

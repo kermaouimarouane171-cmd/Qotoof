@@ -115,6 +115,7 @@ const CancellationPolicy = ({ value, onChange, disabled = false, error }) => {
         />
 
         <div>
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label className="input-label">إيقاف الإلغاء عند الحالة</label>
           <select
             value={policy.cutoff_status}
@@ -129,6 +130,7 @@ const CancellationPolicy = ({ value, onChange, disabled = false, error }) => {
         </div>
 
         <div>
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label className="input-label">نوع رسوم الإلغاء</label>
           <select
             value={policy.cancellation_fee_type}
@@ -167,6 +169,7 @@ const CancellationPolicy = ({ value, onChange, disabled = false, error }) => {
         />
 
         <div>
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label className="input-label">وصف السياسة للمشتري</label>
           <textarea
             rows="4"

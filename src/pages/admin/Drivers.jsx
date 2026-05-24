@@ -24,7 +24,7 @@ const AdminDrivers = () => {
   const [loading, setLoading] = useState(true)
   const [drivers, setDrivers] = useState([])
   const [activeDrivers, setActiveDrivers] = useState([])
-  const [pendingCount, setPendingCount] = useState(0)
+  const [_pendingCount, _setPendingCount] = useState(0)
   const [stats, setStats] = useState({
     totalDrivers: 0,
     verifiedDrivers: 0,
@@ -38,6 +38,7 @@ const AdminDrivers = () => {
     loadData()
     setupRealtimeTracking()
     return () => cleanupRealtimeTracking()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const loadData = async () => {

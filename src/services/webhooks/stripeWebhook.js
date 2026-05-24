@@ -1,6 +1,5 @@
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
-import { withRetry } from '@/utils/withRetry'
 
 /**
  * Stripe Webhook Handler
@@ -17,10 +16,7 @@ import { withRetry } from '@/utils/withRetry'
 // ─────────────────────────────────────────────────────────────────
 export const STRIPE_EDGE_FUNCTION = `
 import Stripe from 'https://esm.sh/stripe@latest'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js'
-
 const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY'))
-const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))
 
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 })
@@ -40,32 +36,24 @@ Deno.serve(async (req) => {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const pi = event.data.object
-        await supabase.from('payments')
-          .update({ status: 'succeeded', paid_at: new Date().toISOString() })
-          .eq('stripe_payment_intent_id', pi.id)
-        await supabase.from('orders')
-          .update({ status: 'confirmed', payment_status: 'paid' })
-          .eq('stripe_payment_intent_id', pi.id)
-        await supabase.from('audit_logs').insert({ action: 'payment_succeeded', entity_type: 'payment', entity_id: pi.id, metadata: { amount: pi.amount } })
+        // Delegate state transition to payment-status-write edge function
+        // provider: 'stripe', status: 'succeeded', referenceId: pi.id
         break
       }
       case 'payment_intent.payment_failed': {
         const pi = event.data.object
-        await supabase.from('payments').update({ status: 'failed', failure_reason: pi.last_payment_error?.message }).eq('stripe_payment_intent_id', pi.id)
-        await supabase.from('orders').update({ status: 'payment_failed', payment_status: 'failed' }).eq('stripe_payment_intent_id', pi.id)
+        // Delegate state transition to payment-status-write edge function
+        // provider: 'stripe', status: 'failed', referenceId: pi.id
         break
       }
       case 'charge.refunded': {
         const charge = event.data.object
-        await supabase.from('payments').update({ status: 'refunded', refunded_at: new Date().toISOString() }).eq('stripe_charge_id', charge.id)
-        await supabase.from('orders').update({ status: 'refunded' }).eq('stripe_charge_id', charge.id)
+        // Delegate state transition to payment-status-write edge function
+        // provider: 'stripe', status: 'refunded', referenceId: charge.id
         break
       }
-      case 'dispute.created': {
-        const dispute = event.data.object
-        await supabase.from('audit_logs').insert({ action: 'dispute_created', entity_type: 'payment', entity_id: dispute.charge, metadata: { reason: dispute.reason, amount: dispute.amount } })
+      case 'dispute.created':
         break
-      }
     }
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500 })
@@ -74,6 +62,34 @@ Deno.serve(async (req) => {
   return new Response(JSON.stringify({ received: true }), { status: 200 })
 })
 `
+
+/**
+ * Secure payment state write through Edge Function.
+ * Requires authenticated user; authorization is enforced server-side.
+ */
+export async function writeStripePaymentStatus({
+  status,
+  referenceId,
+  orderId,
+  failureReason,
+}) {
+  const { data, error } = await supabase.functions.invoke('payment-status-write', {
+    body: {
+      provider: 'stripe',
+      status,
+      referenceId,
+      orderId,
+      failureReason,
+    },
+  })
+
+  if (error) {
+    logger.error('[StripeWebhook] payment-status-write invoke error:', error)
+    return { success: false, error: error.message || 'Edge function invocation failed' }
+  }
+
+  return data
+}
 
 // ─────────────────────────────────────────────────────────────────
 // CLIENT-SIDE: Poll payment/order status after checkout

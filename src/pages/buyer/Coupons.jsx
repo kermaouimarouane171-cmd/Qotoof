@@ -10,8 +10,6 @@ import {
   ClipboardDocumentIcon,
   ShoppingBagIcon,
   ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   ArrowLeftIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline'

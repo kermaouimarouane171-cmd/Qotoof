@@ -56,6 +56,7 @@ const ProductCard = ({ product }) => {
       className="group block cursor-pointer"
       onClick={openProductDetails}
       onKeyDown={handleCardKeyDown}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
       role="link"
       tabIndex={0}
     >

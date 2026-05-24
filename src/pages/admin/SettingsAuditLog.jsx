@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
 import { getSettingsAuditLog } from '@/services/platformSettings'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
   ClockIcon,
   UserIcon,
-  ArrowTopRightOnSquareIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   FunnelIcon,
@@ -17,7 +15,6 @@ const PAGE_SIZE = 20
 
 const SettingsAuditLog = () => {
   const { t } = useTranslation()
-  const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [logs, setLogs] = useState([])
   const [totalCount, setTotalCount] = useState(0)
@@ -128,6 +125,7 @@ const SettingsAuditLog = () => {
               }`}
             >
               {/* Log Header */}
+                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
               <div
                 className="p-4 cursor-pointer flex items-center justify-between"
                 onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}

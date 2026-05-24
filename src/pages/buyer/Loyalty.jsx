@@ -36,6 +36,7 @@ const BuyerLoyalty = () => {
     if (user?.id) {
       loadLoyalty()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
   const loadLoyalty = async () => {

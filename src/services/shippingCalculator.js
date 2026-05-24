@@ -251,7 +251,7 @@ export function getTimeMultiplier(date = new Date()) {
  * @returns {Promise<Object>} Shipping cost breakdown
  */
 export async function calculateShippingCost({
-  vendorCity,
+  vendorCity: _vendorCity,
   vendorLat,
   vendorLon,
   buyerCity,

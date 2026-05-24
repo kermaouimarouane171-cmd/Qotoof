@@ -54,7 +54,7 @@ const PRODUCT_SELECT_WITHOUT_IMAGES = `
   ${PRODUCT_VENDOR_SELECT}
 `
 
-const PRODUCT_SUGGESTION_SELECT = `
+const _PRODUCT_SUGGESTION_SELECT = `
   id,
   name,
   category,

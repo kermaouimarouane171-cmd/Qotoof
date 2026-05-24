@@ -1,325 +1,383 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { Card, LoadingSpinner } from '@/components/ui'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import {
-  CurrencyDollarIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  InformationCircleIcon,
-  AdjustmentsHorizontalIcon,
-} from '@heroicons/react/24/outline'
+  Card,
+  Badge,
+  EmptyState,
+  ErrorState,
+  StateSkeleton as Skeleton,
+} from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
-import toast from 'react-hot-toast'
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  AreaChart,
+  Area,
+} from 'recharts'
+import {
+  BanknotesIcon,
+  CalendarDaysIcon,
+  ChartBarIcon,
+  ClockIcon,
+  TruckIcon,
+  ArrowPathIcon,
+} from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'
 
-const DEFAULT_PRICING = {
-  base_price: 15.0,
-  price_per_km: 2.0,
-  min_price: 10.0,
-  max_price: 200.0,
-  max_distance_km: 50,
-  rush_hour_multiplier: 1.5,
-  rush_hour_start: '12:00',
-  rush_hour_end: '14:00',
-  evening_multiplier: 1.3,
-  evening_start: '20:00',
-  evening_end: '06:00',
-  is_custom_pricing: false,
-}
+const RANGE_OPTIONS = [
+  { id: '7d', label: '7 days' },
+  { id: '30d', label: '30 days' },
+  { id: '90d', label: '90 days' },
+  { id: 'all', label: 'All time' },
+]
 
 const DriverEarnings = () => {
   const { t } = useTranslation()
-  const { user } = useAuthStore()
-  const [rateCardOpen, setRateCardOpen] = useState(false)
-  const [pricing, setPricing] = useState(DEFAULT_PRICING)
-  const [pricingLoaded, setPricingLoaded] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [calculator, setCalculator] = useState({ distance: 10, time: '13:00' })
-  const [calculatedPrice, setCalculatedPrice] = useState(null)
+  const { profile, user } = useAuthStore()
+  const driverId = profile?.id || user?.id
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [range, setRange] = useState('30d')
+  const [deliveries, setDeliveries] = useState([])
+
+  const loadEarnings = useCallback(async () => {
+    if (!driverId) return
+
+    setLoading(true)
+    setError(null)
+
+    try {
+      const { data, error: queryError } = await supabase
+        .from('deliveries')
+        .select(`
+          id,
+          status,
+          delivery_price,
+          distance_km,
+          created_at,
+          completed_at,
+          order:orders(
+            order_number,
+            buyer:profiles!orders_buyer_id_fkey(first_name, last_name),
+            vendor:profiles!orders_vendor_id_fkey(store_name)
+          )
+        `)
+        .eq('driver_id', driverId)
+        .order('completed_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false })
+
+      if (queryError) throw queryError
+      setDeliveries(Array.isArray(data) ? data : [])
+    } catch (loadError) {
+      logger.error('Error loading driver earnings:', loadError)
+      setError(loadError)
+    } finally {
+      setLoading(false)
+    }
+  }, [driverId])
 
   useEffect(() => {
-    if (!rateCardOpen || pricingLoaded) return
-    const loadPricing = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('driver_pricing')
-          .select('*')
-          .eq('driver_id', user.id)
-          .single()
-        if (error && error.code !== 'PGRST116') throw error
-        if (data) setPricing(data)
-      } catch (error) {
-        logger.error('Load pricing error:', error)
-      } finally {
-        setPricingLoaded(true)
-      }
-    }
-    loadPricing()
-  }, [rateCardOpen])
+    loadEarnings()
+  }, [loadEarnings])
 
-  const calculatePrice = () => {
-    const distance = parseFloat(calculator.distance)
-    const [hour, minute] = calculator.time.split(':').map(Number)
-    const currentMinutes = hour * 60 + minute
-    let timeMultiplier = 1.0
+  const rangeStart = useMemo(() => {
+    if (range === 'all') return null
+    const now = new Date()
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : 90
+    return new Date(now.getTime() - days * 24 * 60 * 60 * 1000)
+  }, [range])
 
-    const [rushSH, rushSM] = pricing.rush_hour_start.split(':').map(Number)
-    const [rushEH, rushEM] = pricing.rush_hour_end.split(':').map(Number)
-    if (currentMinutes >= rushSH * 60 + rushSM && currentMinutes <= rushEH * 60 + rushEM) {
-      timeMultiplier = pricing.rush_hour_multiplier
-    }
+  const completedDeliveries = useMemo(() => {
+    return deliveries.filter((delivery) => delivery.completed_at || delivery.status === 'delivered')
+  }, [deliveries])
 
-    const [eveSH, eveSM] = pricing.evening_start.split(':').map(Number)
-    const [eveEH, eveEM] = pricing.evening_end.split(':').map(Number)
-    const eveStart = eveSH * 60 + eveSM
-    const eveEnd = eveEH * 60 + eveEM
-    if (eveStart < eveEnd) {
-      if (currentMinutes >= eveStart && currentMinutes <= eveEnd)
-        timeMultiplier = Math.max(timeMultiplier, pricing.evening_multiplier)
-    } else {
-      if (currentMinutes >= eveStart || currentMinutes <= eveEnd)
-        timeMultiplier = Math.max(timeMultiplier, pricing.evening_multiplier)
-    }
-
-    const distancePrice = distance * pricing.price_per_km
-    let total = (pricing.base_price + distancePrice) * timeMultiplier
-    total = Math.min(Math.max(total, pricing.min_price), pricing.max_price)
-
-    setCalculatedPrice({
-      base: pricing.base_price.toFixed(2),
-      distance: distancePrice.toFixed(2),
-      multiplier: timeMultiplier.toFixed(2),
-      total: total.toFixed(2),
+  const filteredDeliveries = useMemo(() => {
+    if (!rangeStart) return completedDeliveries
+    return completedDeliveries.filter((delivery) => {
+      const finishedAt = new Date(delivery.completed_at || delivery.created_at)
+      return finishedAt >= rangeStart
     })
+  }, [completedDeliveries, rangeStart])
+
+  const totals = useMemo(() => {
+    const dailyMap = new Map()
+    const now = new Date()
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfWeek = new Date(startOfToday)
+    startOfWeek.setDate(startOfToday.getDate() - 6)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    let totalEarnings = 0
+    let todayEarnings = 0
+    let weekEarnings = 0
+    let monthEarnings = 0
+
+    filteredDeliveries.forEach((delivery) => {
+      const amount = Number(delivery.delivery_price || 0)
+      const finishedAt = new Date(delivery.completed_at || delivery.created_at)
+      const dayKey = finishedAt.toISOString().slice(0, 10)
+
+      totalEarnings += amount
+      if (finishedAt >= startOfToday) todayEarnings += amount
+      if (finishedAt >= startOfWeek) weekEarnings += amount
+      if (finishedAt >= startOfMonth) monthEarnings += amount
+
+      const bucket = dailyMap.get(dayKey) || { date: dayKey, earnings: 0, deliveries: 0 }
+      bucket.earnings += amount
+      bucket.deliveries += 1
+      dailyMap.set(dayKey, bucket)
+    })
+
+    const chartData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date))
+    const averageEarnings = filteredDeliveries.length > 0 ? totalEarnings / filteredDeliveries.length : 0
+
+    return {
+      totalEarnings,
+      todayEarnings,
+      weekEarnings,
+      monthEarnings,
+      averageEarnings,
+      chartData,
+    }
+  }, [filteredDeliveries])
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-4 w-80" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, index) => <Skeleton.Card key={index} />)}
+        </div>
+        <Skeleton.Card className="min-h-[360px]" />
+        <Skeleton.Table rows={4} columns={4} />
+      </div>
+    )
   }
 
-  const handleSavePricing = async () => {
-    try {
-      setSaving(true)
-      const { error } = await supabase
-        .from('driver_pricing')
-        .upsert({ driver_id: user.id, ...pricing })
-      if (error) throw error
-      toast.success(t('driver.pricing.saveSuccess', 'Pricing settings saved!'))
-    } catch (error) {
-      logger.error('Save pricing error:', error)
-      toast.error(t('driver.pricing.saveFailed', 'Failed to save pricing'))
-    } finally {
-      setSaving(false)
-    }
+  if (error) {
+    return (
+      <ErrorState
+        error={error}
+        title={t('driver.earnings.loadFailed', 'Failed to load earnings')}
+        description={t('driver.earnings.loadFailedDesc', 'We could not load your earnings summary. Try again.')}
+        onRetry={loadEarnings}
+        onGoBack={() => window.history.back()}
+        retryLabel={t('common.retry', 'Retry')}
+        backLabel={t('common.goBack', 'Go Back')}
+      />
+    )
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('driver.earnings.title', 'Earnings')}</h1>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{t('driver.earnings.title', 'Earnings')}</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {t('driver.earnings.subtitle', 'Track completed deliveries and delivery income over time')}
+          </p>
+        </div>
 
-      {/* Earnings Overview */}
-      <Card className="p-6 mb-6">
-        <CurrencyDollarIcon className="w-12 h-12 text-gray-300 mb-4" />
-        <h3 className="font-semibold mb-2">{t('driver.earnings.overview', 'Earnings Overview')}</h3>
-        <p className="text-3xl font-bold text-green-600 mb-4">{formatPrice(0)}</p>
-        <p className="text-gray-500">{t('driver.earnings.completeDeliveries', 'Complete deliveries to start earning')}</p>
-      </Card>
+        <div className="flex flex-wrap gap-2">
+          {RANGE_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setRange(option.id)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                range === option.id
+                  ? 'bg-green-600 text-white'
+                  : 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {t(`driver.earnings.ranges.${option.id}`, option.label)}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* Rate Card — collapsible */}
-      <div className="border border-gray-200 rounded-2xl overflow-hidden">
-        <button
-          onClick={() => setRateCardOpen(!rateCardOpen)}
-          className="w-full flex items-center justify-between px-6 py-4 bg-gray-50 hover:bg-gray-100 transition-colors"
-        >
-          <span className="font-semibold text-gray-900">{t('driver.pricing.title', 'My Rate Card')}</span>
-          {rateCardOpen
-            ? <ChevronUpIcon className="w-5 h-5 text-gray-500" />
-            : <ChevronDownIcon className="w-5 h-5 text-gray-500" />}
-        </button>
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-500">{t('driver.earnings.total', 'Total earnings')}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{formatPrice(totals.totalEarnings)}</p>
+            </div>
+            <div className="rounded-2xl bg-green-50 p-3 text-green-600">
+              <BanknotesIcon className="h-6 w-6" />
+            </div>
+          </div>
+        </Card>
 
-        {rateCardOpen && (
-          <div className="p-6">
-            {!pricingLoaded ? (
-              <div className="flex justify-center py-8"><LoadingSpinner size="md" /></div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Settings */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Base Pricing */}
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-500">{t('driver.earnings.today', 'Today')}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{formatPrice(totals.todayEarnings)}</p>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-3 text-blue-600">
+              <ClockIcon className="h-6 w-6" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-500">{t('driver.earnings.thisWeek', 'This week')}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{formatPrice(totals.weekEarnings)}</p>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-3 text-amber-600">
+              <CalendarDaysIcon className="h-6 w-6" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-gray-500">{t('driver.earnings.average', 'Avg. per delivery')}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{formatPrice(totals.averageEarnings)}</p>
+            </div>
+            <div className="rounded-2xl bg-purple-50 p-3 text-purple-600">
+              <ChartBarIcon className="h-6 w-6" />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <Card className="xl:col-span-2 p-6">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">{t('driver.earnings.chartTitle', 'Earnings trend')}</h2>
+              <p className="text-sm text-gray-500">{t('driver.earnings.chartSubtitle', 'Daily earnings for the selected range')}</p>
+            </div>
+            <button
+              type="button"
+              onClick={loadEarnings}
+              className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              {t('common.refresh', 'Refresh')}
+            </button>
+          </div>
+
+          {totals.chartData.length === 0 ? (
+            <EmptyState
+              icon="shopping"
+              title={t('driver.earnings.empty.title', 'No completed deliveries yet')}
+              description={t('driver.earnings.empty.description', 'Completed deliveries will appear here once they are marked done.')}
+            />
+          ) : (
+            <div className="h-[320px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={totals.chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis dataKey="date" tickFormatter={(value) => value.slice(5)} />
+                  <YAxis tickFormatter={(value) => `${value}`} />
+                  <Tooltip
+                    formatter={(value) => [formatPrice(value), t('driver.earnings.earnings', 'Earnings')]}
+                    labelFormatter={(label) => label}
+                  />
+                  <Area type="monotone" dataKey="earnings" stroke="#16a34a" fill="#bbf7d0" fillOpacity={0.55} />
+                  <Line type="monotone" dataKey="deliveries" stroke="#2563eb" strokeWidth={2} dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-gray-900">{t('driver.earnings.breakdownTitle', 'Quick breakdown')}</h2>
+          <div className="mt-4 space-y-4">
+            <div className="rounded-2xl bg-gray-50 p-4">
+              <p className="text-sm text-gray-500">{t('driver.earnings.completedCount', 'Completed deliveries')}</p>
+              <p className="mt-1 text-2xl font-bold text-gray-900">{filteredDeliveries.length}</p>
+            </div>
+            <div className="rounded-2xl bg-green-50 p-4">
+              <p className="text-sm text-green-700">{t('driver.earnings.monthTotal', 'This month')}</p>
+              <p className="mt-1 text-2xl font-bold text-green-900">{formatPrice(totals.monthEarnings)}</p>
+            </div>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <p className="text-sm text-blue-700">{t('driver.earnings.rangeLabel', 'Current range')}</p>
+              <p className="mt-1 text-base font-semibold text-blue-900">
+                {t(`driver.earnings.ranges.${range}`, RANGE_OPTIONS.find((option) => option.id === range)?.label || range)}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">{t('driver.earnings.recentTitle', 'Recent completed deliveries')}</h2>
+            <p className="text-sm text-gray-500">{t('driver.earnings.recentSubtitle', 'The latest deliveries that contributed to your earnings')}</p>
+          </div>
+        </div>
+
+        {filteredDeliveries.length === 0 ? (
+          <EmptyState
+            icon="truck"
+            title={t('driver.earnings.noRowsTitle', 'Nothing to show yet')}
+            description={t('driver.earnings.noRowsDescription', 'Complete deliveries to build your earnings history.')}
+          />
+        ) : (
+          <div className="space-y-3">
+            {filteredDeliveries.slice(0, 6).map((delivery) => {
+              const finishedAt = new Date(delivery.completed_at || delivery.created_at)
+              const orderNumber = delivery.order?.order_number || delivery.id.slice(0, 8)
+              const vendorName = delivery.order?.vendor?.store_name || t('common.vendor', 'Vendor')
+              const buyerName = delivery.order?.buyer
+                ? `${delivery.order.buyer.first_name || ''} ${delivery.order.buyer.last_name || ''}`.trim()
+                : t('common.buyer', 'Buyer')
+
+              return (
+                <div key={delivery.id} className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50/70 p-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <CurrencyDollarIcon className="w-5 h-5 text-green-600" />
-                      {t('driver.pricing.basePricing', 'Base Pricing')}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="input-label">{t('driver.pricing.basePrice', 'Base Price (MAD)')}</label>
-                        <input type="number" value={pricing.base_price}
-                          onChange={(e) => setPricing({ ...pricing, base_price: parseFloat(e.target.value) || 0 })}
-                          className="input" step="0.5" min="0" />
-                        <p className="text-xs text-gray-500 mt-1">{t('driver.pricing.basePriceDesc', 'Fixed fee for every delivery')}</p>
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.pricePerKm', 'Price per KM (MAD)')}</label>
-                        <input type="number" value={pricing.price_per_km}
-                          onChange={(e) => setPricing({ ...pricing, price_per_km: parseFloat(e.target.value) || 0 })}
-                          className="input" step="0.5" min="0" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.minPrice', 'Minimum Price (MAD)')}</label>
-                        <input type="number" value={pricing.min_price}
-                          onChange={(e) => setPricing({ ...pricing, min_price: parseFloat(e.target.value) || 0 })}
-                          className="input" step="1" min="0" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.maxPrice', 'Maximum Price (MAD)')}</label>
-                        <input type="number" value={pricing.max_price}
-                          onChange={(e) => setPricing({ ...pricing, max_price: parseFloat(e.target.value) || 0 })}
-                          className="input" step="5" min="0" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.maxDistance', 'Max Distance (KM)')}</label>
-                        <input type="number" value={pricing.max_distance_km}
-                          onChange={(e) => setPricing({ ...pricing, max_distance_km: parseFloat(e.target.value) || 0 })}
-                          className="input" step="5" min="1" />
-                      </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-gray-900">#{orderNumber}</p>
+                      <Badge className="bg-green-100 text-green-700">{t('driver.earnings.completed', 'Completed')}</Badge>
                     </div>
+                    <p className="mt-1 text-sm text-gray-500">{vendorName} · {buyerName}</p>
+                    <p className="mt-1 text-xs text-gray-400">{finishedAt.toLocaleString()}</p>
                   </div>
-
-                  {/* Rush Hour */}
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <ClockIcon className="w-5 h-5 text-orange-600" />
-                      {t('driver.pricing.rushHour', 'Rush Hour Pricing')}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="input-label">{t('driver.pricing.multiplier', 'Multiplier')}</label>
-                        <input type="number" value={pricing.rush_hour_multiplier}
-                          onChange={(e) => setPricing({ ...pricing, rush_hour_multiplier: parseFloat(e.target.value) || 1 })}
-                          className="input" step="0.1" min="1" max="3" />
-                        <p className="text-xs text-gray-500 mt-1">e.g. 1.5x = 50% more</p>
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.startTime', 'Start Time')}</label>
-                        <input type="time" value={pricing.rush_hour_start}
-                          onChange={(e) => setPricing({ ...pricing, rush_hour_start: e.target.value })}
-                          className="input" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.endTime', 'End Time')}</label>
-                        <input type="time" value={pricing.rush_hour_end}
-                          onChange={(e) => setPricing({ ...pricing, rush_hour_end: e.target.value })}
-                          className="input" />
-                      </div>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm font-medium">
+                    <span className="text-gray-700">{formatPrice(delivery.delivery_price || 0)}</span>
+                    <span className="text-gray-500">
+                      {delivery.distance_km ? `${Number(delivery.distance_km).toFixed(1)} km` : t('driver.earnings.distanceUnknown', 'Distance unavailable')}
+                    </span>
                   </div>
-
-                  {/* Evening */}
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <ClockIcon className="w-5 h-5 text-purple-600" />
-                      {t('driver.pricing.evening', 'Evening/Night Pricing')}
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div>
-                        <label className="input-label">{t('driver.pricing.multiplier', 'Multiplier')}</label>
-                        <input type="number" value={pricing.evening_multiplier}
-                          onChange={(e) => setPricing({ ...pricing, evening_multiplier: parseFloat(e.target.value) || 1 })}
-                          className="input" step="0.1" min="1" max="3" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.startTime', 'Start Time')}</label>
-                        <input type="time" value={pricing.evening_start}
-                          onChange={(e) => setPricing({ ...pricing, evening_start: e.target.value })}
-                          className="input" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.endTime', 'End Time')}</label>
-                        <input type="time" value={pricing.evening_end}
-                          onChange={(e) => setPricing({ ...pricing, evening_end: e.target.value })}
-                          className="input" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <button onClick={handleSavePricing} disabled={saving} className="btn-primary w-full disabled:opacity-50">
-                    {saving ? t('driver.pricing.saving', 'Saving...') : t('driver.pricing.save', 'Save Rate Card')}
-                  </button>
                 </div>
-
-                {/* Price Calculator */}
-                <div>
-                  <Card className="p-5">
-                    <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-                      <AdjustmentsHorizontalIcon className="w-5 h-5 text-blue-600" />
-                      {t('driver.pricing.calculator', 'Price Calculator')}
-                    </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="input-label">{t('driver.pricing.distance', 'Distance (KM)')}</label>
-                        <input type="number" value={calculator.distance}
-                          onChange={(e) => setCalculator({ ...calculator, distance: e.target.value })}
-                          className="input" min="1" max="100" />
-                      </div>
-                      <div>
-                        <label className="input-label">{t('driver.pricing.deliveryTime', 'Delivery Time')}</label>
-                        <input type="time" value={calculator.time}
-                          onChange={(e) => setCalculator({ ...calculator, time: e.target.value })}
-                          className="input" />
-                      </div>
-                      <button onClick={calculatePrice} className="btn-secondary w-full">
-                        {t('driver.pricing.calculate', 'Calculate Price')}
-                      </button>
-                      {calculatedPrice && (
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                          <div className="flex items-center gap-2 mb-3">
-                            <CheckCircleIcon className="w-5 h-5 text-green-600" />
-                            <span className="font-semibold text-green-900">{t('driver.pricing.priceBreakdown', 'Price Breakdown')}</span>
-                          </div>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-green-700">{t('driver.pricing.base', 'Base Price')}:</span>
-                              <span className="font-medium">{calculatedPrice.base} MAD</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-green-700">{t('driver.pricing.distanceLabel', 'Distance')} ({calculator.distance} km):</span>
-                              <span className="font-medium">{calculatedPrice.distance} MAD</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-green-700">{t('driver.pricing.timeMultiplier', 'Time Multiplier')}:</span>
-                              <span className="font-medium">{calculatedPrice.multiplier}x</span>
-                            </div>
-                            <div className="border-t border-green-200 pt-2 flex justify-between">
-                              <span className="font-semibold text-green-900">{t('driver.pricing.total', 'Total')}:</span>
-                              <span className="font-bold text-green-900 text-lg">{calculatedPrice.total} MAD</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                      <div className="flex items-start gap-2">
-                        <InformationCircleIcon className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <div className="text-xs text-blue-800">
-                          <p className="font-medium mb-1">{t('driver.pricing.howPricingWorks', 'How pricing works:')}</p>
-                          <ul className="space-y-0.5">
-                            <li>{t('driver.pricing.rule1', 'Base price + (distance × price/km)')}</li>
-                            <li>{t('driver.pricing.rule2', 'Rush hour: higher prices during busy times')}</li>
-                            <li>{t('driver.pricing.rule3', 'Evening: extra charge for night deliveries')}</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                </div>
-              </div>
-            )}
+              )
+            })}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }
 
-export default DriverEarnings
+const DriverEarningsWithErrorBoundary = () => (
+  <ErrorBoundary componentName="DriverEarnings">
+    <DriverEarnings />
+  </ErrorBoundary>
+)
+
+export default DriverEarningsWithErrorBoundary

@@ -1,0 +1,9 @@
+
+> qotoof@1.0.0 check:circular
+> madge --circular --extensions js,jsx,ts,tsx src/
+
+- Finding files
+Processed 429 files (1.7s) (259 warnings)
+
+✔ No circular dependency found!
+

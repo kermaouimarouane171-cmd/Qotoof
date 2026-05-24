@@ -105,7 +105,7 @@ const copyOrderNumber = async (orderNumber, t) => {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onViewDetails, onDownloadInvoice, isSelected, onSelect, t }) => {
+const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onViewDetails, onDownloadInvoice, isSelected, onSelect, cardDataCy, statusDataCy, t }) => {
   const colors = getOrderStatusColors(order.status)
   const StatusIcon = STATUS_ICONS[order.status] || ClockIcon
   const progress = getProgressPercentage(order.status)
@@ -129,7 +129,7 @@ const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onVie
   return (
     <Card className={`overflow-hidden border transition-all duration-300 hover:shadow-lg ${
       isCancelled ? 'border-red-200 bg-red-50/30' : 'border-gray-200 bg-white'
-    }`}>
+    }`} data-cy={cardDataCy}>
       {/* Selection Checkbox + Status Header */}
       <div className="px-4 sm:px-6 py-3 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -150,7 +150,7 @@ const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onVie
               <StatusIcon className="w-4 h-4" />
             </div>
             <div>
-              <span className={`text-sm font-semibold ${colors.text}`}>{t(`buyer.orders.status.${order.status}`, getOrderStatusLabel(order.status))}</span>
+              <span className={`text-sm font-semibold ${colors.text}`} data-cy={statusDataCy}>{t(`buyer.orders.status.${order.status}`, getOrderStatusLabel(order.status))}</span>
               <p className="text-xs text-gray-400">{timeAgo(order.created_at, t)}</p>
             </div>
           </div>

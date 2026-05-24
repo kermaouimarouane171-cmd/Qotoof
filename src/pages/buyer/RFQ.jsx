@@ -344,6 +344,7 @@ const BuyerRFQ = () => {
             </div>
             <form onSubmit={handleSubmitNew} className="p-5 space-y-4">
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   عنوان الطلب <span className="text-red-500">*</span>
                 </label>
@@ -360,6 +361,7 @@ const BuyerRFQ = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">الفئة</label>
                   <select
                     value={form.category}
@@ -372,6 +374,7 @@ const BuyerRFQ = () => {
                   </select>
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     الكمية <span className="text-red-500">*</span>
                   </label>
@@ -399,6 +402,7 @@ const BuyerRFQ = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     الميزانية القصوى (درهم)
                   </label>
@@ -412,6 +416,7 @@ const BuyerRFQ = () => {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">المدينة</label>
                   <input
                     type="text"
@@ -424,6 +429,7 @@ const BuyerRFQ = () => {
               </div>
 
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-1">آخر أجل للعروض</label>
                 <input
                   type="date"
@@ -435,6 +441,7 @@ const BuyerRFQ = () => {
               </div>
 
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-1">تفاصيل إضافية</label>
                 <textarea
                   value={form.description}

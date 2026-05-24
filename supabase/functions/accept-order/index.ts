@@ -237,6 +237,18 @@ serve(async (req) => {
       created_at: acceptedAt,
     })
 
+    // Outbox: async email notification — non-blocking, failure logged internally
+    await adminClient.from('domain_events_outbox').insert({
+      event_type: 'order.accepted',
+      payload: {
+        order_id: orderId,
+        order_number: acceptedOrder.order_number,
+        buyer_id: acceptedOrder.buyer_id,
+        vendor_id: user.id,
+      },
+      source_function: 'accept-order',
+    })
+
     return json({
       success: true,
       order: {

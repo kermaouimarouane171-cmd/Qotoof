@@ -121,7 +121,7 @@ const AdminPayouts = () => {
       toast.error(t('admin.payouts.errors.loadFailed', 'Failed to load payouts'))
       setLoading(false)
     }
-  }, [filter, selectedRange])
+  }, [filter, selectedRange, t])
 
   useEffect(() => {
     loadPayouts()
@@ -861,7 +861,7 @@ const AdminPayouts = () => {
               <p className="text-center text-gray-500 py-8">{t('admin.payouts.auditModal.noLogs', 'No audit logs found')}</p>
             ) : (
               <div className="space-y-3">
-                {auditLogs.map((log, index) => (
+                {auditLogs.map((log, _index) => (
                   <div key={log.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                       <DocumentTextIcon className="w-4 h-4 text-green-600" />

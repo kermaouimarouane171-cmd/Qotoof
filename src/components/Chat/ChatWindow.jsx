@@ -161,7 +161,7 @@ const ChatWindow = memo(function ChatWindow({ conversationId, recipient }) {
 
   const handleDelete = async (messageId) => {
     try {
-      await chatService.deleteConversation?.(messageId)
+      await chatService.deleteConversation?.(messageId, user?.id)
       setMessages(prev => prev.filter(m => m.id !== messageId))
     } catch (err) {
       logger.error('ChatWindow: delete failed', err)

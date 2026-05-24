@@ -1,497 +1,481 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Card, Badge, Button, Input, Modal, LoadingSpinner } from '@/components/ui'
-import {
-  MagnifyingGlassIcon,
-  PencilIcon,
-  TrashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/react/24/outline'
-import { supabase } from '@/services/supabase'
-import { usersApi } from '@/services/api'
-import { auditLogger } from '@/services/auditLogger'
-import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
+import { Button, Input, LoadingSpinner, Modal } from '@/components/ui'
+import { supabase } from '@/services/supabase'
+import { useAuthStore } from '@/store/authStore'
+import { logger } from '@/utils/logger'
 
-const ROLES = ['buyer', 'vendor', 'driver', 'admin']
 const PAGE_SIZE = 20
+const ROLE_FILTERS = ['all', 'buyer', 'vendor', 'driver']
 
-const AdminUsers = () => {
-  const { t } = useTranslation()
-  const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [sortBy, setSortBy] = useState('created')
+const createEmptyModalState = () => ({
+  open: false,
+  type: '',
+  targetUser: null,
+  selectedIds: [],
+})
+
+const formatDateTime = (value, locale = 'ar-MA') => {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return date.toLocaleString(locale)
+}
+
+const getName = (user) => {
+  const first = user.first_name || ''
+  const last = user.last_name || ''
+  const full = `${first} ${last}`.trim()
+  return full || user.email || user.id
+}
+
+const AdminUsersPage = () => {
+  const { t, i18n } = useTranslation()
+
+  const authLoading = useAuthStore((s) => s.loading)
+  const authProfile = useAuthStore((s) => s.profile)
+
   const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
   const [totalCount, setTotalCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
   const [page, setPage] = useState(1)
 
-  // Edit modal state
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState({ role: '', is_approved: false, is_suspended: false })
-  const [saving, setSaving] = useState(false)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [busyAction, setBusyAction] = useState(false)
 
-  // Delete confirmation modal state
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-  const [deletingUser, setDeletingUser] = useState(null)
-  const [deleting, setDeleting] = useState(false)
+  const [confirmModal, setConfirmModal] = useState(createEmptyModalState())
+  const [profileModalUser, setProfileModalUser] = useState(null)
 
-  useEffect(() => {
-    loadUsers()
-  }, [page, roleFilter, sortBy])
+  const isAdmin = authProfile?.role === 'admin'
 
-  // Debounced search
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
+
   useEffect(() => {
     const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim())
       setPage(1)
-      loadUsers()
-    }, 400)
+    }, 300)
     return () => clearTimeout(timer)
   }, [search])
 
   const loadUsers = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+    if (!isAdmin) return
 
-      const filters = {
-        role: roleFilter,
-        search: search.trim() || undefined,
-        sortBy,
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
+    setLoading(true)
+    try {
+      let query = supabase
+        .from('profiles')
+        .select('id, first_name, last_name, email, role, created_at, is_suspended, avatar_url, phone, city', { count: 'exact' })
+
+      if (roleFilter !== 'all') {
+        query = query.eq('role', roleFilter)
       }
 
-      const { data, count } = await usersApi.getAll(filters)
+      if (debouncedSearch) {
+        const safeSearch = debouncedSearch.replace(/[%_]/g, '')
+        query = query.or(`first_name.ilike.%${safeSearch}%,last_name.ilike.%${safeSearch}%,email.ilike.%${safeSearch}%`)
+      }
+
+      const from = (page - 1) * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+
+      const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+
       setUsers(data || [])
       setTotalCount(count || 0)
-    } catch (err) {
-      logger.error('Error loading users:', err)
-      setError(t('admin.users.errors.loadFailed', 'Failed to load users'))
-      toast.error(t('admin.users.errors.loadFailed', 'Failed to load users'))
+
+      const currentPageIds = new Set((data || []).map((item) => item.id))
+      setSelectedIds((prev) => prev.filter((id) => currentPageIds.has(id)))
+    } catch (error) {
+      logger.error('Failed to load users:', error)
+      toast.error(t('admin.users.loadFailed', 'تعذر تحميل المستخدمين'))
     } finally {
       setLoading(false)
     }
   }
 
-  const openEditModal = (user) => {
-    setEditingUser(user)
-    setEditForm({
-      role: user.role || 'buyer',
-      is_approved: user.is_approved || false,
-      is_suspended: user.is_suspended || false,
+  useEffect(() => {
+    if (!isAdmin) return
+    loadUsers()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, roleFilter, debouncedSearch, page])
+
+  const allRowsSelected = useMemo(() => {
+    if (!users.length) return false
+    return users.every((user) => selectedIds.includes(user.id))
+  }, [users, selectedIds])
+
+  const openConfirm = (type, targetUser = null, ids = []) => {
+    setConfirmModal({
+      open: true,
+      type,
+      targetUser,
+      selectedIds: ids,
     })
-    setEditModalOpen(true)
   }
 
-  const handleSaveEdit = async () => {
-    if (!editingUser) return
+  const closeConfirm = () => {
+    if (busyAction) return
+    setConfirmModal(createEmptyModalState())
+  }
 
-    setSaving(true)
+  const toggleSelectAll = () => {
+    if (allRowsSelected) {
+      setSelectedIds([])
+      return
+    }
+    setSelectedIds(users.map((u) => u.id))
+  }
+
+  const toggleSelectOne = (id) => {
+    setSelectedIds((prev) => (
+      prev.includes(id)
+        ? prev.filter((item) => item !== id)
+        : [...prev, id]
+    ))
+  }
+
+  const runAction = async () => {
+    const { type, targetUser, selectedIds: ids } = confirmModal
+    if (!type) return
+
+    setBusyAction(true)
     try {
-      const updates = {
-        role: editForm.role,
-        is_approved: editForm.is_approved,
-        is_suspended: editForm.is_suspended,
+      if (type === 'toggle-suspend' && targetUser) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ is_suspended: !targetUser.is_suspended })
+          .eq('id', targetUser.id)
+
+        if (error) throw error
+        toast.success(
+          !targetUser.is_suspended
+            ? t('admin.users.suspendSuccess', 'تم تعليق المستخدم')
+            : t('admin.users.activateSuccess', 'تم تفعيل المستخدم')
+        )
       }
 
-      const updated = await usersApi.update(editingUser.id, updates)
+      if (type === 'delete-user' && targetUser) {
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', targetUser.id)
 
-      // Log audit
-      await auditLogger.logProfileAction('USER_UPDATED', {
-        id: editingUser.id,
-        ...updates,
-      }, editingUser)
+        if (error) throw error
+        toast.success(t('admin.users.deleteSuccess', 'تم حذف المستخدم'))
+      }
 
-      toast.success(t('admin.users.notifications.updatedSuccess', 'User updated successfully'))
-      setEditModalOpen(false)
-      setEditingUser(null)
+      if (type === 'bulk-suspend' && ids.length > 0) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({ is_suspended: true })
+          .in('id', ids)
+
+        if (error) throw error
+        toast.success(t('admin.users.bulkSuspendSuccess', 'تم تعليق المستخدمين المحددين'))
+        setSelectedIds([])
+      }
+
+      closeConfirm()
       await loadUsers()
-    } catch (err) {
-      logger.error('Error updating user:', err)
-      toast.error(t('admin.users.errors.updateFailed', 'Failed to update user'))
+    } catch (error) {
+      logger.error('Admin users action failed:', error)
+      toast.error(t('admin.users.actionFailed', 'فشل تنفيذ الإجراء'))
     } finally {
-      setSaving(false)
+      setBusyAction(false)
     }
   }
 
-  const openDeleteModal = (user) => {
-    setDeletingUser(user)
-    setDeleteModalOpen(true)
-  }
-
-  const handleDelete = async () => {
-    if (!deletingUser) return
-
-    setDeleting(true)
-    try {
-      // Log audit before deletion
-      await auditLogger.logProfileAction('USER_DELETED', {
-        id: deletingUser.id,
-        email: deletingUser.email,
-        name: `${deletingUser.first_name} ${deletingUser.last_name}`,
-        role: deletingUser.role,
-      })
-
-      await usersApi.delete(deletingUser.id)
-
-      toast.success(t('admin.users.notifications.deletedSuccess', 'User deleted successfully'))
-      setDeleteModalOpen(false)
-      setDeletingUser(null)
-      await loadUsers()
-    } catch (err) {
-      logger.error('Error deleting user:', err)
-      toast.error(t('admin.users.errors.deleteFailed', 'Failed to delete user'))
-    } finally {
-      setDeleting(false)
+  const confirmTitle = useMemo(() => {
+    if (confirmModal.type === 'toggle-suspend' && confirmModal.targetUser?.is_suspended) {
+      return t('admin.users.confirmActivateTitle', 'تأكيد تفعيل المستخدم')
     }
-  }
-
-  const handleToggleSuspend = async (user) => {
-    try {
-      const newSuspended = !user.is_suspended
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_suspended: newSuspended })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      await auditLogger.logProfileAction(newSuspended ? 'USER_SUSPENDED' : 'USER_UNSUSPENDED', {
-        id: user.id,
-        email: user.email,
-      })
-
-      toast.success(
-        newSuspended
-          ? t('admin.users.notifications.suspendedSuccess', 'User suspended')
-          : t('admin.users.notifications.unsuspendedSuccess', 'User unsuspended')
-      )
-      await loadUsers()
-    } catch (err) {
-      logger.error('Error toggling suspension:', err)
-      toast.error(t('admin.users.errors.suspendFailed', 'Failed to update suspension'))
+    if (confirmModal.type === 'toggle-suspend') {
+      return t('admin.users.confirmSuspendTitle', 'تأكيد تعليق المستخدم')
     }
+    if (confirmModal.type === 'delete-user') {
+      return t('admin.users.confirmDeleteTitle', 'تأكيد حذف المستخدم')
+    }
+    if (confirmModal.type === 'bulk-suspend') {
+      return t('admin.users.confirmBulkSuspendTitle', 'تأكيد تعليق مجموعة مستخدمين')
+    }
+    return t('admin.users.confirmTitle', 'تأكيد')
+  }, [confirmModal, t])
+
+  const confirmDescription = useMemo(() => {
+    if (confirmModal.type === 'toggle-suspend' && confirmModal.targetUser?.is_suspended) {
+      return t('admin.users.confirmActivateMessage', 'هل تريد تفعيل هذا المستخدم؟')
+    }
+    if (confirmModal.type === 'toggle-suspend') {
+      return t('admin.users.confirmSuspendMessage', 'هل تريد تعليق هذا المستخدم؟')
+    }
+    if (confirmModal.type === 'delete-user') {
+      return t('admin.users.confirmDeleteMessage', 'هذا الإجراء لا يمكن التراجع عنه. هل تريد المتابعة؟')
+    }
+    if (confirmModal.type === 'bulk-suspend') {
+      return t('admin.users.confirmBulkSuspendMessage', 'سيتم تعليق جميع المستخدمين المحددين. هل تريد المتابعة؟')
+    }
+    return ''
+  }, [confirmModal, t])
+
+  if (authLoading) {
+    return (
+      <div className="flex justify-center py-10" data-cy="admin-users-auth-loading">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
-
-  const getFullName = (user) => {
-    if (user.first_name && user.last_name) return `${user.first_name} ${user.last_name}`
-    return user.first_name || user.last_name || user.email || 'N/A'
-  }
-
-  const roleColors = {
-    buyer: 'badge-primary',
-    vendor: 'badge-secondary',
-    driver: 'bg-blue-100 text-blue-800 badge',
-    admin: 'bg-purple-100 text-purple-800 badge',
-  }
-
-  if (loading && users.length === 0) {
-    return <LoadingSpinner size="lg" />
+  if (!isAdmin) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4" data-cy="admin-users-forbidden" dir="rtl">
+        <h2 className="text-lg font-semibold text-red-800 mb-1">
+          {t('admin.users.forbiddenTitle', 'غير مصرح بالوصول')}
+        </h2>
+        <p className="text-sm text-red-700">
+          {t('admin.users.forbiddenMessage', 'هذه الصفحة مخصصة للمشرفين فقط.')}
+        </p>
+      </div>
+    )
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('admin.users.title')}</h1>
+    <div dir="rtl" data-cy="admin-users-page">
+      <div className="flex flex-col gap-4 mb-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900" data-cy="admin-users-title">
+            {t('admin.users.title', 'إدارة المستخدمين')}
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            {t('admin.users.subtitle', 'إدارة الحسابات، التعليق، والحذف')}
+          </p>
+        </div>
 
-      {/* Error State */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800">{error}</p>
-          <Button variant="outline" size="sm" className="mt-2" onClick={loadUsers}>
-            {t('admin.users.errors.retry', 'Retry')}
-          </Button>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex-1">
-          <Input
-            placeholder={t('admin.users.searchPlaceholder', 'Search by name or email...')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            leftIcon={<MagnifyingGlassIcon className="w-5 h-5" />}
-          />
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          {['all', ...ROLES].map((role) => (
-            <button
-              key={role}
-              onClick={() => { setRoleFilter(role); setPage(1) }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium capitalize ${
-                roleFilter === role
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {t(`admin.users.roles.${role}`, role)}
-            </button>
-          ))}
-        </div>
-        <select
-          value={sortBy}
-          onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
-          className="px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-700 border-0"
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!selectedIds.length}
+          onClick={() => openConfirm('bulk-suspend', null, selectedIds)}
+          data-cy="admin-users-bulk-suspend-button"
         >
-          <option value="created">{t('admin.users.sort.newest', 'Newest First')}</option>
-          <option value="name">{t('admin.users.sort.name', 'Name A-Z')}</option>
-        </select>
+          {t('admin.users.bulkSuspend', 'تعليق المحدد')} ({selectedIds.length})
+        </Button>
       </div>
 
-      {/* Users Table */}
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
+      <div className="grid gap-3 mb-4 md:grid-cols-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('admin.users.searchPlaceholder', 'ابحث بالاسم أو البريد الإلكتروني')}
+          data-cy="admin-users-search-input"
+        />
+
+        <select
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value)
+            setPage(1)
+          }}
+          className="input"
+          data-cy="admin-users-role-filter"
+        >
+          {ROLE_FILTERS.map((role) => (
+            <option key={role} value={role}>
+              {t(`admin.users.roles.${role}`, role)}
+            </option>
+          ))}
+        </select>
+
+        <div className="text-sm text-gray-600 self-center" data-cy="admin-users-total-count">
+          {t('admin.users.totalCount', 'إجمالي المستخدمين')}: {totalCount}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white" data-cy="admin-users-table-wrapper">
+        <table className="min-w-full table-auto" data-cy="admin-users-table">
+          <thead className="bg-gray-50 text-gray-700 text-sm">
+            <tr>
+              <th className="px-3 py-3 text-right w-10">
+                <input
+                  type="checkbox"
+                  checked={allRowsSelected}
+                  onChange={toggleSelectAll}
+                  data-cy="admin-users-select-all"
+                />
+              </th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.name', 'الاسم')}</th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.email', 'البريد الإلكتروني')}</th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.role', 'الدور')}</th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.createdAt', 'تاريخ الإنشاء')}</th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.status', 'الحالة')}</th>
+              <th className="px-3 py-3 text-right">{t('admin.users.columns.actions', 'الإجراءات')}</th>
+            </tr>
+          </thead>
+
+          <tbody className="text-sm">
+            {loading ? (
               <tr>
-                <th>{t('admin.users.name', 'Name')}</th>
-                <th>{t('admin.users.email', 'Email')}</th>
-                <th>{t('admin.users.role', 'Role')}</th>
-                <th>{t('admin.users.status', 'Status')}</th>
-                <th>{t('admin.users.joined', 'Joined')}</th>
-                <th>{t('admin.users.actions', 'Actions')}</th>
+                <td colSpan={7} className="px-3 py-8 text-center" data-cy="admin-users-loading">
+                  <LoadingSpinner size="md" />
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="text-center py-8 text-gray-500">
-                    {t('admin.users.noUsers', 'No users found')}
-                  </td>
-                </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="font-medium">{getFullName(user)}</td>
-                    <td>{user.email || 'N/A'}</td>
-                    <td>
-                      <span className={`badge ${roleColors[user.role] || 'badge'}`}>
-                        {t(`admin.users.roles.${user.role}`, user.role || 'N/A')}
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-gray-500" data-cy="admin-users-empty">
+                  {t('admin.users.empty', 'لا توجد نتائج مطابقة')}
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => {
+                const selected = selectedIds.includes(user.id)
+                const suspended = Boolean(user.is_suspended)
+
+                return (
+                  <tr key={user.id} className="border-t border-gray-100" data-cy={`admin-users-row-${user.id}`}>
+                    <td className="px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleSelectOne(user.id)}
+                        data-cy={`admin-users-select-${user.id}`}
+                      />
+                    </td>
+
+                    <td className="px-3 py-3 font-medium text-gray-900" data-cy={`admin-users-name-${user.id}`}>
+                      {getName(user)}
+                    </td>
+
+                    <td className="px-3 py-3" data-cy={`admin-users-email-${user.id}`}>
+                      {user.email || '-'}
+                    </td>
+
+                    <td className="px-3 py-3" data-cy={`admin-users-role-${user.id}`}>
+                      {t(`admin.users.roles.${user.role}`, user.role || '-')}
+                    </td>
+
+                    <td className="px-3 py-3" data-cy={`admin-users-created-at-${user.id}`}>
+                      {formatDateTime(user.created_at, i18n.language === 'ar' ? 'ar-MA' : 'en-US')}
+                    </td>
+
+                    <td className="px-3 py-3" data-cy={`admin-users-status-${user.id}`}>
+                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                        suspended
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-green-100 text-green-700'
+                      }`}>
+                        {suspended
+                          ? t('admin.users.status.suspended', 'معلق')
+                          : t('admin.users.status.active', 'نشط')}
                       </span>
                     </td>
-                    <td>
-                      {user.is_suspended ? (
-                        <Badge variant="danger">{t('admin.users.suspended', 'Suspended')}</Badge>
-                      ) : user.is_approved ? (
-                        <Badge variant="success">{t('admin.users.approved', 'Approved')}</Badge>
-                      ) : (
-                        <Badge variant="warning">{t('admin.users.pending', 'Pending')}</Badge>
-                      )}
-                    </td>
-                    <td className="text-gray-500">
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td>
+
+                    <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
-                        <button
-                          className="p-2 text-gray-600 hover:text-primary-600 hover:bg-primary-50 rounded-lg"
-                          onClick={() => openEditModal(user)}
-                          title={t('admin.users.edit', 'Edit')}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setProfileModalUser(user)}
+                          data-cy={`admin-users-view-profile-${user.id}`}
                         >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        {user.role !== 'admin' && (
-                          <button
-                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg"
-                            onClick={() => openDeleteModal(user)}
-                            title={t('admin.users.delete', 'Delete')}
-                          >
-                            <TrashIcon className="w-5 h-5" />
-                          </button>
-                        )}
-                        <button
-                          className={`p-2 rounded-lg ${
-                            user.is_suspended
-                              ? 'text-green-600 hover:bg-green-50'
-                              : 'text-yellow-600 hover:bg-yellow-50'
-                          }`}
-                          onClick={() => handleToggleSuspend(user)}
-                          title={
-                            user.is_suspended
-                              ? t('admin.users.unsuspend', 'Unsuspend')
-                              : t('admin.users.suspend', 'Suspend')
-                          }
+                          {t('admin.users.actions.viewProfile', 'عرض الملف')}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openConfirm('toggle-suspend', user)}
+                          data-cy={`admin-users-toggle-suspend-${user.id}`}
                         >
-                          <ExclamationTriangleIcon className="w-5 h-5" />
-                        </button>
+                          {suspended
+                            ? t('admin.users.actions.activate', 'تفعيل')
+                            : t('admin.users.actions.suspend', 'تعليق')}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => openConfirm('delete-user', user)}
+                          disabled={user.id === authProfile?.id}
+                          data-cy={`admin-users-delete-${user.id}`}
+                        >
+                          {t('admin.users.actions.delete', 'حذف')}
+                        </Button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                )
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200">
-            <p className="text-sm text-gray-600">
-              {t('admin.users.pagination.info', 'Showing {{from}}-{{to}} of {{total}}', {
-                from: (page - 1) * PAGE_SIZE + 1,
-                to: Math.min(page * PAGE_SIZE, totalCount),
-                total: totalCount,
-              })}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                leftIcon={<ChevronLeftIcon className="w-4 h-4" />}
-              >
-                {t('admin.users.pagination.previous', 'Previous')}
-              </Button>
-              <span className="text-sm text-gray-600">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                rightIcon={<ChevronRightIcon className="w-4 h-4" />}
-              >
-                {t('admin.users.pagination.next', 'Next')}
-              </Button>
-            </div>
-          </div>
-        )}
-      </Card>
+      <div className="flex items-center justify-between mt-4" data-cy="admin-users-pagination">
+        <Button
+          variant="outline"
+          disabled={page <= 1}
+          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          data-cy="admin-users-prev-page"
+        >
+          {t('admin.users.pagination.prev', 'السابق')}
+        </Button>
 
-      {/* Edit User Modal */}
+        <span className="text-sm text-gray-600" data-cy="admin-users-page-indicator">
+          {page} / {totalPages}
+        </span>
+
+        <Button
+          variant="outline"
+          disabled={page >= totalPages}
+          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          data-cy="admin-users-next-page"
+        >
+          {t('admin.users.pagination.next', 'التالي')}
+        </Button>
+      </div>
+
       <Modal
-        isOpen={editModalOpen}
-        onClose={() => { setEditModalOpen(false); setEditingUser(null) }}
-        title={t('admin.users.editModal.title', 'Edit User')}
+        isOpen={confirmModal.open}
+        onClose={closeConfirm}
+        title={confirmTitle}
         size="md"
       >
-        {editingUser && (
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-900">{getFullName(editingUser)}</p>
-              <p className="text-sm text-gray-600">{editingUser.email}</p>
-            </div>
-
-            <div>
-              <label className="input-label">{t('admin.users.editModal.role', 'Role')}</label>
-              <select
-                value={editForm.role}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, role: e.target.value }))}
-                className="input"
-              >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {t(`admin.users.roles.${role}`, role)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="edit-is-approved"
-                checked={editForm.is_approved}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, is_approved: e.target.checked }))}
-                className="w-4 h-4 text-primary-600 rounded"
-              />
-              <label htmlFor="edit-is-approved" className="text-sm text-gray-700">
-                {t('admin.users.editModal.isApproved', 'Approved')}
-              </label>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="edit-is-suspended"
-                checked={editForm.is_suspended}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, is_suspended: e.target.checked }))}
-                className="w-4 h-4 text-primary-600 rounded"
-              />
-              <label htmlFor="edit-is-suspended" className="text-sm text-gray-700">
-                {t('admin.users.editModal.isSuspended', 'Suspended')}
-              </label>
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <Button
-                variant="primary"
-                onClick={handleSaveEdit}
-                disabled={saving}
-                className="flex-1"
-              >
-                {saving ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    {t('admin.users.editModal.saving', 'Saving...')}
-                  </>
-                ) : (
-                  t('admin.users.editModal.save', 'Save Changes')
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => { setEditModalOpen(false); setEditingUser(null) }}
-                disabled={saving}
-              >
-                {t('common.cancel', 'Cancel')}
-              </Button>
-            </div>
+        <div className="space-y-4" dir="rtl" data-cy="admin-users-confirm-modal">
+          <p className="text-sm text-gray-700" data-cy="admin-users-confirm-message">{confirmDescription}</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={closeConfirm} disabled={busyAction} data-cy="admin-users-confirm-cancel">
+              {t('common.cancel', 'إلغاء')}
+            </Button>
+            <Button variant="danger" onClick={runAction} isLoading={busyAction} data-cy="admin-users-confirm-submit">
+              {t('common.confirm', 'تأكيد')}
+            </Button>
           </div>
-        )}
+        </div>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
       <Modal
-        isOpen={deleteModalOpen}
-        onClose={() => { setDeleteModalOpen(false); setDeletingUser(null) }}
-        title={t('admin.users.deleteModal.title', 'Delete User')}
+        isOpen={Boolean(profileModalUser)}
+        onClose={() => setProfileModalUser(null)}
+        title={t('admin.users.profileModal.title', 'ملف المستخدم')}
         size="md"
       >
-        {deletingUser && (
-          <div className="space-y-4">
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm text-red-800">
-                {t('admin.users.deleteModal.warning', 'You are about to permanently delete the user "{{name}}" ({{email}}). This action cannot be undone.', {
-                  name: getFullName(deletingUser),
-                  email: deletingUser.email,
-                })}
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <Button
-                variant="primary"
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-              >
-                {deleting ? (
-                  <>
-                    <LoadingSpinner size="sm" />
-                    {t('admin.users.deleteModal.deleting', 'Deleting...')}
-                  </>
-                ) : (
-                  t('admin.users.deleteModal.confirmDelete', 'Delete User')
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => { setDeleteModalOpen(false); setDeletingUser(null) }}
-                disabled={deleting}
-              >
-                {t('common.cancel', 'Cancel')}
-              </Button>
-            </div>
+        {profileModalUser && (
+          <div className="space-y-2 text-sm" dir="rtl" data-cy="admin-users-profile-modal">
+            <p><span className="font-semibold">{t('admin.users.columns.name', 'الاسم')}:</span> {getName(profileModalUser)}</p>
+            <p><span className="font-semibold">{t('admin.users.columns.email', 'البريد الإلكتروني')}:</span> {profileModalUser.email || '-'}</p>
+            <p><span className="font-semibold">{t('admin.users.columns.role', 'الدور')}:</span> {t(`admin.users.roles.${profileModalUser.role}`, profileModalUser.role)}</p>
+            <p><span className="font-semibold">{t('admin.users.columns.createdAt', 'تاريخ الإنشاء')}:</span> {formatDateTime(profileModalUser.created_at, i18n.language === 'ar' ? 'ar-MA' : 'en-US')}</p>
+            <p><span className="font-semibold">{t('admin.users.phone', 'الهاتف')}:</span> {profileModalUser.phone || '-'}</p>
+            <p><span className="font-semibold">{t('admin.users.city', 'المدينة')}:</span> {profileModalUser.city || '-'}</p>
           </div>
         )}
       </Modal>
@@ -499,4 +483,4 @@ const AdminUsers = () => {
   )
 }
 
-export default AdminUsers
+export default AdminUsersPage

@@ -212,6 +212,7 @@ const DigitalContract = () => {
             <Input label="البريد الإلكتروني" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} required />
 
             <div>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="input-label">اسم البنك</label>
               <select
                 className="input"

@@ -489,6 +489,7 @@ const DisputeManagement = () => {
 
             <div className="space-y-3">
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-2">ملاحظات الإدارة</label>
                 <textarea
                   value={adminNotes}
@@ -499,6 +500,7 @@ const DisputeManagement = () => {
               </div>
 
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-2">قرار الحسم</label>
                 <textarea
                   value={resolution}

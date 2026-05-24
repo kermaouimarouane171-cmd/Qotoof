@@ -52,6 +52,7 @@ const VENDOR_SLIDES = [
 const VendorOnboarding = () => {
   return (
     <OnboardingFlow
+      // eslint-disable-next-line jsx-a11y/aria-role
       role="vendor"
       roleLabel="تهيئة البائع"
       slides={VENDOR_SLIDES}

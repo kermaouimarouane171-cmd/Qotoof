@@ -34,6 +34,7 @@ const DriverSelection = ({ drivers = [], selectedDriver, onChange, cargoSize, de
               value={driver.id}
               checked={selectedDriver === driver.id}
               onChange={() => onChange(driver.id)}
+              data-cy={`driver-select-${driver.id}`}
               className="text-green-500"
             />
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">

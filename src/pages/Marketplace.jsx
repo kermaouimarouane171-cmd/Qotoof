@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ProductCard } from '@/components/ui'
+import { ProductCard, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SearchBar from '@/components/Search/SearchBar'
 import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
@@ -13,7 +13,7 @@ import { logger } from '@/utils/logger'
 
 const ITEMS_PER_PAGE = 12
 
-const SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'rating_desc', 'name_asc']
+const _SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'rating_desc', 'name_asc']
 
 const MarketplacePage = () => {
   const { t, i18n } = useTranslation()
@@ -66,6 +66,8 @@ const MarketplacePage = () => {
     }
   }, [])
 
+  const searchParamsKey = searchParams.toString()
+
   useEffect(() => {
     let cancelled = false
 
@@ -113,7 +115,8 @@ const MarketplacePage = () => {
     return () => {
       cancelled = true
     }
-  }, [searchParams.toString()])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParamsKey]) // searchParamsKey serializes all filter state
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -405,13 +408,13 @@ const MarketplacePage = () => {
         <div className="flex-1">
           {loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="products-grid" role="tabpanel" aria-label={t('marketplace.productsGrid', 'قائمة المنتجات')}>
-              {[...Array(6)].map((_, index) => (
-                <div key={index} className="card animate-pulse">
-                  <div className="aspect-square bg-gray-200" />
-                  <div className="p-4 space-y-3">
-                    <div className="h-4 bg-gray-200 rounded w-3/4" />
-                    <div className="h-3 bg-gray-200 rounded w-1/2" />
-                    <div className="h-6 bg-gray-200 rounded w-1/3" />
+              {Array.from({ length: 8 }).map((_, index) => (
+                <div key={index} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                  <Skeleton className="h-56 w-full rounded-b-none" />
+                  <div className="space-y-3 p-4">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
+                    <Skeleton className="h-6 w-1/3" />
                   </div>
                 </div>
               ))}
@@ -492,20 +495,13 @@ const MarketplacePage = () => {
               )}
             </>
           ) : (
-            <div className="text-center py-16">
-              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-4xl">🔍</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {t('marketplace.empty.title', 'لا توجد منتجات مطابقة')}
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {t('marketplace.empty.description', 'جرّب تعديل البحث أو الفلاتر للوصول إلى نتائج أوسع')}
-              </p>
-              <button onClick={clearFilters} className="btn-primary">
-                {t('marketplace.empty.clearFilters', 'مسح الفلاتر')}
-              </button>
-            </div>
+            <EmptyState
+              icon="search"
+              title={t('marketplace.empty.title', 'لا توجد منتجات مطابقة')}
+              description={t('marketplace.empty.description', 'جرّب تعديل البحث أو الفلاتر للوصول إلى نتائج أوسع')}
+              actionLabel={t('marketplace.empty.clearFilters', 'مسح الفلاتر')}
+              onAction={clearFilters}
+            />
           )}
         </div>
       </div>

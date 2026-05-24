@@ -1,17 +1,20 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
-import { Card, LoadingSpinner, Input, DriverSelection, NoDriverAvailable, LocationPicker } from '@/components/ui'
-import PaymentTypeSelector from '@/components/checkout/PaymentTypeSelector'
-import OrderSummary from '@/components/checkout/OrderSummary'
+import { Card, LoadingSpinner, NoDriverAvailable } from '@/components/ui'
+import PaymentStep from '@/components/checkout/PaymentStep'
+import CheckoutSummary from '@/components/checkout/CheckoutSummary'
+import CheckoutAddressStep from '@/components/checkout/CheckoutAddressStep'
+import AddressStep from '@/components/checkout/AddressStep'
+import DriverSelectionStep from '@/components/checkout/DriverSelectionStep'
 import { TruckIcon, ChevronRightIcon, MapPinIcon, ClockIcon, BanknotesIcon, BuildingLibraryIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/utils/currency'
 import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
-import { couponsApi, calculateBulkDiscountBreakdown, calculateCouponDiscountAmount } from '@/services/coupons'
-import deliveryScheduleService, { buildDeliveryScheduleSnapshot } from '@/services/deliveryScheduleService'
+import { couponsApi } from '@/services/coupons'
+import deliveryScheduleService, { } from '@/services/deliveryScheduleService'
 import { platformSettings } from '@/services/platformSettings'
 import deliveryMatchingService, { DRIVER_SELECT, getDriverSupportedPaymentMethods } from '@/services/deliveryMatchingService'
 import storeTypeService from '@/services/storeTypeService'
@@ -21,7 +24,8 @@ import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/service
 import { getPayPalClientId } from '@/lib/config'
 import { emailService } from '@/services/emailService'
 import { getLatestOrderPaymentRecord, updateOrderPaymentRecord } from '@/services/paymentService'
-import { calculateCheckoutPricing, createCheckoutOrder } from '@/services/checkoutService'
+import { createCheckoutOrder } from '@/services/checkoutService'
+import { useCheckoutPricing } from '@/hooks/useCheckoutPricing'
 
 const toAmount = (value) => Number(Number(value || 0).toFixed(2))
 const todayDateValue = () => new Date().toISOString().slice(0, 10)
@@ -47,15 +51,6 @@ const CheckoutSimplified = () => {
       ? cartItems.filter((item) => item.vendor_id === checkoutVendorId)
       : cartItems,
     [cartItems, checkoutVendorId]
-  )
-  const subtotal = useMemo(
-    () => toAmount(
-      items.reduce(
-        (sum, item) => sum + (Number(item.price_per_unit || item.price || 0) * Number(item.quantity || 0)),
-        0
-      )
-    ),
-    [items]
   )
   const [shippingCost, setShippingCost] = useState(0)
   const [shippingLoading, setShippingLoading] = useState(false)
@@ -102,6 +97,19 @@ const CheckoutSimplified = () => {
   })
   const [errors, setErrors] = useState({})
 
+  const savedAddresses = useMemo(() => {
+    const candidates = [
+      profile?.address,
+      shippingInfo?.address,
+    ].filter(Boolean)
+
+    return [...new Set(candidates)].map((value, index) => ({
+      id: `addr-${index}`,
+      value,
+      label: value,
+    }))
+  }, [profile?.address, shippingInfo?.address])
+
   const hasSingleVendorCart = useMemo(() => new Set(items.map((item) => item.vendor_id)).size === 1, [items])
   const paypalEnabled = useMemo(
     () => Boolean(getPayPalClientId()) && hasSingleVendorCart,
@@ -138,7 +146,7 @@ const CheckoutSimplified = () => {
   // Coupon state
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
-  const [bulkDiscountCandidates, setBulkDiscountCandidates] = useState([])
+  const [_bulkDiscountCandidates, setBulkDiscountCandidates] = useState([])
   const [couponLoading, setCouponLoading] = useState(false)
   const checkoutRequestKeyRef = useRef(null)
   const cartVendorIds = useMemo(
@@ -178,45 +186,42 @@ const CheckoutSimplified = () => {
     () => availableDeliverySlots.find((slot) => slot.id === selectedDeliverySlotId) || null,
     [availableDeliverySlots, selectedDeliverySlotId]
   )
-  const bulkDiscountBreakdown = useMemo(
-    () => calculateBulkDiscountBreakdown({ coupons: bulkDiscountCandidates, items }),
-    [bulkDiscountCandidates, items]
+  const { pricing: hookPricing, loading: hookPricingLoading } = useCheckoutPricing(
+    items,
+    appliedCoupon?.code || couponCode,
+    vendorDeliveryStrategy?.deliveryOption,
+  )
+  const subtotal = useMemo(
+    () => authoritativePricing?.subtotal ?? hookPricing?.subtotal ?? 0,
+    [authoritativePricing?.subtotal, hookPricing?.subtotal],
   )
   const bulkDiscount = useMemo(
-    () => authoritativePricing?.bulkDiscount ?? toAmount(bulkDiscountBreakdown.totalDiscount),
-    [authoritativePricing?.bulkDiscount, bulkDiscountBreakdown.totalDiscount]
+    () => authoritativePricing?.bulkDiscount ?? hookPricing?.bulkDiscount ?? 0,
+    [authoritativePricing?.bulkDiscount, hookPricing?.bulkDiscount],
   )
   const discountedSubtotal = useMemo(
-    () => authoritativePricing?.discountedSubtotal ?? Math.max(toAmount(subtotal - bulkDiscount), 0),
-    [authoritativePricing?.discountedSubtotal, bulkDiscount, subtotal]
+    () => authoritativePricing?.discountedSubtotal ?? hookPricing?.discountedSubtotal ?? subtotal,
+    [authoritativePricing?.discountedSubtotal, hookPricing?.discountedSubtotal, subtotal],
   )
-  const couponDiscount = useMemo(() => {
-    if (authoritativePricing?.couponDiscount != null) return authoritativePricing.couponDiscount
-    if (!appliedCoupon) return 0
-    return calculateCouponDiscountAmount({
-      coupon: appliedCoupon,
-      subtotal: discountedSubtotal,
-    })
-  }, [appliedCoupon, authoritativePricing?.couponDiscount, discountedSubtotal])
+  const couponDiscount = useMemo(
+    () => authoritativePricing?.couponDiscount ?? hookPricing?.couponDiscount ?? 0,
+    [authoritativePricing?.couponDiscount, hookPricing?.couponDiscount],
+  )
   const netSubtotal = useMemo(
-    () => authoritativePricing?.netSubtotal ?? Math.max(toAmount(subtotal - bulkDiscount - couponDiscount), 0),
-    [authoritativePricing?.netSubtotal, bulkDiscount, couponDiscount, subtotal]
-  )
-  const activeBulkOffers = useMemo(
-    () => Object.values(bulkDiscountBreakdown.offersByVendor || {}),
-    [bulkDiscountBreakdown.offersByVendor]
+    () => authoritativePricing?.netSubtotal ?? hookPricing?.netSubtotal ?? Math.max(toAmount(discountedSubtotal - couponDiscount), 0),
+    [authoritativePricing?.netSubtotal, couponDiscount, discountedSubtotal, hookPricing?.netSubtotal],
   )
   const platformFee = useMemo(
-    () => authoritativePricing?.platformFee ?? toAmount(netSubtotal * (platformCommissionRate / 100)),
-    [authoritativePricing?.platformFee, netSubtotal, platformCommissionRate]
+    () => authoritativePricing?.platformFee ?? hookPricing?.taxFees ?? toAmount(netSubtotal * (platformCommissionRate / 100)),
+    [authoritativePricing?.platformFee, hookPricing?.taxFees, netSubtotal, platformCommissionRate],
   )
   const productPaymentTotal = useMemo(
-    () => authoritativePricing?.productPaymentTotal ?? toAmount(netSubtotal + platformFee),
-    [authoritativePricing?.productPaymentTotal, netSubtotal, platformFee]
+    () => authoritativePricing?.productPaymentTotal ?? hookPricing?.productPaymentTotal ?? toAmount(netSubtotal + platformFee),
+    [authoritativePricing?.productPaymentTotal, hookPricing?.productPaymentTotal, netSubtotal, platformFee],
   )
   const total = useMemo(
-    () => authoritativePricing?.total ?? toAmount(productPaymentTotal + shippingCost),
-    [authoritativePricing?.total, productPaymentTotal, shippingCost]
+    () => authoritativePricing?.total ?? hookPricing?.finalTotal ?? toAmount(productPaymentTotal + shippingCost),
+    [authoritativePricing?.total, hookPricing?.finalTotal, productPaymentTotal, shippingCost],
   )
   const isShippingUnavailable = shippingInfo_data?.available === false
   const shippingBlockingReason = shippingInfo_data?.blockingReason || 'هذا العنوان خارج نطاق التوصيل الحالي.'
@@ -338,7 +343,7 @@ const CheckoutSimplified = () => {
     setAvailableDrivers([])
     setLoadingDrivers(false)
     setNoDriversAvailable(false)
-  }, [canManuallySelectDriver, cargoSize, deliveryLocation.lat, deliveryLocation.lng, driverDeliveryPaymentMethod, items.length, step, vendorLocation?.lat, vendorLocation?.lon])
+  }, [canManuallySelectDriver, cargoSize, deliveryLocation.lat, deliveryLocation.lng, driverDeliveryPaymentMethod, items.length, step, vendorLocation?.lat, vendorLocation?.lon]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let isMounted = true
@@ -605,84 +610,25 @@ const CheckoutSimplified = () => {
     }
   }
 
-  const recalculateShipping = useCallback(async () => {
-    if (!shippingInfo.city || items.length === 0) {
-      setShippingCost(0)
-      setShippingInfoData(null)
-      setAuthoritativePricing(null)
-      setEstimatedDeliveryTime(null)
-      return
-    }
-
-    setShippingLoading(true)
-
-    try {
-      const result = await calculateCheckoutPricing({
-        items,
-        shippingInfo,
-        deliveryLocation,
-        paymentType,
-        selectedPaymentMethod,
-        selectedDriverId: canManuallySelectDriver ? selectedDriver : null,
-        requestedDeliveryDate,
-        selectedDeliverySlotId,
-        appliedCouponCode: appliedCoupon?.code || null,
-        cargoSize,
-        driverDeliveryPaymentMethod,
-      })
-
-      const pricing = result.pricing
-
-      setAuthoritativePricing(pricing)
-      setShippingCost(pricing.shippingCost || 0)
-      setShippingInfoData(pricing.shippingInfoData || null)
-      setPlatformCommissionRate(pricing.platformCommissionRate ?? platformCommissionRate)
-      setErrors((prev) => ({
-        ...prev,
-        shipping: pricing.shippingInfoData?.available === false
-          ? (pricing.shippingInfoData?.blockingReason || 'هذا العنوان خارج نطاق التوصيل الحالي.')
-          : null,
-      }))
-      setEstimatedDeliveryTime(pricing.estimatedDeliveryTime || null)
-    } catch (error) {
-      logger.error('Error calculating shipping:', error)
-      setAuthoritativePricing(null)
-      setShippingCost(0)
-      setShippingInfoData({
-        available: false,
-        cost: 0,
-        blockingReason: 'تعذر حساب رسوم التوصيل حالياً. يرجى إعادة تحديد العنوان أو المحاولة بعد قليل.',
-      })
-      setEstimatedDeliveryTime(null)
-      setErrors((prev) => ({
-        ...prev,
-        shipping: 'تعذر حساب رسوم التوصيل حالياً. يرجى إعادة تحديد العنوان أو المحاولة بعد قليل.',
-      }))
-    } finally {
-      setShippingLoading(false)
-    }
-  }, [
-    appliedCoupon?.code,
-    canManuallySelectDriver,
-    cargoSize,
-    deliveryLocation,
-    driverDeliveryPaymentMethod,
-    items,
-    paymentType,
-    platformCommissionRate,
-    requestedDeliveryDate,
-    selectedDeliverySlotId,
-    selectedDriver,
-    selectedPaymentMethod,
-    shippingInfo,
-  ])
-
-  // Recalculate shipping when driver, city, or delivery location changes
+  // Sync pricing hook results into local shipping state consumed by the rest of the component.
   useEffect(() => {
-    if (step >= 2 && shippingInfo.city && items.length > 0 && deliveryLocation.lat && deliveryLocation.lng) {
-      recalculateShipping()
-    }
-  }, [recalculateShipping, step, shippingInfo.city, items.length, deliveryLocation.lat, deliveryLocation.lng])
+    setShippingLoading(hookPricingLoading)
+  }, [hookPricingLoading])
+
+  useEffect(() => {
+    if (!hookPricing) return
+    setAuthoritativePricing(hookPricing)
+    setShippingCost(hookPricing.shipping || hookPricing.shippingCost || 0)
+    setShippingInfoData(hookPricing.shippingInfoData || { available: true, cost: hookPricing.shipping || 0 })
+    setPlatformCommissionRate((prev) => hookPricing.platformCommissionRate ?? prev)
+    setErrors((prev) => ({
+      ...prev,
+      shipping: hookPricing.shippingInfoData?.available === false
+        ? (hookPricing.shippingInfoData?.blockingReason || 'هذا العنوان خارج نطاق التوصيل الحالي.')
+        : null,
+    }))
+    setEstimatedDeliveryTime(hookPricing.estimatedDeliveryTime || null)
+  }, [hookPricing])
 
   const loadAvailableDrivers = async () => {
     setLoadingDrivers(true)
@@ -1168,113 +1114,33 @@ const CheckoutSimplified = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Step 1: Shipping Info */}
             {step === 1 && (
-              <Card className="p-6" data-testid="checkout-step-shipping">
-                <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <TruckIcon className="w-5 h-5" />
-                  Shipping Information
-                </h2>
-                {vendorMinimumStatus.hasViolations && (
-                  <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm font-medium text-amber-900">بعض المتاجر في السلة لم تصل إلى الحد الأدنى للطلب.</p>
-                    <div className="mt-2 space-y-2 text-xs text-amber-800">
-                      {vendorMinimumStatus.violations.map((vendor) => (
-                        <p key={vendor.vendorId}>
-                          {vendor.vendorName}: الحد الأدنى {formatPrice(vendor.minOrderAmount)} والمتبقي {formatPrice(vendor.shortfall)}.
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Input
-                      label="Full Name *"
-                      value={shippingInfo.fullName}
-                      onChange={(e) => { setShippingInfo({ ...shippingInfo, fullName: e.target.value }); setErrors({...errors, fullName: null}) }}
-                      placeholder="Your full name"
-                      data-testid="checkout-full-name-input"
-                    />
-                    {errors.fullName && <p className="text-red-500 text-xs mt-1" data-testid="checkout-full-name-error">{errors.fullName}</p>}
-                  </div>
-                  <div>
-                    <Input
-                      label="Phone *"
-                      type="tel"
-                      value={shippingInfo.phone}
-                      onChange={(e) => { setShippingInfo({ ...shippingInfo, phone: e.target.value }); setErrors({...errors, phone: null}) }}
-                      placeholder="+212 6XX XXX XXX"
-                      data-testid="checkout-phone-input"
-                    />
-                    {errors.phone && <p className="text-red-500 text-xs mt-1" data-testid="checkout-phone-error">{errors.phone}</p>}
-                  </div>
-                  <div>
-                    <Input
-                      label="City *"
-                      value={shippingInfo.city}
-                      onChange={(e) => { setShippingInfo({ ...shippingInfo, city: e.target.value }); setErrors({...errors, city: null}) }}
-                      placeholder="Casablanca"
-                      data-testid="checkout-city-input"
-                    />
-                    {errors.city && <p className="text-red-500 text-xs mt-1" data-testid="checkout-city-error">{errors.city}</p>}
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label htmlFor="checkout-address" className="input-label">Address *</label>
-                    <textarea
-                      id="checkout-address"
-                      value={shippingInfo.address}
-                      onChange={(e) => { setShippingInfo({ ...shippingInfo, address: e.target.value }); setErrors({...errors, address: null}) }}
-                      data-testid="checkout-address-input"
-                      className={`input h-20 resize-none ${errors.address ? 'border-red-500' : ''}`}
-                      placeholder="الشارع، المبنى، الشقة..."
-                    />
-                    {errors.address && <p className="text-red-500 text-xs mt-1" data-testid="checkout-address-error">{errors.address}</p>}
-                  </div>
-
-                  {/* Location Picker */}
-                  <div className="sm:col-span-2">
-                    <LocationPicker
-                      value={deliveryLocation}
-                      onChange={(loc) => {
-                        setDeliveryLocation(loc)
-                        setErrors({...errors, location: null})
-                      }}
-                      city={shippingInfo.city}
-                      required
-                    />
-                    {errors.location && (
-                      <p className="text-red-500 text-xs mt-2 flex items-center gap-1" data-testid="checkout-location-error">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        {errors.location}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label htmlFor="checkout-notes" className="input-label">Notes (optional)</label>
-                    <textarea
-                      id="checkout-notes"
-                      value={shippingInfo.notes}
-                      onChange={(e) => setShippingInfo({ ...shippingInfo, notes: e.target.value })}
-                      data-testid="checkout-notes-input"
-                      className="input h-16 resize-none"
-                      placeholder="Delivery instructions, apartment number, etc."
-                    />
-                  </div>
-                </div>
-                <button type="button" onClick={handleNext} className="btn-primary w-full mt-6" disabled={vendorMinimumStatus.hasViolations} data-testid="checkout-continue-to-delivery">
-                  Continue to Delivery Selection
-                </button>
-                {(errors.minimumOrder || stepOneBlockingMessage) && (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="checkout-minimum-order-blocker">
-                    <p className="text-xs font-medium text-amber-900">لا يمكنك متابعة الطلب الآن.</p>
-                    <p className="mt-1 text-xs leading-6 text-amber-800" data-testid="checkout-minimum-order-error">
-                      {errors.minimumOrder || stepOneBlockingMessage}
-                    </p>
-                  </div>
-                )}
-              </Card>
+              <>
+                <AddressStep
+                  selectedAddress={shippingInfo.address}
+                  savedAddresses={savedAddresses}
+                  onAddressSelect={(address) => {
+                    setShippingInfo((prev) => ({ ...prev, address: address.value }))
+                    setErrors((prev) => ({ ...prev, address: null }))
+                  }}
+                  onNewAddress={(address) => {
+                    setShippingInfo((prev) => ({ ...prev, address }))
+                    setErrors((prev) => ({ ...prev, address: null }))
+                  }}
+                  userId={user?.id}
+                  t={t}
+                />
+                <CheckoutAddressStep
+                  shippingInfo={shippingInfo}
+                  setShippingInfo={setShippingInfo}
+                  deliveryLocation={deliveryLocation}
+                  setDeliveryLocation={setDeliveryLocation}
+                  errors={errors}
+                  setErrors={setErrors}
+                  vendorMinimumStatus={vendorMinimumStatus}
+                  stepOneBlockingMessage={stepOneBlockingMessage}
+                  onContinue={handleNext}
+                />
+              </>
             )}
 
             {/* Step 2: Driver Selection */}
@@ -1410,6 +1276,7 @@ const CheckoutSimplified = () => {
                         </div>
 
                         <div className="mb-3">
+                          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                           <label className="input-label">تاريخ التسليم المطلوب</label>
                           <input
                             type="date"
@@ -1497,6 +1364,7 @@ const CheckoutSimplified = () => {
                               type="button"
                               onClick={() => setCargoSize(option.value)}
                               data-testid={`checkout-cargo-size-${option.value}`}
+                              data-cy={`driver-select-cargo-${option.value}`}
                               className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${cargoSize === option.value ? 'border-green-500 bg-white text-green-700' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}
                             >
                               {option.label}
@@ -1531,6 +1399,7 @@ const CheckoutSimplified = () => {
                                   onClick={() => !disabled && handleDriverDeliveryPaymentMethodChange(option.value)}
                                   disabled={disabled}
                                   data-testid={`checkout-driver-payment-${option.value}`}
+                                  data-cy={`driver-select-payment-${option.value}`}
                                   className={`rounded-xl border px-3 py-3 text-left transition-colors ${driverDeliveryPaymentMethod === option.value ? 'border-amber-500 bg-white text-amber-900' : 'border-amber-100 bg-white/80 text-gray-700'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-amber-300'}`}
                                 >
                                   <div className="flex items-center gap-2">
@@ -1596,12 +1465,12 @@ const CheckoutSimplified = () => {
                                 </div>
                               </>
                             ) : (
-                              <DriverSelection
-                                drivers={availableDrivers}
+                              <DriverSelectionStep
+                                availableDrivers={availableDrivers}
                                 selectedDriver={selectedDriver}
-                                onChange={setSelectedDriver}
-                                cargoSize={cargoSize}
-                                deliveryPaymentMethod={driverDeliveryPaymentMethod}
+                                onDriverSelect={setSelectedDriver}
+                                loading={loadingDrivers}
+                                t={t}
                               />
                             )}
                           </>
@@ -1641,111 +1510,104 @@ const CheckoutSimplified = () => {
 
             {/* Step 3: Payment */}
             {step === 3 && (
-              <Card className="p-6" data-testid="checkout-step-payment">
-                <PaymentTypeSelector
-                  vendorPolicies={cartVendorPaymentPolicies}
-                  codEligibility={codEligibility}
-                  availablePaymentTypes={availablePaymentTypes}
-                  paymentType={paymentType}
-                  onPaymentTypeChange={handlePaymentTypeChange}
-                  selectedPaymentMethod={selectedPaymentMethod}
-                  onPaymentMethodChange={handlePaymentMethodChange}
-                  paypalEnabled={paypalEnabled}
-                  paypalUnavailableReason={paypalUnavailableReason}
-                  selectedBank={selectedBank}
-                  onBankChange={handleBankSelection}
-                  termsAccepted={paymentTermsAccepted}
-                  onTermsAcceptedChange={handlePaymentTermsChange}
-                  totalAmount={productPaymentTotal}
-                  errors={errors}
-                  disabled={loading}
-                />
-
-                {checkoutNotices.paymentMethod && (
-                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-testid="checkout-payment-method-notice">
-                    {checkoutNotices.paymentMethod}
-                  </div>
-                )}
-
-                {/* Shipping Summary */}
-                <div className="mt-6 p-4 bg-gray-50 rounded-xl" data-testid="checkout-shipping-summary">
-                  <h3 className="font-medium text-sm text-gray-700 mb-2">Shipping to:</h3>
-                  <p className="text-sm text-gray-600">{shippingInfo.fullName}</p>
-                  <p className="text-sm text-gray-600">{shippingInfo.address}</p>
-                  <p className="text-sm text-gray-600">{shippingInfo.city} • {shippingInfo.phone}</p>
-                  {isShippingUnavailable && (
-                    <p className="text-sm text-red-600 mt-2">{shippingBlockingReason}</p>
-                  )}
-                  {selectedDeliverySlot && (
-                    <p className="text-sm text-indigo-700 mt-2">
-                      موعد التسليم المطلوب: {requestedDeliveryDate} • {selectedDeliverySlot.slot_label} ({selectedDeliverySlot.start_time} - {selectedDeliverySlot.end_time})
-                    </p>
-                  )}
-                  {vendorDeliveryStrategy?.createDeliveryOnAcceptance && (
-                    <p className="text-sm text-amber-700 mt-2">
-                      رسم التوصيل سيُسدد بشكل منفصل: {driverDeliveryPaymentMethod === 'bank_transfer' ? 'تحويل بنكي للسائق' : 'نقداً عند التسليم'}.
-                    </p>
-                  )}
-                  {paymentType !== 'cod' && (
-                    <p className="text-sm text-blue-700 mt-2">
-                      وسيلة الدفع المختارة: {selectedPaymentMethod === 'paypal' ? 'PayPal' : `تحويل بنكي${selectedBank ? ` (${selectedBank})` : ''}`}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button type="button" onClick={() => setStep(2)} className="btn-outline flex-1">
-                    Back
-                  </button>
-                  <button type="submit" className="btn-primary flex-1" disabled={loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable} data-testid="checkout-submit">
-                    {loading ? <LoadingSpinner size="sm" /> : `Place Order - ${formatPrice(total)}`}
-                  </button>
-                </div>
-                {(loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable || paymentStepBlockers.length > 0) && paymentStepBlockers.length > 0 && (
-                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="checkout-submit-blockers">
-                    <p className="text-xs font-medium text-amber-900">ما الذي يمنع تأكيد الطلب الآن؟</p>
-                    <ul className="mt-2 space-y-1 text-xs leading-6 text-amber-800">
-                      {paymentStepBlockers.map((reason) => (
-                        <li key={reason}>• {reason}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {errors.shipping && <p className="text-red-500 text-xs mt-2" data-testid="checkout-shipping-error">{errors.shipping}</p>}
-              </Card>
+              <PaymentStep
+                paymentMethod={selectedPaymentMethod}
+                onMethodSelect={handlePaymentMethodChange}
+                totalAmount={productPaymentTotal}
+                paypalConfig={{
+                  vendorPolicies: cartVendorPaymentPolicies,
+                  codEligibility,
+                  availablePaymentTypes,
+                  paymentType,
+                  onPaymentTypeChange: handlePaymentTypeChange,
+                  paypalEnabled,
+                  paypalUnavailableReason,
+                  selectedBank,
+                  onBankChange: handleBankSelection,
+                  termsAccepted: paymentTermsAccepted,
+                  onTermsAcceptedChange: handlePaymentTermsChange,
+                  errors,
+                  disabled: loading,
+                  notice: checkoutNotices.paymentMethod,
+                  summary: (
+                    <div className="mt-6 p-4 bg-gray-50 rounded-xl" data-testid="checkout-shipping-summary">
+                      <h3 className="font-medium text-sm text-gray-700 mb-2">Shipping to:</h3>
+                      <p className="text-sm text-gray-600">{shippingInfo.fullName}</p>
+                      <p className="text-sm text-gray-600">{shippingInfo.address}</p>
+                      <p className="text-sm text-gray-600">{shippingInfo.city} • {shippingInfo.phone}</p>
+                      {isShippingUnavailable && (
+                        <p className="text-sm text-red-600 mt-2">{shippingBlockingReason}</p>
+                      )}
+                      {selectedDeliverySlot && (
+                        <p className="text-sm text-indigo-700 mt-2">
+                          موعد التسليم المطلوب: {requestedDeliveryDate} • {selectedDeliverySlot.slot_label} ({selectedDeliverySlot.start_time} - {selectedDeliverySlot.end_time})
+                        </p>
+                      )}
+                      {vendorDeliveryStrategy?.createDeliveryOnAcceptance && (
+                        <p className="text-sm text-amber-700 mt-2">
+                          رسم التوصيل سيُسدد بشكل منفصل: {driverDeliveryPaymentMethod === 'bank_transfer' ? 'تحويل بنكي للسائق' : 'نقداً عند التسليم'}.
+                        </p>
+                      )}
+                      {paymentType !== 'cod' && (
+                        <p className="text-sm text-blue-700 mt-2">
+                          وسيلة الدفع المختارة: {selectedPaymentMethod === 'paypal' ? 'PayPal' : `تحويل بنكي${selectedBank ? ` (${selectedBank})` : ''}`}
+                        </p>
+                      )}
+                    </div>
+                  ),
+                  onBack: () => setStep(2),
+                  onPlaceOrder: () => {
+                    const form = document.querySelector('[data-testid="checkout-form"]')
+                    if (form) {
+                      form.requestSubmit()
+                    }
+                  },
+                  submitDisabled: loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable,
+                  submitLabel: loading ? 'Loading...' : `Place Order - ${formatPrice(total)}`,
+                  blockers: (loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable || paymentStepBlockers.length > 0) ? paymentStepBlockers : [],
+                  shippingError: errors.shipping,
+                }}
+                t={t}
+              />
             )}
           </div>
 
           {/* Right: Order Summary */}
           <div className="lg:col-span-1">
-            <OrderSummary
-              items={items}
-              vendorMinimumStatus={vendorMinimumStatus}
-              subtotal={subtotal}
-              bulkDiscount={bulkDiscount}
-              couponDiscount={couponDiscount}
-              shippingCost={shippingCost}
-              shippingLoading={shippingLoading}
-              estimatedDeliveryTime={estimatedDeliveryTime}
-              shippingInfoData={shippingInfo_data}
-              platformFee={platformFee}
-              platformCommissionRate={platformCommissionRate}
-              productPaymentTotal={productPaymentTotal}
-              grandTotal={total}
-              cargoSize={cargoSize}
-              driverDeliveryPaymentMethod={driverDeliveryPaymentMethod}
-              selectedDeliverySlot={selectedDeliverySlot}
-              requestedDeliveryDate={requestedDeliveryDate}
-              couponCode={couponCode}
-              onCouponCodeChange={setCouponCode}
-              onApplyCoupon={() => couponCode && validateCoupon(couponCode)}
-              onRemoveCoupon={() => {
-                setAppliedCoupon(null)
-                setCouponCode('')
+            <CheckoutSummary
+              cartItems={items}
+              pricing={{
+                vendorMinimumStatus,
+                subtotal,
+                bulkDiscount,
+                couponDiscount,
+                shippingCost,
+                shippingLoading,
+                estimatedDeliveryTime,
+                shippingInfoData: shippingInfo_data,
+                platformFee,
+                platformCommissionRate,
+                productPaymentTotal,
+                grandTotal: total,
+                cargoSize,
+                driverDeliveryPaymentMethod,
+                selectedDeliverySlot,
+                requestedDeliveryDate,
+                onCouponCodeChange: setCouponCode,
+                onApplyCoupon: () => couponCode && validateCoupon(couponCode),
+                onRemoveCoupon: () => {
+                  setAppliedCoupon(null)
+                  setCouponCode('')
+                },
+                couponLoading,
+                appliedCoupon,
+                showDriverDeliveryPayment: hasSingleVendorCart ? vendorDeliveryStrategy?.createDeliveryOnAcceptance : shippingCost > 0,
+                placeOrderLabel: `Place Order - ${formatPrice(total)}`,
               }}
-              couponLoading={couponLoading}
-              appliedCoupon={appliedCoupon}
-              showDriverDeliveryPayment={hasSingleVendorCart ? vendorDeliveryStrategy?.createDeliveryOnAcceptance : shippingCost > 0}
+              couponCode={couponCode}
+              onPlaceOrder={null}
+              isPending={loading}
+              t={t}
             />
           </div>
         </div>

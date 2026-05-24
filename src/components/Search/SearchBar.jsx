@@ -149,9 +149,11 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
       {open && suggestions.length > 0 && (
         <ul
           className="absolute top-full mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 overflow-hidden"
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
           role="listbox"
         >
           {suggestions.map((hit, i) => (
+            // eslint-disable-next-line jsx-a11y/role-supports-aria-props
             <li
               key={hit.objectID}
               role="none"

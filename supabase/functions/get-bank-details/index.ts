@@ -5,6 +5,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 // ============================================
 // Environment Configuration
@@ -17,11 +18,13 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 // CORS Headers Helper
 // ============================================
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+// CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
+// See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
+
+const corsHeaders = (req: Request): HeadersInit => ({
+  ...getCorsHeaders(req.headers.get('Origin')),
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-}
+})
 
 const CACHE_TTL_MS = 5 * 60 * 1000
 const cache = new Map<string, { value: unknown; expiresAt: number }>()
@@ -38,8 +41,9 @@ const BANK_DETAILS_REQUEST_LIMIT = {
 serve(async (req) => {
   try {
     // Handle CORS preflight
-    if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders })
+    const optionsResponse = handleOptions(req)
+    if (optionsResponse) {
+      return new Response('ok', { headers: corsHeaders(req) })
     }
 
     if (!['GET', 'POST'].includes(req.method)) {
@@ -47,7 +51,7 @@ serve(async (req) => {
         JSON.stringify({ error: 'Method not allowed' }),
         {
           status: 405,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
         }
       )
     }
@@ -58,7 +62,7 @@ serve(async (req) => {
         JSON.stringify({ error: 'Server configuration error' }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
         }
       )
     }
@@ -83,7 +87,7 @@ serve(async (req) => {
           headers: {
             'Content-Type': 'application/json',
             'Retry-After': String(rateLimitResult.retry_after_seconds || BANK_DETAILS_REQUEST_LIMIT.blockSeconds),
-            ...corsHeaders,
+            ...corsHeaders(req),
           },
         }
       )
@@ -125,7 +129,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
-          ...corsHeaders,
+          ...corsHeaders(req),
         },
       })
     }
@@ -138,7 +142,7 @@ serve(async (req) => {
         JSON.stringify({ error: 'Failed to fetch bank details', details: banksError.message }),
         {
           status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
         }
       )
     }
@@ -149,7 +153,7 @@ serve(async (req) => {
         JSON.stringify({ error: `Bank not found: ${bankCode}` }),
         {
           status: 404,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+          headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
         }
       )
     }
@@ -224,7 +228,7 @@ serve(async (req) => {
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
-          ...corsHeaders,
+          ...corsHeaders(req),
         },
       })
     }
@@ -244,7 +248,7 @@ serve(async (req) => {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
-        ...corsHeaders,
+        ...corsHeaders(req),
       },
     })
 
@@ -258,7 +262,7 @@ serve(async (req) => {
       }),
       {
         status: 500,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
       }
     )
   }

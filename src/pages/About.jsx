@@ -85,7 +85,7 @@ const StatCard = ({ label, value, suffix, loading }) => {
 // MAIN COMPONENT
 // ============================================================
 const About = () => {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [stats, setStats] = useState({
     vendors: 0,
     products: 0,
@@ -181,6 +181,7 @@ const About = () => {
       {/* Hero Section with Image */}
       <div className="relative mb-12 rounded-2xl overflow-hidden">
         <div className="aspect-[16/6] bg-gray-100">
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
           <img
             src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=1200"
             alt={t('about.hero.imageAlt', 'Fresh vegetables and fruits at a Moroccan marketplace')}
@@ -218,6 +219,7 @@ const About = () => {
           </p>
         </div>
         <div className="rounded-2xl overflow-hidden bg-gray-100">
+          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
           <img
             src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=600"
             alt={t('about.mission.imageAlt', 'Local Moroccan farmer harvesting fresh produce')}

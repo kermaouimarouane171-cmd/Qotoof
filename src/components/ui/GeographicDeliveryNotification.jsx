@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { driverMatchingService } from '@/services/driverMatching'
+import { findNearestDrivers, calculateDistance, calculateTieredDeliveryFee, createDeliveryRequest, getRegionFromCoords } from '@/services/deliveryMatchingService'
 import Card from './Card'
 import LoadingSpinner from './LoadingSpinner'
 import { formatPrice } from '@/utils/currency'
@@ -40,6 +40,7 @@ const GeographicDeliveryNotification = ({
     if (!pickupLocation?.lat || !pickupLocation?.lng) return
 
     checkDriverAvailability()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickupLocation])
 
   const checkDriverAvailability = async () => {
@@ -47,7 +48,7 @@ const GeographicDeliveryNotification = ({
 
     try {
       // Find nearest drivers
-      const { drivers: foundDrivers, success } = await driverMatchingService.findNearestDrivers(
+      const { drivers: foundDrivers, success } = await findNearestDrivers(
         pickupLocation,
         { limit: 5 }
       )
@@ -71,14 +72,14 @@ const GeographicDeliveryNotification = ({
       }
 
       // Calculate delivery fee
-      const distance = driverMatchingService.calculateDistance(
+      const distance = calculateDistance(
         pickupLocation.lat,
         pickupLocation.lng,
         deliveryLocation?.lat || pickupLocation.lat,
         deliveryLocation?.lng || pickupLocation.lng
       )
 
-      const fee = driverMatchingService.calculateDeliveryFee(
+      const fee = calculateTieredDeliveryFee(
         distance,
         nearestDriver.is_in_same_region
       )
@@ -97,7 +98,7 @@ const GeographicDeliveryNotification = ({
 
     try {
       // Create delivery request
-      const result = await driverMatchingService.createDeliveryRequest({
+      const result = await createDeliveryRequest({
         orderId,
         vendorId,
         buyerId,
@@ -164,7 +165,7 @@ const GeographicDeliveryNotification = ({
 
   // No driver available
   if (status === 'no_driver') {
-    const region = driverMatchingService.getRegionFromCoords(
+    const region = getRegionFromCoords(
       pickupLocation.lat,
       pickupLocation.lng
     )

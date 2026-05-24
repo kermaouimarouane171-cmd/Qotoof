@@ -1,0 +1,63 @@
+{
+  "buyer": {
+    "id": "buyer-001",
+    "email": "buyer@greenmarket.test",
+    "first_name": "Amina",
+    "last_name": "El Idrissi",
+    "phone": "+212600000001",
+    "address": "12 Rue des Jardins, Casablanca",
+    "city": "Casablanca",
+    "latitude": 33.5731,
+    "longitude": -7.5898,
+    "role": "buyer",
+    "trust_score": 88,
+    "completed_orders_count": 14,
+    "failed_payments_count": 0,
+    "cod_eligible": true,
+    "cod_restricted_until": null
+  },
+  "vendor": {
+    "id": "vendor-001",
+    "store_name": "Atlas Fresh Farm",
+    "city": "Casablanca",
+    "latitude": 33.58,
+    "longitude": -7.61,
+    "min_order_amount": 50,
+    "delivery_option": "find_driver",
+    "has_own_driver": false,
+    "preferred_driver_id": null,
+    "active_products_count": 25,
+    "partnership_status": "active",
+    "payment_policy_full": true,
+    "payment_policy_split": true,
+    "payment_policy_cod": true,
+    "role": "vendor"
+  },
+  "drivers": [],
+  "platform_settings": {
+    "commission_rate": 2,
+    "delivery_radius_km": 50,
+    "currency": "MAD"
+  },
+  "delivery_slots": [],
+  "checkout_order_response": {
+    "success": false,
+    "error": "No drivers available",
+    "orders": [],
+    "pricing": {
+      "subtotal": 120,
+      "shippingCost": 18,
+      "platformFee": 2.4,
+      "total": 140.4,
+      "shippingInfoData": {
+        "available": false,
+        "cost": 0,
+        "blockingReason": "No drivers available for this address"
+      },
+      "estimatedDeliveryTime": null,
+      "platformCommissionRate": 2
+    }
+  },
+  "order_items": [],
+  "payment_record": null
+}

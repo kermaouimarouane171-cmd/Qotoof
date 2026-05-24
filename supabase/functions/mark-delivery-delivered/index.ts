@@ -109,6 +109,17 @@ serve(async (req) => {
       console.error('Failed to update order status after delivery:', orderError)
     }
 
+    // Outbox: async SMS to buyer confirming delivery — non-blocking
+    await adminClient.from('domain_events_outbox').insert({
+      event_type: 'delivery.completed',
+      payload: {
+        delivery_id: deliveryId,
+        order_id: delivery.order_id,
+        delivered_at: deliveredAt,
+      },
+      source_function: 'mark-delivery-delivered',
+    })
+
     return json({
       success: true,
       delivery,

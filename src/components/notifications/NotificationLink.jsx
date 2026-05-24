@@ -24,7 +24,7 @@ export default function NotificationLink({
   const location = useLocation()
   const { user } = useAuthStore()
   const [unreadCount, setUnreadCount] = useState(0)
-  const [preferences, setPreferences] = useState(DEFAULT_NOTIFICATION_PREFERENCES)
+  const [_preferences, setPreferences] = useState(DEFAULT_NOTIFICATION_PREFERENCES)
   const unreadCountRef = useRef(0)
   const preferencesRef = useRef(DEFAULT_NOTIFICATION_PREFERENCES)
   const pathnameRef = useRef(location.pathname)

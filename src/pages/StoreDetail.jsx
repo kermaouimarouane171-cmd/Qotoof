@@ -99,11 +99,11 @@ const StoreDetail = () => {
   const localizedProductCategories = useMemo(() => PRODUCT_CATEGORIES.map((category) => ({
     ...category,
     label: t(`storeDetail.products.categories.${category.id}`, category.defaultLabel),
-  })), [t, i18n.language])
+  })), [t])
   const localizedSortOptions = useMemo(() => SORT_OPTIONS.map((option) => ({
     ...option,
     label: t(`storeDetail.products.sortOptions.${option.id}`, option.defaultLabel),
-  })), [t, i18n.language])
+  })), [t])
 
   // Load store info
   const loadStore = useCallback(async () => {
@@ -583,7 +583,7 @@ const StoreDetail = () => {
       }),
       progressHeadline,
     }
-  }, [storeSetup, t, i18n.language, numberFormatter])
+  }, [storeSetup, t, numberFormatter])
   const minOrderLabel = useMemo(() => {
     if (!store?.min_order_value) return ''
     return t('storeDetail.stats.minOrder', 'Min. order: {{amount}}', { amount: store.min_order_value })

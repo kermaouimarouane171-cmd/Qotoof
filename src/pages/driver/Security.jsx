@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService, sessionService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
-import { useSecurity } from '@/hooks/useSecurity'
+import { useSecurityData, useSecurityActions } from '@/hooks/useSecurity'
 import {
   KeyIcon,
   DevicePhoneMobileIcon,
@@ -24,7 +23,9 @@ const DriverSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { profile } = useAuthStore()
-  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
+  const { mfaSettings, sessions, loading, reload: loadSecurityData } = useSecurityData()
+  const sessionCount = sessions.length
+  const { disableMFA, revokeAllSessions, isPending: disablingMFA } = useSecurityActions()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showLocationInfo, setShowLocationInfo] = useState(false)
@@ -37,19 +38,11 @@ const DriverSecurityPage = () => {
     }
 
     try {
-      setDisablingMFA(true)
-      const result = await mfaService.disable()
-
-      if (result.success) {
-        toast.success(t('driver.security.mfaDisabled', 'Two-factor authentication disabled'))
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || t('driver.security.mfaDisableFailed', 'Failed to disable two-factor authentication'))
-      }
+      await disableMFA()
+      toast.success(t('driver.security.mfaDisabled', 'Two-factor authentication disabled'))
+      await loadSecurityData()
     } catch {
       toast.error(t('driver.security.mfaDisableFailed', 'Failed to disable two-factor authentication'))
-    } finally {
-      setDisablingMFA(false)
     }
   }
 
@@ -59,13 +52,9 @@ const DriverSecurityPage = () => {
     }
 
     try {
-      const result = await sessionService.revokeAllOtherSessions()
-      if (result.success) {
-        toast.success(t('driver.security.revokeSuccess', 'Signed out from all devices'))
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || t('driver.security.revokeFailed', 'Failed to sign out'))
-      }
+      await revokeAllSessions()
+      toast.success(t('driver.security.revokeSuccess', 'Signed out from all devices'))
+      await loadSecurityData()
     } catch {
       toast.error(t('driver.security.revokeFailed', 'Failed to sign out'))
     }

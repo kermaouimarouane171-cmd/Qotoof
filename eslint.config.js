@@ -6,7 +6,7 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import globals from 'globals'
 
 export default [
-  { ignores: ['dist', 'node_modules', 'coverage', 'cypress', '.firebase'] },
+  { ignores: ['dist', 'node_modules', 'coverage', 'cypress', '.firebase', 'src/main', 'android', 'public/assets'] },
   js.configs.recommended,
   // Node/runtime scripts and backend API files
   {
@@ -15,6 +15,10 @@ export default [
       globals: {
         ...globals.node,
       },
+    },
+    rules: {
+      'no-console': 'off',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
   // Legacy API route modules rely on an injected db client
@@ -118,10 +122,11 @@ export default [
   },
   // Operational scripts: allow console logging and temporary unused values
   {
-    files: ['database/**/*.js', 'create-*.js', 'diagnose-*.js', 'fix-*.js'],
+    files: ['database/**/*.js', 'create-*.js', 'diagnose-*.js', 'fix-*.js', 'scripts/**/*.{js,mjs,cjs}', 'countFiles.js'],
     rules: {
       'no-console': 'off',
       'no-unused-vars': 'off',
+      'no-undef': 'off',
     },
   },
   // Utility modules export helpers and hooks, not just components

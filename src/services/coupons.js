@@ -389,6 +389,7 @@ export const couponsApi = {
    */
   updateCoupon: withRetry(async (couponId, updates) => {
     // Don't allow updating vendor_id
+    // eslint-disable-next-line no-unused-vars
     const { vendor_id, ...safeUpdates } = updates
 
     // Uppercase code if provided

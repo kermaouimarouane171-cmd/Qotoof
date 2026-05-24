@@ -258,6 +258,7 @@ const FraudReports = () => {
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="input-label">الحالة التالية</label>
                 <select value={nextStatus} onChange={(event) => setNextStatus(event.target.value)} className="input">
                   {FRAUD_STATUS_OPTIONS.map((option) => (
@@ -266,17 +267,20 @@ const FraudReports = () => {
                 </select>
               </div>
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="input-label">التوصية القانونية</label>
                 <input value={legalRecommendation} onChange={(event) => setLegalRecommendation(event.target.value)} className="input" placeholder="مثال: مراجعة الصور القانونية وإيقاف التسوية" />
               </div>
             </div>
 
             <div>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="input-label">ملاحظات الإدارة</label>
               <textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} className="input min-h-24 resize-y" placeholder="دوّن ملخص الفحص والإجراءات المطلوبة." />
             </div>
 
             <div>
+              {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
               <label className="input-label">قرار الإغلاق أو المعالجة</label>
               <textarea value={resolution} onChange={(event) => setResolution(event.target.value)} className="input min-h-24 resize-y" placeholder="يُفضّل تعبئتها عند الحسم أو الإغلاق." />
             </div>

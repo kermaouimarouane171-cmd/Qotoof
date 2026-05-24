@@ -5,6 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import { productsApi, ordersApi, reviewsApi } from '@/services/api'
+import { useAuthStore } from '@/store/authStore'
 import { CACHE_CONFIG } from '@/constants/apiEndpoints'
 
 // ══════════════════════════════════════════
@@ -140,8 +141,9 @@ export const useRestoreProduct = () => {
 
 export const useApproveProduct = () => {
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
   return useMutation({
-    mutationFn: (id) => productsApi.approve(id),
+    mutationFn: (id) => productsApi.approve(id, user?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.all })
     },
@@ -160,8 +162,9 @@ export const useRejectProduct = () => {
 
 export const useBulkApproveProducts = () => {
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
   return useMutation({
-    mutationFn: (ids) => productsApi.bulkApprove(ids),
+    mutationFn: (ids) => productsApi.bulkApprove(ids, user?.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: productKeys.all })
     },
@@ -284,7 +287,7 @@ export const useCreateReview = () => {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (reviewData) => reviewsApi.create(reviewData),
-    onSuccess: (_, variables) => {
+    onSuccess: (_, _variables) => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.all })
     },
   })

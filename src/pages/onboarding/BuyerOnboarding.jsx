@@ -39,6 +39,7 @@ const BUYER_SLIDES = [
 const BuyerOnboarding = () => {
   return (
     <OnboardingFlow
+      // eslint-disable-next-line jsx-a11y/aria-role
       role="buyer"
       roleLabel="تهيئة المشتري"
       slides={BUYER_SLIDES}

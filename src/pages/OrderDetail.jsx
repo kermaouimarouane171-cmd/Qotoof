@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
   ShoppingBagIcon,
@@ -17,22 +18,21 @@ import {
   ClipboardDocumentIcon,
   UserIcon,
   CalendarIcon,
-  TagIcon,
   InformationCircleIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
-import { supabase } from '@/services/supabase'
-import { Card, LoadingSpinner, Receipt, OptimizedImage, Modal, ChatComponent } from '@/components/ui'
-import PaymentReceiptUpload from '@/components/orders/PaymentReceiptUpload'
+import OrderStatusTimeline from '@/components/orders/OrderStatusTimeline'
+import OrderPaymentSection from '@/components/orders/OrderPaymentSection'
+import OrderActionsPanel from '@/components/orders/OrderActionsPanel'
+import OrderItemsList from '@/components/orders/OrderItemsList'
+import { Card, LoadingSpinner, Receipt, Modal, ChatComponent } from '@/components/ui'
 import FraudReportButton from '@/components/shared/FraudReportButton'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
 import RouteMap from '@/components/ui/RouteMap'
 import { formatPrice } from '@/utils/currency'
-import { ordersApi } from '@/services/deliveries'
+import { ordersApi, deliveriesApi } from '@/services/deliveries'
 import { submitReturnRequest } from '@/services/ordersService'
 import { orderTimelineApi } from '@/services/favorites'
 import { confirmOrderPayment } from '@/services/paymentService'
@@ -42,9 +42,10 @@ import reviewService from '@/services/reviewService'
 import invoiceService from '@/services/invoiceService'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
+import { useOrderView } from '@/hooks/useOrderView'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-import { getOrderStatusColors, getOrderStatusLabel } from '@/constants/orderStatuses'
+import { getOrderStatusColors } from '@/constants/orderStatuses'
 
 // ============================================================
 // STATUS META — workflow data (icon, step index, i18n label).
@@ -67,26 +68,11 @@ const ORDER_STATUS_META = {
   awaiting_driver:  { label: 'orderDetail.status.awaiting_driver',  labelDefault: 'Awaiting Driver',  icon: ClockIcon,        stepIndex: 2  },
 }
 
-const TIMELINE_STEPS = [
-  { key: 'pending', label: 'orderDetail.timeline.orderPlaced', labelDefault: 'Order Placed', icon: ShoppingBagIcon },
-  { key: 'confirmed', label: 'orderDetail.timeline.confirmed', labelDefault: 'Confirmed', icon: CheckCircleIcon },
-  { key: 'preparing', label: 'orderDetail.timeline.preparing', labelDefault: 'Preparing', icon: ClockIcon },
-  { key: 'shipped', label: 'orderDetail.timeline.shipped', labelDefault: 'On the Way', icon: TruckIcon },
-  { key: 'delivered', label: 'orderDetail.timeline.delivered', labelDefault: 'Delivered', icon: CheckCircleIcon },
-]
-
 const PAYMENT_CONFIRMATION_ELIGIBLE_STATUSES = ['confirmed', 'vendor_accepted', 'preparing', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered']
 const ROUTE_AND_TRACKING_STATUSES = ['confirmed', 'vendor_accepted', 'preparing', 'payment_received', 'shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up']
 const BUYER_CANCELLABLE_STATUSES = ['pending', 'confirmed', 'awaiting_driver', 'vendor_accepted', 'payment_received', 'preparing']
 const SECOND_RECEIPT_UPLOAD_STATUSES = ['shipped', 'on_the_way', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'delivered', 'payment_received']
 const ORDER_CONFIRMED_STATUSES = ['payment_received', ...PAYMENT_CONFIRMATION_ELIGIBLE_STATUSES]
-
-// ============================================================
-// HELPER: Get status step index
-// ============================================================
-const getStatusStepIndex = (status) => {
-  return ORDER_STATUS_META[status]?.stepIndex ?? 0
-}
 
 const formatMadAmount = (value) => `${Number(value || 0).toFixed(2)} درهم`
 
@@ -98,11 +84,19 @@ const OrderDetail = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const queryClient = useQueryClient()
+
+  // ── Order read model from RPC ─────────────────────────────────────────────
+  const { order: orderView, loading, error: orderLoadError, refetch: refetchOrder } = useOrderView(
+    user?.id ? id : null
+  )
+
+  // Compat shim: components that called loadOrder() now call refetchOrder()
+  const loadOrder = refetchOrder
 
   // State
   const [order, setOrder] = useState(null)
   const [timeline, setTimeline] = useState([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [realtimeConnected, setRealtimeConnected] = useState(false)
 
@@ -137,84 +131,47 @@ const OrderDetail = () => {
   const timelineSubscriptionRef = useRef(null)
   const selfDeliveryTrackingStopRef = useRef(null)
 
-  // ============================================================
-  // LOAD ORDER DATA — WITH OWNERSHIP VERIFICATION (IDOR Prevention)
-  // ============================================================
-  const loadOrder = useCallback(async () => {
-    if (!user) {
-      navigate('/login', { state: { from: `/orders/${id}` } })
-      return
-    }
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Verify session is still valid
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        navigate('/login', { state: { from: `/orders/${id}` } })
-        return
-      }
-
-      const { data, error: supabaseError } = await supabase
-        .from('orders')
-        .select(`
-          *,
-          items:order_items(*, product:products(*)),
-          vendor:profiles!orders_vendor_id_fkey(store_name, first_name, last_name, phone, email, avatar_url, city, latitude, longitude),
-          driver:profiles!orders_driver_id_fkey(first_name, last_name, phone, avatar_url, vehicle_type, vehicle_plate),
-          buyer:profiles!orders_buyer_id_fkey(first_name, last_name, phone, email)
-        `)
-        .eq('id', id)
-        // CRITICAL SECURITY: Verify ownership — only return order if user is buyer, vendor, or driver
-        .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id},driver_id.eq.${user.id}`)
-        .single()
-
-      if (supabaseError) {
-        if (supabaseError.code === 'PGRST116') {
-          // Order not found OR user doesn't have access → treat as forbidden
-          setError('forbidden')
-          return
-        }
-        throw supabaseError
-      }
-
-      // Double-check ownership in frontend (defense in depth)
-      if (
-        data.buyer_id !== user.id &&
-        data.vendor_id !== user.id &&
-        data.driver_id !== user.id
-      ) {
-        setError('forbidden')
-        return
-      }
-
-      setOrder(data)
-
-      // Load timeline
-      try {
-        const timelineData = await orderTimelineApi.getByOrder(id)
-        setTimeline(timelineData || [])
-      } catch (timelineErr) {
-        logger.warn('Failed to load timeline:', timelineErr)
-      }
-    } catch (err) {
-      logger.error('Error loading order:', err)
-      setError('load_failed')
-      toast.error(t('orderDetail.errors.loadFailed', 'Failed to load order details'))
-    } finally {
-      setLoading(false)
-    }
-  }, [id, user, navigate, t])
-
+  // ── Auth redirect ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) {
       navigate('/login', { state: { from: `/orders/${id}` } })
-      return
     }
-    loadOrder()
-  }, [user, id, loadOrder, navigate])
+  }, [user, navigate, id])
+
+  // ── Error from RPC ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (orderLoadError) {
+      if (orderLoadError.message?.includes('Unauthorized')) {
+        setError('forbidden')
+      } else {
+        setError('load_failed')
+        toast.error(t('orderDetail.errors.loadFailed', 'Failed to load order details'))
+      }
+    } else {
+      setError(null)
+    }
+  }, [orderLoadError, t])
+
+  // ── Sync orderView RPC result into local order state ──────────────────────
+  useEffect(() => {
+    if (!orderView) return
+    setOrder({
+      ...orderView.order,
+      items:    orderView.items    || [],
+      buyer:    orderView.buyer    || {},
+      vendor:   orderView.vendor   || {},
+      driver:   orderView.driver   || null,
+      delivery: orderView.delivery || null,
+    })
+  }, [orderView])
+
+  // ── Timeline ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return
+    orderTimelineApi.getByOrder(id)
+      .then((timelineData) => setTimeline(timelineData || []))
+      .catch((err) => logger.warn('Failed to load timeline:', err))
+  }, [id])
 
   // ============================================================
   // REAL-TIME SUBSCRIPTIONS — WITH OWNERSHIP VERIFICATION
@@ -222,15 +179,14 @@ const OrderDetail = () => {
   useEffect(() => {
     if (!id || !user) return
 
-    // Subscribe to order updates — verify ownership before applying
+    // Subscribe to order updates — invalidate TanStack Query cache
     subscriptionRef.current = ordersApi.subscribeToOrder(id, (payload) => {
-      // Verify the update is for an order the user owns
       if (
         payload.new?.buyer_id === user?.id ||
         payload.new?.vendor_id === user?.id ||
         payload.new?.driver_id === user?.id
       ) {
-        setOrder((prev) => (prev ? { ...prev, ...payload.new } : payload.new))
+        queryClient.invalidateQueries({ queryKey: ['order-view', id] })
         toast.success(t('orderDetail.notifications.orderUpdated', 'Order status updated!'))
       }
     })
@@ -254,7 +210,7 @@ const OrderDetail = () => {
         timelineSubscriptionRef.current.unsubscribe()
       }
     }
-  }, [id, user, t])
+  }, [id, user, t, queryClient])
 
   useEffect(() => {
     if (!order || order.delivery_option !== 'self' || user?.id !== order.vendor_id) {
@@ -338,6 +294,7 @@ const OrderDetail = () => {
     order?.buyer_total,
     order?.total,
     user?.id,
+    order,
   ])
 
   useEffect(() => {
@@ -619,6 +576,37 @@ const OrderDetail = () => {
     }
   }
 
+  const handleOrderStatusChange = async (nextStatus) => {
+    if (!order?.id || !nextStatus) return
+
+    setSubmitting(true)
+    try {
+      if (nextStatus === 'vendor_accepted') {
+        await ordersApi.acceptOrder(order.id)
+      } else if (nextStatus === 'vendor_rejected') {
+        await ordersApi.rejectOrder(order.id)
+      } else if (nextStatus === 'driver_accepted' && order.delivery?.id) {
+        await deliveriesApi.acceptDelivery(order.delivery.id, user?.id)
+      } else if (nextStatus === 'driver_picked_up' && order.delivery?.id) {
+        await deliveriesApi.markPickedUp(order.delivery.id)
+      } else if (nextStatus === 'on_the_way' && order.delivery?.id) {
+        await deliveriesApi.markOnTheWay(order.delivery.id)
+      } else if (nextStatus === 'delivered' && order.delivery?.id) {
+        await deliveriesApi.markDelivered(order.delivery.id)
+      } else {
+        throw new Error('Unsupported status transition')
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['order-view', id] })
+      toast.success(t('orderDetail.notifications.orderUpdated', 'Order status updated!'))
+    } catch (statusError) {
+      logger.error('Order status change error:', statusError)
+      toast.error(statusError?.message || t('orderDetail.errors.loadFailed', 'Failed to load order details'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleStartSelfDeliveryTracking = async () => {
     if (!order || user?.id !== order.vendor_id) {
       toast.error(t('marketplaceFeatures.orderDetailTracking.errors.startNotAllowed'))
@@ -780,7 +768,6 @@ const OrderDetail = () => {
   // ============================================================
   // COMPUTED VALUES
   // ============================================================
-  const currentStepIndex = getStatusStepIndex(order.status)
   const isDelivered = order.status === 'delivered'
   const isCancelled = order.status === 'cancelled' || order.status === 'vendor_rejected'
   const hasPaymentBeenConfirmed = Boolean(order.payment_received_at || order.status === 'payment_received')
@@ -802,13 +789,7 @@ const OrderDetail = () => {
   const canBuyerUploadFirstReceipt = order.buyer_id === user?.id && order.payment_type !== 'cod' && Number(order.first_payment_amount || 0) > 0 && order.first_payment_status !== 'verified'
   const canBuyerUploadSecondReceipt = order.buyer_id === user?.id && order.payment_type === 'split' && order.first_payment_status === 'verified' && Number(order.second_payment_amount || 0) > 0 && order.second_payment_status !== 'verified' && SECOND_RECEIPT_UPLOAD_STATUSES.includes(order.status)
   const paymentConfirmationMode = hasPendingSecondReceiptVerification ? 'second' : hasPendingFirstReceiptVerification ? 'first' : 'cod'
-  const cancellationActionDescription = loadingCancellationPolicy
-    ? 'جاري التحقق من سياسة الإلغاء لهذا الطلب.'
-    : cancellationPreview?.allowed
-      ? cancellationPreview.withinFreeWindow
-        ? 'الإلغاء مجاني حالياً وسيتم استرداد كامل المبلغ.'
-        : `رسوم الإلغاء ${formatMadAmount(cancellationPreview.cancellationFee)} وصافي الاسترداد ${formatMadAmount(cancellationPreview.netRefundAmount)}.`
-      : cancellationPreview?.blockingReason || t('orderDetail.actions.cancelOrderDesc', 'Cancel this order')
+  const userRole = order.vendor_id === user?.id ? 'vendor' : order.driver_id === user?.id ? 'driver' : 'buyer'
 
   // Check if order is confirmed or beyond (show delivery info)
   const isOrderConfirmed = ORDER_CONFIRMED_STATUSES.includes(order.status)
@@ -1098,336 +1079,34 @@ const OrderDetail = () => {
         )}
 
         {/* ============================================================
+        {/* ============================================================
             SECTION 3: ORDER TIMELINE / STATUS TRACKER
             ============================================================ */}
-        <Card className="p-4 sm:p-6 bg-white mb-6">
-          <h2 className="font-semibold text-gray-900 mb-4 sm:mb-6 flex items-center gap-2">
-            <ClockIcon className="w-5 h-5 text-green-600" />
-            {t('orderDetail.orderProgress', 'Order Progress')}
-          </h2>
-
-          {/* Desktop: Horizontal Timeline */}
-          <div className="hidden sm:block">
-            <div className="relative">
-              {/* Progress Line */}
-              <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200">
-                <div
-                  className="h-full bg-green-500 transition-all duration-500"
-                  style={{ width: `${(Math.max(currentStepIndex, 0) / (TIMELINE_STEPS.length - 1)) * 100}%` }}
-                />
-              </div>
-
-              {/* Steps */}
-              <div className="relative flex justify-between">
-                {TIMELINE_STEPS.map((step, index) => {
-                  const Icon = step.icon
-                  const isCompleted = index <= currentStepIndex && !isCancelled
-                  const isCurrent = index === currentStepIndex && !isCancelled
-                  return (
-                    <div key={step.key} className="flex flex-col items-center flex-1">
-                      <div
-                        className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                          isCancelled && index > 0
-                            ? 'bg-gray-200 text-gray-400'
-                            : isCompleted
-                            ? 'bg-green-500 text-white shadow-md shadow-green-200'
-                            : isCurrent
-                            ? 'bg-white border-2 border-green-500 text-green-600 ring-4 ring-green-100'
-                            : 'bg-gray-100 text-gray-400'
-                        }`}
-                      >
-                        {isCancelled && index === 0 ? (
-                          <XMarkIcon className="w-5 h-5" />
-                        ) : (
-                          <Icon className="w-5 h-5" />
-                        )}
-                      </div>
-                      <span
-                        className={`mt-2 text-xs font-medium text-center ${
-                          isCurrent ? 'text-green-600' : isCompleted ? 'text-gray-700' : 'text-gray-400'
-                        }`}
-                      >
-                        {t(step.label, step.labelDefault)}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* Mobile: Vertical Timeline */}
-          <div className="sm:hidden space-y-0">
-            {TIMELINE_STEPS.map((step, index) => {
-              const Icon = step.icon
-              const isCompleted = index <= currentStepIndex && !isCancelled
-              const isCurrent = index === currentStepIndex && !isCancelled
-              return (
-                <div key={step.key} className="flex items-start gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                        isCancelled && index > 0
-                          ? 'bg-gray-200 text-gray-400'
-                          : isCompleted
-                          ? 'bg-green-500 text-white'
-                          : isCurrent
-                          ? 'bg-white border-2 border-green-500 text-green-600'
-                          : 'bg-gray-100 text-gray-400'
-                      }`}
-                    >
-                      {isCancelled && index === 0 ? (
-                        <XMarkIcon className="w-4 h-4" />
-                      ) : (
-                        <Icon className="w-4 h-4" />
-                      )}
-                    </div>
-                    {index < TIMELINE_STEPS.length - 1 && (
-                      <div className={`w-0.5 h-10 ${isCompleted ? 'bg-green-500' : 'bg-gray-200'}`} />
-                    )}
-                  </div>
-                  <div className="pt-1 pb-4">
-                    <p
-                      className={`font-medium text-sm ${
-                        isCurrent ? 'text-green-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'
-                      }`}
-                    >
-                      {t(step.label, step.labelDefault)}
-                    </p>
-                    {/* Show timeline entry if available */}
-                    {timeline.find((tl) => tl.status === step.key) && (
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {new Date(timeline.find((tl) => tl.status === step.key).created_at).toLocaleString(
-                          i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US',
-                          { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
-                        )}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Driver Info (if assigned) */}
-          {order.driver && (
-            <div className="mt-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  {order.driver.avatar_url ? (
-                    <img
-                      src={order.driver.avatar_url}
-                      alt={order.driver.first_name}
-                      className="w-full h-full rounded-full object-cover"
-                    />
-                  ) : (
-                    <TruckIcon className="w-5 h-5 text-indigo-600" />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900 text-sm">
-                    {order.driver.first_name} {order.driver.last_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {order.driver.vehicle_type && `${order.driver.vehicle_type}`}
-                    {order.driver.vehicle_plate && ` • ${order.driver.vehicle_plate}`}
-                  </p>
-                </div>
-                {order.driver.phone && (
-                  <a
-                    href={`tel:${order.driver.phone}`}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-white border border-indigo-200 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-50 transition-colors min-h-[40px]"
-                  >
-                    <PhoneIcon className="w-3.5 h-3.5" />
-                    {t('orderDetail.actions.call', 'Call')}
-                  </a>
-                )}
-              </div>
-            </div>
-          )}
-        </Card>
+        <OrderStatusTimeline
+          statusHistory={timeline}
+          currentStatus={order.status}
+          t={t}
+        />
 
         {/* ============================================================
             SECTION 4: ORDER ITEMS
             ============================================================ */}
-        <Card className="bg-white mb-6 overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
-              <TagIcon className="w-5 h-5 text-green-600" />
-              {t('orderDetail.orderItems', 'Order Items')}
-              <span className="ml-auto text-sm text-gray-500 font-normal">
-                {order.items?.length || 0} {t('orderDetail.items', 'items')}
-              </span>
-            </h2>
-          </div>
-
-          <div className="divide-y divide-gray-100">
-            {order.items?.map((item) => {
-              const productImage = item.product?.images?.[0]?.url || item.product?.image_url
-              const productName = item.product?.name || t('orderDetail.unknownProduct', 'Unknown Product')
-              const itemTotal = item.quantity * item.unit_price
-              const isExpanded = expandedProductNotes[item.id]
-
-              return (
-                <div key={item.id} className="p-4 sm:p-5 hover:bg-gray-50 transition-colors">
-                  <div className="flex gap-3 sm:gap-4">
-                    {/* Product Image */}
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                      {productImage ? (
-                        <OptimizedImage
-                          src={productImage}
-                          alt={productName}
-                          className="w-full h-full"
-                          placeholder="blur"
-                          objectFit="cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <ShoppingBagIcon className="w-6 h-6 text-gray-300" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
-                            {productName}
-                          </h3>
-                          {item.product?.unit && (
-                            <p className="text-xs text-gray-500 mt-0.5">
-                              {t('orderDetail.pricePerUnit', '{{price}} / {{unit}}', {
-                                price: formatPrice(item.unit_price),
-                                unit: item.product.unit,
-                              })}
-                            </p>
-                          )}
-                        </div>
-                        <p className="font-bold text-gray-900 text-sm sm:text-base flex-shrink-0">
-                          {formatPrice(itemTotal)}
-                        </p>
-                      </div>
-
-                      {/* Quantity & Price Details */}
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
-                        <span>
-                          {t('orderDetail.quantity', 'Qty')}: {item.quantity}
-                        </span>
-                        <span>
-                          {formatPrice(item.unit_price)} {t('common.each', 'each')}
-                        </span>
-                      </div>
-
-                      {/* Product Actions */}
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        {canRate && (
-                          <button
-                            onClick={() => handleRateProduct(item)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg hover:bg-yellow-100 transition-colors min-h-[40px]"
-                          >
-                            <StarSolid className="w-3.5 h-3.5 text-yellow-500" />
-                            {t('orderDetail.actions.rateProduct', 'Rate')}
-                          </button>
-                        )}
-                        <button
-                          onClick={() => toggleProductNote(item.id)}
-                          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors min-h-[40px]"
-                        >
-                          {isExpanded ? (
-                            <ChevronUpIcon className="w-3.5 h-3.5" />
-                          ) : (
-                            <ChevronDownIcon className="w-3.5 h-3.5" />
-                          )}
-                          {isExpanded
-                            ? t('orderDetail.actions.hideNote', 'Hide Note')
-                            : t('orderDetail.actions.addNote', 'Add Note')}
-                        </button>
-                      </div>
-
-                      {/* Product Note Input */}
-                      {isExpanded && (
-                        <div className="mt-3">
-                          <textarea
-                            value={productNotes[item.id] || ''}
-                            onChange={(e) => handleProductNoteChange(item.id, e.target.value)}
-                            placeholder={t('orderDetail.productNotePlaceholder', 'Add a note about this product...')}
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-                            rows={2}
-                            maxLength={500}
-                          />
-                          <p className="text-xs text-gray-400 mt-1 text-right">
-                            {(productNotes[item.id] || '').length}/500
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Financial Summary */}
-          <div className="p-4 sm:p-5 bg-gray-50 border-t border-gray-100">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">{t('orderDetail.subtotal', 'Subtotal')}</span>
-                <span className="font-medium text-gray-900">{formatPrice(subtotal)}</span>
-              </div>
-
-              {platformFee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                  {t('orderDetail.platformFee', 'Platform Fee')}
-                  </span>
-                  <span className="font-medium text-gray-900">{formatPrice(platformFee)}</span>
-                </div>
-              )}
-
-              {shippingCost > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">{t('orderDetail.shipping', 'Shipping')}</span>
-                  <span className="font-medium text-gray-900">{formatPrice(shippingCost)}</span>
-                </div>
-              )}
-
-              {order.commission > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    {t('orderDetail.vendorCommission', 'Vendor Commission')}
-                  </span>
-                  <span className="font-medium text-red-600">- {formatPrice(order.commission)}</span>
-                </div>
-              )}
-
-              {order.driver_commission > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-500">
-                    {t('orderDetail.driverCommission', 'Driver Commission')}
-                  </span>
-                  <span className="font-medium text-red-600">- {formatPrice(order.driver_commission)}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-base font-bold border-t border-gray-200 pt-3 mt-3">
-                <span className="text-gray-900">{t('orderDetail.totalPaid', 'Total Paid')}</span>
-                <span className="text-green-600">{formatPrice(total)}</span>
-              </div>
-
-              {order.vendor_amount > 0 && (
-                <div className="flex justify-between text-sm pt-1">
-                  <span className="text-gray-500 italic">
-                    {t('orderDetail.vendorReceives', 'Vendor Receives')}
-                  </span>
-                  <span className="font-semibold text-green-600">
-                    {formatPrice(order.vendor_amount)}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </Card>
+        <OrderItemsList
+          items={order.items || []}
+          expandedProductNotes={expandedProductNotes}
+          productNotes={productNotes}
+          onToggleNote={toggleProductNote}
+          onNoteChange={handleProductNoteChange}
+          onRateProduct={handleRateProduct}
+          canRate={canRate}
+          subtotal={subtotal}
+          platformFee={platformFee}
+          shippingCost={shippingCost}
+          commission={order.commission}
+          driverCommission={order.driver_commission}
+          vendorAmount={order.vendor_amount}
+          total={total}
+        />
 
         {/* ============================================================
             SECTION 5: POST-PURCHASE ACTIONS
@@ -1438,77 +1117,30 @@ const OrderDetail = () => {
             {t('orderDetail.actions.title', 'Order Actions')}
           </h2>
 
-          {(canBuyerUploadFirstReceipt || canBuyerUploadSecondReceipt) && (
-            <div className="mb-4 space-y-4">
-              {canBuyerUploadFirstReceipt && (
-                <PaymentReceiptUpload
-                  order={order}
-                  stage="first"
-                  onUploadComplete={(updatedOrder) => setOrder((prev) => ({ ...prev, ...updatedOrder }))}
-                />
-              )}
+          <OrderPaymentSection
+            payment={{
+              canBuyerUploadFirstReceipt,
+              canBuyerUploadSecondReceipt,
+              canVendorConfirmPayment,
+              paymentConfirmationMode,
+              submitting,
+              onOrderPatch: (updatedOrder) => setOrder((prev) => ({ ...prev, ...updatedOrder })),
+            }}
+            order={order}
+            onRetry={() => setPaymentReceivedModalOpen(true)}
+            t={t}
+          />
 
-              {canBuyerUploadSecondReceipt && (
-                <PaymentReceiptUpload
-                  order={order}
-                  stage="second"
-                  onUploadComplete={(updatedOrder) => setOrder((prev) => ({ ...prev, ...updatedOrder }))}
-                />
-              )}
-            </div>
-          )}
+          <OrderActionsPanel
+            order={order}
+            userRole={userRole}
+            onStatusChange={handleOrderStatusChange}
+            onCancelOrder={canCancel ? openCancellationModal : null}
+            isPending={submitting || loadingCancellationPolicy}
+            t={t}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Vendor: Confirm external payment and calculate 3% commission */}
-            {canVendorConfirmPayment && (
-              <button
-                onClick={() => setPaymentReceivedModalOpen(true)}
-                disabled={submitting}
-                className="flex items-center gap-3 p-4 bg-gradient-to-r from-teal-50 to-emerald-50 border border-teal-200 rounded-xl hover:from-teal-100 hover:to-emerald-100 transition-all group min-h-[56px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <CheckCircleIcon className="w-5 h-5 text-teal-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold text-gray-900 text-sm">
-                    {paymentConfirmationMode === 'second'
-                      ? 'تأكيد الدفعة الثانية'
-                      : paymentConfirmationMode === 'first'
-                        ? 'تأكيد الإيصال المرفوع'
-                        : t('marketplaceFeatures.orderDetailTracking.paymentAction.title')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {paymentConfirmationMode === 'second'
-                      ? 'راجع الإيصال النهائي وأغلق الالتزام المالي لهذا الطلب.'
-                      : paymentConfirmationMode === 'first'
-                        ? 'تحقق من الإيصال لبدء التنفيذ واعتماد الدفعة الأولى.'
-                        : t('marketplaceFeatures.orderDetailTracking.paymentAction.description')}
-                  </p>
-                </div>
-              </button>
-            )}
-
-            {/* Cancel Order (Only for pending/confirmed) */}
-            {canDisplayCancellationAction && (
-              <button
-                onClick={openCancellationModal}
-                disabled={submitting || loadingCancellationPolicy || !canCancel}
-                className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl hover:from-red-100 hover:to-pink-100 transition-all group min-h-[56px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <XMarkIcon className="w-5 h-5 text-red-600" />
-                </div>
-                <div className="text-left">
-                  <p className="font-semibold text-gray-900 text-sm">
-                    {t('orderDetail.actions.cancelOrder', 'Cancel Order')}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {cancellationActionDescription}
-                  </p>
-                </div>
-              </button>
-            )}
-
             {/* Rate Products */}
             {canRate && (
               <button
@@ -1832,6 +1464,7 @@ const OrderDetail = () => {
             </p>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {order.items?.map((item) => (
+                // eslint-disable-next-line jsx-a11y/label-has-associated-control
                 <label
                   key={item.id}
                   className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui'
+import { } from '@/components/ui'
 import { HomeIcon } from '@heroicons/react/24/outline'
 
 const NotFoundPage = () => {

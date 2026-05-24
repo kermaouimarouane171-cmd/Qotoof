@@ -190,7 +190,7 @@ export const ERROR_MESSAGES = {
   REQUIRED_FIELD: (field) => `${field} is required`,
   INVALID_EMAIL: 'Invalid email address',
   INVALID_PHONE: 'Invalid phone number',
-  PASSWORD_TOO_WEAK: 'Password must be at least 8 characters',
+  PASSWORD_TOO_WEAK: 'Password must be 8 characters minimum',
   PASSWORDS_DONT_MATCH: 'Passwords do not match',
 
   // Cart & Order errors

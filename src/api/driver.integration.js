@@ -1,7 +1,6 @@
 // Driver routes integration
 // This file shows how to integrate driver routes into the main Express app
 
-import express from 'express';
 import driverRoutes from './routes/driver.routes.js';
 import { verifyAuth, isDriver } from './middleware/auth.js';
 

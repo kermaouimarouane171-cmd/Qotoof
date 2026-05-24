@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
-import { platformSettings } from '@/services/platformSettings'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
   BanknotesIcon,
@@ -10,7 +9,6 @@ import {
   CalendarIcon,
   ArrowDownIcon,
   ArrowUpIcon,
-  PercentBadgeIcon,
 } from '@heroicons/react/24/outline'
 import {
   LineChart,
@@ -42,6 +40,7 @@ const AdminCommissionsPage = () => {
 
   useEffect(() => {
     loadData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period])
 
   const loadData = async () => {

@@ -285,7 +285,7 @@ const main = async () => {
     if (relative.startsWith('android/app/build/')) return false
     if (relative.startsWith('android/app/src/main/assets/public/')) return false
     if (relative === 'scripts/final-launch-check.mjs' || relative === 'scripts/full-system-check.mjs') return false
-    if (['create-test-accounts.js', 'fix-cin.js', 'diagnose-profiles.js'].includes(relative)) return false
+    if (['scripts/create-test-accounts.js', 'scripts/fix-cin.js', 'scripts/diagnose-profiles.js'].includes(relative)) return false
     if (relative.startsWith('database/seed')) return false
     return true
   })

@@ -23,13 +23,13 @@ export const withRetry = (fn, options = {}) => {
       }
     } = options
 
-    let lastError
+    let _lastError
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await fn(...args)
       } catch (error) {
-        lastError = error
+        _lastError = error
 
         if (attempt === maxRetries || !shouldRetry(error)) {
           const message = error?.message || error?.error_description || 'Unknown error'
@@ -83,7 +83,8 @@ export const useRetry = (fn, options = {}) => {
     } finally {
       setIsRetrying(false)
     }
-  }, [fn, JSON.stringify(options)])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fn, JSON.stringify(options)]) // options serialized to avoid object identity issues
 
   return { execute, isRetrying, lastError }
 }

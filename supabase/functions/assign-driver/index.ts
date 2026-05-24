@@ -82,6 +82,17 @@ serve(async (req) => {
       throw updateError
     }
 
+    // Outbox: async SMS notification to driver — non-blocking
+    await adminClient.from('domain_events_outbox').insert({
+      event_type: 'delivery.assigned',
+      payload: {
+        delivery_id: deliveryId,
+        order_id: deliverySnapshot.order_id,
+        driver_id: driverId,
+      },
+      source_function: 'assign-driver',
+    })
+
     return json({
       success: true,
       delivery,

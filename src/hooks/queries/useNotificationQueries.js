@@ -32,9 +32,7 @@ export const useNotifications = (filters = {}, options = {}) => {
 
       let query = supabase
         .from('notifications')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
+          .select('id, user_id, type, title, message, order_id, is_read, read_at, created_at, category, data')
 
       if (filters.category) {
         query = query.eq('category', normalizeNotificationCategory(filters.category))
@@ -169,9 +167,7 @@ export const useSupportTickets = (filters = {}, options = {}) => {
 
       let query = supabase
         .from('support_tickets')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
+          .select('id, user_id, subject, description, status, priority, category, created_at, updated_at, resolved_at, admin_notes')
 
       if (filters.status) {
         query = query.eq('status', filters.status)

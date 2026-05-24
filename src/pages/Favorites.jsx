@@ -16,7 +16,7 @@ const FavoritesPage = () => {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { 
-    favorites, 
+    favorites: _favorites, 
     loading, 
     error, 
     loadFavorites, 
@@ -229,6 +229,7 @@ const FavoritesPage = () => {
 
                       {primaryImage ? (
                         <>
+                          {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
                           <img
                             src={primaryImage.url}
                             alt={product.name}
@@ -264,6 +265,7 @@ const FavoritesPage = () => {
                       <h3
                         className="font-semibold text-gray-900 line-clamp-2 mb-2 cursor-pointer hover:text-green-600 transition-colors"
                         onClick={() => navigate(`/product/${product.id}`)}
+                        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {

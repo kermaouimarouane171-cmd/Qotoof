@@ -249,6 +249,7 @@ const FraudReportButton = ({
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {conditionPhotos.map((photo) => (
+                  // eslint-disable-next-line jsx-a11y/label-has-associated-control
                   <label key={photo.id} className="rounded-2xl border border-slate-200 p-3 cursor-pointer hover:border-slate-300">
                     <div className="flex items-start gap-3">
                       <input

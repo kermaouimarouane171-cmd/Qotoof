@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
-import { DocumentIcon, CheckCircleIcon, XCircleIcon, ClockIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, XCircleIcon, ClockIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/services/supabase'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -48,6 +48,7 @@ const DriverVerification = () => {
 
   useEffect(() => {
     if (user) loadDocuments()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const loadDocuments = async () => {
@@ -90,7 +91,7 @@ const DriverVerification = () => {
       // Upload to storage
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}/${docType}_${Date.now()}.${fileExt}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: _uploadData, error: uploadError } = await supabase.storage
         .from('driver-documents')
         .upload(fileName, file, {
           cacheControl: '3600',

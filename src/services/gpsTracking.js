@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/services/supabase'
-import { driverMatchingService } from '@/services/driverMatching'
+import { calculateDistance } from '@/services/deliveryMatchingService'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
 
@@ -52,7 +52,7 @@ class GPSTrackingService {
         this.isTracking = false
         return
       }
-    } catch (error) {
+    } catch (_error) {
       // Permission API not supported, continue anyway
     }
 
@@ -169,7 +169,7 @@ class GPSTrackingService {
    */
   async getDistanceTo(target) {
     const position = await this.getCurrentPosition()
-    return driverMatchingService.calculateDistance(
+    return calculateDistance(
       position.latitude,
       position.longitude,
       target.lat,
@@ -244,7 +244,7 @@ export const useGPSTracking = (driverId, options = {}) => {
  * React Hook to get current location
  * @returns {Object} Location state
  */
-export const useCurrentLocation = (options = {}) => {
+export const useCurrentLocation = (_options = {}) => {
   const [location, setLocation] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)

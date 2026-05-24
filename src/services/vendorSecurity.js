@@ -8,10 +8,9 @@
  */
 
 import { supabase } from '@/services/supabase'
-import { generateOTP, createSignature } from '@/utils/encryption'
+import { createSignature } from '@/utils/encryption'
 import { auditLogger } from '@/services/auditLogger'
 import { logger } from '../utils/logger.js'
-import { withRetry } from '@/utils/withRetry'
 
 // Re-export from authServices.js for backward compatibility
 export { mfaService, sessionService, autoLogoutService } from '@/services/authServices'

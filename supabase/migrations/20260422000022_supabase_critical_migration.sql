@@ -2,7 +2,7 @@ BEGIN;
 
 -- =====================================================
 -- Qotoof critical compatibility migration
--- Mirrored from ../../SUPABASE_CRITICAL_MIGRATION.sql
+-- Mirrored from ../../migrations/SUPABASE_CRITICAL_MIGRATION.sql
 -- Safe to rerun on existing environments.
 -- =====================================================
 

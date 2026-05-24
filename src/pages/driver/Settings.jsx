@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/services/supabase'
+import { profilesService } from '@/services/profilesService'
 import { Card, Input, LoadingSpinner } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import DeliveryPreferences from '@/components/driver/DeliveryPreferences'
@@ -61,11 +61,7 @@ const DriverSettings = () => {
   const loadSettings = useCallback(async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+      const { data, error } = await profilesService.fetchDriverProfile(user.id)
 
       if (error) throw error
 
@@ -143,25 +139,26 @@ const DriverSettings = () => {
     setErrors({})
 
     try {
-      const { data: oldData } = await supabase
-        .from('profiles')
-        .select(`
-          vehicle_type,
-          vehicle_plate,
-          license_number,
-          is_available_for_delivery,
-          notify_new_deliveries,
-          notify_order_updates,
-          notify_customer_messages,
-          min_delivery_distance_km,
-          max_delivery_distance_km,
-          accepted_cargo_sizes,
-          driver_delivery_payment_cash,
-          driver_delivery_payment_transfer,
-          driver_delivery_payment_notes
-        `)
-        .eq('id', user.id)
-        .single()
+      const { data: previousProfile, error: previousProfileError } = await profilesService.fetchDriverProfile(user.id)
+      if (previousProfileError) throw previousProfileError
+
+      const oldData = previousProfile
+        ? {
+            vehicle_type: previousProfile.vehicle_type,
+            vehicle_plate: previousProfile.vehicle_plate,
+            license_number: previousProfile.license_number,
+            is_available_for_delivery: previousProfile.is_available_for_delivery,
+            notify_new_deliveries: previousProfile.notify_new_deliveries,
+            notify_order_updates: previousProfile.notify_order_updates,
+            notify_customer_messages: previousProfile.notify_customer_messages,
+            min_delivery_distance_km: previousProfile.min_delivery_distance_km,
+            max_delivery_distance_km: previousProfile.max_delivery_distance_km,
+            accepted_cargo_sizes: previousProfile.accepted_cargo_sizes,
+            driver_delivery_payment_cash: previousProfile.driver_delivery_payment_cash,
+            driver_delivery_payment_transfer: previousProfile.driver_delivery_payment_transfer,
+            driver_delivery_payment_notes: previousProfile.driver_delivery_payment_notes,
+          }
+        : null
 
       const updatePayload = {
         vehicle_type: vehicleType || null,
@@ -179,10 +176,7 @@ const DriverSettings = () => {
         driver_delivery_payment_notes: driverDeliveryPaymentNotes || null,
       }
 
-      const { error } = await supabase
-        .from('profiles')
-        .update(updatePayload)
-        .eq('id', user.id)
+      const { error } = await profilesService.updateProfile(user.id, updatePayload)
 
       if (error) throw error
 

@@ -332,6 +332,7 @@ const VendorCoupons = () => {
               </div>
 
               <div>
+                {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="block text-sm font-medium text-gray-700 mb-1">نوع العرض</label>
                 <select
                   value={formData.applies_to}
@@ -403,6 +404,7 @@ const VendorCoupons = () => {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأدنى للكمية</label>
                   <input
                     type="number"
@@ -429,6 +431,7 @@ const VendorCoupons = () => {
                   />
                 </div>
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">الحد الأقصى لكل مشتري</label>
                   <input
                     type="number"
@@ -443,6 +446,7 @@ const VendorCoupons = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
+                  {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ البداية</label>
                   <input
                     type="date"

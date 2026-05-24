@@ -78,6 +78,7 @@ const StoreInfoTab = () => {
     }
     window.addEventListener('keydown', handle)
     return () => window.removeEventListener('keydown', handle)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData, storeLogo, storeBanner])
 
   const validateForm = () => {

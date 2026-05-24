@@ -25,6 +25,7 @@ const DeliveryPickupPage = () => {
   
   useEffect(() => {
     loadDelivery()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
   
   const loadDelivery = async () => {
@@ -37,7 +38,7 @@ const DeliveryPickupPage = () => {
       ])
       setDriverLoadingCaptured(driverLoading)
       setVendorReleaseCaptured(vendorRelease)
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('driver.deliveryPickup.loadFailed', 'Failed to load delivery'))
       navigate('/driver/dashboard')
     } finally {
@@ -51,7 +52,7 @@ const DeliveryPickupPage = () => {
       await deliveriesApi.markPickedUp(id)
       toast.success(t('driver.deliveryPickup.pickupSuccess', 'Order marked as picked up!'))
       navigate(`/driver/delivery/${id}/deliver`)
-    } catch (error) {
+    } catch (_error) {
       toast.error(t('driver.deliveryPickup.pickupFailed', 'Failed to update status'))
     } finally {
       setSubmitting(false)

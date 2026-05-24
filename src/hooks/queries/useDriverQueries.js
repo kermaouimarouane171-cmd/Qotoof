@@ -35,7 +35,7 @@ export const useDriverProfile = (options = {}) => {
 
       const { data, error } = await supabase
         .from('driver_profiles')
-        .select('*')
+        .select('id, user_id, vehicle_type, vehicle_plate, license_number, is_active, max_capacity, current_load, accepted_cargo_sizes, active_deliveries_count, total_deliveries_count, rating, created_at, updated_at')
         .eq('user_id', session.user.id)
         .single()
 

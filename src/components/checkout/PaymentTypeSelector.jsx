@@ -184,6 +184,7 @@ const PaymentTypeSelector = ({
               onClick={() => isAvailable && onPaymentTypeChange(type)}
               disabled={!isAvailable || disabled}
               data-testid={`payment-type-${type}`}
+              data-cy={`payment-method-type-${type}`}
               className={`rounded-2xl border p-4 text-left transition-all ${config.accent} ${isSelected ? 'ring-2 ring-offset-2 ring-green-400' : ''} ${isAvailable ? 'hover:shadow-sm' : 'opacity-70 cursor-not-allowed'}`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -249,6 +250,7 @@ const PaymentTypeSelector = ({
               onClick={() => onPaymentMethodChange('paypal')}
               disabled={!paypalEnabled || disabled}
               data-testid="payment-method-paypal"
+              data-cy="payment-method-paypal"
               className={`rounded-xl border px-3 py-3 text-left transition-colors ${selectedPaymentMethod === 'paypal' ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700'} ${(!paypalEnabled || disabled) ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-300'}`}
             >
               <p className="text-sm font-semibold">PayPal</p>
@@ -260,6 +262,7 @@ const PaymentTypeSelector = ({
               onClick={() => onPaymentMethodChange('bank')}
               disabled={disabled}
               data-testid="payment-method-bank"
+              data-cy="payment-method-bank"
               className={`rounded-xl border px-3 py-3 text-left transition-colors ${selectedPaymentMethod === 'bank' ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700'} ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-blue-300'}`}
             >
               <p className="text-sm font-semibold">تحويل بنكي</p>
@@ -296,6 +299,7 @@ const PaymentTypeSelector = ({
                     type="button"
                     onClick={() => onBankChange(bank.name)}
                     data-testid="payment-bank-option"
+                    data-cy={`payment-method-bank-${bank.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
                     className={`rounded-lg border-2 px-2 py-2 text-xs font-medium transition-all ${selectedBank === bank.name ? 'border-blue-500 bg-white text-blue-900' : 'border-blue-100 bg-white/80 text-gray-700 hover:border-blue-300'}`}
                   >
                     <div className="mx-auto mb-1 h-2 w-2 rounded-full" style={{ backgroundColor: bank.color }}></div>

@@ -2,15 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService, sessionService } from '@/services/authServices'
 import { useAuditLogs } from '@/services/auditLogger'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import MFASetup from '@/components/auth/MFASetup'
 import SessionManager from '@/components/auth/SessionManager'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { supabase } from '@/services/supabase'
-import { logger } from '@/utils/logger'
-import { useSecurity, validatePasswordStrength } from '@/hooks/useSecurity'
+import { useSecurityData, usePasswordChange, usePasswordStrength, useSecurityActions } from '@/hooks/useSecurity'
 import {
   KeyIcon,
   DevicePhoneMobileIcon,
@@ -27,8 +24,11 @@ import toast from 'react-hot-toast'
 const BuyerSecurityPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { user, profile, updatePassword } = useAuthStore()
-  const { mfaSettings, sessionCount, loading, disablingMFA, setDisablingMFA, loadSecurityData } = useSecurity()
+  const { profile, user } = useAuthStore()
+  const { mfaSettings, sessions, loading, reload: loadSecurityData } = useSecurityData()
+  const sessionCount = sessions.length
+  const { disableMFA, revokeAllSessions, isPending: disablingMFA } = useSecurityActions()
+  const { changePassword, isPending: changingPassword } = usePasswordChange()
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showPersonalInfo, setShowPersonalInfo] = useState(false)
@@ -41,17 +41,17 @@ const BuyerSecurityPage = () => {
   const [showOldPassword, setShowOldPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [changingPassword, setChangingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState('')
   const [showPhoneVerification, setShowPhoneVerification] = useState(false)
   const [pendingNewPassword, setPendingNewPassword] = useState('')
+  const strengthResult = usePasswordStrength(newPassword)
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 10 })
 
   // ============================================================
   // PASSWORD CHANGE HANDLER
   // ============================================================
-  const handleChangePassword = async (e) => {
+  const handleChangePassword = (e) => {
     e.preventDefault()
     setPasswordError('')
 
@@ -70,38 +70,18 @@ const BuyerSecurityPage = () => {
       return
     }
 
-    const passwordValidation = validatePasswordStrength(newPassword, t, 'buyerSecurity.errors')
-    if (!passwordValidation.valid) {
-      setPasswordError(passwordValidation.errors.join('. '))
+    if (strengthResult.score < 5) {
+      setPasswordError(t('buyerSecurity.errors.passwordTooWeak', 'Password does not meet strength requirements'))
       return
     }
 
-    setChangingPassword(true)
-    try {
-      // SECURITY: Verify old password first
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: oldPassword,
-      })
-
-      if (verifyError) {
-        setPasswordError(t('buyerSecurity.errors.incorrectPassword', 'Current password is incorrect'))
-        return
-      }
-
-      if (!profile?.phone) {
-        setPasswordError('أضف رقم هاتف إلى حسابك قبل تغيير كلمة المرور')
-        return
-      }
-
-      setPendingNewPassword(newPassword)
-      setShowPhoneVerification(true)
-    } catch (error) {
-      logger.error('Password change error:', error)
-      setPasswordError(error.message || t('buyerSecurity.errors.passwordUpdateFailed', 'Failed to update password'))
-    } finally {
-      setChangingPassword(false)
+    if (!profile?.phone) {
+      setPasswordError('أضف رقم هاتف إلى حسابك قبل تغيير كلمة المرور')
+      return
     }
+
+    setPendingNewPassword(newPassword)
+    setShowPhoneVerification(true)
   }
 
   const handlePasswordVerified = async () => {
@@ -110,11 +90,9 @@ const BuyerSecurityPage = () => {
     setShowPhoneVerification(false)
     setPendingNewPassword('')
 
-    if (!nextPassword) {
-      return
-    }
+    if (!nextPassword) return
 
-    const result = await updatePassword(nextPassword)
+    const result = await changePassword(oldPassword, nextPassword)
 
     if (result.success) {
       setOldPassword('')
@@ -128,37 +106,12 @@ const BuyerSecurityPage = () => {
   }
 
   const handleDisableMFA = async () => {
-    // Require password confirmation before disabling MFA
-    const password = prompt(t('buyerSecurity.enterPasswordDisableMFA', 'Please enter your password to disable two-factor authentication:'))
-    if (!password) return
-
     try {
-      setDisablingMFA(true)
-
-      // Verify password first
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: password,
-      })
-
-      if (verifyError) {
-        toast.error(t('buyerSecurity.incorrectPassword', 'Incorrect password'))
-        return
-      }
-
-      // Password verified - disable MFA
-      const result = await mfaService.disable()
-
-      if (result.success) {
-        toast.success('تم تعطيل المصادقة الثنائية')
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || 'فشل تعطيل المصادقة')
-      }
+      await disableMFA()
+      toast.success('تم تعطيل المصادقة الثنائية')
+      await loadSecurityData()
     } catch {
       toast.error('فشل تعطيل المصادقة')
-    } finally {
-      setDisablingMFA(false)
     }
   }
 
@@ -168,13 +121,9 @@ const BuyerSecurityPage = () => {
     }
 
     try {
-      const result = await sessionService.revokeAllOtherSessions()
-      if (result.success) {
-        toast.success('تم تسجيل الخروج من جميع الأجهزة')
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || 'فشل تسجيل الخروج')
-      }
+      await revokeAllSessions()
+      toast.success('تم تسجيل الخروج من جميع الأجهزة')
+      await loadSecurityData()
     } catch {
       toast.error('فشل تسجيل الخروج')
     }

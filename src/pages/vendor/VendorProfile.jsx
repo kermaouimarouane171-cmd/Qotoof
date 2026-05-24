@@ -58,7 +58,7 @@ const VendorProfilePublic = () => {
           .maybeSingle()
 
         setCanSeeContact(Boolean(confirmedOrder?.id) || user.id === vendorData.id)
-      } catch (err) {
+      } catch (_err) {
         // Network / DB error — show "not found" state rather than crashing
         setVendor(null)
         setCanSeeContact(false)

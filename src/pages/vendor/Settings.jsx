@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { supabase } from '@/services/supabase'
+import { profilesService } from '@/services/profilesService'
 import storeTypeService from '@/services/storeTypeService'
 import { Card, Input, LoadingSpinner } from '@/components/ui'
 import LocationPicker from '@/components/ui/LocationPicker'
@@ -80,12 +80,7 @@ const VendorSettings = () => {
 
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
+      const { data, error } = await profilesService.fetchVendorProfile(user.id)
       if (error) throw error
 
       const vendorCancellationPolicy = await cancellationService.getVendorCancellationPolicy(user.id)
@@ -186,37 +181,48 @@ const VendorSettings = () => {
 
     try {
       // Get old settings for audit logging
-      const { data: oldData } = await supabase
-        .from('profiles')
-        .select('store_name, min_order_amount, currency, low_stock_threshold, payment_policy_full, payment_policy_split, payment_policy_cod, notify_new_orders, notify_order_updates, notify_customer_messages, notify_low_stock, notify_reviews')
-        .eq('id', user.id)
-        .single()
+      const { data: previousProfile, error: previousProfileError } = await profilesService.fetchVendorProfile(user.id)
+      if (previousProfileError) throw previousProfileError
+
+      const oldData = previousProfile
+        ? {
+            store_name: previousProfile.store_name,
+            min_order_amount: previousProfile.min_order_amount,
+            currency: previousProfile.currency,
+            low_stock_threshold: previousProfile.low_stock_threshold,
+            payment_policy_full: previousProfile.payment_policy_full,
+            payment_policy_split: previousProfile.payment_policy_split,
+            payment_policy_cod: previousProfile.payment_policy_cod,
+            notify_new_orders: previousProfile.notify_new_orders,
+            notify_order_updates: previousProfile.notify_order_updates,
+            notify_customer_messages: previousProfile.notify_customer_messages,
+            notify_low_stock: previousProfile.notify_low_stock,
+            notify_reviews: previousProfile.notify_reviews,
+          }
+        : null
 
       const oldCancellationPolicy = await cancellationService.getVendorCancellationPolicy(user.id)
       const oldRefundPolicy = await refundPolicyService.getVendorRefundPolicy(user.id)
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          store_name: storeName,
-          min_order_amount: parseFloat(minOrderAmount),
-          currency,
-          low_stock_threshold: parseInt(lowStockThreshold),
-          payment_policy_full: paymentPolicies.full,
-          payment_policy_split: paymentPolicies.split,
-          payment_policy_cod: paymentPolicies.cod,
-          notify_new_orders: notifyNewOrders,
-          notify_order_updates: notifyOrderUpdates,
-          notify_customer_messages: notifyCustomerMessages,
-          notify_low_stock: notifyLowStock,
-          notify_reviews: notifyReviews,
-          ...(storeLocation?.lat ? {
-            latitude: storeLocation.lat,
-            longitude: storeLocation.lng,
-            store_address: storeLocation.address || null,
-          } : {}),
-        })
-        .eq('id', user.id)
+      const { error } = await profilesService.updateProfile(user.id, {
+        store_name: storeName,
+        min_order_amount: parseFloat(minOrderAmount),
+        currency,
+        low_stock_threshold: parseInt(lowStockThreshold),
+        payment_policy_full: paymentPolicies.full,
+        payment_policy_split: paymentPolicies.split,
+        payment_policy_cod: paymentPolicies.cod,
+        notify_new_orders: notifyNewOrders,
+        notify_order_updates: notifyOrderUpdates,
+        notify_customer_messages: notifyCustomerMessages,
+        notify_low_stock: notifyLowStock,
+        notify_reviews: notifyReviews,
+        ...(storeLocation?.lat ? {
+          latitude: storeLocation.lat,
+          longitude: storeLocation.lng,
+          store_address: storeLocation.address || null,
+        } : {}),
+      })
 
       if (error) throw error
 

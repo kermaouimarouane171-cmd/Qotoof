@@ -5,6 +5,9 @@
 
 import { z } from 'zod'
 import {
+  emailSchema,
+  passwordSchema,
+  phoneSchema,
   emailPrimitive,
   strictPasswordPrimitive,
   moroccanPhonePrimitive,
@@ -18,18 +21,9 @@ import {
  * Login form validation
  */
 export const loginSchema = z.object({
-  // loginSchema email adds length constraints not present in the base primitive.
-  email: z
-    .string()
-    .email('Invalid email address')
-    .min(5, 'Email must be at least 5 characters')
-    .max(254, 'Email must be less than 254 characters')
-    .transform(email => email.toLowerCase().trim()),
+  email: emailSchema,
 
-  password: z
-    .string()
-    .min(8, 'Password must be at least 8 characters')
-    .max(128, 'Password must be less than 128 characters'),
+  password: passwordSchema,
 })
 
 /**
@@ -65,6 +59,70 @@ export const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
+})
+
+/**
+ * Registration step 3 (buyer profile) validation
+ */
+export const registerBuyerProfileSchema = z.object({
+  deliveryAddress: z
+    .string()
+    .min(5, 'Delivery address must be at least 5 characters')
+    .max(500, 'Address must be less than 500 characters')
+    .transform(addr => addr.trim()),
+
+  preferredPaymentMethod: z
+    .enum(['cash', 'bank_transfer', 'paypal'], {
+      errorMap: () => ({ message: 'Please select a valid payment method' }),
+    }),
+})
+
+/**
+ * Registration step 3 (vendor profile) validation
+ */
+export const registerVendorProfileSchema = z.object({
+  storeName: z
+    .string()
+    .min(3, 'Store name must be at least 3 characters')
+    .max(100, 'Store name must be less than 100 characters')
+    .transform(name => name.trim()),
+
+  storeType: z
+    .enum(['farm', 'cooperative', 'wholesale', 'retail'], {
+      errorMap: () => ({ message: 'Please select a valid store type' }),
+    }),
+
+  city: z
+    .string()
+    .min(2, 'City must be at least 2 characters')
+    .max(100, 'City must be less than 100 characters')
+    .transform(city => city.trim()),
+
+  cin: z
+    .string()
+    .min(1, 'CIN is required')
+    .transform(cin => cin.trim().toUpperCase()),
+})
+
+/**
+ * Registration step 3 (driver profile) validation
+ */
+export const registerDriverProfileSchema = z.object({
+  vehicleType: z
+    .enum(['motorcycle', 'car', 'van', 'truck'], {
+      errorMap: () => ({ message: 'Please select a valid vehicle type' }),
+    }),
+
+  vehiclePlate: z
+    .string()
+    .max(20, 'Vehicle plate must be less than 20 characters')
+    .optional()
+    .transform(plate => plate?.trim().toUpperCase()),
+
+  cin: z
+    .string()
+    .min(1, 'CIN is required')
+    .transform(cin => cin.trim().toUpperCase()),
 })
 
 /**
@@ -265,12 +323,9 @@ export const profileUpdateSchema = z.object({
     .transform(name => name?.trim()),
 
   phone: z
-    .string()
+    .union([phoneSchema, z.literal('')])
     .optional()
-    .refine(
-      (phone) => !phone || /^\+?[1-9]\d{6,14}$/.test(phone),
-      'Invalid phone number format'
-    ),
+    .transform(phone => (phone === '' ? undefined : phone)),
 
   address: z
     .string()
@@ -658,6 +713,9 @@ export const useFormValidation = (schema) => {
 export default {
   loginSchema,
   registerSchema,
+  registerBuyerProfileSchema,
+  registerVendorProfileSchema,
+  registerDriverProfileSchema,
   passwordResetSchema,
   newPasswordSchema,
   productSchema,

@@ -65,7 +65,7 @@ const LoginPage = () => {
 
     // Check minimum password length
     if (password.length < 8) {
-      setError(t('auth.errors.passwordTooShort', 'Password must be at least 8 characters'))
+      setError(t('auth.errors.passwordTooShort', 'Password must be 8 characters minimum'))
       return
     }
 
@@ -136,7 +136,7 @@ const LoginPage = () => {
       </div>
       
       {error && (
-        <div className="alert-error mb-6">
+        <div className="alert-error mb-6" data-cy="login-error">
           {error}
         </div>
       )}
@@ -150,6 +150,7 @@ const LoginPage = () => {
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t('auth.login.emailPlaceholder', 'Enter your email address')}
           autoComplete="email"
+          data-cy="email-input"
         />
 
         <div>
@@ -159,6 +160,7 @@ const LoginPage = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
+            data-cy="password-input"
             rightIcon={
               <button
                 type="button"
@@ -191,7 +193,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading}>
+        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading} data-cy="login-button">
           {t('auth.login.signIn', 'Sign In')}
         </Button>
       </form>

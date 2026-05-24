@@ -186,7 +186,7 @@ describe('actual realtime service wiring', () => {
 
     const unsubscribe = realtimeService.subscribeToOrders('buyer-1', callback)
 
-    expect(supabase.channel).toHaveBeenCalledWith('orders:buyer-1')
+    expect(supabase.channel).toHaveBeenCalledWith('orders__buyer_id=eq.buyer-1__*')
     expect(channelBuilder.on).toHaveBeenCalledWith(
       'postgres_changes',
       expect.objectContaining({

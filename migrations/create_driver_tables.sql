@@ -1,11 +1,31 @@
--- Migration: Create driver feature tables
--- Created: 2024
--- Description: Creates tables for driver management and delivery tracking
+-- =============================================================================
+-- DEPRECATED — Do NOT apply this file to any environment.
+-- =============================================================================
+-- This file was the original rogue driver schema. It used a standalone
+-- `users` table and a separate `drivers` table instead of leveraging the
+-- canonical `profiles` table (which references auth.users).
+--
+-- REPLACEMENT: database/migrations/20260519_fix_driver_schema.sql
+--
+-- Conflict summary:
+--   • drivers.user_id         → REFERENCES users(id)   [WRONG: no `users` table]
+--   • deliveries.customer_id  → REFERENCES users(id)   [WRONG: conflicts with canonical]
+--   • driver_ratings           → REFERENCES drivers(id) [WRONG: rogue table]
+--   • available_deliveries     → orphan table           [replaced by VIEW]
+--
+-- All tables below are kept for historical reference only.
+-- The correct approach is: drivers ARE profiles with role = 'driver'.
+-- =============================================================================
+
+-- ⚠️  ORIGINAL CONTENT BELOW — HISTORICAL REFERENCE ONLY ⚠️
 
 -- Create drivers table
+-- DEPRECATED: use profiles WHERE role = 'driver' instead
 CREATE TABLE IF NOT EXISTS drivers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- WRONG FK: should be REFERENCES profiles(id) ON DELETE CASCADE
+  -- user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   phone VARCHAR(20) NOT NULL,
   license_number VARCHAR(50) UNIQUE NOT NULL,
   vehicle_info TEXT,
@@ -20,51 +40,26 @@ CREATE TABLE IF NOT EXISTS drivers (
   CHECK (rating >= 0 AND rating <= 5)
 );
 
--- Create deliveries table
-CREATE TABLE IF NOT EXISTS deliveries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  driver_id UUID REFERENCES drivers(id) ON DELETE SET NULL,
-  customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  customer_name VARCHAR(255) NOT NULL,
-  pickup_location VARCHAR(500) NOT NULL,
-  delivery_location VARCHAR(500) NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'completed', 'cancelled')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  completed_at TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- DEPRECATED: deliveries is defined in 000-complete-fresh-setup.sql
+-- The canonical deliveries.driver_id REFERENCES profiles(id)
+-- This block is kept for reference; DO NOT apply it.
+-- CREATE TABLE IF NOT EXISTS deliveries ( ... REFERENCES profiles(id) ... );
 
--- Create driver_ratings table
-CREATE TABLE IF NOT EXISTS driver_ratings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id UUID NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
-  delivery_id UUID NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
-  customer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  comment TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(delivery_id)
-);
+-- DEPRECATED: replaced by driver_reviews in canonical schema
+-- driver_reviews.driver_id   REFERENCES profiles(id)
+-- driver_reviews.reviewer_id REFERENCES profiles(id)
+-- See: database/migrations/20260519_fix_driver_schema.sql
 
--- Create available_deliveries table for quick queries
-CREATE TABLE IF NOT EXISTS available_deliveries (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  address VARCHAR(500) NOT NULL,
-  distance DECIMAL(5,2) NOT NULL,
-  pay DECIMAL(10,2) NOT NULL,
-  status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'taken', 'completed')),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(order_id)
-);
+-- DEPRECATED: replaced by VIEW available_deliveries_view
+-- Query: SELECT * FROM deliveries WHERE status = 'unassigned' AND driver_id IS NULL
+-- See: database/migrations/20260519_fix_driver_schema.sql
 
--- Create driver_earnings table for earning tracking
-CREATE TABLE IF NOT EXISTS driver_earnings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id UUID NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
-  delivery_id UUID NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+-- DEPRECATED: driver_earnings now REFERENCES profiles(id), not drivers(id)
+-- See canonical definition in: database/migrations/20260519_fix_driver_schema.sql
+-- CREATE TABLE IF NOT EXISTS driver_earnings (
+--   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--   driver_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,  -- FIXED
+--   delivery_id UUID NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
   amount DECIMAL(10,2) NOT NULL,
   commission_rate DECIMAL(5,2) DEFAULT 0,
   commission_amount DECIMAL(10,2) DEFAULT 0,

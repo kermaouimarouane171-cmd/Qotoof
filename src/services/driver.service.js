@@ -287,7 +287,7 @@ class DriverService {
   /**
    * Suspend driver
    */
-  async suspendDriver(driverId, reason = '') {
+  async suspendDriver(driverId, _reason = '') {
     return this.changeDriverStatus(driverId, DRIVER_STATUSES.SUSPENDED);
   }
 

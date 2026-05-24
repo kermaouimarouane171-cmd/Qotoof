@@ -1,4 +1,3 @@
-import { supabase } from '@/services/supabase'
 import { getLatestPaymentRecordForOrder } from '@/services/paymentRecords'
 export const initCMIPayment = async (order) => {
   if (!order?.id) {

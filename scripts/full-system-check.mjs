@@ -105,7 +105,7 @@ const getEnvValue = (loadedEnv, key) => {
 
 await runCheck('الملفات النهائية الأساسية موجودة', async () => {
   const requiredFiles = [
-    'SUPABASE_FINAL_MIGRATION.sql',
+    'migrations/SUPABASE_FINAL_MIGRATION.sql',
     'supabase/migrations/20260422000014_final_marketplace_features.sql',
     'scripts/full-system-check.mjs',
     'src/App.jsx',
@@ -136,7 +136,7 @@ await runCheck('الملفات النهائية الأساسية موجودة', 
 
 await runCheck('الهجرة النهائية تغطي العمولات والعقد والتتبع والشراكات', async () => {
   const migrationFiles = [
-    'SUPABASE_FINAL_MIGRATION.sql',
+    'migrations/SUPABASE_FINAL_MIGRATION.sql',
     'supabase/migrations/20260422000014_final_marketplace_features.sql',
   ]
 

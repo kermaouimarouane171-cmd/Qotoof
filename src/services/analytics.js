@@ -52,7 +52,7 @@ export const initializeAnalytics = () => {
 /**
  * Track page view manually
  */
-export const trackPageView = (url, title = '') => {
+export const trackPageView = (url, _title = '') => {
   if (import.meta.env.DEV) return
 
   const domain = import.meta.env.VITE_ANALYTICS_DOMAIN

@@ -8,6 +8,7 @@ export const resolveSafeAuthRedirect = (input, fallback = null) => {
 
   const trimmed = input.trim()
 
+  // eslint-disable-next-line no-control-regex
   if (!trimmed || trimmed.includes('\\') || /[\u0000-\u001F]/.test(trimmed)) {
     return fallback
   }

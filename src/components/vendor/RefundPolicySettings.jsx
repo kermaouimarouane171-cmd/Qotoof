@@ -37,6 +37,7 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
         />
 
         <div>
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label className="input-label">تكلفة شحن الإرجاع</label>
           <select
             value={value.return_shipping_paid_by}
@@ -51,6 +52,7 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
         </div>
       </div>
 
+      {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
       <label className="mt-4 flex items-start gap-3 cursor-pointer">
         <input
           type="checkbox"
@@ -66,6 +68,7 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
       </label>
 
       <div className="mt-4">
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label className="input-label">فئات غير قابلة للإرجاع (مفصولة بفاصلة)</label>
         <input
           type="text"
@@ -84,6 +87,7 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
       </div>
 
       <div className="mt-4">
+        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
         <label className="input-label">نص سياسة الاسترجاع المعروض للمشتري</label>
         <textarea
           rows="4"

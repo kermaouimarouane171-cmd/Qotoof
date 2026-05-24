@@ -25,6 +25,7 @@ class PaymentGateway {
     this.isTestMode = import.meta.env.VITE_PAYMENT_MODE !== 'production'
     this.bankDetailsCache = new Map()
     this.bankDetailsTtlMs = 5 * 60 * 1000
+    this.paymentIntentCache = new Map()
   }
 
   getPayPalClientId() {
@@ -159,6 +160,19 @@ class PaymentGateway {
     )
   }
 
+  async recordRefund({ payment, amount, reason, status, gatewayResponse = null }) {
+    return supabase
+      .from('refunds')
+      .insert({
+        payment_id: payment.id,
+        order_id: payment.order_id,
+        amount,
+        reason,
+        status,
+        gateway_response: gatewayResponse,
+      })
+  }
+
   /**
    * Process Bank Transfer
    */
@@ -179,7 +193,6 @@ class PaymentGateway {
             customer_name: customer.name,
           },
         })
-
         if (error) throw error
 
         // SECURITY: Bank details (IBAN, BIC) must NOT be hardcoded in frontend.
@@ -361,6 +374,13 @@ class PaymentGateway {
             select: 'id',
           })
 
+          await this.recordRefund({
+            payment,
+            amount,
+            reason,
+            status: 'refunded',
+          })
+
           return { success: true, status: 'refunded' }
         }
       },
@@ -395,6 +415,14 @@ class PaymentGateway {
             gateway_response: data,
           },
           select: 'id',
+        })
+
+        await this.recordRefund({
+          payment,
+          amount,
+          reason: refundReason,
+          status: 'refunded',
+          gatewayResponse: data,
         })
 
         return { success: true, status: 'refunded' }
@@ -435,6 +463,14 @@ class PaymentGateway {
             },
             select: 'id',
           })
+
+          await this.recordRefund({
+            payment,
+            amount,
+            reason: refundReason,
+            status: 'refunded',
+            gatewayResponse: result,
+          })
         }
 
         return { success: result?.success === true, status: result?.status }
@@ -466,6 +502,66 @@ class PaymentGateway {
 
 // Singleton instance
 export const paymentGateway = new PaymentGateway()
+
+const toGatewayResult = async (operation) => {
+  try {
+    const data = await operation()
+    return { data, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export const createPaymentIntent = async (params) => {
+  const cacheKey = `${params?.orderId || ''}:${params?.paymentMethod || params?.payment_method || params?.method || ''}:${params?.currency || 'MAD'}`
+  if (cacheKey.trim() !== '::' && paymentGateway.paymentIntentCache.has(cacheKey)) {
+    return paymentGateway.paymentIntentCache.get(cacheKey)
+  }
+
+  const result = await toGatewayResult(() => paymentGateway.initializePayment(params))
+  if (cacheKey.trim() !== '::' && !result.error) {
+    paymentGateway.paymentIntentCache.set(cacheKey, result)
+  }
+  return result
+}
+
+export const confirmPayment = async (paymentId) => toGatewayResult(async () => {
+  const { data: payment, error: fetchError } = await getPaymentRecordById({ paymentId })
+  if (fetchError) throw fetchError
+
+  const { data: updated, error: updateError } = await updatePaymentRecordById({
+    paymentId,
+    values: {
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+    },
+  })
+
+  if (updateError) throw updateError
+  return {
+    ...(updated || payment),
+    status: 'confirmed',
+  }
+})
+
+export const getPaymentById = async (paymentId) => toGatewayResult(async () => {
+  const { data, error } = await supabase
+    .from('payments')
+    .select(`
+      *,
+      order:orders(
+        id,
+        order_number,
+        buyer:profiles!buyer_id(id, first_name, last_name, email),
+        vendor:profiles!vendor_id(id, first_name, store_name)
+      )
+    `)
+    .eq('id', paymentId)
+    .single()
+
+  if (error) throw error
+  return data
+})
 
 // React hook for easy integration
 import { useState, useCallback } from 'react'

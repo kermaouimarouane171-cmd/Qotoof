@@ -3,6 +3,8 @@ import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 
+const LoadingFallback = () => <LoadingSpinner />;
+
 /**
  * مكون الحماية بناءً على الدور
  * @param {React.ReactNode} children - العناصر التي سيتم عرضها إذا كانت الحماية تسمح
@@ -11,59 +13,55 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
  * @param {boolean} redirectToDefault - إعادة التوجيه إلى المسار الافتراضي إذا لم يكن لدى المستخدم إذن
  */
 export const ProtectedRoute = ({ children, requiredRole, allowedRoles, redirectToDefault = true }) => {
-  const { profile, loading } = useAuthStore();
+  const { user, profile, loading } = useAuthStore();
   const location = useLocation();
-  const [hasPermission, setHasPermission] = useState(null);
+  const [profileLoadTimedOut, setProfileLoadTimedOut] = useState(false);
 
   useEffect(() => {
-    // التحقق من التحميل
-    if (loading) {
-      setHasPermission(null);
-      return;
-    }
+    setProfileLoadTimedOut(false);
 
-    // التحقق من تسجيل الدخول
-    if (!profile) {
-      setHasPermission(false);
-      return;
-    }
+    // Start timeout while authenticated user exists but profile is still missing.
+    if (!user || profile) return;
 
-    // التحقق من الدور
-    if (requiredRole) {
-      // إذا كان المستخدم لا يملك الدور المطلوب
-      if (profile.role !== requiredRole) {
-        setHasPermission(false);
-        return;
-      }
-    }
+    const timeoutId = window.setTimeout(() => {
+      setProfileLoadTimedOut(true);
+    }, 10000);
 
-    // التحقق من الأدوار المسموح بها
-    if (allowedRoles) {
-      if (!allowedRoles.includes(profile.role)) {
-        setHasPermission(false);
-        return;
-      }
-    }
+    return () => window.clearTimeout(timeoutId);
+  }, [user, profile, loading]);
 
-    // إذا اجتاز جميع الشروط
-    setHasPermission(true);
-  }, [profile, loading, requiredRole, allowedRoles]);
-
-  // أثناء التحقق
-  if (hasPermission === null) {
-    return <LoadingSpinner />;
+  // If profile fails to load in a safe time window, force re-auth with context.
+  if (user && !profile && profileLoadTimedOut) {
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location, error: 'Session verification timed out. Please sign in again.' }}
+        replace
+      />
+    );
   }
 
-  // إذا لم يكن مسجلاً أو ليس لديه إذن
+  // Required wait states: loading or user exists while profile is still unresolved.
+  if (loading || (user && !profile)) {
+    return <LoadingFallback />;
+  }
+
+  // Not authenticated.
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  const userRole = profile.role;
+  const hasRequiredRole = requiredRole ? userRole === requiredRole : true;
+  const hasAllowedRole = Array.isArray(allowedRoles) && allowedRoles.length > 0
+    ? allowedRoles.includes(userRole)
+    : true;
+
+  const hasPermission = hasRequiredRole && hasAllowedRole;
+
   if (!hasPermission) {
-    if (redirectToDefault) {
-      // إعادة التوجيه إلى المسار الافتراضي بناءً على الدور
-      const redirectPath = useAuthStore.getState().getRedirectPath(profile?.role || null);
-      return <Navigate to={redirectPath} state={{ from: location }} replace />;
-    } else {
-      // إعادة التوجيه إلى صفحة تسجيل الدخول
-      return <Navigate to="/login" state={{ from: location }} replace />;
-    }
+    const unauthorizedPath = redirectToDefault ? '/unauthorized' : '/unauthorized';
+    return <Navigate to={unauthorizedPath} state={{ from: location }} replace />;
   }
 
   // إذا كان لديه إذن، عرض المحتوى
@@ -75,14 +73,14 @@ export const ProtectedRoute = ({ children, requiredRole, allowedRoles, redirectT
  * @param {React.ReactNode} children - العناصر التي سيتم عرضها إذا كانت الحماية تسمح
  */
 export const AuthenticatedRoute = ({ children }) => {
-  const { profile, loading } = useAuthStore();
+  const { user, profile, loading } = useAuthStore();
   const location = useLocation();
 
-  if (loading) {
-    return <LoadingSpinner />;
+  if (loading || (user && !profile)) {
+    return <LoadingFallback />;
   }
 
-  if (!profile) {
+  if (!user || !profile) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -94,11 +92,10 @@ export const AuthenticatedRoute = ({ children }) => {
  * @param {React.ReactNode} children - العناصر التي سيتم عرضها إذا كانت الحماية تسمح
  */
 export const UnauthenticatedRoute = ({ children }) => {
-  const { profile, loading } = useAuthStore();
-  const location = useLocation();
+  const { user, profile, loading } = useAuthStore();
 
-  if (loading) {
-    return <LoadingSpinner />;
+  if (loading || (user && !profile)) {
+    return <LoadingFallback />;
   }
 
   if (profile) {
