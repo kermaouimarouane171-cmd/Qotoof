@@ -48,7 +48,7 @@ greenmarket/src/
 │   ├── authGateway.js         ← Rate-limited sign-in only
 │   ├── auth/api.js            ← 12,524 bytes — full auth CRUD (UNUSED in routes)
 │   ├── axiosInstance.js       ← Axios client (REST/Express backend)
-│   ├── supabase.js            ← Supabase client (primary DB)
+│   ├── supabase.ts            ← Supabase client (primary DB)
 │   ├── paymentGateway.js      ← 500 lines class-based
 │   ├── paymentService.js      ← 314 lines functional wrapper
 │   ├── paymentRecords.js      ← Records CRUD
@@ -127,14 +127,14 @@ greenmarket/src/
 App.jsx
 ├── authStore.js ←────────────────────────── CORE: everything depends here
 │   ├── authServices.js
-│   │   ├── supabase.js
+│   │   ├── supabase.ts
 │   │   ├── auditLogger.jsx
 │   │   ├── encryption.js
 │   │   ├── rateLimiter.js
 │   │   ├── emailService.js
 │   │   └── withRetry.js
 │   ├── authGateway.js
-│   │   └── supabase.js
+│   │   └── supabase.ts
 │   ├── auditLogger.jsx
 │   ├── emailService.js
 │   ├── cartStore.js ───────── ⚠️ cross-store dependency
@@ -144,7 +144,7 @@ App.jsx
 │   └── authRedirects.js
 │
 ├── services/api.js
-│   ├── supabase.js
+│   ├── supabase.ts
 │   ├── authAdminOps.js
 │   ├── authStore.js ←────────── ⚠️ SERVICE imports STORE (tight coupling)
 │   ├── productImages.js
@@ -154,7 +154,7 @@ App.jsx
 ├── pages/CheckoutSimplified.jsx ←────────── God Page: 1,757 lines
 │   ├── cartStore.js
 │   ├── authStore.js
-│   ├── supabase.js (direct) ←── ⚠️ UI → DB coupling
+│   ├── supabase.ts (direct) ←── ⚠️ UI → DB coupling
 │   ├── coupons.js
 │   ├── deliveryScheduleService.js
 │   ├── deliveryMatchingService.js
@@ -167,7 +167,7 @@ App.jsx
 │   └── emailService.js
 │
 ├── pages/OrderDetail.jsx ←────────────────── God Page: 2,166 lines
-│   ├── supabase.js (direct)
+│   ├── supabase.ts (direct)
 │   ├── deliveries.js
 │   ├── ordersApi
 │   ├── paymentGateway.js
@@ -182,9 +182,9 @@ App.jsx
 ```
 authStore.js ──imports──► cartStore.js     (for cart clear on logout)
 authStore.js ──imports──► favoritesStore.js (for favorites clear on logout)
-cartStore.js ──imports──► supabase.js
+cartStore.js ──imports──► supabase.ts
 cartStore.js ──imports──► cartQuantity.js
-favoritesStore.js ──imports──► supabase.js
+favoritesStore.js ──imports──► supabase.ts
 ```
 
 > **Note:** No circular store deps detected. The cross-store imports are one-directional (authStore → child stores), which is acceptable but could be refactored to use events.
@@ -192,7 +192,7 @@ favoritesStore.js ──imports──► supabase.js
 ### 2.3 Service Dependency Graph
 
 ```
-supabase.js               ← Singleton leaf node, imported by 50+ files
+supabase.ts               ← Singleton leaf node, imported by 50+ files
 logger.js                 ← Singleton leaf node
 withRetry.js              ← Utility leaf node
 encryption.js             ← Utility leaf node
@@ -558,7 +558,7 @@ Before deleting any `features/driver/` file:
 
 **Proposed abstraction:**
 ```
-src/hooks/useSecurity.js
+src/hooks/useSecurity.ts
   exports: useSecurityData(), usePasswordChange(), usePasswordStrength()
   — shared pure logic only
   — role-specific logic stays in each Security.jsx
@@ -583,7 +583,7 @@ src/hooks/useSecurity.js
 
 **Proposed abstraction:**
 ```
-src/constants/orderStatuses.js
+src/constants/orderStatuses.ts
   exports:
     ORDER_STATUSES — canonical status key list
     ORDER_STATUS_COLORS — color/bg/text per status (no labels)
@@ -638,7 +638,7 @@ Migrate pages gradually to use React Query directly:
 **Proposed abstraction:**
 ```
 Keep both files separate.
-Extract shared primitives to: src/utils/validationPrimitives.js
+Extract shared primitives to: src/utils/validationPrimitives.ts
   exports: emailSchema, passwordSchema, phoneSchema, uuidSchema
   
   Both validators.js and validationSchemas.js import from primitives.
@@ -692,8 +692,8 @@ Phase 3 action:
 **Proposed abstraction:**
 ```
 Incremental service extraction per domain:
-  src/services/ordersService.js    ← extract from vendor/Orders, buyer/Orders, admin/Orders
-  src/services/profilesService.js  ← extract from Settings pages
+  src/services/ordersService.ts    ← extract from vendor/Orders, buyer/Orders, admin/Orders
+  src/services/profilesService.ts  ← extract from Settings pages
   
   Do NOT create a generic repository wrapper.
   Move SELECT strings to service files, pages call service functions.
@@ -745,13 +745,13 @@ Incremental service extraction per domain:
 
 | Step | Action | Files Added | Files Modified | Regression Risk |
 |---|---|---|---|---|
-| 2.1 | Create `src/constants/orderStatuses.js` with `ORDER_STATUS_COLORS` | +1 | 0 | None (additive) |
+| 2.1 | Create `src/constants/orderStatuses.ts` with `ORDER_STATUS_COLORS` | +1 | 0 | None (additive) |
 | 2.2 | Migrate `buyer/Orders.jsx` to use shared colors | 0 | 1 | Low — visual only |
 | 2.3 | Migrate `vendor/Dashboard.jsx` STATUS_CONFIG | 0 | 1 | Low |
 | 2.4 | Migrate `OrderDetail.jsx` STATUS_CONFIG | 0 | 1 | Low |
 | 2.5 | Migrate `Tracking.jsx` STATUS_CONFIG | 0 | 1 | Low |
 | 2.6 | Migrate `admin/Orders.jsx` (i18n-aware) | 0 | 1 | Low |
-| 2.7 | Create `src/utils/validationPrimitives.js` | +1 | 0 | None (additive) |
+| 2.7 | Create `src/utils/validationPrimitives.ts` | +1 | 0 | None (additive) |
 | 2.8 | Update `validators.js` to import from primitives | 0 | 1 | Low |
 | 2.9 | Update `validationSchemas.js` to import from primitives | 0 | 1 | Low |
 
@@ -766,7 +766,7 @@ Incremental service extraction per domain:
 
 | Step | Action | Files Added | Files Modified | Regression Risk |
 |---|---|---|---|---|
-| 3.1 | Create `src/hooks/useSecurity.js` with `useSecurityData()` | +1 | 0 | None (additive) |
+| 3.1 | Create `src/hooks/useSecurity.ts` with `useSecurityData()` | +1 | 0 | None (additive) |
 | 3.2 | Create `usePasswordStrength()` in same hook | 0 | +hook | None |
 | 3.3 | Migrate `buyer/Security.jsx` to use hook | 0 | 1 | Medium — test MFA flow |
 | 3.4 | Migrate `driver/Security.jsx` to use hook | 0 | 1 | Medium |
@@ -787,8 +787,8 @@ Incremental service extraction per domain:
 | 4.1 | Break `services/api.js` import of `authStore` | Pass userId as parameter instead of importing store | Medium |
 | 4.2 | Break `chatService.jsx` import of `authStore` | Pass userId/token via function parameter | Low |
 | 4.3 | Merge `driverMatching.js` into `deliveryMatchingService.js` | Audit callers first | Medium |
-| 4.4 | Extract `src/services/ordersService.js` | Move repeated `supabase.from('orders')` calls from vendor/Orders and buyer/Orders | High |
-| 4.5 | Extract `src/services/profilesService.js` | Move repeated `supabase.from('profiles')` calls from Settings pages | Medium |
+| 4.4 | Extract `src/services/ordersService.ts` | Move repeated `supabase.from('orders')` calls from vendor/Orders and buyer/Orders | High |
+| 4.5 | Extract `src/services/profilesService.ts` | Move repeated `supabase.from('profiles')` calls from Settings pages | Medium |
 
 **Gates:**
 - [ ] Driver assignment E2E test passes
@@ -839,7 +839,7 @@ Incremental service extraction per domain:
 | `useSecurityPage` hook | Medium | MFA broken, auth bypass risk | Manual MFA test per role |
 | Break `api.js → authStore` coupling | Medium | Admin API calls fail | Integration test |
 | Delete `driverMatching.js` | Medium | Driver assignment broken | Checkout E2E test |
-| Extract `ordersService.js` | High | Orders don't load | Buyer + vendor order tests |
+| Extract `ordersService.ts` | High | Orders don't load | Buyer + vendor order tests |
 | Split `authStore` | Very High | Complete auth breakdown | Staged rollout, feature flag |
 | Decompose `CheckoutSimplified.jsx` | High | Checkout broken, payments fail | Full checkout E2E |
 | Decompose `OrderDetail.jsx` | Medium | Order detail broken | Order lifecycle test |
@@ -982,10 +982,10 @@ ARCHITECTURE-TARGET:
   Data Flow:        Pages → Service functions → Supabase (25+ page violations fixed)
   State:            Zustand (same stores, same API) + React Query for server state
   Auth:             authStore (trimmed, ~600L) + authServices (no change) + authGateway (no change)
-  Validation:       validationPrimitives.js (shared) ← validators.js + validationSchemas.js (both kept)
+  Validation:       validationPrimitives.ts (shared) ← validators.js + validationSchemas.js (both kept)
   Dead Code:        features/ cleaned (35 files deleted)
-  Status Configs:   constants/orderStatuses.js (1 shared source of truth)
-  Security Pages:   hooks/useSecurity.js (shared logic) + 3 slim Security.jsx (role-specific)
+  Status Configs:   constants/orderStatuses.ts (1 shared source of truth)
+  Security Pages:   hooks/useSecurity.ts (shared logic) + 3 slim Security.jsx (role-specific)
   Data Fetching:    React Query for server state (gradual migration, Phase 6)
   God Files:        Decomposed into <400L components/pages
   Services:         Consolidated: ordersService, profilesService, single driverMatchingService
@@ -1013,7 +1013,7 @@ ARCHITECTURE-TARGET:
 
 **Context:** Both files define Zod schemas. `validators.js` is used by the Express backend (`src/api/`). `validationSchemas.js` is used by React forms.
 
-**Decision:** Keep both files separate. Extract shared primitives to `validationPrimitives.js`.
+**Decision:** Keep both files separate. Extract shared primitives to `validationPrimitives.ts`.
 
 **Rationale:** The backend and frontend have different validation contexts (error message format, runtime environment). Merging would create runtime issues (browser vs Node) and merge different error message formats.
 
@@ -1073,7 +1073,7 @@ ARCHITECTURE-TARGET:
 
 **Context:** STATUS_CONFIG is duplicated in 5 files.
 
-**Decision:** Add `constants/orderStatuses.js` first (additive). Migrate files one by one. Never remove old STATUS_CONFIG until the migrating file's tests pass.
+**Decision:** Add `constants/orderStatuses.ts` first (additive). Migrate files one by one. Never remove old STATUS_CONFIG until the migrating file's tests pass.
 
 **Rationale:** Parallel existence of old and new allows incremental validation without a big-bang change.
 

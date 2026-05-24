@@ -40,7 +40,7 @@ css        1
 
 - Command: npm run build
 - Exit: PASS
-- Warning(s): 1 Vite warning about mixed dynamic/static imports for src/services/supabase.js
+- Warning(s): 1 Vite warning about mixed dynamic/static imports for src/services/supabase.ts
 - Build completed with output bundles generated in dist/
 - Full captured output: pre-refactor-build-full.log
 

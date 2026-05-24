@@ -10,7 +10,7 @@
 - `src/App.jsx`
 - `src/components/ProtectedRoute.jsx`
 - `src/store/authStore.js`
-- `src/services/supabase.js`
+- `src/services/supabase.ts`
 - `src/services/api.js`
 - `src/services/deliveries.js`
 - `src/services/realtime.js`
@@ -632,7 +632,7 @@ flowchart LR
     App --> Protected[ProtectedRoute]
     App --> QueryClient[queryClient]
 
-    AuthStore --> SupabaseClient[supabase.js]
+    AuthStore --> SupabaseClient[supabase.ts]
     AuthStore --> AuthGateway[authGateway.js]
     AuthStore --> AuthServices[authServices.js]
     AuthStore --> CartStore[cartStore]
@@ -714,7 +714,7 @@ flowchart LR
 | --- | --- |
 | `authGateway.js` | server-side login entrypoint عبر `secure-login` |
 | `authServices.js` | MFA، active sessions، auto logout |
-| `supabase.js` | Supabase client + health monitor + session retry behavior |
+| `supabase.ts` | Supabase client + health monitor + session retry behavior |
 | `api.js` | PostgREST reads/writes للمنتجات والطلبات وإدارة السوق |
 | `deliveries.js` | order acceptance، delivery lifecycle، subscriptions، transitions |
 | `realtime.js` | wrapper موحد لاشتراكات Supabase Realtime |
@@ -815,7 +815,7 @@ Supabase هو البنية الخلفية الأساسية فعليًا:
 - Sentry مهيأ من `src/main.jsx`.
 - يوجد workflow مراقبة دورية للإنتاج.
 - Realtime لديه reconnect handling داخل `src/services/realtime.js`.
-- `supabase.js` يحتوي monitor صحي ودعم retry لبعض أخطاء JWT/session.
+- `supabase.ts` يحتوي monitor صحي ودعم retry لبعض أخطاء JWT/session.
 
 ---
 

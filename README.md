@@ -141,7 +141,7 @@ greenmarket/
 │   │   ├── driver/            # Driver delivery workflow
 │   │   └── admin/             # Admin panel
 │   ├── services/
-│   │   ├── supabase.js
+│   │   ├── supabase.ts
 │   │   └── deliveries.js      # Delivery API + real-time
 │   ├── store/
 │   │   └── authStore.js       # Auth with role management

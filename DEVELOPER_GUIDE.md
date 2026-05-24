@@ -158,7 +158,7 @@ greenmarket/
 │   │   ├── driver/        # Driver dashboard, delivery workflow
 │   │   └── admin/         # Admin panel, user/vendor management
 │   ├── services/          # API & business logic
-│   │   ├── supabase.js    # Supabase client & query helpers
+│   │   ├── supabase.ts    # Supabase client & query helpers
 │   │   ├── api.js         # Main API service layer
 │   │   ├── deliveries.js  # Delivery management
 │   │   ├── notifications.js
@@ -1308,7 +1308,7 @@ npm run dev -- --port 3001
 | `src/App.jsx` | Main routing configuration |
 | `src/main.jsx` | Application entry point |
 | `src/store/authStore.js` | Authentication state & role management |
-| `src/services/supabase.js` | Supabase client & retry logic |
+| `src/services/supabase.ts` | Supabase client & retry logic |
 | `src/services/api.js` | Main API service layer |
 | `src/i18n/index.js` | i18next configuration |
 | `src/utils/withRetry.js` | Retry utility with exponential backoff |

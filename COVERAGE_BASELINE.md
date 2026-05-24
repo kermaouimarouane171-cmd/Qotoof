@@ -112,7 +112,7 @@ Files with line coverage below 50% are highlighted in red.
 | <span style="color:red">src/config/driver.config.js</span> | <span style="color:red">0.00%</span> | 0.00% | 100.00% | 0.00% |
 | <span style="color:red">src/constants/banks.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/constants/categories.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/constants/orderStatuses.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/constants/orderStatuses.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/constants/roles.js</span> | <span style="color:red">0.00%</span> | 0.00% | 100.00% | 100.00% |
 | <span style="color:red">src/constants/seasonalCalendar.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/constants/time.js</span> | <span style="color:red">0.00%</span> | 0.00% | 100.00% | 100.00% |
@@ -134,10 +134,10 @@ Files with line coverage below 50% are highlighted in red.
 | <span style="color:red">src/hooks/queries/useMarketplaceQueries.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/hooks/queries/useNotificationQueries.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/hooks/queries/useVendorAdminQueries.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/hooks/useCheckoutPricing.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/hooks/useCheckoutPricing.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/hooks/useDarkMode.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/hooks/useFetch.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/hooks/useOrderView.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/hooks/useOrderView.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/layouts/AuthLayout.jsx</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 100.00% |
 | <span style="color:red">src/layouts/DashboardLayout.jsx</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/layouts/MainLayout.jsx</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
@@ -276,13 +276,13 @@ Files with line coverage below 50% are highlighted in red.
 | <span style="color:red">src/services/ipBlocking.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/legalCameraService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/onboardingService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/services/ordersService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/services/ordersService.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/partnershipService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/paymentGateway.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/paymentService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/phoneOtpService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/platformSettings.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/services/profilesService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/services/profilesService.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/queryClient.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/refundPolicyService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/reports/csvExport.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
@@ -295,7 +295,7 @@ Files with line coverage below 50% are highlighted in red.
 | <span style="color:red">src/services/sentry.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/sms/smsService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/storeEmergencyService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
-| <span style="color:red">src/services/supabase.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
+| <span style="color:red">src/services/supabase.ts</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/supportTickets.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/vendorSecurity.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
 | <span style="color:red">src/services/vendorSubscriptionService.js</span> | <span style="color:red">0.00%</span> | 0.00% | 0.00% | 0.00% |
@@ -328,7 +328,7 @@ Files with line coverage below 50% are highlighted in red.
 | <span style="color:red">src/i18n/index.js</span> | <span style="color:red">40.00%</span> | 40.00% | 0.00% | 0.00% |
 | <span style="color:red">src/utils/staleAssetRecovery.js</span> | <span style="color:red">40.54%</span> | 34.09% | 16.66% | 21.73% |
 | <span style="color:red">src/services/trustScoreService.js</span> | <span style="color:red">40.74%</span> | 39.77% | 33.33% | 21.33% |
-| <span style="color:red">src/utils/validationPrimitives.js</span> | <span style="color:red">45.45%</span> | 40.00% | 12.50% | 0.00% |
+| <span style="color:red">src/utils/validationPrimitives.ts</span> | <span style="color:red">45.45%</span> | 40.00% | 12.50% | 0.00% |
 | <span style="color:red">src/services/notifications.js</span> | <span style="color:red">49.70%</span> | 45.72% | 51.72% | 31.70% |
 | src/services/productImages.js | 50.72% | 42.04% | 30.00% | 30.37% |
 | src/services/shippingCalculator.js | 50.78% | 49.27% | 68.75% | 46.15% |
@@ -339,7 +339,7 @@ Files with line coverage below 50% are highlighted in red.
 | src/services/realtimeManager.js | 54.28% | 54.05% | 45.45% | 46.15% |
 | src/services/vendorAnalytics.js | 57.50% | 56.83% | 43.13% | 32.11% |
 | src/hooks/queries/useAuthQueries.js | 60.82% | 58.03% | 60.46% | 18.18% |
-| src/hooks/useSecurity.js | 61.05% | 60.41% | 61.53% | 36.84% |
+| src/hooks/useSecurity.ts | 61.05% | 60.41% | 61.53% | 36.84% |
 | src/utils/withRetry.js | 64.70% | 63.41% | 54.54% | 84.21% |
 | src/components/ui/Card.jsx | 66.66% | 50.00% | 50.00% | 66.66% |
 | src/components/ui/Recaptcha.jsx | 66.66% | 66.66% | 66.66% | 28.57% |

@@ -28,7 +28,7 @@ services. Each domain owns a slice of business capability.
 | `delivery` | Accept/reject/update deliveries; driver assignment | `src/services/deliveries.js` → deliveriesApi |
 | `payments` | Confirm payment, upload receipt, check status | `src/services/paymentService.js` |
 | `catalog` | Create/update/delete products; list/search products | `src/services/api.js` → productsApi |
-| `identity` | Sign in/out, phone OTP, fetch profile | `src/store/authStore.js`; `phoneOtpService.js`; `profilesService.js` |
+| `identity` | Sign in/out, phone OTP, fetch profile | `src/store/authStore.js`; `phoneOtpService.js`; `profilesService.ts` |
 
 ### Boundary rules
 

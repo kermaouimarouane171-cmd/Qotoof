@@ -561,7 +561,7 @@ src/
 ├── __tests__/
 │   ├── setup.js              # Jest configuration
 │   └── mocks/
-│       ├── supabase.js
+│       ├── supabase.ts
 │       ├── axios.js
 │       └── router.js
 │
