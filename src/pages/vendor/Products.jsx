@@ -8,6 +8,7 @@ import { ImageUploader } from '@/components/vendor/ProductForm'
 import { formatPrice } from '@/utils/currency'
 import { PlusIcon, PencilIcon, TrashIcon, ArrowUpTrayIcon, PhotoIcon, ExclamationTriangleIcon, DocumentArrowUpIcon, TagIcon } from '@heroicons/react/24/outline'
 import { MAIN_CATEGORIES, getSuggestedSubcategories } from '@/constants/categories'
+import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 // mammoth is loaded dynamically inside the DOCX upload handler — see parseBulkFile()
@@ -17,6 +18,7 @@ const VendorLocationSetup = lazy(() => import('./LocationSetup'))
 
 const VendorProducts = () => {
   const { profile } = useAuthStore()
+  const { t } = useTranslation()
   
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)

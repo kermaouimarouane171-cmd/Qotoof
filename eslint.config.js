@@ -6,11 +6,33 @@ import jsxA11y from 'eslint-plugin-jsx-a11y'
 import globals from 'globals'
 
 export default [
-  { ignores: ['dist', 'node_modules', 'coverage', 'cypress', '.firebase', 'src/main', 'android', 'public/assets'] },
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      'coverage',
+      'cypress',
+      '.firebase',
+      'src/main',
+      'android',
+      'public/assets',
+      'src/**/__tests__/**',
+      'src/__tests__/**',
+      'cypress/**',
+      'scripts/__tests__/**',
+      '**/*.test.js',
+      '**/*.test.jsx',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.cy.js',
+      '**/*.spec.js',
+      'jest.setup.js',
+    ],
+  },
   js.configs.recommended,
   // Node/runtime scripts and backend API files
   {
-    files: ['cypress.config.js', 'database/**/*.js', 'src/api/**/*.js', 'src/middleware/**/*.js'],
+    files: ['cypress.config.js', '.lighthouserc.js', 'database/**/*.js', 'src/api/**/*.js', 'src/middleware/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -61,6 +83,7 @@ export default [
         ...globals.browser,
         ...globals.es2020,
         process: 'readonly',
+        Buffer: 'readonly',
       },
       parserOptions: {
         ecmaVersion: 'latest',

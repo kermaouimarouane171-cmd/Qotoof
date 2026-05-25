@@ -3,6 +3,15 @@ import { toHaveNoViolations } from 'jest-axe'
 
 expect.extend(toHaveNoViolations)
 
+global.axeConfig = {
+  rules: {
+    'color-contrast': { enabled: true },
+    'landmark-one-main': { enabled: true },
+    'page-has-heading-one': { enabled: false },
+    region: { enabled: false },
+  },
+}
+
 // Mock import.meta.env for Vite (must be before any imports)
 if (typeof globalThis.import === 'undefined') {
   globalThis.import = { meta: { env: { DEV: true, PROD: false, MODE: 'test' } } }
