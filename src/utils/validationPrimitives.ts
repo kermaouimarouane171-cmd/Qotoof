@@ -206,7 +206,7 @@ export const moroccanCinSchema = z
   .transform(cin => cin.toUpperCase())
   .refine(
     (cin) => CIN_REGEX.test(cin),
-    'Invalid Moroccan CIN format (expected 2 letters followed by 5–6 digits, e.g. AB12345 or AB123456)'
+    'Invalid Moroccan CIN format (expected 1-2 letters followed by 5-6 digits, e.g. T12345, AB12345, A123456 or AB123456)'
   )
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ import {
 } from '@/utils/authRedirects'
 import { checkLoginRate, checkPasswordResetRate, enforceRateLimit } from '@/utils/rateLimiter'
 import { signInWithServerRateLimit } from '@/services/authGateway'
+import { APP_CONFIG } from '@/config/appConfig'
 import { logger } from '../utils/logger.js'
 
 const OAUTH_STATE_PREFIX = 'oauth_'
@@ -27,6 +28,30 @@ const createOAuthState = () => {
 
   const randomSuffix = Math.random().toString(36).slice(2)
   return `${OAUTH_STATE_PREFIX}${Date.now()}_${randomSuffix}`
+}
+
+const resolvePublicAppOrigin = () => {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+
+  if (typeof import.meta?.env?.VITE_APP_URL === 'string' && import.meta.env.VITE_APP_URL.trim()) {
+    return import.meta.env.VITE_APP_URL.trim().replace(/\/$/, '')
+  }
+
+  return String(APP_CONFIG.siteUrl || '').replace(/\/$/, '')
+}
+
+const getEmailCallbackUrl = () => `${resolvePublicAppOrigin()}/auth/callback`
+
+const isAlreadyRegisteredAuthError = (error) => {
+  const message = String(error?.message || '').toLowerCase()
+  return (
+    message.includes('already registered') ||
+    message.includes('user already registered') ||
+    message.includes('email already in use') ||
+    message.includes('already exists')
+  )
 }
 
 export function createAuthActions(set, get) {
@@ -253,13 +278,16 @@ export function createAuthActions(set, get) {
     signUp: async (email, password, userData, captchaToken = null) => {
       try {
         set({ loading: true, _signingInProgress: true })
+        const normalizedEmail = String(email || '').trim().toLowerCase()
+        const emailRedirectTo = getEmailCallbackUrl()
         const signUpOptions = {
           data: {
             first_name: userData.firstName,
             last_name: userData.lastName,
             role: userData.role,
             referral_code_used: userData.referralCode || null,
-          }
+          },
+          emailRedirectTo,
         }
 
         if (captchaToken) {
@@ -267,7 +295,7 @@ export function createAuthActions(set, get) {
         }
 
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: normalizedEmail,
           password,
           options: signUpOptions
         })
@@ -295,7 +323,7 @@ export function createAuthActions(set, get) {
 
           const { error: profileError } = await supabase
             .from('profiles')
-            .insert(profileData)
+            .upsert(profileData, { onConflict: 'id' })
 
           if (profileError) {
             logger.error('Profile creation error:', profileError)
@@ -366,6 +394,30 @@ export function createAuthActions(set, get) {
         }
       } catch (error) {
         set({ loading: false, _signingInProgress: false })
+
+        if (isAlreadyRegisteredAuthError(error)) {
+          const normalizedEmail = String(email || '').trim().toLowerCase()
+          const emailRedirectTo = getEmailCallbackUrl()
+
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email: normalizedEmail,
+            options: { emailRedirectTo },
+          })
+
+          if (!resendError) {
+            toast.success('Email verification sent again. Please check your inbox.')
+            return {
+              success: true,
+              needsEmailVerification: true,
+              userId: null,
+              phone: userData.phone || null,
+              role: userData.role,
+              requiresPhoneVerification: false,
+            }
+          }
+        }
+
         toast.error(error.message || 'Failed to create account')
         return { success: false, error: error.message }
       }

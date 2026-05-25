@@ -15,6 +15,7 @@ import {
   registerVendorProfileSchema,
   registerDriverProfileSchema,
 } from '@/utils/validationSchemas'
+import { validateCIN as validateMoroccanCIN } from '@/utils/cinValidation'
 import { logger } from '@/utils/logger'
 
 const TOTAL_STEPS = 4
@@ -75,6 +76,7 @@ function RegisterPage() {
   const signUp = useAuthStore((s) => s.signUp)
   const setPendingPhoneVerification = useAuthStore((s) => s.setPendingPhoneVerification)
   const setPostVerifyRedirect = useAuthStore((s) => s.setPostVerifyRedirect)
+  const getRedirectPath = useAuthStore((s) => s.getRedirectPath)
 
   const [formData, setFormData] = useState({
     role: '',
@@ -122,24 +124,16 @@ function RegisterPage() {
   }
 
   const validateCIN = (cin) => {
-    if (!cin || typeof cin !== 'string') {
-      return { valid: false, error: t('auth.register.validation.cin.required', 'رقم البطاقة الوطنية مطلوب') }
-    }
+    const result = validateMoroccanCIN(cin)
 
-    const cleaned = cin.trim().toUpperCase().replace(/\s/g, '')
-    const cinRegex = /^[A-Z]{1,2}\d{6,7}$/
-
-    if (!cinRegex.test(cleaned)) {
+    if (!result.valid) {
       return {
         valid: false,
-        error: t(
-          'auth.register.validation.cin.invalid',
-          'صيغة رقم البطاقة الوطنية غير صحيحة (مثال: AB123456)'
-        ),
+        error: t('auth.register.validation.cin.invalid', result.error),
       }
     }
 
-    return { valid: true, cleaned }
+    return { valid: true, cleaned: result.cin }
   }
 
   const validateStep1 = () => {
@@ -301,12 +295,14 @@ function RegisterPage() {
     setLoading(true)
 
     try {
+      const cleanedCin = formData.role === 'buyer' ? null : validateCIN(formData.cin).cleaned
+
       const signupPayload = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         role: formData.role,
         phone: formData.phone,
-        cin: formData.role === 'buyer' ? null : formData.cin,
+        cin: cleanedCin,
         storeName: formData.role === 'vendor' ? formData.storeName : null,
         storeType: formData.role === 'vendor' ? formData.storeType : null,
         city: formData.role === 'vendor' ? formData.city : null,
@@ -323,7 +319,7 @@ function RegisterPage() {
       }
 
       if (result.needsEmailVerification) {
-        setPostVerifyRedirect('/dashboard')
+        setPostVerifyRedirect(getRedirectPath(formData.role))
         navigate('/verify-email', {
           state: {
             email: formData.email,

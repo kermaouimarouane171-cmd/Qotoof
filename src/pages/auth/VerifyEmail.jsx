@@ -5,11 +5,14 @@ import toast from 'react-hot-toast'
 import { Button } from '@/components/ui'
 import { supabase } from '@/services/supabase'
 import { passwordResetSchema } from '@/utils/validationSchemas'
+import { useAuthStore } from '@/store/authStore'
 
 const VerifyEmailPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
+  const initialize = useAuthStore((s) => s.initialize)
+  const getRedirectPath = useAuthStore((s) => s.getRedirectPath)
 
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -35,16 +38,28 @@ const VerifyEmailPage = () => {
   useEffect(() => {
     const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-        toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
-        sessionStorage.removeItem('pendingVerificationEmail')
-        navigate('/login', { replace: true })
+        ;(async () => {
+          try {
+            await initialize()
+            const role = useAuthStore.getState().profile?.role || session?.user?.user_metadata?.role
+            const redirectPath = getRedirectPath(role)
+
+            toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
+            sessionStorage.removeItem('pendingVerificationEmail')
+            navigate(redirectPath, { replace: true })
+          } catch {
+            toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
+            sessionStorage.removeItem('pendingVerificationEmail')
+            navigate('/marketplace', { replace: true })
+          }
+        })()
       }
     })
 
     return () => {
       subscription?.subscription?.unsubscribe()
     }
-  }, [navigate, t])
+  }, [getRedirectPath, initialize, navigate, t])
 
   const handleResend = async () => {
     if (!email || countdown > 0) return
@@ -56,9 +71,11 @@ const VerifyEmailPage = () => {
     }
 
     setLoading(true)
+    const emailRedirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: parsed.data.email,
+      options: { emailRedirectTo },
     })
     setLoading(false)
 

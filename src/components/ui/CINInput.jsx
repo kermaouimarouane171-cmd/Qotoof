@@ -10,8 +10,8 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
     const formatted = autoFormatCIN(e.target.value)
     onChange(formatted)
 
-    // Validate when we have at least 7 characters (minimum for old format)
-    if (formatted.length >= 7) {
+    // Validate when we have at least 6 characters (minimum for 1 letter + 5 digits)
+    if (formatted.length >= 6) {
       const result = validateCIN(formatted)
       setValidationResult(result)
     } else {
@@ -21,7 +21,7 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
 
   const handleBlur = () => {
     setTouched(true)
-    if (value && value.length >= 7) {
+    if (value && value.length >= 6) {
       const result = validateCIN(value)
       setValidationResult(result)
     }
@@ -31,7 +31,7 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
   const isValid = touched && validationResult?.valid
 
   // Calculate remaining characters needed
-  const remainingChars = value ? (value.length < 7 ? 7 - value.length : value.length < 8 ? 8 - value.length : 0) : 7
+  const remainingChars = value ? (value.length < 6 ? 6 - value.length : value.length < 8 ? 8 - value.length : 0) : 6
 
   return (
     <div>
@@ -41,7 +41,7 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
         <span className="group relative">
           <InformationCircleIcon className="w-4 h-4 text-gray-400 cursor-help" />
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10" dir="ltr">
-            Your Moroccan National ID number (Carte d'Identité Nationale). Format: 2 letters + 5 or 6 digits (e.g., AB12345 or AB123456). Required for identity verification.
+            Your Moroccan National ID number (Carte d'Identité Nationale). Format: 1-2 letters + 5 or 6 digits (e.g., T12345, AB12345, A123456 or AB123456). Required for identity verification.
             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
           </div>
         </span>
@@ -56,7 +56,7 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
           value={value || ''}
           onChange={handleChange}
           onBlur={handleBlur}
-          placeholder="AB12345 أو AB123456"
+          placeholder="T12345 أو AB12345 أو A123456"
           maxLength={8}
           data-testid={inputTestId}
           className={`input pl-10 pr-10 font-mono tracking-wider uppercase ${
@@ -74,9 +74,9 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
       </div>
 
       {/* Character counter */}
-      {value && value.length < 7 && (
+      {value && value.length < 6 && (
         <p className="text-xs text-gray-400 mt-1" dir="ltr">
-          {remainingChars} more character{remainingChars !== 1 ? 's' : ''} needed (minimum 7)
+          {remainingChars} more character{remainingChars !== 1 ? 's' : ''} needed (minimum 6)
         </p>
       )}
 
@@ -110,9 +110,9 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
             <InformationCircleIcon className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
             <div className="text-xs text-blue-700">
               <p className="font-medium mb-1">أين تجد رقم البطاقة الوطنية؟</p>
-              <p className="mb-1">مطبوع على بطاقة التعريف الوطنية - حرفان متبوعان بـ 5 أو 6 أرقام</p>
+              <p className="mb-1">مطبوع على بطاقة التعريف الوطنية - حرف أو حرفان متبوعان بـ 5 أو 6 أرقام</p>
               <p className="text-blue-600" dir="ltr">
-                مثال: AB12345 (قديم) أو AB123456 (جديد)
+                مثال: T12345 أو AB12345 (قديم) و A123456 أو AB123456 (جديد)
               </p>
             </div>
           </div>
