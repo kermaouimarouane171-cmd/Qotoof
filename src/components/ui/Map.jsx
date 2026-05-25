@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet'
 import { useEffect, useRef, useState, useMemo } from 'react'
 import L from 'leaflet'
 import { useAuthStore } from '@/store/authStore'
@@ -130,20 +130,43 @@ const defaultIcon = L.icon({
   shadowSize: [41, 41]
 })
 
-// Custom icon for selected location
+// Custom icon for selected location with pulse animation
 const selectedLocationIcon = L.divIcon({
-  className: 'custom-marker',
-  html: `<div style="
-    width: 30px;
-    height: 30px;
-    background: #22c55e;
-    border: 3px solid white;
-    border-radius: 50%;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  "></div>`,
-  iconSize: [30, 30],
-  iconAnchor: [15, 15],
+  className: '',
+  html: `<div style="position:relative;width:40px;height:40px">
+    <div style="
+      position:absolute;inset:0;
+      background:rgba(34,197,94,0.25);
+      border-radius:50%;
+      animation:map-pulse 1.8s ease-out infinite;
+    "></div>
+    <div style="
+      position:absolute;top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:22px;height:22px;
+      background:#16a34a;
+      border:3px solid white;
+      border-radius:50%;
+      box-shadow:0 2px 10px rgba(0,0,0,0.35);
+    "></div>
+  </div>`,
+  iconSize: [40, 40],
+  iconAnchor: [20, 20],
+  popupAnchor: [0, -20],
 })
+
+// CSS for pulse animation — injected once
+if (typeof document !== 'undefined' && !document.getElementById('map-pulse-style')) {
+  const style = document.createElement('style')
+  style.id = 'map-pulse-style'
+  style.textContent = `
+    @keyframes map-pulse {
+      0%   { transform: scale(0.5); opacity: 0.8; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+  `
+  document.head.appendChild(style)
+}
 
 // ============================================================
 // SECURE MAP COMPONENTS
@@ -213,27 +236,31 @@ const SecureMapClickHandler = ({ onLocationSelect, userId }) => {
 }
 
 /**
- * SecureMapUpdater - Validates center before updating map view
+ * SecureMapUpdater - Validates center before updating map view, with smooth flyTo
  */
 const SecureMapUpdater = ({ center, zoom }) => {
   const map = useMap()
-  const prevCenterRef = useRef(null)
+  const prevKeyRef = useRef(null)
 
   useEffect(() => {
     if (!center || !map) return
 
-    // Skip if center hasn't changed
-    const centerKey = `${center[0]},${center[1]}`
-    if (prevCenterRef.current === centerKey) return
-    prevCenterRef.current = centerKey
+    // Include zoom in the key so zoom-only changes also trigger flyTo
+    const key = `${center[0]},${center[1]},${zoom}`
+    if (prevKeyRef.current === key) return
+    prevKeyRef.current = key
 
     const validation = validateCoordinates(center[0], center[1])
 
     if (validation.valid) {
       try {
-        map.setView([validation.lat, validation.lng], zoom || map.getZoom(), { animate: false })
+        map.flyTo(
+          [validation.lat, validation.lng],
+          zoom || map.getZoom(),
+          { animate: true, duration: 0.8 }
+        )
       } catch (e) {
-        logger.debug('Map setView error:', e)
+        logger.debug('Map flyTo error:', e)
       }
     } else {
       auditLog('map_update_rejected', {
@@ -282,6 +309,7 @@ const SecureMapComponent = ({
   className,
   requireAuth = true,
   allowedRoles = AUTHORIZED_ROLES,
+  accuracyRadius = null,  // metres — draws accuracy circle around GPS marker
 }) => {
   const { user, profile, loading: authLoading } = useAuthStore()
   const [mapError, setMapError] = useState(false)
@@ -461,8 +489,24 @@ const SecureMapComponent = ({
             />
             {/* Show marker at center when in selection mode */}
             <Marker position={validatedCenter} icon={selectedLocationIcon}>
-              <Popup>Selected Location</Popup>
+              <Popup>
+                <div style={{ textAlign: 'right', direction: 'rtl', minWidth: 140 }}>
+                  <strong style={{ color: '#16a34a' }}>📍 موقع التسليم</strong>
+                  <br />
+                  <span style={{ fontSize: 11, color: '#6b7280' }}>
+                    {validatedCenter[0].toFixed(5)}, {validatedCenter[1].toFixed(5)}
+                  </span>
+                </div>
+              </Popup>
             </Marker>
+            {/* GPS accuracy circle */}
+            {accuracyRadius && accuracyRadius > 0 && (
+              <Circle
+                center={validatedCenter}
+                radius={accuracyRadius}
+                pathOptions={{ color: '#16a34a', fillColor: '#22c55e', fillOpacity: 0.12, weight: 1.5 }}
+              />
+            )}
           </>
         )}
 

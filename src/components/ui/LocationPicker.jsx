@@ -66,6 +66,7 @@ const LocationPicker = ({
   const [detectError, setDetectError] = useState(null)
   const [locationSelected, setLocationSelected] = useState(!!value?.lat && !!value?.lng)
   const [showMapPrompt, setShowMapPrompt] = useState(false)
+  const autoDetectCalledRef = useRef(false)
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -189,6 +190,18 @@ const LocationPicker = ({
     }
   }, [city, locationSelected])
 
+  // Auto-detect GPS on first mount if no location already set
+  useEffect(() => {
+    if (autoDetectCalledRef.current) return
+    if (locationSelected) return
+    if (!navigator.geolocation) return
+    autoDetectCalledRef.current = true
+    // Small delay to let the map render first
+    const timer = setTimeout(() => detectMyLocation(), 600)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className={`space-y-4 ${className}`} data-testid="location-picker">
       {/* Header */}
@@ -265,16 +278,32 @@ const LocationPicker = ({
         onClick={detectMyLocation}
         disabled={detecting}
         data-testid="location-detect-btn"
-        className={`w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border-2 text-sm transition-all ${
+        className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
           detecting
-            ? 'border-gray-300 bg-gray-100 text-gray-500 cursor-not-allowed'
-            : 'border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:border-green-500 hover:bg-green-50 hover:text-green-700'
+            ? 'border-green-300 bg-green-50 text-green-600 cursor-not-allowed'
+            : locationSelected && value?.source === 'gps'
+              ? 'border-green-400 bg-green-50 text-green-700'
+              : 'border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:border-green-500 hover:bg-green-50 hover:text-green-700'
         }`}
       >
         {detecting ? (
-          <><ArrowPathIcon className="w-4 h-4 animate-spin" /><span>جاري تحديد موقعك...</span></>
+          <>
+            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+            <span>جاري تحديد موقعك بواسطة GPS...</span>
+          </>
+        ) : locationSelected && value?.source === 'gps' ? (
+          <>
+            <CheckCircleIcon className="w-5 h-5 text-green-600" />
+            <span>تم تحديد موقعك تلقائياً</span>
+            {value?.accuracy && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">دقة ±{value.accuracy}م</span>
+            )}
+          </>
         ) : (
-          <><MapPinIcon className="w-4 h-4" /><span>استخدام موقعي الحالي (GPS)</span></>
+          <>
+            <MapPinIcon className="w-5 h-5" />
+            <span>تحديد موقعي تلقائياً (GPS)</span>
+          </>
         )}
       </button>
 
@@ -300,7 +329,15 @@ const LocationPicker = ({
       )}
 
       {/* Map */}
-      <div className="rounded-xl overflow-hidden border-2 border-gray-200">
+      <div className="rounded-xl overflow-hidden border-2 border-gray-200 relative">
+        {/* Tap hint overlay — shown only when not yet selected */}
+        {!locationSelected && !detecting && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-[400] pointer-events-none">
+            <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full">
+              👇 اضغط على مكانك في الخريطة
+            </span>
+          </div>
+        )}
         <Map
           center={
             locationSelected
@@ -310,29 +347,53 @@ const LocationPicker = ({
                 : [33.5731, -7.5898]
           }
           zoom={locationSelected ? 16 : city ? 13 : 12}
-          markers={locationSelected ? [{ lat: value.lat, lng: value.lng, popup: value.address || 'موقع التسليم' }] : []}
+          markers={[]}
           onLocationSelect={handleMapLocationSelect}
-          height="280px"
+          accuracyRadius={locationSelected && value?.source === 'gps' ? value?.accuracy : null}
+          height="300px"
           requireAuth={false}
         />
       </div>
 
       {/* Selected location chip */}
-      {locationSelected && value?.address && (
-        <div className="flex items-start gap-2 p-3 bg-green-50 border border-green-200 rounded-lg" data-testid="location-selected-state">
-          <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-green-800 min-w-0">
-            <p className="font-medium">الموقع المحدد</p>
-            <p className="text-xs text-green-700 mt-0.5 line-clamp-2">{value.address}</p>
-            <p className="text-xs font-mono text-green-600 mt-0.5" dir="ltr">
-              {value.lat?.toFixed(5)}, {value.lng?.toFixed(5)}
-            </p>
+      {locationSelected && (
+        <div className="flex items-start gap-3 p-3 bg-green-50 border border-green-200 rounded-xl" data-testid="location-selected-state">
+          <div className="w-9 h-9 flex-shrink-0 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircleIcon className="w-5 h-5 text-green-600" />
           </div>
+          <div className="text-sm text-green-800 min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold">✅ تم تحديد الموقع</p>
+              {value?.source === 'gps' && (
+                <span className="text-xs bg-green-200 text-green-800 px-2 py-0.5 rounded-full">GPS</span>
+              )}
+              {value?.source === 'manual' && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">يدوي</span>
+              )}
+              {value?.source === 'search' && (
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">بحث</span>
+              )}
+            </div>
+            {value?.address && (
+              <p className="text-xs text-green-700 mt-1 line-clamp-2">{value.address}</p>
+            )}
+            {value?.accuracy && (
+              <p className="text-xs text-green-600 mt-0.5">دقة الموقع: ±{value.accuracy} متر</p>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label="إعادة تحديد الموقع"
+            onClick={() => { setLocationSelected(false); onChange({}) }}
+            className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+          >
+            <XMarkIcon className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      <p className="text-xs text-gray-400">
-        ابحث بالاسم أو اضغط على الخريطة أو استخدم GPS لتحديد موقع التسليم.
+      <p className="text-xs text-gray-400 text-center">
+        👇 اضغط على الخريطة · أو ابحث بالاسم · أو اضغط GPS أعلاه لتحديد موقع التسليم بدقة
       </p>
     </div>
   )
