@@ -1,4 +1,4 @@
-import { forwardRef } from 'react'
+import { forwardRef, useId } from 'react'
 import clsx from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -12,12 +12,20 @@ const Input = forwardRef(({
   leftIcon,
   rightIcon,
   helperText,
+  id,
+  required,
   ...props
 }, ref) => {
+  const generatedId = useId()
+  const inputId = id || generatedId
+  const errorId = error ? `${inputId}-error` : undefined
+  const helperId = helperText && !error ? `${inputId}-helper` : undefined
+  const describedBy = [errorId, helperId].filter(Boolean).join(' ') || undefined
+
   return (
     <div className="w-full">
       {label && (
-        <label className="input-label">
+        <label className="input-label" htmlFor={inputId}>
           {label}
         </label>
       )}
@@ -28,8 +36,13 @@ const Input = forwardRef(({
           </div>
         )}
         <input
+          id={inputId}
           type={type}
           ref={ref}
+          required={required}
+          aria-required={required || undefined}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={describedBy}
           className={cn(
             'input',
             leftIcon && 'pl-10',
@@ -46,10 +59,10 @@ const Input = forwardRef(({
         )}
       </div>
       {error && (
-        <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
+        <p id={errorId} role="alert" className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
       )}
       {helperText && !error && (
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
+        <p id={helperId} className="mt-1 text-sm text-gray-500 dark:text-gray-400">{helperText}</p>
       )}
     </div>
   )

@@ -7,6 +7,7 @@ import {
 } from './productImages'
 import { withRetry } from '@/utils/withRetry'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
+import { isMissingDeletedAtColumnError } from '@/utils/supabaseErrors'
 
 const PRODUCT_LIST_FIELDS = `
   id, name, description, category, subcategory,
@@ -76,11 +77,14 @@ const ORDER_DETAIL_SELECT_WITHOUT_IMAGES = `
 export const productsApi = {
   getAll: async (filters = {}) => {
     return withRetry(async () => {
-      const buildQuery = (selectClause) => {
+      const buildQuery = (selectClause, includeDeletedFilter = true) => {
         let query = supabase
           .from('products')
           .select(selectClause, { count: 'exact' })
-          .is('deleted_at', null)
+
+        if (includeDeletedFilter) {
+          query = query.is('deleted_at', null)
+        }
 
         if (filters.category) {
           query = query.eq('category', filters.category)
@@ -113,11 +117,30 @@ export const productsApi = {
           .order('created_at', { ascending: false })
       }
 
-      const { data, count } = await runProductImageFallbackQuery({
-        buildQuery,
-        selectWithImages: PRODUCT_LIST_SELECT,
-        selectWithoutImages: PRODUCT_LIST_FIELDS,
-      })
+      let data
+      let count
+
+      try {
+        const result = await runProductImageFallbackQuery({
+          buildQuery: (selectClause) => buildQuery(selectClause, true),
+          selectWithImages: PRODUCT_LIST_SELECT,
+          selectWithoutImages: PRODUCT_LIST_FIELDS,
+        })
+        data = result.data
+        count = result.count
+      } catch (error) {
+        if (!isMissingDeletedAtColumnError(error)) {
+          throw error
+        }
+
+        const result = await runProductImageFallbackQuery({
+          buildQuery: (selectClause) => buildQuery(selectClause, false),
+          selectWithImages: PRODUCT_LIST_SELECT,
+          selectWithoutImages: PRODUCT_LIST_FIELDS,
+        })
+        data = result.data
+        count = result.count
+      }
 
       return { data, total: count }
     }, { maxRetries: 3, baseDelay: 1000 })()

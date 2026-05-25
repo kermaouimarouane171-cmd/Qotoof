@@ -3,6 +3,13 @@
  * Reusable commands for E2E tests
  */
 
+import { addMatchImageSnapshotCommand } from 'cypress-image-snapshot/command'
+
+addMatchImageSnapshotCommand({
+  capture: 'viewport',
+  customSnapshotsDir: 'cypress/snapshots',
+})
+
 // ============================================
 // 1. AUTHENTICATION COMMANDS
 // ============================================
@@ -25,15 +32,24 @@ const completeOnboardingIfNeeded = () => {
   })
 }
 
-Cypress.Commands.add('login', (email, password) => {
-  cy.session([email, password], () => {
-    cy.visit('/login')
-    cy.get('input[type="email"]').type(email)
-    cy.get('input[type="password"]').type(password)
-    cy.contains('button', /sign in|login/i).click()
-    cy.url().should('not.include', '/login')
-    completeOnboardingIfNeeded()
+const waitForAliasIfRegistered = (aliasName) => {
+  cy.then(() => {
+    const aliases = Cypress.state('aliases') || {}
+    if (aliases[aliasName]) {
+      cy.wait(`@${aliasName}`, { timeout: 15000 })
+    }
   })
+}
+
+Cypress.Commands.add('login', (email, password) => {
+  cy.visit('/login')
+  cy.get('[data-testid="login-email-input"]').clear().type(email)
+  cy.get('[data-testid="login-password-input"]').clear().type(password)
+  cy.get('[data-testid="login-submit-button"]').click()
+
+  waitForAliasIfRegistered('secureLogin')
+
+  completeOnboardingIfNeeded()
 })
 
 /**
@@ -92,8 +108,8 @@ Cypress.Commands.add('loginAs', (role = 'buyer') => {
  */
 Cypress.Commands.add('logout', () => {
   cy.get('[data-testid="user-menu"]').click()
-  cy.contains(/sign out|logout/i).click()
-  cy.url().should('include', '/login')
+  cy.get('[data-testid="logout-button"]').click()
+  cy.url().should('not.include', '/vendor')
 })
 
 // ============================================

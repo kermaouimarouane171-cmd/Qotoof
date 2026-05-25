@@ -15,6 +15,7 @@
  */
 
 import { defineConfig } from 'cypress'
+import { addMatchImageSnapshotPlugin } from 'cypress-image-snapshot/plugin.js'
 
 const localQaPassword = ['Test', '123456'].join('@')
 
@@ -47,8 +48,12 @@ export default defineConfig({
     DRIVER_PASSWORD: process.env.CYPRESS_DRIVER_PASSWORD || localQaPassword,
   },
   e2e: {
-    baseUrl: 'http://localhost:3000',
+    baseUrl: 'http://localhost:5173',
     specPattern: 'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
     supportFile: 'cypress/support/e2e.js',
+    setupNodeEvents(on, config) {
+      addMatchImageSnapshotPlugin(on, config)
+      return config
+    },
   },
 })

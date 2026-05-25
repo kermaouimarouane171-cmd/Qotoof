@@ -40,3 +40,13 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check bundle size regression
+        run: npm run build:check
+        env:
+          CI: true
+
+      - name: Lighthouse CI
+        run: |
+          npm install -g @lhci/cli
+          lhci autorun

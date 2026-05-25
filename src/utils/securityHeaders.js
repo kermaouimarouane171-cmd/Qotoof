@@ -45,6 +45,7 @@ export const generateCSP = (env = 'production') => {
       'https://*.googleusercontent.com',
       'https://*.firebaseapp.com',
       'https://images.unsplash.com', // Product images
+      'https://cdn.pixabay.com', // Legacy seeded product images
     ],
 
     // Only allow fonts from self and Google Fonts

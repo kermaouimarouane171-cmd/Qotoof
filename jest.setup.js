@@ -1,4 +1,7 @@
 import '@testing-library/jest-dom'
+import { toHaveNoViolations } from 'jest-axe'
+
+expect.extend(toHaveNoViolations)
 
 // Mock import.meta.env for Vite (must be before any imports)
 if (typeof globalThis.import === 'undefined') {

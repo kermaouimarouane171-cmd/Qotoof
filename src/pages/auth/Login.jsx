@@ -136,13 +136,13 @@ const LoginPage = () => {
       </div>
       
       {error && (
-        <div className="alert-error mb-6" data-cy="login-error">
+        <div className="alert-error mb-6" data-cy="login-error" role="alert" aria-live="assertive">
           {error}
         </div>
       )}
       
       {/* Email Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" data-testid="login-form">
         <Input
           label={t('auth.login.emailAddress', 'Email address')}
           type="email"
@@ -150,7 +150,9 @@ const LoginPage = () => {
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t('auth.login.emailPlaceholder', 'Enter your email address')}
           autoComplete="email"
+          autoFocus
           data-cy="email-input"
+          data-testid="login-email-input"
         />
 
         <div>
@@ -161,6 +163,7 @@ const LoginPage = () => {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
             data-cy="password-input"
+            data-testid="login-password-input"
             rightIcon={
               <button
                 type="button"
@@ -177,7 +180,7 @@ const LoginPage = () => {
             }
           />
           <div className="flex justify-end mt-2">
-            <Link to="/forgot-password" className="text-sm text-green-600 font-medium hover:underline">
+            <Link to="/forgot-password" className="text-sm text-green-600 font-medium hover:underline" data-testid="forgot-password-link">
               {t('auth.login.forgotPassword', 'Forgot password?')}
             </Link>
           </div>
@@ -193,7 +196,7 @@ const LoginPage = () => {
           </div>
         )}
 
-        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading} data-cy="login-button">
+        <Button type="submit" variant="primary" className="w-full py-3" isLoading={loading} data-cy="login-button" data-testid="login-submit-button">
           {t('auth.login.signIn', 'Sign In')}
         </Button>
       </form>

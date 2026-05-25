@@ -366,7 +366,7 @@ function RegisterPage() {
   const progressPercent = Math.round((step / TOTAL_STEPS) * 100)
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6" dir="rtl">
+    <div className="max-w-3xl mx-auto p-4 sm:p-6" dir="rtl" data-testid="register-page">
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sm:p-8">
         <div className="mb-6">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
@@ -414,7 +414,7 @@ function RegisterPage() {
           </div>
         </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
+        <form className="space-y-5" onSubmit={handleSubmit} data-testid="register-form">
           {errors.general && (
             <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">
               {errors.general}
@@ -422,7 +422,7 @@ function RegisterPage() {
           )}
 
           {step === 1 && (
-            <section className="space-y-4">
+            <section className="space-y-4" data-testid="register-step-1">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step1.title', 'اختر نوع حسابك')}
               </h2>
@@ -431,6 +431,7 @@ function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('buyer')}
+                  data-testid="register-role-buyer"
                   className={`rounded-xl border-2 p-4 text-right transition ${
                     formData.role === 'buyer'
                       ? 'border-green-500 bg-green-50'
@@ -445,6 +446,7 @@ function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('vendor')}
+                  data-testid="register-role-vendor"
                   className={`rounded-xl border-2 p-4 text-right transition ${
                     formData.role === 'vendor'
                       ? 'border-green-500 bg-green-50'
@@ -459,6 +461,7 @@ function RegisterPage() {
                 <button
                   type="button"
                   onClick={() => handleRoleChange('driver')}
+                  data-testid="register-role-driver"
                   className={`rounded-xl border-2 p-4 text-right transition ${
                     formData.role === 'driver'
                       ? 'border-green-500 bg-green-50'
@@ -476,7 +479,7 @@ function RegisterPage() {
           )}
 
           {step === 2 && (
-            <section className="space-y-4">
+            <section className="space-y-4" data-testid="register-step-2">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step2.title', 'المعلومات الأساسية')}
               </h2>
@@ -489,6 +492,7 @@ function RegisterPage() {
                   onChange={handleChange}
                   error={errors.firstName}
                   placeholder={t('auth.register.firstNamePlaceholder', 'أدخل الاسم الشخصي')}
+                  data-testid="register-first-name-input"
                 />
 
                 <Input
@@ -498,6 +502,7 @@ function RegisterPage() {
                   onChange={handleChange}
                   error={errors.lastName}
                   placeholder={t('auth.register.lastNamePlaceholder', 'أدخل الاسم العائلي')}
+                  data-testid="register-last-name-input"
                 />
               </div>
 
@@ -509,6 +514,7 @@ function RegisterPage() {
                 onChange={handleChange}
                 error={errors.email}
                 placeholder={t('auth.register.emailPlaceholder', 'example@email.com')}
+                data-testid="register-email-input"
               />
 
               <Input
@@ -519,6 +525,7 @@ function RegisterPage() {
                 onChange={handleChange}
                 error={errors.phone}
                 placeholder={t('auth.register.phonePlaceholder', '+212600000000')}
+                data-testid="register-phone-input"
               />
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -530,6 +537,7 @@ function RegisterPage() {
                   onChange={handleChange}
                   error={errors.password}
                   placeholder={t('auth.register.passwordPlaceholder', 'أدخل كلمة المرور')}
+                  data-testid="register-password-input"
                 />
 
                 <Input
@@ -540,13 +548,14 @@ function RegisterPage() {
                   onChange={handleChange}
                   error={errors.confirmPassword}
                   placeholder={t('auth.register.confirmPasswordPlaceholder', 'أعد إدخال كلمة المرور')}
+                  data-testid="register-confirm-password-input"
                 />
               </div>
             </section>
           )}
 
           {step === 3 && (
-            <section className="space-y-4">
+            <section className="space-y-4" data-testid="register-step-3">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step3.title', 'معلومات الملف الشخصي')}
               </h2>
@@ -560,6 +569,7 @@ function RegisterPage() {
                     onChange={handleChange}
                     error={errors.deliveryAddress}
                     placeholder={t('auth.register.deliveryAddressPlaceholder', 'المدينة، الحي، الشارع، رقم الباب')}
+                    data-testid="register-delivery-address-input"
                   />
 
                   <div>
@@ -571,6 +581,7 @@ function RegisterPage() {
                       value={formData.preferredPaymentMethod}
                       onChange={handleChange}
                       className="input"
+                      data-testid="register-payment-method-select"
                     >
                       <option value="cash">{t('auth.register.payment.cash', 'الدفع عند الاستلام')}</option>
                       <option value="bank_transfer">{t('auth.register.payment.bankTransfer', 'تحويل بنكي')}</option>
@@ -592,12 +603,13 @@ function RegisterPage() {
                     onChange={handleChange}
                     error={errors.storeName}
                     placeholder={t('auth.register.storeNamePlaceholder', 'أدخل اسم المتجر')}
+                    data-testid="register-store-name-input"
                   />
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className="input-label">{t('auth.register.storeType', 'نوع المتجر')}</label>
-                      <select name="storeType" value={formData.storeType} onChange={handleChange} className="input">
+                      <select name="storeType" value={formData.storeType} onChange={handleChange} className="input" data-testid="register-store-type-select">
                         <option value="">{t('auth.register.storeType.placeholder', 'اختر نوع المتجر')}</option>
                         <option value="farm">{t('auth.register.storeType.farm', 'مزرعة')}</option>
                         <option value="cooperative">{t('auth.register.storeType.cooperative', 'تعاونية')}</option>
@@ -609,7 +621,7 @@ function RegisterPage() {
 
                     <div>
                       <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
-                      <select name="city" value={formData.city} onChange={handleChange} className="input">
+                      <select name="city" value={formData.city} onChange={handleChange} className="input" data-testid="register-city-select">
                         <option value="">{t('auth.register.city.placeholder', 'اختر المدينة')}</option>
                         {CITIES.map((city) => (
                           <option key={city} value={city}>
@@ -629,6 +641,7 @@ function RegisterPage() {
                     }}
                     error={errors.cin}
                     required
+                    inputTestId="register-cin-input"
                   />
                 </>
               )}
@@ -637,7 +650,7 @@ function RegisterPage() {
                 <>
                   <div>
                     <label className="input-label">{t('auth.register.vehicleType', 'نوع المركبة')}</label>
-                    <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} className="input">
+                    <select name="vehicleType" value={formData.vehicleType} onChange={handleChange} className="input" data-testid="register-vehicle-type-select">
                       <option value="motorcycle">{t('auth.register.vehicle.motorcycle', 'دراجة نارية')}</option>
                       <option value="car">{t('auth.register.vehicle.car', 'سيارة')}</option>
                       <option value="van">{t('auth.register.vehicle.van', 'شاحنة صغيرة')}</option>
@@ -653,6 +666,7 @@ function RegisterPage() {
                     onChange={handleChange}
                     error={errors.vehiclePlate}
                     placeholder={t('auth.register.vehiclePlatePlaceholder', '123-أ-45')}
+                    data-testid="register-vehicle-plate-input"
                   />
 
                   <CINInput
@@ -663,6 +677,7 @@ function RegisterPage() {
                     }}
                     error={errors.cin}
                     required
+                    inputTestId="register-cin-input"
                   />
                 </>
               )}
@@ -670,7 +685,7 @@ function RegisterPage() {
           )}
 
           {step === 4 && (
-            <section className="space-y-4">
+            <section className="space-y-4" data-testid="register-step-4">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step4.title', 'تأكيد البيانات')}
               </h2>
@@ -708,6 +723,7 @@ function RegisterPage() {
                       setAgreeTerms(e.target.checked)
                       clearFieldError('terms')
                     }}
+                    data-testid="register-terms-checkbox"
                     className="mt-1 w-5 h-5 text-green-600 rounded border-gray-300 focus:ring-green-500"
                   />
                   <div className="text-sm text-gray-700">
@@ -738,16 +754,16 @@ function RegisterPage() {
           )}
 
           <div className="flex items-center justify-between gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={goBack} disabled={step === 1 || loading}>
+            <Button type="button" variant="ghost" onClick={goBack} disabled={step === 1 || loading} data-testid="register-back-button">
               {t('auth.register.actions.back', 'السابق')}
             </Button>
 
             {step < TOTAL_STEPS ? (
-              <Button type="button" variant="primary" onClick={goNext}>
+              <Button type="button" variant="primary" onClick={goNext} data-testid="register-next-button">
                 {t('auth.register.actions.next', 'التالي')}
               </Button>
             ) : (
-              <Button type="submit" variant="primary" isLoading={loading}>
+              <Button type="submit" variant="primary" isLoading={loading} data-testid="register-submit-button">
                 {t('auth.register.actions.submit', 'إنشاء الحساب')}
               </Button>
             )}

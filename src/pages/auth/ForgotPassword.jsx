@@ -38,7 +38,7 @@ const ForgotPasswordPage = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto" dir="rtl" data-cy="forgot-password-page">
+    <div className="max-w-md mx-auto" dir="rtl" data-cy="forgot-password-page" data-testid="forgot-password-page">
       <h2 className="text-2xl font-bold text-gray-900 mb-2">
         {t('auth.forgotPassword.title', 'نسيت كلمة المرور')}
       </h2>
@@ -47,7 +47,7 @@ const ForgotPasswordPage = () => {
       </p>
 
       {success ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4" data-cy="forgot-password-success">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4" data-cy="forgot-password-success" data-testid="forgot-password-success">
           <p className="text-green-700 text-sm">
             {t('auth.forgotPassword.success', 'تم إرسال رابط إعادة التعيين إذا كان البريد الإلكتروني مسجلًا لدينا.')}
           </p>
@@ -56,9 +56,9 @@ const ForgotPasswordPage = () => {
           </Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4" data-cy="forgot-password-form">
+        <form onSubmit={handleSubmit} className="space-y-4" data-cy="forgot-password-form" data-testid="forgot-password-form">
           {error && (
-            <div className="alert-error" data-cy="forgot-password-error">{error}</div>
+            <div className="alert-error" data-cy="forgot-password-error" data-testid="forgot-password-error">{error}</div>
           )}
 
           <Input
@@ -72,9 +72,10 @@ const ForgotPasswordPage = () => {
             }}
             placeholder={t('auth.forgotPassword.emailPlaceholder', 'name@example.com')}
             data-cy="forgot-password-email-input"
+            data-testid="forgot-password-email-input"
           />
 
-          <Button type="submit" variant="primary" className="w-full" isLoading={loading} data-cy="forgot-password-submit-button">
+          <Button type="submit" variant="primary" className="w-full" isLoading={loading} data-cy="forgot-password-submit-button" data-testid="forgot-password-submit-button">
             {t('auth.forgotPassword.submit', 'إرسال رابط إعادة التعيين')}
           </Button>
 

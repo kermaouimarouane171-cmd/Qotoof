@@ -60,11 +60,22 @@ type BuyerFilters = {
 type AdminFilters = {
   status?: OrderStatusFilter
   search?: string
+  vendorId?: string
+  dateFrom?: string
+  dateTo?: string
 }
 
 type Pagination = {
   page?: number
   limit?: number
+}
+
+type OrderStatusMetadata = {
+  cancelled_reason?: string
+  confirmed_at?: string
+  cancelled_at?: string
+  delivered_at?: string
+  [key: string]: unknown
 }
 
 type ReturnRequestPayload = {
@@ -89,6 +100,19 @@ const ACTIVE_ORDER_STATUSES = [
   'on_the_way',
 ]
 
+const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
+  pending: ['vendor_accepted', 'vendor_rejected', 'cancelled'],
+  vendor_accepted: ['driver_assigned', 'driver_accepted', 'cancelled'],
+  driver_assigned: ['driver_accepted', 'cancelled'],
+  driver_accepted: ['driver_picked_up', 'cancelled'],
+  driver_picked_up: ['on_the_way', 'cancelled'],
+  on_the_way: ['delivered', 'cancelled'],
+  delivered: ['refunded'],
+  cancelled: [],
+  vendor_rejected: [],
+  refunded: [],
+}
+
 // ── Select clauses ────────────────────────────────────────────────────────────
 
 const VENDOR_ORDERS_SELECT = `
@@ -110,13 +134,15 @@ const VENDOR_ORDERS_SELECT = `
 const BUYER_ORDERS_SELECT = `
   *,
   vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name, images:product_images(url, is_primary)))
+  items:order_items(*, product:products(id, name, images:product_images(url, is_primary))),
+  deliveries:deliveries(*)
 `
 
 const BUYER_ORDERS_SELECT_NO_IMAGES = `
   *,
   vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name))
+  items:order_items(*, product:products(id, name)),
+  deliveries:deliveries(*)
 `
 
 const ADMIN_ORDERS_SELECT = `
@@ -410,6 +436,20 @@ export const fetchAdminOrders = async (
         )
       }
 
+      if (filters.vendorId) {
+        query = query.eq('vendor_id', filters.vendorId)
+      }
+
+      if (filters.dateFrom) {
+        query = query.gte('created_at', new Date(filters.dateFrom).toISOString())
+      }
+
+      if (filters.dateTo) {
+        const end = new Date(filters.dateTo)
+        end.setHours(23, 59, 59, 999)
+        query = query.lte('created_at', end.toISOString())
+      }
+
       return query
     }
 
@@ -428,7 +468,14 @@ export const fetchAdminOrders = async (
     }
 
     const { data, count } = result
-    return { data: (data as Order[]) || [], error: null, total: count }
+    const normalizedData = ((data as Order[]) || []).map((order) => ({
+      ...order,
+      commission_data: {
+        subtotal: (order as Record<string, unknown>).subtotal ?? 0,
+        total_amount: (order as Record<string, unknown>).total_amount ?? (order as Record<string, unknown>).total ?? 0,
+      },
+    })) as Order[]
+    return { data: normalizedData, error: null, total: count }
   } catch (err) {
     return { data: null, error: asPostgrestError(err), total: null }
   }
@@ -478,9 +525,20 @@ export const fetchOrderById = async (
       return { data: (hydrated?.[0] as Order) || (fallback.data as Order), error: null }
     }
 
+    const order = result.data as Order
+
+    if (!order) {
+      const notFoundError = { message: 'NOT_FOUND', code: 'NOT_FOUND' } as PostgrestError
+      return { data: null, error: notFoundError }
+    }
+
     return { data: result.data as Order, error: null }
   } catch (err) {
-    return { data: null, error: asPostgrestError(err) }
+    const error = asPostgrestError(err)
+    if ((error as { code?: string }).code === 'PGRST116') {
+      return { data: null, error: { ...error, message: 'NOT_FOUND', code: 'NOT_FOUND' } as PostgrestError }
+    }
+    return { data: null, error }
   }
 }
 
@@ -495,26 +553,107 @@ export const fetchOrderById = async (
 export const updateOrderStatus = async (
   orderId: string,
   status: string,
-  updatedBy: string | null = null,
+  metadataOrUpdatedBy: OrderStatusMetadata | string | null = null,
 ): Promise<SingleOrderResult> => {
-  void updatedBy
-
   try {
+    const metadata = typeof metadataOrUpdatedBy === 'object' && metadataOrUpdatedBy !== null
+      ? metadataOrUpdatedBy
+      : {}
+
+    // 1) Load current status for transition validation
+    const { data: existingOrder, error: existingError } = await supabase
+      .from('orders')
+      .select('id, status, buyer_id, vendor_id, order_number')
+      .eq('id', orderId)
+      .single()
+
+    if (existingError) throw existingError
+
+    const currentStatus = (existingOrder as { status?: string })?.status || ''
+    const allowedNext = ALLOWED_STATUS_TRANSITIONS[currentStatus] || []
+
+    if (currentStatus && currentStatus !== status && !allowedNext.includes(status)) {
+      throw {
+        message: `INVALID_STATUS_TRANSITION: ${currentStatus} -> ${status}`,
+        code: 'INVALID_STATUS_TRANSITION',
+      } as PostgrestError
+    }
+
+    // 2) Build update payload with metadata/timestamps
+    const updatePayload: Record<string, unknown> = {
+      status,
+      updated_at: new Date().toISOString(),
+      ...metadata,
+    }
+
+    if (status === 'vendor_accepted' && !updatePayload.confirmed_at) {
+      updatePayload.confirmed_at = new Date().toISOString()
+    }
+
+    if ((status === 'cancelled' || status === 'vendor_rejected') && !updatePayload.cancelled_at) {
+      updatePayload.cancelled_at = new Date().toISOString()
+    }
+
+    if (status === 'delivered' && !updatePayload.delivered_at) {
+      updatePayload.delivered_at = new Date().toISOString()
+    }
+
+    // 3) Persist
     const { data, error } = await supabase
       .from('orders')
-      .update({
-        status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', orderId)
       .select()
       .single()
 
     if (error) throw error
+
+    // 4) Trigger notification (best effort)
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: (existingOrder as { buyer_id?: string })?.buyer_id || null,
+        type: 'order',
+        title: 'Order Status Updated',
+        message: `Order ${(existingOrder as { order_number?: string })?.order_number || orderId} moved to ${status}`,
+        data: {
+          order_id: orderId,
+          previous_status: currentStatus,
+          status,
+          metadata,
+        },
+        is_read: false,
+        created_at: new Date().toISOString(),
+      })
+
     return { data: data as Order, error: null }
   } catch (err) {
     return { data: null, error: asPostgrestError(err) }
   }
+}
+
+/**
+ * Subscribe to updates for a specific order row.
+ */
+export const subscribeToOrderById = (
+  orderId: string,
+  callback: (payload: RealtimePostgresChangesPayload<Order>) => void,
+) => {
+  const channel = supabase
+    .channel(`order-${orderId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `id=eq.${orderId}`,
+      },
+      callback,
+    )
+    .subscribe()
+
+  return () => supabase.removeChannel(channel)
 }
 
 // ── Misc ──────────────────────────────────────────────────────────────────────
@@ -563,6 +702,7 @@ export const ordersService = {
   fetchOrderById,
   updateOrderStatus,
   subscribeToVendorOrders,
+  subscribeToOrderById,
 }
 
 export default ordersService

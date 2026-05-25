@@ -51,12 +51,11 @@ const ProductCard = ({ product }) => {
   }
 
   return (
-    <article
+    <div
       data-testid="product-card"
       className="group block cursor-pointer"
       onClick={openProductDetails}
       onKeyDown={handleCardKeyDown}
-      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
       role="link"
       tabIndex={0}
     >
@@ -95,6 +94,7 @@ const ProductCard = ({ product }) => {
                 }}
                 className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
                 title="Report this product"
+                aria-label="الإبلاغ عن المنتج"
               >
                 <FlagIcon className="w-4 h-4 text-gray-600 hover:text-red-500" />
               </button>
@@ -104,6 +104,8 @@ const ProductCard = ({ product }) => {
             <button
               onClick={handleToggleFavorite}
               className="w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+              aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+              aria-pressed={favorited}
             >
               {favorited ? (
                 <HeartSolid className="w-5 h-5 text-red-500" />
@@ -119,6 +121,7 @@ const ProductCard = ({ product }) => {
               data-testid="add-to-cart-btn"
               onClick={handleQuickAdd}
               className="absolute bottom-3 right-3 w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
+              aria-label={`إضافة ${product.name} إلى السلة`}
             >
               <ShoppingCartIcon className="w-5 h-5" />
             </button>
@@ -212,7 +215,9 @@ const ProductCard = ({ product }) => {
           <div className="flex items-end justify-between pt-3 border-t border-gray-100">
             <div>
               <div className="flex items-baseline gap-1">
-                <span className="text-xl font-bold text-gray-900">{formatPrice(product.price_per_unit)}</span>
+                <span className="text-xl font-bold text-gray-900" aria-label={`السعر: ${Number(product.price_per_unit || 0)} درهم`}>
+                  {formatPrice(product.price_per_unit)}
+                </span>
                 {product.unit_type && <span className="text-sm text-gray-400">/{product.unit_type}</span>}
               </div>
               {product.min_order_quantity > 1 && product.unit_type && (
@@ -233,7 +238,7 @@ const ProductCard = ({ product }) => {
         category="product"
         categoryId={product.id}
       />
-    </article>
+    </div>
   )
 }
 

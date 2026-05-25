@@ -184,6 +184,7 @@ const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onVie
             className="inline-flex items-center gap-1.5 text-sm font-mono font-medium text-gray-700 hover:text-green-600 transition-colors"
             title={t('buyer.orders.orderCard.copyOrderNumber', 'Click to copy')}
             aria-label={`${t('buyer.orders.orderCard.copyOrderNumber', 'Click to copy')} ${order.order_number}`}
+            dir="ltr"
           >
             {order.order_number}
             <ClipboardDocumentIcon className="w-3.5 h-3.5 text-gray-400" />

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { validateCIN, autoFormatCIN, formatCIN } from '@/utils/cinValidation'
 import { ShieldCheckIcon, InformationCircleIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline'
 
-const CINInput = ({ value, onChange, error, label = 'رقم البطاقة الوطنية (CIN)', required = true, showHelp = true }) => {
+const CINInput = ({ value, onChange, error, label = 'رقم البطاقة الوطنية (CIN)', required = true, showHelp = true, inputTestId }) => {
   const [touched, setTouched] = useState(false)
   const [validationResult, setValidationResult] = useState(null)
 
@@ -58,6 +58,7 @@ const CINInput = ({ value, onChange, error, label = 'رقم البطاقة ال�
           onBlur={handleBlur}
           placeholder="AB12345 أو AB123456"
           maxLength={8}
+          data-testid={inputTestId}
           className={`input pl-10 pr-10 font-mono tracking-wider uppercase ${
             isValid ? 'border-green-500 bg-green-50' :
             displayError ? 'border-red-500 bg-red-50' : ''

@@ -5,6 +5,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
+import { auditLogger } from '@/services/auditLogger'
 import { logger } from '@/utils/logger'
 
 type TranslateFn = (key: string, fallback?: string) => string
@@ -126,10 +127,12 @@ export const validatePasswordStrength = (
   if (COMMON_PASSWORDS.includes(password.toLowerCase()))
     errors.push(key('passwordTooCommon', 'Password is too common'))
 
+  const shortPassword = password.length < 8
+
   return {
     valid: errors.length === 0,
     errors,
-    strength: errors.length === 0 ? 'strong' : errors.length <= 2 ? 'medium' : 'weak',
+    strength: shortPassword ? 'weak' : errors.length === 0 ? 'strong' : errors.length <= 2 ? 'medium' : 'weak',
   }
 }
 
@@ -201,12 +204,14 @@ export const useSecurityData = (): SecurityDataResult => {
  * }}
  */
 export const usePasswordStrength = (password: string = ''): PasswordStrengthResult => {
+  const normalizedPassword = typeof password === 'string' ? password : String(password ?? '')
+
   const checks = {
-    minLength: password.length >= 8,
-    uppercase: /[A-Z]/.test(password),
-    lowercase: /[a-z]/.test(password),
-    number: /[0-9]/.test(password),
-    special: /[^A-Za-z0-9]/.test(password),
+    minLength: normalizedPassword.length >= 8,
+    uppercase: /[A-Z]/.test(normalizedPassword),
+    lowercase: /[a-z]/.test(normalizedPassword),
+    number: /[0-9]/.test(normalizedPassword),
+    special: /[^A-Za-z0-9]/.test(normalizedPassword),
   }
 
   // Keep lowercase as an explicit check, but only award its score point
@@ -257,7 +262,7 @@ export const usePasswordStrength = (password: string = ''): PasswordStrengthResu
  * }}
  */
 export const useSecurityActions = (): SecurityActionsResult => {
-  const { disableMFA, enableMFA, revokeAllOtherSessions } = useAuthStore()
+  const { disableMFA, enableMFA, revokeAllOtherSessions, user } = useAuthStore()
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -284,9 +289,24 @@ export const useSecurityActions = (): SecurityActionsResult => {
   }, [])
 
   return {
-    disableMFA: async () => runAction(disableMFA),
-    enableMFA: async () => runAction(enableMFA),
-    revokeAllSessions: async () => runAction(revokeAllOtherSessions),
+    disableMFA: async () => {
+      await runAction(disableMFA)
+      if (user?.id) {
+        await auditLogger.logMFAAction('MFA_DISABLED', user.id)
+      }
+    },
+    enableMFA: async () => {
+      await runAction(enableMFA)
+      if (user?.id) {
+        await auditLogger.logMFAAction('MFA_ENABLED', user.id)
+      }
+    },
+    revokeAllSessions: async () => {
+      await runAction(revokeAllOtherSessions)
+      if (user?.id) {
+        await auditLogger.logSessionAction('SESSIONS_REVOKED_ALL', user.id)
+      }
+    },
     isPending,
     error,
   }
@@ -325,6 +345,9 @@ export const usePasswordChange = (): PasswordChangeHookResult => {
 
       const result = await updatePassword(newPassword)
       if (result.success) {
+        if (user?.id) {
+          await auditLogger.logSecurityAction('PASSWORD_CHANGED', user.id)
+        }
         setSuccess(true)
       } else {
         setError(result.error ?? 'Failed to update password')
