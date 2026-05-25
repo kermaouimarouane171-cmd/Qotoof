@@ -113,7 +113,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --legacy-peer-deps
       - run: npm run deploy:check
       - run: npm run build
       - uses: actions/upload-artifact@v4
