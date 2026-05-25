@@ -101,7 +101,10 @@ export const registerVendorProfileSchema = z.object({
   cin: z
     .string()
     .min(1, 'CIN is required')
-    .transform(cin => cin.trim().toUpperCase()),
+    .transform(cin => cin.trim().toUpperCase())
+    .refine(cin => /^[A-Z]{1,2}[0-9]{5,6}$/.test(cin), {
+      message: 'CIN غير صالح. الصيغة الصحيحة: 1-2 أحرف + 5-6 أرقام (مثال: T12345 أو AB123456)',
+    }),
 })
 
 /**
@@ -122,7 +125,10 @@ export const registerDriverProfileSchema = z.object({
   cin: z
     .string()
     .min(1, 'CIN is required')
-    .transform(cin => cin.trim().toUpperCase()),
+    .transform(cin => cin.trim().toUpperCase())
+    .refine(cin => /^[A-Z]{1,2}[0-9]{5,6}$/.test(cin), {
+      message: 'CIN غير صالح. الصيغة الصحيحة: 1-2 أحرف + 5-6 أرقام (مثال: T12345 أو AB123456)',
+    }),
 })
 
 /**

@@ -462,7 +462,7 @@ export function createAuthActions(set, get) {
         enforceRateLimit(checkPasswordResetRate, email)
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`
+          redirectTo: `${resolvePublicAppOrigin()}/reset-password`
         })
 
         if (error) {
