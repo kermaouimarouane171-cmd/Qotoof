@@ -34,8 +34,11 @@ jobs:
       - name: Lint
         run: npm run lint:ci
 
-      - name: Test
-        run: npm test -- --runInBand
+      - name: Test (unit + integration)
+        run: npm test -- --runInBand --testPathIgnorePatterns='src/__tests__/snapshots' --forceExit
+
+      - name: Test (snapshots)
+        run: npm test -- --testPathPattern='src/__tests__/snapshots' --forceExit
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

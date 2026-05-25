@@ -35,7 +35,7 @@ const resolvePublicAppOrigin = () => {
     return window.location.origin
   }
 
-  if (typeof import.meta?.env?.VITE_APP_URL === 'string' && import.meta.env.VITE_APP_URL.trim()) {
+  if (typeof import.meta.env.VITE_APP_URL === 'string' && import.meta.env.VITE_APP_URL.trim()) {
     return import.meta.env.VITE_APP_URL.trim().replace(/\/$/, '')
   }
 
