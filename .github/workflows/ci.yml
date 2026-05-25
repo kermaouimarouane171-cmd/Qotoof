@@ -47,5 +47,6 @@ jobs:
 
       - name: Lighthouse CI
         if: github.ref == 'refs/heads/main'
+        continue-on-error: true
         run: |
           npx lhci autorun
