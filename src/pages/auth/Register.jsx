@@ -7,6 +7,7 @@ import TrustBadges from '@/components/ui/TrustBadges'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import CINInput from '@/components/ui/CINInput'
+import CityAutocomplete from '@/components/ui/CityAutocomplete'
 import { useAuthStore } from '@/store/authStore'
 import { checkSignupRate } from '@/utils/rateLimiter'
 import {
@@ -27,18 +28,7 @@ const STEP_LABELS = [
   'auth.register.steps.confirm',
 ]
 
-const CITIES = [
-  'الدار البيضاء',
-  'الرباط',
-  'مراكش',
-  'فاس',
-  'طنجة',
-  'أكادير',
-  'مكناس',
-  'وجدة',
-  'القنيطرة',
-  'تطوان',
-]
+
 
 const emptyErrors = {
   role: '',
@@ -617,15 +607,15 @@ function RegisterPage() {
 
                     <div>
                       <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
-                      <select name="city" value={formData.city} onChange={handleChange} className="input" data-testid="register-city-select">
-                        <option value="">{t('auth.register.city.placeholder', 'اختر المدينة')}</option>
-                        {CITIES.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
+                      <CityAutocomplete
+                        value={formData.city}
+                        onChange={(val) => {
+                          setFormData((prev) => ({ ...prev, city: val }))
+                          clearFieldError('city')
+                        }}
+                        placeholder={t('auth.register.city.placeholder', 'ابحث عن مدينتك...')}
+                        error={errors.city}
+                      />
                     </div>
                   </div>
 
