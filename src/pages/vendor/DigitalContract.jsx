@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore'
 import { MOROCCAN_BANKS } from '@/constants/banks'
 import { APP_CONFIG } from '@/config/appConfig'
 import toast from 'react-hot-toast'
+import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
 
 const DigitalContract = () => {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ const DigitalContract = () => {
     cin: '',
     phone: '',
     email: '',
+    paypal_email: '',
     bank_name: '',
     bank_iban: '',
     bank_account_holder: '',
@@ -37,6 +39,7 @@ const DigitalContract = () => {
       form.cin.trim() &&
       form.phone.trim() &&
       form.email.trim() &&
+      hasValidPayPalEmail(form.paypal_email) &&
       form.bank_name.trim() &&
       form.bank_iban.trim() &&
       form.bank_account_holder.trim() &&
@@ -103,6 +106,7 @@ const DigitalContract = () => {
         full_name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
         phone: profile?.phone || '',
         email: profile?.email || user?.email || '',
+        paypal_email: profile?.paypal_email || profile?.email || user?.email || '',
         bank_account_holder: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim(),
       }))
 
@@ -162,6 +166,8 @@ const DigitalContract = () => {
           agreement_accepted: true,
           agreement_accepted_at: nowIso,
           is_active: true,
+          paypal_email: form.paypal_email.trim().toLowerCase(),
+          payout_method: 'paypal',
         })
         .eq('id', user.id)
 
@@ -174,6 +180,7 @@ const DigitalContract = () => {
           agreement_accepted: true,
           agreement_accepted_at: nowIso,
           is_active: true,
+          paypal_email: form.paypal_email.trim().toLowerCase(),
         },
       }))
 
@@ -210,6 +217,13 @@ const DigitalContract = () => {
             <Input label="رقم بطاقة الهوية (CIN)" value={form.cin} onChange={(e) => setForm((p) => ({ ...p, cin: e.target.value }))} required />
             <Input label="رقم الهاتف" value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))} required />
             <Input label="البريد الإلكتروني" type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} required />
+            <Input
+              label="PayPal Email (إلزامي)"
+              type="email"
+              value={form.paypal_email}
+              onChange={(e) => setForm((p) => ({ ...p, paypal_email: e.target.value }))}
+              required
+            />
 
             <div>
               {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
@@ -248,8 +262,14 @@ const DigitalContract = () => {
 
 5. المعاملات المحسوبة: تُحسب العمولة فقط على المعاملات التي تم تأكيدها داخل التطبيق بضغط زر 'تم استلام الدفع'.
 
-6. إعادة ضبط شهرية: يبدأ عداد العمولة من الصفر في أول كل شهر ميلادي جديد بعد دفع الضريبة السابقة.`}
+6. قنوات تحويل المستحقات: أوافق أن جميع تحويلات مستحقاتي من المنصة تتم عبر PayPal فقط، وأتعهد بالحفاظ على بريد PayPal صحيح ومفعل.
+
+7. إعادة ضبط شهرية: يبدأ عداد العمولة من الصفر في أول كل شهر ميلادي جديد بعد دفع الضريبة السابقة.`}
           </div>
+
+          {form.paypal_email && !hasValidPayPalEmail(form.paypal_email) && (
+            <p className="mt-3 text-sm text-red-600">يرجى إدخال بريد PayPal إلكتروني صالح قبل التوقيع.</p>
+          )}
         </Card>
 
         <Card className="p-6 sm:p-8">

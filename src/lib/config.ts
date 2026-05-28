@@ -6,6 +6,15 @@
 
 import { createClient } from '@supabase/supabase-js'
 
+declare global {
+  interface Window {
+    __QOTOOF_CONFIG__?: {
+      getConfig: typeof getConfig
+      fetchPublicConfig: typeof fetchPublicConfig
+    }
+  }
+}
+
 // Type definitions
 export interface PublicConfig {
   supabase: {

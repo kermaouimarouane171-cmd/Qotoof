@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { profilesService } from '@/services/profilesService'
-import { Card, Input, LoadingSpinner } from '@/components/ui'
+import { Card, Input, LoadingSpinner, Tooltip } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import DeliveryPreferences from '@/components/driver/DeliveryPreferences'
 import DeliveryPaymentPolicy from '@/components/driver/DeliveryPaymentPolicy'
@@ -15,6 +16,7 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { auditLogger } from '@/services/auditLogger'
+import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
 
 const normalizeDistanceValue = (value, fallback) => {
   const numericValue = Number(value)
@@ -23,6 +25,7 @@ const normalizeDistanceValue = (value, fallback) => {
 
 const DriverSettings = () => {
   const { t } = useTranslation()
+  const location = useLocation()
   const { user, profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -40,6 +43,8 @@ const DriverSettings = () => {
   const [driverDeliveryPaymentCash, setDriverDeliveryPaymentCash] = useState(true)
   const [driverDeliveryPaymentTransfer, setDriverDeliveryPaymentTransfer] = useState(true)
   const [driverDeliveryPaymentNotes, setDriverDeliveryPaymentNotes] = useState('')
+  const [paypalEmail, setPaypalEmail] = useState('')
+  const [paypalVerified, setPaypalVerified] = useState(false)
   const [errors, setErrors] = useState({})
 
   const handleFieldChange = (setter, value) => {
@@ -78,6 +83,8 @@ const DriverSettings = () => {
       setDriverDeliveryPaymentCash(data?.driver_delivery_payment_cash ?? true)
       setDriverDeliveryPaymentTransfer(data?.driver_delivery_payment_transfer ?? true)
       setDriverDeliveryPaymentNotes(data?.driver_delivery_payment_notes || '')
+      setPaypalEmail(data?.paypal_email || '')
+      setPaypalVerified(data?.paypal_verified === true)
       setHasChanges(false)
     } catch (error) {
       logger.error('Error loading driver settings:', error)
@@ -124,8 +131,14 @@ const DriverSettings = () => {
       nextErrors.driverDeliveryPaymentMethod = 'اختر طريقة واحدة على الأقل لتحصيل رسم التوصيل.'
     }
 
+    if (!paypalEmail.trim()) {
+      nextErrors.paypalEmail = 'بريد PayPal الإلكتروني إلزامي للسائق.'
+    } else if (!hasValidPayPalEmail(paypalEmail)) {
+      nextErrors.paypalEmail = 'أدخل بريد PayPal إلكترونيًا صالحًا.'
+    }
+
     return nextErrors
-  }, [acceptedCargoSizes, driverDeliveryPaymentCash, driverDeliveryPaymentTransfer, licenseNumber, maxDeliveryDistanceKm, minDeliveryDistanceKm, t, vehiclePlate])
+  }, [acceptedCargoSizes, driverDeliveryPaymentCash, driverDeliveryPaymentTransfer, licenseNumber, maxDeliveryDistanceKm, minDeliveryDistanceKm, paypalEmail, t, vehiclePlate])
 
   const handleSave = useCallback(async () => {
     const validationErrors = validateForm()
@@ -157,6 +170,8 @@ const DriverSettings = () => {
             driver_delivery_payment_cash: previousProfile.driver_delivery_payment_cash,
             driver_delivery_payment_transfer: previousProfile.driver_delivery_payment_transfer,
             driver_delivery_payment_notes: previousProfile.driver_delivery_payment_notes,
+            paypal_email: previousProfile.paypal_email,
+            paypal_verified: previousProfile.paypal_verified,
           }
         : null
 
@@ -174,6 +189,8 @@ const DriverSettings = () => {
         driver_delivery_payment_cash: driverDeliveryPaymentCash,
         driver_delivery_payment_transfer: driverDeliveryPaymentTransfer,
         driver_delivery_payment_notes: driverDeliveryPaymentNotes || null,
+        paypal_email: paypalEmail.trim().toLowerCase(),
+        payout_method: 'paypal',
       }
 
       const { error } = await profilesService.updateProfile(user.id, updatePayload)
@@ -209,6 +226,7 @@ const DriverSettings = () => {
     notifyCustomerMessages,
     notifyNewDeliveries,
     notifyOrderUpdates,
+    paypalEmail,
     profile,
     t,
     user.id,
@@ -241,6 +259,12 @@ const DriverSettings = () => {
 
   return (
     <div>
+      {location.state?.paypalSetupRequired && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {location.state?.paypalSetupMessage || 'يجب إكمال إعداد PayPal للمتابعة.'}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
           {t('driver.settings.title', 'Driver Settings')}
@@ -254,6 +278,40 @@ const DriverSettings = () => {
       </div>
 
       <div className="space-y-6">
+        <Card className="p-6">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            PayPal Setup
+            <Tooltip
+              title="ما هو PayPal؟"
+              content={(
+                <>
+                  <p>PayPal خدمة دفع إلكتروني آمنة.</p>
+                  <p>نحتاجها لتحويل مستحقات التوصيل الخاصة بك.</p>
+                  <p>أدخل بريدًا مرتبطًا بحساب PayPal نشط.</p>
+                  <a className="text-blue-600 underline" href="https://www.paypal.com/ma/webapps/mpp/account-selection" target="_blank" rel="noreferrer">إنشاء حساب PayPal مجاني</a>
+                </>
+              )}
+            />
+          </h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="PayPal Email"
+              type="email"
+              value={paypalEmail}
+              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
+              error={errors.paypalEmail}
+              required
+              placeholder="name@example.com"
+            />
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
+              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
+                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <TruckIcon className="w-5 h-5 text-gray-600" />

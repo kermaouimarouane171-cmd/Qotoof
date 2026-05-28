@@ -10,43 +10,19 @@ import { UserCircleIcon, ShieldCheckIcon, CheckCircleIcon, ClockIcon, CameraIcon
 import toast from 'react-hot-toast'
 import { formatCIN, maskCIN, validateCIN } from '@/utils/cinValidation'
 import { logger } from '@/utils/logger'
+import { profileFormSchema } from '@/lib/validationSchemas'
 
-// ============================================================
-// FIELD VALIDATION
-// ============================================================
-const validateField = (name, value) => {
-  switch (name) {
-    case 'firstName':
-      if (!value.trim()) return 'First name is required'
-      if (value.trim().length < 2) return 'First name must be at least 2 characters'
-      if (value.trim().length > 50) return 'First name must be less than 50 characters'
-      if (!/^[a-zA-Z\u0600-\u06FF\s'-]+$/.test(value)) return 'First name can only contain letters'
-      return ''
-    case 'lastName':
-      if (!value.trim()) return 'Last name is required'
-      if (value.trim().length < 2) return 'Last name must be at least 2 characters'
-      if (value.trim().length > 50) return 'Last name must be less than 50 characters'
-      if (!/^[a-zA-Z\u0600-\u06FF\s'-]+$/.test(value)) return 'Last name can only contain letters'
-      return ''
-    case 'phone':
-      if (value && !/^[+]?[\d\s()-]{8,15}$/.test(value)) return 'Please enter a valid phone number'
-      return ''
-    case 'address':
-      if (value && value.length > 200) return 'Address must be less than 200 characters'
-      return ''
-    case 'city':
-      if (value && value.length > 50) return 'City must be less than 50 characters'
-      return ''
-    case 'storeName':
-      if (value && value.length < 3) return 'Store name must be at least 3 characters'
-      if (value && value.length > 100) return 'Store name must be less than 100 characters'
-      return ''
-    case 'storeDescription':
-      if (value && value.length > 500) return 'Store description must be less than 500 characters'
-      return ''
-    default:
-      return ''
+const validateSingleProfileField = (name, value, state) => {
+  const payload = {
+    ...state,
+    [name]: value,
   }
+
+  const parsed = profileFormSchema.safeParse(payload)
+  if (parsed.success) return ''
+
+  const issue = parsed.error.issues.find((entry) => entry.path?.[0] === name)
+  return issue?.message || ''
 }
 
 const ProfilePage = () => {
@@ -114,7 +90,7 @@ const ProfilePage = () => {
 
   const handleFieldChange = (name, value) => {
     setFormData({ ...formData, [name]: value })
-    const error = validateField(name, value)
+    const error = validateSingleProfileField(name, value, formData)
     setErrors({ ...errors, [name]: error })
   }
 
@@ -210,13 +186,17 @@ const ProfilePage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    // Validate all fields
     const newErrors = {}
-    Object.keys(formData).forEach(key => {
-      if (['email', 'latitude', 'longitude'].includes(key)) return // Skip email and coordinates
-      const error = validateField(key, formData[key])
-      if (error) newErrors[key] = error
-    })
+
+    const parsed = profileFormSchema.safeParse(formData)
+    if (!parsed.success) {
+      parsed.error.issues.forEach((issue) => {
+        const field = issue.path?.[0]
+        if (typeof field === 'string') {
+          newErrors[field] = issue.message
+        }
+      })
+    }
 
     // Validate CIN if it changed
     if (formData.cin && formData.cin !== profile?.cin) {

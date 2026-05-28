@@ -513,7 +513,85 @@
     "quantity": "Quantité",
     "remove": "Supprimer",
     "checkout": "Passer à la caisse",
-    "continueShopping": "Continuer vos achats"
+    "continueShopping": "Continuer vos achats",
+    "item": "article",
+    "items": "articles",
+    "fromVendors": "de {{count}} vendeurs",
+    "clearCart": "Vider le panier",
+    "orderSummary": "Résumé de la commande",
+    "removeItemAria": "Supprimer {{name}}",
+    "messages": {
+      "singleVendorCheckout": "Vous ne pouvez passer commande que pour une seule boutique à la fois. Séparez votre panier par vendeur puis réessayez.",
+      "cartCleared": "Panier vidé avec succès"
+    },
+    "labels": {
+      "unknownVendor": "Vendeur inconnu",
+      "vendorPrefix": "Vendeur : {{name}}",
+      "priceUpdated": "Prix mis à jour : {{oldPrice}} vers {{newPrice}}",
+      "stockReservedBadge": "80%+ réservé",
+      "unitStep": "Unité : {{quantity}} {{unit}}",
+      "minimumLabel": "Minimum : {{quantity}}"
+    },
+    "validation": {
+      "itemsRemoved": "{{count}} article(s) supprimé(s)",
+      "itemsUpdated": "{{count}} article(s) mis à jour",
+      "itemsRemovedToast": "{{count}} article(s) ont été supprimés car ils ne sont plus disponibles",
+      "itemsUpdatedToast": "{{count}} article(s) de votre panier ont été mis à jour",
+      "synced": "Les prix et disponibilités de votre panier sont à jour.",
+      "syncFailed": "Impossible d'actualiser le panier. Veuillez réessayer.",
+      "lastChecked": "Dernière vérification : {{time}}",
+      "checking": "Vérification...",
+      "refreshPrices": "Actualiser les prix"
+    },
+    "errors": {
+      "maxAvailableReached": "Quantité maximale disponible atteinte : {{quantity}} {{unit}}",
+      "quantityMustBePositive": "La quantité doit être supérieure à zéro",
+      "minimumOrder": "La quantité minimale est {{quantity}} {{unit}}",
+      "onlyAvailable": "Seulement {{quantity}} {{unit}} disponible(s)"
+    },
+    "summary": {
+      "subtotalWithCount": "Sous-total ({{count}} article)",
+      "tax": "Taxe",
+      "delivery": "Livraison",
+      "deliveryAtCheckout": "Calculée au paiement",
+      "multiVendorOrder": "Commande multi-vendeurs",
+      "vendorCount": "{{count}} vendeurs",
+      "minimumOrderStatus": "Minimum {{minAmount}} et {{shortfall}} restant",
+      "totalWithCount": "Total ({{count}} article)",
+      "taxIncluded": "Taxe incluse {{amount}}"
+    },
+    "checkout": {
+      "itemUnavailable": "{{name}} n'est plus disponible",
+      "priceChanged": "{{name}} : le prix est passé de {{oldPrice}} à {{newPrice}}",
+      "onlyAvailable": "{{name}} : seulement {{quantity}} {{unit}} disponible(s)",
+      "validationFailed": "Impossible de valider le panier. Veuillez réessayer.",
+      "prepareVendorCartFailed": "Impossible de préparer le panier de ce vendeur pour le moment. Veuillez réessayer.",
+      "prepareVendorCartSuccess": "Le panier a été préparé pour ce vendeur uniquement. Vous pouvez passer au paiement.",
+      "splitCartTitle": "Séparez le panier en une étape",
+      "splitCartDescription": "Choisissez le vendeur à payer maintenant, nous garderons uniquement ses articles avant de vous rediriger vers le paiement.",
+      "vendorItemSummary": "{{count}} article(s)",
+      "selectVendorAndContinue": "Sélectionner ce vendeur et continuer",
+      "splitByVendorCta": "Séparer par vendeur",
+      "minimumNotMetCta": "Minimum non atteint",
+      "splitByVendorHint": "Séparez le panier par vendeur avant le paiement.",
+      "minimumNotMetHint": "Respectez le minimum de chaque vendeur avant de continuer.",
+      "splitByVendorShortCta": "Séparer par vendeur",
+      "minimumNotMetShortCta": "Minimum non atteint"
+    },
+    "trust": {
+      "securePayment": "Paiement sécurisé et chiffré",
+      "buyerProtection": "Protection acheteur",
+      "qualityGuarantee": "Garantie qualité des produits"
+    },
+    "removeDialog": {
+      "title": "Supprimer l'article ?",
+      "description": "Voulez-vous supprimer {{name}} de votre panier ?"
+    },
+    "clearDialog": {
+      "title": "Vider complètement le panier ?",
+      "description": "Cela supprimera les {{count}} article(s) de votre panier. Cette action est irréversible.",
+      "confirm": "Tout vider"
+    }
   },
   "checkout": {
     "title": "Paiement",
@@ -2342,6 +2420,8 @@
     "email": "E-mail",
     "phone": "Téléphone",
     "phoneHours": "Lundi-Vendredi, 9h-18h",
+    "whatsapp": "WhatsApp",
+    "whatsappMessage": "Bonjour, j'ai besoin d'aide sur la plateforme Qotoof",
     "address": "Adresse",
     "addressValue": "Casablanca, Maroc",
     "formTitle": "Envoyez-nous un message",
@@ -3369,7 +3449,10 @@
       "title": "Questions fréquemment posées"
     },
     "errors": {
-      "fillFields": "Veuillez remplir tous les champs"
+      "fillFields": "Veuillez remplir tous les champs",
+      "ticketNetwork": "Impossible d'envoyer le ticket à cause du réseau. Vérifiez votre connexion puis réessayez.",
+      "ticketValidation": "Veuillez vérifier les informations saisies puis réessayer.",
+      "ticketServer": "Le support est temporairement indisponible. Veuillez réessayer plus tard."
     },
     "ticketSuccess": "Ticket de support soumis ! Nous répondrons dans les 24 heures.",
     "ticketError": "Échec de la soumission du ticket"

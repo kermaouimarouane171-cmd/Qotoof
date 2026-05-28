@@ -8,50 +8,41 @@ import {
 import { withRetry } from '@/utils/withRetry'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
 import { isMissingDeletedAtColumnError } from '@/utils/supabaseErrors'
+import { assertPayPalSetupOrThrow } from '@/utils/paypalEligibility'
+import {
+  getProductById,
+  insertProduct,
+  listDeletedProducts,
+  listPendingProducts,
+  listProducts,
+  productSelects,
+  updateManyProducts,
+  updateProductById,
+} from '@/data/productRepository'
+import {
+  buildApprovalPayload,
+  buildRejectionPayload,
+  buildRestorePayload,
+  buildSoftDeletePayload,
+  buildSuspensionPayload,
+} from '@/business/productLogic'
+import {
+  getUserBasicProfile,
+  getUserById,
+  listDeletedUsers,
+  listUsers,
+  updateUserById,
+} from '@/data/userRepository'
+import { buildRestoreUserPayload } from '@/business/userLogic'
 
-const PRODUCT_LIST_FIELDS = `
-  id, name, description, category, subcategory,
-  price_per_unit, unit_type, stock_quantity,
-  min_order_quantity, is_available, approval_status,
-  created_at, vendor_id
-`
-
-const PRODUCT_LIST_SELECT = `
-  ${PRODUCT_LIST_FIELDS},
-  product_images(url, is_primary)
-`
-
-const PRODUCT_DETAIL_SELECT = `
-  id, name, description, category, subcategory,
-  price_per_unit, unit_type, unit:unit_type,
-  stock_quantity, min_order_quantity,
-  vendor_id, is_available, approval_status,
-  created_at, updated_at,
-  product_images(url, is_primary),
-  reviews!inner(rating, comment, created_at)
-`
-
-const PRODUCT_DETAIL_SELECT_WITHOUT_IMAGES = `
-  id, name, description, category, subcategory,
-  price_per_unit, unit_type, unit:unit_type,
-  stock_quantity, min_order_quantity,
-  vendor_id, is_available, approval_status,
-  created_at, updated_at,
-  reviews!inner(rating, comment, created_at)
-`
-
-const PENDING_PRODUCT_SELECT = `
-  id, name, description, category, price_per_unit, unit_type,
-  approval_status, created_at, vendor_id,
-  vendor:profiles(first_name, last_name, store_name),
-  images:product_images(url, is_primary)
-`
-
-const PENDING_PRODUCT_SELECT_WITHOUT_IMAGES = `
-  id, name, description, category, price_per_unit, unit_type,
-  approval_status, created_at, vendor_id,
-  vendor:profiles(first_name, last_name, store_name)
-`
+const {
+  PRODUCT_LIST_FIELDS,
+  PRODUCT_LIST_SELECT,
+  PRODUCT_DETAIL_SELECT,
+  PRODUCT_DETAIL_SELECT_WITHOUT_IMAGES,
+  PENDING_PRODUCT_SELECT,
+  PENDING_PRODUCT_SELECT_WITHOUT_IMAGES,
+} = productSelects
 
 const ORDER_DETAIL_SELECT = `
   id, order_number, buyer_id, vendor_id,
@@ -73,48 +64,46 @@ const ORDER_DETAIL_SELECT_WITHOUT_IMAGES = `
   items:order_items(id, product_id, quantity, unit_price, product:products(id, name))
 `
 
+const getCurrentUserProfile = async () => {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError) throw authError
+
+  const userId = authData?.user?.id
+  if (!userId) {
+    const error = new Error('Authentication required')
+    error.code = 'AUTH_REQUIRED'
+    throw error
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id, role, paypal_email, paypal_verified')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError) throw profileError
+
+  return profile
+}
+
 // Products API
 export const productsApi = {
   getAll: async (filters = {}) => {
     return withRetry(async () => {
       const buildQuery = (selectClause, includeDeletedFilter = true) => {
-        let query = supabase
-          .from('products')
-          .select(selectClause, { count: 'exact' })
-
-        if (includeDeletedFilter) {
-          query = query.is('deleted_at', null)
+        const sanitizedFilters = {
+          ...filters,
+          search: filters.search
+            ? `name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,description.ilike.%${sanitizePostgRESTFilter(filters.search)}%`
+            : null,
         }
 
-        if (filters.category) {
-          query = query.eq('category', filters.category)
-        }
-
-        if (filters.minPrice) {
-          query = query.gte('price_per_unit', filters.minPrice)
-        }
-
-        if (filters.maxPrice) {
-          query = query.lte('price_per_unit', filters.maxPrice)
-        }
-
-        if (filters.search) {
-          query = query.or(`name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,description.ilike.%${sanitizePostgRESTFilter(filters.search)}%`)
-        }
-
-        if (filters.vendorId) {
-          query = query.eq('vendor_id', filters.vendorId)
-        }
-
-        if (filters.approvalStatus) {
-          query = query.eq('approval_status', filters.approvalStatus)
-        }
-
-        const limit = Math.min(filters.limit || 50, 200)
-        const offset = filters.offset || 0
-        return query
-          .range(offset, offset + limit - 1)
-          .order('created_at', { ascending: false })
+        return listProducts({
+          filters: sanitizedFilters,
+          selectClause,
+          includeDeletedFilter,
+          count: 'exact',
+        })
       }
 
       let data
@@ -148,12 +137,7 @@ export const productsApi = {
 
   getById: async (id) => {
     return withRetry(async () => {
-      const buildQuery = (selectClause) => supabase
-        .from('products')
-        .select(selectClause)
-        .eq('id', id)
-        .is('deleted_at', null)
-        .single()
+      const buildQuery = (selectClause) => getProductById({ id, selectClause })
 
       const { data } = await runProductImageFallbackQuery({
         buildQuery,
@@ -167,11 +151,10 @@ export const productsApi = {
 
   create: async (product) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .insert(product)
-        .select()
-        .single()
+      const profile = await getCurrentUserProfile()
+      assertPayPalSetupOrThrow(profile, 'PayPal setup is required before publishing products')
+
+      const { data, error } = await insertProduct(product)
 
       if (error) throw error
       return data
@@ -180,12 +163,7 @@ export const productsApi = {
 
   update: async (id, updates) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateProductById(id, updates)
 
       if (error) throw error
       return data
@@ -195,12 +173,7 @@ export const productsApi = {
   // Secure hard delete through the server-side admin function
   delete: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateProductById(id, buildSoftDeletePayload())
 
       if (error) throw error
       return data
@@ -210,12 +183,7 @@ export const productsApi = {
   // Restore a soft-deleted product
   restore: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({ deleted_at: null })
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateProductById(id, buildRestorePayload())
 
       if (error) throw error
       return data
@@ -225,18 +193,7 @@ export const productsApi = {
   // Get deleted products
   getDeleted: async () => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select(`
-          id, name, description, category, subcategory,
-          price_per_unit, unit_type, unit:unit_type,
-          stock_quantity, min_order_quantity,
-          vendor_id, is_available, approval_status,
-          created_at, updated_at, deleted_at,
-          vendor:profiles(id, role, first_name, last_name, store_name, phone, avatar_url)
-        `)
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false })
+      const { data, error } = await listDeletedProducts()
 
       if (error) throw error
       return data
@@ -245,12 +202,7 @@ export const productsApi = {
 
   getPending: async () => {
     return withRetry(async () => {
-      const buildQuery = (selectClause) => supabase
-        .from('products')
-        .select(selectClause)
-        .eq('approval_status', 'pending')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+      const buildQuery = (selectClause) => listPendingProducts({ selectClause })
 
       const { data } = await runProductImageFallbackQuery({
         buildQuery,
@@ -262,20 +214,20 @@ export const productsApi = {
     }, { maxRetries: 3, baseDelay: 1000 })()
   },
 
-  // Admin: Approve product
+  // Admin: Approve (publish) product
   approve: async (id, adminId = null) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          approval_status: 'approved',
-          approved_by: adminId,
-          approved_at: new Date().toISOString(),
-          is_available: true,
-        })
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateProductById(id, buildApprovalPayload(adminId))
+
+      if (error) throw error
+      return data
+    }, { maxRetries: 2, baseDelay: 1000 })()
+  },
+
+  // Admin: Suspend product
+  suspend: async (id) => {
+    return withRetry(async () => {
+      const { data, error } = await updateProductById(id, buildSuspensionPayload())
 
       if (error) throw error
       return data
@@ -285,35 +237,27 @@ export const productsApi = {
   // Admin: Reject product with reason
   reject: async (id, reason = '') => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          approval_status: 'rejected',
-          rejection_reason: reason,
-          is_available: false,
-        })
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateProductById(id, buildRejectionPayload(reason))
 
       if (error) throw error
       return data
     }, { maxRetries: 2, baseDelay: 1000 })()
   },
 
-  // Admin: Bulk approve products
+  // Admin: Bulk approve (publish) products
   bulkApprove: async (ids, adminId = null) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          approval_status: 'approved',
-          approved_by: adminId,
-          approved_at: new Date().toISOString(),
-          is_available: true,
-        })
-        .in('id', ids)
-        .select()
+      const { data, error } = await updateManyProducts(ids, buildApprovalPayload(adminId))
+
+      if (error) throw error
+      return data
+    }, { maxRetries: 2, baseDelay: 1000 })()
+  },
+
+  // Admin: Bulk suspend products
+  bulkSuspend: async (ids) => {
+    return withRetry(async () => {
+      const { data, error } = await updateManyProducts(ids, buildSuspensionPayload())
 
       if (error) throw error
       return data
@@ -323,15 +267,7 @@ export const productsApi = {
   // Admin: Bulk reject products
   bulkReject: async (ids, reason = '') => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          approval_status: 'rejected',
-          rejection_reason: reason,
-          is_available: false,
-        })
-        .in('id', ids)
-        .select()
+      const { data, error } = await updateManyProducts(ids, buildRejectionPayload(reason))
 
       if (error) throw error
       return data
@@ -574,7 +510,7 @@ export const vendorsApi = {
       const offset = filters.offset || 0
 
       let query = supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, email, phone, store_name, store_description, avatar_url, city, country, rating, created_at, is_verified', { count: 'exact' })
         .eq('role', 'vendor')
         .eq('is_approved', true)
@@ -595,7 +531,7 @@ export const vendorsApi = {
   getById: async (id) => {
     return withRetry(async () => {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, first_name, last_name, email, phone, store_name, store_description, avatar_url, city, country, rating, bio, created_at, is_verified, operating_hours')
         .eq('id', id)
         .single()
@@ -624,29 +560,15 @@ export const vendorsApi = {
 export const usersApi = {
   getAll: async (filters = {}) => {
     return withRetry(async () => {
-      let query = supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email, phone, role, is_approved, created_at, avatar_url, city, country', { count: 'exact' })
+      const searchFilter = filters.search
+        ? `first_name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,last_name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,email.ilike.%${sanitizePostgRESTFilter(filters.search)}%`
+        : null
 
-      if (filters.role && filters.role !== 'all') {
-        query = query.eq('role', filters.role)
-      }
-
-      if (filters.search) {
-        query = query.or(`first_name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,last_name.ilike.%${sanitizePostgRESTFilter(filters.search)}%,email.ilike.%${sanitizePostgRESTFilter(filters.search)}%`)
-      }
-
-      if (filters.sortBy === 'name') {
-        query = query.order('first_name', { ascending: true })
-      } else if (filters.sortBy === 'created') {
-        query = query.order('created_at', { ascending: false })
-      } else {
-        query = query.order('created_at', { ascending: false })
-      }
-
-      const limit = Math.min(filters.limit || 50, 200)
-      const offset = filters.offset || 0
-      query = query.range(offset, offset + limit - 1)
+      const query = listUsers({
+        filters,
+        searchFilter,
+        count: 'exact',
+      })
 
       const { data, error, count } = await query
 
@@ -655,11 +577,9 @@ export const usersApi = {
     }, { maxRetries: 3, baseDelay: 1000 })()
   },
 
-  getById: async (_id) => {
+  getById: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-          .select('id, first_name, last_name, email, phone, store_name, store_description, avatar_url, city, country, latitude, longitude, rating, bio, created_at, is_verified, is_approved, operating_hours, role, delivery_option, store_type, accepted_cargo_sizes, vehicle_type, vehicle_plate, has_own_driver, preferred_driver_id, partnership_status')
+      const { data, error } = await getUserById(id)
 
       if (error) throw error
       return data
@@ -668,12 +588,7 @@ export const usersApi = {
 
   update: async (id, updates) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateUserById(id, updates)
 
       if (error) throw error
       return data
@@ -683,11 +598,7 @@ export const usersApi = {
   // Soft delete instead of hard delete
   delete: async (id) => {
     return withRetry(async () => {
-      const { data: userData, error: userError } = await supabase
-        .from('profiles')
-        .select('email, first_name, last_name')
-        .eq('id', id)
-        .single()
+      const { data: userData, error: userError } = await getUserBasicProfile(id)
 
       if (userError) throw userError
 
@@ -700,12 +611,7 @@ export const usersApi = {
   // Restore a soft-deleted user
   restore: async (id) => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .update({ deleted_at: null })
-        .eq('id', id)
-        .select()
-        .single()
+      const { data, error } = await updateUserById(id, buildRestoreUserPayload())
 
       if (error) throw error
       return data
@@ -715,11 +621,7 @@ export const usersApi = {
   // Get deleted users
   getDeleted: async () => {
     return withRetry(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, email, phone, role, is_approved, is_suspended, created_at, deleted_at')
-        .not('deleted_at', 'is', null)
-        .order('deleted_at', { ascending: false })
+      const { data, error } = await listDeletedUsers()
 
       if (error) throw error
       return data

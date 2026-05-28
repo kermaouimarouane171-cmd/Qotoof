@@ -62,6 +62,48 @@ serve(async (req) => {
       return json({ success: false, error: 'You do not have access to this delivery' }, 403)
     }
 
+    const { data: vendorProfile, error: vendorProfileError } = await adminClient
+      .from('profiles')
+      .select('paypal_email, paypal_verified')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (vendorProfileError) throw vendorProfileError
+
+    if (!vendorProfile?.paypal_email || vendorProfile?.paypal_verified !== true) {
+      return json(
+        {
+          success: false,
+          error: 'Vendor PayPal setup and verification are required before assigning drivers',
+          code: 'PAYPAL_SETUP_REQUIRED',
+        },
+        400,
+      )
+    }
+
+    const { data: driverProfile, error: driverProfileError } = await adminClient
+      .from('profiles')
+      .select('role, paypal_email, paypal_verified')
+      .eq('id', driverId)
+      .maybeSingle()
+
+    if (driverProfileError) throw driverProfileError
+
+    if (!driverProfile || driverProfile.role !== 'driver') {
+      return json({ success: false, error: 'Selected user is not a driver' }, 400)
+    }
+
+    if (!driverProfile.paypal_email || driverProfile.paypal_verified !== true) {
+      return json(
+        {
+          success: false,
+          error: 'Driver PayPal account setup and verification are required before assignment',
+          code: 'PAYPAL_SETUP_REQUIRED',
+        },
+        400,
+      )
+    }
+
     const { data: delivery, error: updateError } = await adminClient
       .from('deliveries')
       .update({

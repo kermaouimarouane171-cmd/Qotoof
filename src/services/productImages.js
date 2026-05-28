@@ -68,7 +68,7 @@ export const runProductImageFallbackQuery = async ({
   selectWithImages,
   selectWithoutImages,
   hydrate = hydrateProductsWithImages,
-  onRelationError,
+  onRelationError = null,
 }) => {
   const primaryResult = await buildQuery(selectWithImages)
   if (!primaryResult.error) {

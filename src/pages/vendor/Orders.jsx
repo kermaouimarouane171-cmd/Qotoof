@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { fetchVendorOrders, subscribeToVendorOrders } from '@/services/ordersService'
+import { supabase } from '@/services/supabase'
 import { ordersApi, deliveriesApi } from '@/services/deliveries'
 import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline, EmptyState } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -21,6 +22,7 @@ import { logger } from '@/utils/logger'
 const VendorOrders = () => {
   const { t, i18n } = useTranslation()
   const { profile } = useAuthStore()
+  const vendorId = profile?.id
   const [orders, setOrders] = useState([])
   const [drivers, setDrivers] = useState([])
   const [assignModalOpen, setAssignModalOpen] = useState(false)
@@ -33,48 +35,92 @@ const VendorOrders = () => {
   const [chatReceiver, setChatReceiver] = useState(null)
   const [processingOrder, setProcessingOrder] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
+  const subscriptionRef = useRef(null)
+  const isMountedRef = useRef(true)
+
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
 
   const loadOrders = useCallback(async () => {
-    if (!profile?.id) {
-      setOrders([])
+    if (!vendorId) {
+      if (isMountedRef.current) {
+        setOrders([])
+      }
       return
     }
 
     try {
-      const { data, error } = await fetchVendorOrders(profile.id)
+      const { data, error } = await fetchVendorOrders(vendorId)
       if (error) throw error
+      if (!isMountedRef.current) return
       setOrders(data || [])
     } catch (error) {
       logger.error('Error loading orders:', error)
     }
-  }, [profile?.id])
+  }, [vendorId])
   
   useEffect(() => {
-    if (!profile?.id) return
-
+    if (!vendorId) return undefined
     loadOrders()
+    return undefined
+  }, [vendorId, loadOrders])
 
-    // Subscribe to real-time updates with notification
-    const unsubscribe = subscribeToVendorOrders(
-      profile.id,
-      (payload) => {
-        // ✅ Show toast for new pending orders
-        if (payload.eventType === 'INSERT' && payload.new?.status === 'pending') {
-          toast.success(t('vendor.orders.notifications.newOrder', '🛒 New order received: {{orderNumber}}!', {
-            orderNumber: payload.new.order_number || 'Order'
-          }), {
-            duration: 5000,
-            icon: '🛒',
-          })
+  useEffect(() => {
+    if (!vendorId || subscriptionRef.current) return undefined
+
+    const handleOrderChange = (payload) => {
+      if (payload.eventType === 'INSERT' && payload.new?.status === 'pending') {
+        toast.success(`🛒 New order received: ${payload.new.order_number || 'Order'}!`, {
+          duration: 5000,
+          icon: '🛒',
+        })
+      }
+
+      loadOrders()
+    }
+
+    if (typeof supabase?.channel === 'function') {
+      const channel = supabase
+        .channel(`vendor-orders-${vendorId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `vendor_id=eq.${vendorId}`,
+          },
+          handleOrderChange,
+        )
+        .subscribe()
+
+      subscriptionRef.current = channel
+    } else if (typeof subscribeToVendorOrders === 'function') {
+      subscriptionRef.current = subscribeToVendorOrders(vendorId, handleOrderChange)
+    } else {
+      return undefined
+    }
+
+    return () => {
+      if (subscriptionRef.current) {
+        const activeSubscription = subscriptionRef.current
+
+        if (typeof activeSubscription === 'function') {
+          activeSubscription()
+        } else if (typeof activeSubscription?.unsubscribe === 'function') {
+          activeSubscription.unsubscribe()
+        } else if (typeof supabase?.removeChannel === 'function') {
+          supabase.removeChannel(activeSubscription)
         }
 
-        // Reload orders list
-        loadOrders()
+        subscriptionRef.current = null
       }
-    )
-
-    return unsubscribe
-  }, [loadOrders, profile?.id, t])
+    }
+  }, [vendorId, loadOrders])
 
   const loadAvailableDrivers = async () => {
     if (!profile) {

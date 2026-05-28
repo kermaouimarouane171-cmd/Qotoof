@@ -1,8 +1,16 @@
 import { Card } from '@/components/ui'
 import PaymentTypeSelector from '@/components/checkout/PaymentTypeSelector'
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js'
 
 export default function PaymentStep({ paymentMethod, onMethodSelect, totalAmount, paypalConfig, t }) {
   void t
+
+  const shouldShowInlinePayPal = Boolean(
+    paypalConfig?.paypalInline?.enabled
+    && paypalConfig?.paypalInline?.clientId
+    && paymentMethod === 'paypal'
+    && paypalConfig?.paymentType !== 'cod'
+  )
 
   return (
     <Card className="p-6" data-testid="checkout-step-payment">
@@ -32,6 +40,32 @@ export default function PaymentStep({ paymentMethod, onMethodSelect, totalAmount
       )}
 
       {paypalConfig?.summary}
+
+      {shouldShowInlinePayPal && (
+        <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4" data-testid="checkout-paypal-inline">
+          <p className="mb-3 text-sm font-medium text-blue-900">أكمل الدفع الآن عبر PayPal</p>
+          <PayPalScriptProvider
+            options={{
+              clientId: paypalConfig.paypalInline.clientId,
+              currency: 'MAD',
+              intent: 'capture',
+            }}
+          >
+            <PayPalButtons
+              style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'paypal' }}
+              createOrder={paypalConfig.paypalInline.createOrder}
+              onApprove={paypalConfig.paypalInline.onApprove}
+              onCancel={paypalConfig.paypalInline.onCancel}
+              onError={paypalConfig.paypalInline.onError}
+              forceReRender={[paypalConfig.paypalInline.forceRenderKey || 'paypal-inline']}
+              disabled={paypalConfig.paypalInline.disabled}
+            />
+          </PayPalScriptProvider>
+          <p className="mt-2 text-xs text-blue-700">
+            بعد نجاح الدفع سيتم تحويلك تلقائياً إلى صفحة تأكيد الطلب.
+          </p>
+        </div>
+      )}
 
       <div className="flex gap-3 mt-6">
         <button type="button" onClick={paypalConfig?.onBack} className="btn-outline flex-1">

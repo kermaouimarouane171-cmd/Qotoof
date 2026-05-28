@@ -111,7 +111,7 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci --legacy-peer-deps
       - run: npm run deploy:check
@@ -174,7 +174,7 @@ jobs:
         if: ${{ needs.deployment-readiness.outputs.firebase_auth_mode == 'token' }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - name: Deploy to Firebase Hosting via token
         if: ${{ needs.deployment-readiness.outputs.firebase_auth_mode == 'token' }}
         run: npx firebase-tools deploy --only hosting --project "$FIREBASE_DEPLOY_PROJECT_ID" --non-interactive --token "$FIREBASE_TOKEN"

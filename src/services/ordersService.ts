@@ -20,9 +20,19 @@ import {
   hydrateRowsWithProductItems,
 } from '@/services/productImages'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization.jsx'
+import {
+  buildOrderStatusUpdatePayload,
+  isAllowedOrderStatusTransition,
+} from '@/business/orderLogic'
+import {
+  fetchOrderStatusContext,
+  insertOrderNotification,
+  updateOrderById,
+} from '@/data/orderRepository'
 
 type Order = Database['public']['Tables']['orders']['Row']
 type ReturnRequestRow = Database['public']['Tables']['return_requests']['Row']
+type OrderStatusValue = Database['public']['Tables']['orders']['Row']['status']
 
 type ServiceResult = {
   data: Order[] | null
@@ -100,18 +110,8 @@ const ACTIVE_ORDER_STATUSES = [
   'on_the_way',
 ]
 
-const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['vendor_accepted', 'vendor_rejected', 'cancelled'],
-  vendor_accepted: ['driver_assigned', 'driver_accepted', 'cancelled'],
-  driver_assigned: ['driver_accepted', 'cancelled'],
-  driver_accepted: ['driver_picked_up', 'cancelled'],
-  driver_picked_up: ['on_the_way', 'cancelled'],
-  on_the_way: ['delivered', 'cancelled'],
-  delivered: ['refunded'],
-  cancelled: [],
-  vendor_rejected: [],
-  refunded: [],
-}
+const asOrderStatusList = (statuses: string[]) => statuses as unknown as readonly OrderStatusValue[]
+const asOrderStatus = (status: string) => status as unknown as OrderStatusValue
 
 // ── Select clauses ────────────────────────────────────────────────────────────
 
@@ -245,9 +245,9 @@ export const fetchVendorOrders = async (
 
     if (filters.status && filters.status !== 'all') {
       if (filters.status === 'active') {
-        query = query.in('status', ACTIVE_ORDER_STATUSES)
+        query = query.in('status', asOrderStatusList(ACTIVE_ORDER_STATUSES))
       } else {
-        query = query.eq('status', filters.status)
+        query = query.eq('status', asOrderStatus(filters.status))
       }
     }
 
@@ -322,7 +322,7 @@ export const fetchBuyerOrders = async (
   const from = (page - 1) * PAGE_SIZE
   const to = from + PAGE_SIZE - 1
 
-  const buildQuery = (selectClause) => {
+  const buildQuery = (selectClause: string): any => {
     let q = supabase
       .from('orders')
       .select(selectClause, { count: 'exact' })
@@ -331,11 +331,11 @@ export const fetchBuyerOrders = async (
       .range(from, to)
 
     if (filters.status === 'active') {
-      q = q.in('status', ACTIVE_ORDER_STATUSES)
+      q = q.in('status', asOrderStatusList(ACTIVE_ORDER_STATUSES))
     } else if (filters.status === 'delivered') {
       q = q.eq('status', 'delivered')
     } else if (filters.status === 'cancelled') {
-      q = q.in('status', ['cancelled', 'vendor_rejected'])
+      q = q.in('status', asOrderStatusList(['cancelled', 'vendor_rejected']))
     }
 
     if (filters.dateFrom) q = q.gte('created_at', new Date(filters.dateFrom).toISOString())
@@ -349,7 +349,7 @@ export const fetchBuyerOrders = async (
   }
 
   try {
-    let result = await buildQuery(BUYER_ORDERS_SELECT)
+    let result: any = await buildQuery(BUYER_ORDERS_SELECT)
 
     if (result.error) {
       if (!isProductImagesRelationError(result.error)) throw result.error
@@ -362,7 +362,7 @@ export const fetchBuyerOrders = async (
       return { data: hydrated as Order[], error: null, total: fallback.count }
     }
 
-    return { data: (result.data as Order[]) || [], error: null, total: result.count }
+    return { data: (result.data as unknown as Order[]) || [], error: null, total: result.count }
   } catch (err) {
     return { data: null, error: asPostgrestError(err), total: null }
   }
@@ -386,7 +386,7 @@ export const fetchBuyerOrdersAll = async (buyerId: string): Promise<Order[]> => 
     .eq('buyer_id', buyerId)
 
   if (error) throw error
-  return (data as Order[]) || []
+  return (data as unknown as Order[]) || []
 }
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
@@ -414,7 +414,7 @@ export const fetchAdminOrders = async (
   const to = from + limit - 1
 
   try {
-    const buildQuery = (selectClause) => {
+    const buildQuery = (selectClause: string): any => {
       let query = supabase
       .from('orders')
       .select(selectClause, { count: 'exact' })
@@ -422,11 +422,11 @@ export const fetchAdminOrders = async (
       .range(from, to)
 
       if (filters.status === 'active') {
-        query = query.in('status', ACTIVE_ORDER_STATUSES)
+        query = query.in('status', asOrderStatusList(ACTIVE_ORDER_STATUSES))
       } else if (filters.status === 'delivered') {
         query = query.eq('status', 'delivered')
       } else if (filters.status === 'cancelled') {
-        query = query.in('status', ['cancelled', 'refunded', 'vendor_rejected'])
+        query = query.in('status', asOrderStatusList(['cancelled', 'refunded', 'vendor_rejected']))
       }
 
       if (filters.search) {
@@ -453,7 +453,7 @@ export const fetchAdminOrders = async (
       return query
     }
 
-    let result = await buildQuery(ADMIN_ORDERS_SELECT)
+    let result: any = await buildQuery(ADMIN_ORDERS_SELECT)
 
     if (result.error) {
       if (!isProductImagesRelationError(result.error)) throw result.error
@@ -463,12 +463,12 @@ export const fetchAdminOrders = async (
 
       result = {
         ...fallback,
-        data: (await hydrateRowsWithProductItems(fallback.data || [])) as Order[],
+        data: (await hydrateRowsWithProductItems(fallback.data || [])) as unknown as Order[],
       }
     }
 
     const { data, count } = result
-    const normalizedData = ((data as Order[]) || []).map((order) => ({
+    const normalizedData = (((data as unknown as Order[]) || [])).map((order) => ({
       ...order,
       commission_data: {
         subtotal: (order as Record<string, unknown>).subtotal ?? 0,
@@ -561,18 +561,13 @@ export const updateOrderStatus = async (
       : {}
 
     // 1) Load current status for transition validation
-    const { data: existingOrder, error: existingError } = await supabase
-      .from('orders')
-      .select('id, status, buyer_id, vendor_id, order_number')
-      .eq('id', orderId)
-      .single()
+    const { data: existingOrder, error: existingError } = await fetchOrderStatusContext(orderId)
 
     if (existingError) throw existingError
 
     const currentStatus = (existingOrder as { status?: string })?.status || ''
-    const allowedNext = ALLOWED_STATUS_TRANSITIONS[currentStatus] || []
 
-    if (currentStatus && currentStatus !== status && !allowedNext.includes(status)) {
+    if (!isAllowedOrderStatusTransition(currentStatus, status)) {
       throw {
         message: `INVALID_STATUS_TRANSITION: ${currentStatus} -> ${status}`,
         code: 'INVALID_STATUS_TRANSITION',
@@ -580,51 +575,22 @@ export const updateOrderStatus = async (
     }
 
     // 2) Build update payload with metadata/timestamps
-    const updatePayload: Record<string, unknown> = {
-      status,
-      updated_at: new Date().toISOString(),
-      ...metadata,
-    }
-
-    if (status === 'vendor_accepted' && !updatePayload.confirmed_at) {
-      updatePayload.confirmed_at = new Date().toISOString()
-    }
-
-    if ((status === 'cancelled' || status === 'vendor_rejected') && !updatePayload.cancelled_at) {
-      updatePayload.cancelled_at = new Date().toISOString()
-    }
-
-    if (status === 'delivered' && !updatePayload.delivered_at) {
-      updatePayload.delivered_at = new Date().toISOString()
-    }
+    const updatePayload = buildOrderStatusUpdatePayload(status, metadata)
 
     // 3) Persist
-    const { data, error } = await supabase
-      .from('orders')
-      .update(updatePayload)
-      .eq('id', orderId)
-      .select()
-      .single()
+    const { data, error } = await updateOrderById(orderId, updatePayload)
 
     if (error) throw error
 
     // 4) Trigger notification (best effort)
-    await supabase
-      .from('notifications')
-      .insert({
-        user_id: (existingOrder as { buyer_id?: string })?.buyer_id || null,
-        type: 'order',
-        title: 'Order Status Updated',
-        message: `Order ${(existingOrder as { order_number?: string })?.order_number || orderId} moved to ${status}`,
-        data: {
-          order_id: orderId,
-          previous_status: currentStatus,
-          status,
-          metadata,
-        },
-        is_read: false,
-        created_at: new Date().toISOString(),
-      })
+    await insertOrderNotification({
+      userId: (existingOrder as { buyer_id?: string })?.buyer_id,
+      orderId,
+      orderNumber: (existingOrder as { order_number?: string })?.order_number,
+      previousStatus: currentStatus,
+      status,
+      metadata,
+    })
 
     return { data: data as Order, error: null }
   } catch (err) {
@@ -677,14 +643,24 @@ export const submitReturnRequest = async ({
   description,
   itemIds,
 }: ReturnRequestPayload): Promise<ReturnRequestRow | null> => {
+  const { data: orderRow, error: orderError } = await supabase
+    .from('orders')
+    .select('vendor_id')
+    .eq('id', orderId)
+    .single()
+
+  if (orderError) throw orderError
+
   const { data, error } = await supabase
     .from('return_requests')
     .insert({
       order_id: orderId,
       buyer_id: buyerId,
+      user_id: buyerId,
+      vendor_id: orderRow.vendor_id,
       reason,
       description,
-      item_ids: itemIds,
+      items: itemIds,
       status: 'pending',
       created_at: new Date().toISOString(),
     })

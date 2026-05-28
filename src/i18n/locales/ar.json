@@ -545,7 +545,80 @@
     "items": "منتجات",
     "fromVendors": "من {{count}} بائعين",
     "clearCart": "تفريغ السلة",
-    "orderSummary": "ملخص الطلب"
+    "orderSummary": "ملخص الطلب",
+    "removeItemAria": "إزالة {{name}}",
+    "messages": {
+      "singleVendorCheckout": "لا يمكن إتمام الطلب من أكثر من متجر في آن واحد. فصّل السلة حسب البائع ثم أعد المحاولة.",
+      "cartCleared": "تم تفريغ السلة بنجاح"
+    },
+    "labels": {
+      "unknownVendor": "بائع غير معروف",
+      "vendorPrefix": "البائع: {{name}}",
+      "priceUpdated": "تحديث السعر: {{oldPrice}} إلى {{newPrice}}",
+      "stockReservedBadge": "محجوز +80%",
+      "unitStep": "الوحدة: {{quantity}} {{unit}}",
+      "minimumLabel": "الحد الأدنى: {{quantity}}"
+    },
+    "validation": {
+      "itemsRemoved": "تم حذف {{count}} منتج",
+      "itemsUpdated": "تم تحديث {{count}} منتج",
+      "itemsRemovedToast": "تم حذف {{count}} منتج من السلة لأنه غير متاح حالياً",
+      "itemsUpdatedToast": "تم تحديث {{count}} منتج في سلتك",
+      "synced": "أسعار السلة وتوفر المنتجات محدّثة.",
+      "syncFailed": "تعذر تحديث حالة السلة. حاول مرة أخرى.",
+      "lastChecked": "آخر تحقق: {{time}}",
+      "checking": "جارٍ التحقق...",
+      "refreshPrices": "تحديث الأسعار"
+    },
+    "errors": {
+      "maxAvailableReached": "وصلت للحد الأقصى المتاح: {{quantity}} {{unit}}",
+      "quantityMustBePositive": "الكمية يجب أن تكون أكبر من صفر",
+      "minimumOrder": "الحد الأدنى للطلب {{quantity}} {{unit}}",
+      "onlyAvailable": "المتاح فقط {{quantity}} {{unit}}"
+    },
+    "summary": {
+      "subtotalWithCount": "الإجمالي الفرعي ({{count}} منتج)",
+      "tax": "الضريبة",
+      "delivery": "التوصيل",
+      "deliveryAtCheckout": "يُحسب عند الدفع",
+      "multiVendorOrder": "طلب متعدد البائعين",
+      "vendorCount": "{{count}} بائع",
+      "minimumOrderStatus": "الحد الأدنى {{minAmount}} ويتبقى {{shortfall}}",
+      "totalWithCount": "الإجمالي ({{count}} منتج)",
+      "taxIncluded": "شامل ضريبة {{amount}}"
+    },
+    "checkout": {
+      "itemUnavailable": "{{name}} لم يعد متاحاً",
+      "priceChanged": "{{name}}: تغيّر السعر من {{oldPrice}} إلى {{newPrice}}",
+      "onlyAvailable": "{{name}}: المتاح فقط {{quantity}} {{unit}}",
+      "validationFailed": "تعذّر التحقق من السلة. حاول مرة أخرى.",
+      "prepareVendorCartFailed": "تعذر تجهيز سلة هذا البائع حالياً. حاول مرة أخرى.",
+      "prepareVendorCartSuccess": "تم تجهيز السلة لهذا البائع فقط. يمكنك الآن متابعة الدفع.",
+      "splitCartTitle": "قسّم السلة بخطوة واحدة",
+      "splitCartDescription": "اختر البائع الذي تريد إتمام طلبه الآن، وسنحتفظ بمنتجاته فقط داخل السلة ثم ننقلك مباشرة إلى صفحة الدفع.",
+      "vendorItemSummary": "{{count}} منتج",
+      "selectVendorAndContinue": "اختيار هذا البائع والمتابعة للدفع",
+      "splitByVendorCta": "فصّل السلة حسب البائع",
+      "minimumNotMetCta": "لم يُستوفَ الحد الأدنى",
+      "splitByVendorHint": "فصّل السلة حسب البائع قبل الدفع.",
+      "minimumNotMetHint": "استوفِ الحد الأدنى للطلب لكل بائع قبل المتابعة.",
+      "splitByVendorShortCta": "فصّل حسب البائع",
+      "minimumNotMetShortCta": "الحد الأدنى غير مستوفى"
+    },
+    "trust": {
+      "securePayment": "دفع آمن ومشفر",
+      "buyerProtection": "حماية المشتري",
+      "qualityGuarantee": "ضمان جودة المنتجات"
+    },
+    "removeDialog": {
+      "title": "حذف المنتج؟",
+      "description": "هل تريد حذف {{name}} من السلة؟"
+    },
+    "clearDialog": {
+      "title": "تفريغ السلة بالكامل؟",
+      "description": "سيتم حذف جميع {{count}} منتج من سلتك. لا يمكن التراجع عن هذا الإجراء.",
+      "confirm": "تفريغ الكل"
+    }
   },
   "checkout": {
     "title": "الدفع",
@@ -2380,6 +2453,8 @@
     "email": "البريد الإلكتروني",
     "phone": "الهاتف",
     "phoneHours": "الإثنين-الجمعة، 9ص-6م",
+    "whatsapp": "واتساب",
+    "whatsappMessage": "مرحباً، أحتاج إلى دعم في منصة قطوف",
     "address": "العنوان",
     "addressValue": "الدار البيضاء، المغرب",
     "formTitle": "أرسل لنا رسالة",
@@ -3407,7 +3482,10 @@
       "title": "الأسئلة الشائعة"
     },
     "errors": {
-      "fillFields": "يرجى ملء جميع الحقول"
+      "fillFields": "يرجى ملء جميع الحقول",
+      "ticketNetwork": "تعذر إرسال التذكرة بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.",
+      "ticketValidation": "يرجى مراجعة البيانات المدخلة ثم إعادة الإرسال.",
+      "ticketServer": "فريق الدعم غير متاح مؤقتاً. حاول مرة أخرى بعد قليل."
     },
     "ticketSuccess": "تم إرسال تذكرة الدعم! سنرد خلال 24 ساعة.",
     "ticketError": "فشل إرسال التذكرة"

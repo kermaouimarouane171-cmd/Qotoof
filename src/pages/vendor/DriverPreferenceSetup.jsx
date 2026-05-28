@@ -34,7 +34,7 @@ const DriverPreferenceSetup = () => {
       setLoadingPartner(true)
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, first_name, last_name, phone, city, vehicle_type, vehicle_plate, rating, is_available_for_delivery')
           .eq('id', profile.preferred_driver_id)
           .maybeSingle()

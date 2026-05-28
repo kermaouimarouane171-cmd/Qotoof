@@ -547,7 +547,80 @@
     "items": "items",
     "fromVendors": "from {{count}} vendors",
     "clearCart": "Clear Cart",
-    "orderSummary": "Order Summary"
+    "orderSummary": "Order Summary",
+    "removeItemAria": "Remove {{name}}",
+    "messages": {
+      "singleVendorCheckout": "You can only checkout from one store at a time. Split your cart by vendor and try again.",
+      "cartCleared": "Cart cleared successfully"
+    },
+    "labels": {
+      "unknownVendor": "Unknown vendor",
+      "vendorPrefix": "Vendor: {{name}}",
+      "priceUpdated": "Price updated: {{oldPrice}} to {{newPrice}}",
+      "stockReservedBadge": "80%+ reserved",
+      "unitStep": "Unit step: {{quantity}} {{unit}}",
+      "minimumLabel": "Minimum: {{quantity}}"
+    },
+    "validation": {
+      "itemsRemoved": "{{count}} item(s) removed",
+      "itemsUpdated": "{{count}} item(s) updated",
+      "itemsRemovedToast": "{{count}} item(s) were removed because they are no longer available",
+      "itemsUpdatedToast": "{{count}} item(s) in your cart were updated",
+      "synced": "Your cart prices and availability are up to date.",
+      "syncFailed": "Failed to refresh cart status. Please try again.",
+      "lastChecked": "Last checked: {{time}}",
+      "checking": "Checking...",
+      "refreshPrices": "Refresh prices"
+    },
+    "errors": {
+      "maxAvailableReached": "Maximum available reached: {{quantity}} {{unit}}",
+      "quantityMustBePositive": "Quantity must be greater than zero",
+      "minimumOrder": "Minimum order is {{quantity}} {{unit}}",
+      "onlyAvailable": "Only {{quantity}} {{unit}} available"
+    },
+    "summary": {
+      "subtotalWithCount": "Subtotal ({{count}} item)",
+      "tax": "Tax",
+      "delivery": "Delivery",
+      "deliveryAtCheckout": "Calculated at checkout",
+      "multiVendorOrder": "Multi-vendor order",
+      "vendorCount": "{{count}} vendors",
+      "minimumOrderStatus": "Minimum {{minAmount}} and {{shortfall}} remaining",
+      "totalWithCount": "Total ({{count}} item)",
+      "taxIncluded": "Including tax {{amount}}"
+    },
+    "checkout": {
+      "itemUnavailable": "{{name}} is no longer available",
+      "priceChanged": "{{name}}: price changed from {{oldPrice}} to {{newPrice}}",
+      "onlyAvailable": "{{name}}: only {{quantity}} {{unit}} available",
+      "validationFailed": "Unable to validate cart. Please try again.",
+      "prepareVendorCartFailed": "Unable to prepare this vendor cart right now. Please try again.",
+      "prepareVendorCartSuccess": "Cart prepared for this vendor only. You can continue to checkout now.",
+      "splitCartTitle": "Split cart in one step",
+      "splitCartDescription": "Choose the vendor you want to checkout now, and we will keep only their items before taking you directly to payment.",
+      "vendorItemSummary": "{{count}} item(s)",
+      "selectVendorAndContinue": "Select this vendor and continue to checkout",
+      "splitByVendorCta": "Split cart by vendor",
+      "minimumNotMetCta": "Minimum not met",
+      "splitByVendorHint": "Split cart by vendor before checkout.",
+      "minimumNotMetHint": "Meet each vendor minimum before continuing.",
+      "splitByVendorShortCta": "Split by vendor",
+      "minimumNotMetShortCta": "Minimum not met"
+    },
+    "trust": {
+      "securePayment": "Secure encrypted payment",
+      "buyerProtection": "Buyer protection",
+      "qualityGuarantee": "Product quality guarantee"
+    },
+    "removeDialog": {
+      "title": "Remove item?",
+      "description": "Do you want to remove {{name}} from your cart?"
+    },
+    "clearDialog": {
+      "title": "Clear cart completely?",
+      "description": "This will remove all {{count}} item(s) from your cart. This action cannot be undone.",
+      "confirm": "Clear all"
+    }
   },
   "checkout": {
     "title": "Checkout",
@@ -2535,6 +2608,8 @@
     "email": "Email",
     "phone": "Phone",
     "phoneHours": "Monday-Friday, 9AM-6PM",
+    "whatsapp": "WhatsApp",
+    "whatsappMessage": "Hello, I need support with Qotoof platform",
     "address": "Address",
     "addressValue": "Casablanca, Morocco",
     "formTitle": "Send Us a Message",
@@ -3562,7 +3637,10 @@
       "title": "Frequently Asked Questions"
     },
     "errors": {
-      "fillFields": "Please fill in all fields"
+      "fillFields": "Please fill in all fields",
+      "ticketNetwork": "Unable to submit ticket due to connection issues. Check your network and try again.",
+      "ticketValidation": "Please review your details and submit again.",
+      "ticketServer": "Support is temporarily unavailable. Please try again shortly."
     },
     "ticketSuccess": "Support ticket submitted! We'll respond within 24 hours.",
     "ticketError": "Failed to submit ticket"

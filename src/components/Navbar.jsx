@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import NotificationLink from '@/components/notifications/NotificationLink'
+import { canAccessRoleDashboard } from '@/utils/permissions'
 
 const LANGS = [
   { code: 'ar', label: 'عربي', dir: 'rtl' },
@@ -80,11 +81,13 @@ export default function Navbar() {
   }
 
   const getDashboardLink = () => {
-    if (!profile?.role) return '/profile'
+    if (!canAccessRoleDashboard(profile)) return '/profile'
+
     return {
       vendor: '/vendor/dashboard',
       driver: '/driver/dashboard',
       admin: '/admin/dashboard',
+      buyer: '/buyer/dashboard',
     }[profile.role] || '/profile'
   }
 

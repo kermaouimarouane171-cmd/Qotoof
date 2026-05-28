@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import ReportAbuseModal from '@/components/ReportAbuseModal'
 import { useState } from 'react'
 import toast from 'react-hot-toast'
+import queryClient from '@/services/queryClient'
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate()
@@ -23,6 +24,22 @@ const ProductCard = ({ product }) => {
 
   const openProductDetails = () => {
     navigate(`/product/${product.id}`)
+  }
+
+  const prefetchProductDetails = async () => {
+    if (!product?.id) return
+
+    try {
+      const { fetchProductById } = await import('@/api/productsApi')
+
+      queryClient.prefetchQuery({
+        queryKey: ['product', product.id],
+        queryFn: () => fetchProductById(product.id),
+        staleTime: 5 * 60 * 1000,
+      })
+    } catch {
+      // Ignore prefetch failures to keep card interactions non-blocking.
+    }
   }
 
   const handleCardKeyDown = (e) => {
@@ -55,6 +72,8 @@ const ProductCard = ({ product }) => {
       data-testid="product-card"
       className="group block cursor-pointer"
       onClick={openProductDetails}
+      onMouseEnter={prefetchProductDetails}
+      onFocus={prefetchProductDetails}
       onKeyDown={handleCardKeyDown}
       role="link"
       tabIndex={0}

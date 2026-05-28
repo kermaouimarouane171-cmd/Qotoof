@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import Navbar from '@/components/Navbar';
@@ -20,9 +20,13 @@ import {
   FlagIcon,
   ArrowRightOnRectangleIcon,
   ChatBubbleLeftRightIcon,
+  Bars3Icon,
+  XMarkIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator';
+import { usePaymentGuard } from '@/contexts/PaymentGuard';
 
 /**
  * مكون Loading Fallback للـ Suspense
@@ -42,6 +46,30 @@ const LoadingFallback = () => {
   );
 };
 
+const AuthTimeoutFallback = () => {
+  const { t } = useTranslation();
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center max-w-md px-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          {t('auth.timeout.title', 'Authentication is taking longer than expected')}
+        </h2>
+        <p className="text-gray-600 mb-4">
+          {t('auth.timeout.description', 'Please refresh the page and try again.')}
+        </p>
+        <button
+          type="button"
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          onClick={() => window.location.reload()}
+        >
+          {t('auth.timeout.retry', 'Retry')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /**
  * ProtectedRoute Component
  * 
@@ -57,13 +85,31 @@ export const ProtectedRoute = ({
   allowedRoles = [],
 }) => {
   // Use Supabase-based auth store instead of broken custom middleware
-  const { user, profile, loading, mfaRequired, mfaPending } = useAuthStore();
+  const { user, profile, loading, profileLoading, mfaRequired, mfaPending } = useAuthStore();
   const { isBlocking } = useOnboardingGate();
+  const { shouldRedirect, redirectTo, message } = usePaymentGuard();
   const location = useLocation();
+  const [authLoadingTimedOut, setAuthLoadingTimedOut] = useState(false);
 
   const redirectTarget = `${location.pathname}${location.search}${location.hash}`;
 
-  if (loading || isBlocking) {
+  useEffect(() => {
+    if (!loading && !profileLoading) {
+      setAuthLoadingTimedOut(false)
+      return undefined
+    }
+
+    const timeoutId = setTimeout(() => {
+      setAuthLoadingTimedOut(true)
+    }, 10000)
+
+    return () => clearTimeout(timeoutId)
+  }, [loading, profileLoading])
+
+  if (loading || profileLoading || isBlocking) {
+    if (authLoadingTimedOut) {
+      return <AuthTimeoutFallback />
+    }
     return <LoadingFallback />;
   }
 
@@ -76,13 +122,29 @@ export const ProtectedRoute = ({
     return <Navigate to="/mfa-verify" state={{ from: redirectTarget }} replace />;
   }
 
-  // Check role authorization using profile.role (from Supabase profiles table)
-  const userRole = profile?.role;
-  if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-    return <Navigate to="/unauthorized" replace />;
+  // Role check: allowedRoles takes precedence; requiredRole is a single-role shorthand.
+  // Using both simultaneously is redundant – the router always passes matching values.
+  if (profile && profile.role) {
+    if (allowedRoles.length > 0 && !allowedRoles.includes(profile.role)) {
+      return <Navigate to="/unauthorized" replace />;
+    }
+    if (!allowedRoles.length && requiredRole && profile.role !== requiredRole) {
+      return <Navigate to="/unauthorized" replace />;
+    }
   }
-  if (requiredRole && userRole !== requiredRole) {
-    return <Navigate to="/unauthorized" replace />;
+
+  if (shouldRedirect && redirectTo) {
+    return (
+      <Navigate
+        to={redirectTo}
+        replace
+        state={{
+          paypalSetupRequired: true,
+          paypalSetupMessage: message,
+          from: redirectTarget,
+        }}
+      />
+    );
   }
 
   return (
@@ -174,6 +236,296 @@ const SideNavLink = ({ to, icon: Icon, label }) => {
   );
 };
 
+const MobileSideNavLink = ({ to, icon: Icon, label, onClick }) => {
+  const { pathname } = useLocation();
+  const active = pathname === to || pathname.startsWith(to + '/');
+
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-base transition-colors ${
+        active
+          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+          : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+      }`}
+      style={{ fontFamily: 'Tajawal, sans-serif' }}
+    >
+      <Icon className="w-6 h-6 flex-shrink-0" />
+      <span>{label}</span>
+    </Link>
+  );
+};
+
+const resolveActiveTitle = (pathname, links, fallback) => {
+  const exact = links.find((link) => pathname === link.to);
+  if (exact) return exact.label;
+
+  const startsWithMatch = links.find((link) => pathname.startsWith(link.to + '/'));
+  if (startsWithMatch) return startsWithMatch.label;
+
+  const segmentMatch = links.find((link) => pathname.startsWith(link.to));
+  return segmentMatch?.label || fallback;
+};
+
+const RoleMobileHeader = ({ title, onToggleDrawer, profilePath, t }) => {
+  return (
+    <header dir="ltr" className="md:hidden fixed top-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 h-16 px-3 flex items-center">
+      <div className="w-1/3 flex items-center justify-start gap-1.5">
+        <button
+          type="button"
+          onClick={onToggleDrawer}
+          className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label={t('layout.shared.openMenu', 'Open menu')}
+        >
+          <Bars3Icon className="w-6 h-6" />
+        </button>
+        <Link to="/" className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-700 text-white">
+          <span className="text-base font-extrabold" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
+        </Link>
+      </div>
+
+      <div className="w-1/3 text-center px-2 truncate" style={{ direction: 'rtl' }}>
+        <h1
+          className="text-base truncate text-gray-900 dark:text-white"
+          style={{ fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}
+        >
+          {title}
+        </h1>
+      </div>
+
+      <div className="w-1/3 flex items-center justify-end gap-1">
+        <NotificationLink
+          ariaLabel={t('nav.notifications', 'Notifications')}
+          className="relative p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          iconClassName="w-6 h-6"
+        />
+        <Link
+          to={profilePath}
+          className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label={t('layout.shared.profile', 'Profile')}
+        >
+          <UserCircleIcon className="w-7 h-7" />
+        </Link>
+      </div>
+    </header>
+  );
+};
+
+const RoleMobileDrawer = ({
+  isOpen,
+  closeDrawer,
+  panelTitle,
+  panelHome,
+  panelIcon,
+  links,
+  extraDrawerLinks = [],
+  onSignOut,
+  t,
+}) => {
+  return (
+    <>
+      <div
+        className={`md:hidden fixed inset-0 z-40 bg-black/60 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={closeDrawer}
+        aria-hidden="true"
+      />
+
+      <aside
+        className={`md:hidden fixed top-0 right-0 bottom-0 z-50 w-[80vw] max-w-[320px] bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-out flex flex-col ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        dir="rtl"
+      >
+        <div className="h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={closeDrawer}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+            aria-label={t('layout.shared.closeMenu', 'Close menu')}
+          >
+            <XMarkIcon className="w-6 h-6" />
+          </button>
+
+          <Link to={panelHome} onClick={closeDrawer} className="flex items-center gap-2.5">
+            {panelIcon}
+            <span className="text-gray-900 dark:text-white" style={{ fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+              {panelTitle}
+            </span>
+          </Link>
+        </div>
+
+        <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
+          {links.map((link) => (
+            <MobileSideNavLink key={link.to} {...link} onClick={closeDrawer} />
+          ))}
+
+          {extraDrawerLinks.map((extra) => (
+            <Link
+              key={extra.to}
+              to={extra.to}
+              onClick={closeDrawer}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl text-base text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <extra.icon className="w-6 h-6" />
+              <span>{extra.label}</span>
+            </Link>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onSignOut}
+            className="flex items-center gap-3 px-3 py-3 rounded-xl text-base text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
+            style={{ fontFamily: 'Tajawal, sans-serif' }}
+          >
+            <ArrowRightOnRectangleIcon className="w-6 h-6" />
+            {t('nav.logout', 'Sign Out')}
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+};
+
+const RoleMobileBottomNav = ({ tabs }) => {
+  const { pathname } = useLocation();
+
+  return (
+    <nav
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 h-16"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+      dir="rtl"
+    >
+      <div className="h-full grid grid-cols-4">
+        {tabs.map((tab) => {
+          const isActive = pathname === tab.to || pathname.startsWith(tab.to + '/');
+
+          return (
+            <Link
+              key={tab.to}
+              to={tab.to}
+              className={`h-full flex flex-col items-center justify-center gap-0.5 ${
+                isActive
+                  ? 'text-green-700 bg-green-50 dark:bg-green-900/20'
+                  : 'text-slate-400 dark:text-slate-500'
+              }`}
+              style={{ fontFamily: 'Tajawal, sans-serif' }}
+            >
+              <tab.icon className="w-6 h-6" />
+              <span className="text-[10px] leading-none">{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+};
+
+const RoleLayoutShell = ({
+  panelHome,
+  panelTitle,
+  panelIcon,
+  links,
+  desktopHeaderTitle,
+  desktopProfilePath,
+  mobileProfilePath,
+  tabs,
+  onSignOut,
+  drawerOpen,
+  setDrawerOpen,
+  extraDrawerLinks = [],
+  extraDesktopActions = null,
+  children,
+}) => {
+  const { t } = useTranslation();
+
+  // Close drawer on every navigation (title is derived from pathname).
+  // setDrawerOpen is a stable useState setter — intentionally not in deps.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setDrawerOpen(false); }, [desktopHeaderTitle]);
+
+  return (
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950" dir="rtl" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+      <aside className="hidden md:flex w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <Link to={panelHome} className="flex items-center gap-2">
+            {panelIcon}
+            <span className="text-gray-900 dark:text-white" style={{ fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+              {panelTitle}
+            </span>
+          </Link>
+        </div>
+
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {links.map((link) => (
+            <SideNavLink key={link.to} {...link} />
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={onSignOut}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
+          >
+            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+            {t('nav.logout', 'Sign Out')}
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="hidden md:flex bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 items-center justify-between">
+          <h1
+            className="text-lg text-gray-900 dark:text-white"
+            style={{ fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}
+          >
+            {desktopHeaderTitle}
+          </h1>
+
+          <div className="flex items-center gap-2">
+            {extraDesktopActions}
+            <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
+            <Link
+              to={desktopProfilePath}
+              className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              aria-label={t('layout.shared.profile', 'Profile')}
+            >
+              <UserCircleIcon className="w-6 h-6" />
+            </Link>
+          </div>
+        </header>
+
+        <RoleMobileHeader
+          title={desktopHeaderTitle}
+          onToggleDrawer={() => setDrawerOpen(true)}
+          profilePath={mobileProfilePath}
+          t={t}
+        />
+
+        <RoleMobileDrawer
+          isOpen={drawerOpen}
+          closeDrawer={() => setDrawerOpen(false)}
+          panelTitle={panelTitle}
+          panelHome={panelHome}
+          panelIcon={panelIcon}
+          links={links}
+          extraDrawerLinks={extraDrawerLinks}
+          onSignOut={onSignOut}
+          t={t}
+        />
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-20 md:pt-6 pb-24 md:pb-6">
+          {children}
+        </main>
+
+        <RoleMobileBottomNav tabs={tabs} />
+      </div>
+    </div>
+  );
+};
+
 /**
  * AdminLayout - Sidebar layout for admin panel
  */
@@ -181,6 +533,7 @@ export const AdminLayout = () => {
   const { signOut } = useAuthStore();
   const { pathname } = useLocation();
   const { t } = useTranslation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const adminLinks = [
     { to: '/admin/dashboard', icon: HomeIcon, label: t('layout.admin.links.dashboard', 'Dashboard') },
@@ -203,50 +556,38 @@ export const AdminLayout = () => {
     { to: '/admin/settings', icon: Cog6ToothIcon, label: t('layout.admin.links.settings', 'Settings') },
   ];
 
-  return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <Link to="/admin/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-              <ShieldCheckIcon className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-gray-900 dark:text-white">{t('layout.admin.panelTitle', 'Admin')}</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {adminLinks.map((link) => (
-            <SideNavLink key={link.to} {...link} />
-          ))}
-        </nav>
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            {t('nav.logout', 'Sign Out')}
-          </button>
-        </div>
-      </aside>
+  const desktopHeaderTitle = resolveActiveTitle(pathname, adminLinks, t('layout.admin.defaultTitle', 'Admin'));
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {adminLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.admin.defaultTitle', 'Admin')}
-          </h1>
-          <div className="flex items-center gap-3">
-            <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
-            <Link to="/" className="text-sm text-gray-500 hover:text-green-600">{t('layout.shared.backToSite', 'Back to Site')}</Link>
-          </div>
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+  const adminTabs = [
+    { to: '/admin/dashboard', icon: HomeIcon, label: 'الرئيسية' },
+    { to: '/admin/users', icon: UsersIcon, label: 'المستخدمون' },
+    { to: '/admin/products', icon: ShoppingBagIcon, label: 'المنتجات' },
+    { to: '/admin/settings', icon: Cog6ToothIcon, label: 'الإعدادات' },
+  ];
+
+  return (
+    <RoleLayoutShell
+      panelHome="/admin/dashboard"
+      panelTitle={t('layout.admin.panelTitle', 'Admin')}
+      panelIcon={(
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <ShieldCheckIcon className="w-5 h-5 text-white" />
+        </div>
+      )}
+      links={adminLinks}
+      desktopHeaderTitle={desktopHeaderTitle}
+      desktopProfilePath="/admin/settings"
+      mobileProfilePath="/admin/settings"
+      tabs={adminTabs}
+      onSignOut={() => signOut()}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+      extraDesktopActions={(
+        <Link to="/" className="text-sm text-gray-500 hover:text-green-600">{t('layout.shared.backToSite', 'Back to Site')}</Link>
+      )}
+    >
+      <Outlet />
+    </RoleLayoutShell>
   );
 };
 
@@ -257,6 +598,7 @@ export const VendorLayout = () => {
   const { signOut, profile } = useAuthStore();
   const { pathname } = useLocation();
   const { t } = useTranslation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const hasAcceptedContract = Boolean(profile?.agreement_accepted);
   const isDigitalContractPath = pathname.startsWith('/vendor/digital-contract');
@@ -281,51 +623,38 @@ export const VendorLayout = () => {
     { to: '/vendor/settings', icon: Cog6ToothIcon, label: t('layout.vendor.links.settings', 'Settings') },
   ];
 
-  return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <Link to="/vendor/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ق</span>
-            </div>
-            <span className="font-bold text-gray-900 dark:text-white">{t('layout.vendor.panelTitle', 'My Store')}</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {vendorLinks.map((link) => (
-            <SideNavLink key={link.to} {...link} />
-          ))}
-        </nav>
-        <div className="p-3 space-y-1 border-t border-gray-200 dark:border-gray-700">
-          <Link to="/" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700">
-            <HomeIcon className="w-5 h-5" />
-            {t('layout.shared.backToSite', 'Back to Site')}
-          </Link>
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            {t('nav.logout', 'Sign Out')}
-          </button>
-        </div>
-      </aside>
+  const desktopHeaderTitle = resolveActiveTitle(pathname, vendorLinks, t('layout.vendor.defaultTitle', 'Vendor'));
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {vendorLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.vendor.defaultTitle', 'Vendor')}
-          </h1>
-          <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+  const vendorTabs = [
+    { to: '/vendor/dashboard', icon: HomeIcon, label: 'الرئيسية' },
+    { to: '/vendor/products', icon: ShoppingBagIcon, label: 'منتجاتي' },
+    { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: 'الطلبات' },
+    { to: '/vendor/profile', icon: UserCircleIcon, label: 'ملفي' },
+  ];
+
+  return (
+    <RoleLayoutShell
+      panelHome="/vendor/dashboard"
+      panelTitle={t('layout.vendor.panelTitle', 'My Store')}
+      panelIcon={(
+        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
+        </div>
+      )}
+      links={vendorLinks}
+      desktopHeaderTitle={desktopHeaderTitle}
+      desktopProfilePath="/vendor/profile"
+      mobileProfilePath="/vendor/profile"
+      tabs={vendorTabs}
+      onSignOut={() => signOut()}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+      extraDrawerLinks={[
+        { to: '/', icon: HomeIcon, label: t('layout.shared.backToSite', 'Back to Site') },
+      ]}
+    >
+      <Outlet />
+    </RoleLayoutShell>
   );
 };
 
@@ -336,6 +665,7 @@ export const DriverLayout = () => {
   const { signOut } = useAuthStore();
   const { pathname } = useLocation();
   const { t } = useTranslation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const driverLinks = [
     { to: '/driver/dashboard', icon: HomeIcon, label: t('layout.driver.links.dashboard', 'Dashboard') },
@@ -349,47 +679,89 @@ export const DriverLayout = () => {
     { to: '/driver/settings', icon: Cog6ToothIcon, label: t('layout.driver.links.settings', 'Settings') },
   ];
 
-  return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <Link to="/driver/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <TruckIcon className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-gray-900 dark:text-white">{t('layout.driver.panelTitle', 'Driver')}</span>
-          </Link>
-        </div>
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {driverLinks.map((link) => (
-            <SideNavLink key={link.to} {...link} />
-          ))}
-        </nav>
-        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 w-full"
-          >
-            <ArrowRightOnRectangleIcon className="w-5 h-5" />
-            {t('nav.logout', 'Sign Out')}
-          </button>
-        </div>
-      </aside>
+  const desktopHeaderTitle = resolveActiveTitle(pathname, driverLinks, t('layout.driver.defaultTitle', 'Driver'));
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {driverLinks.find((link) => pathname.startsWith(link.to))?.label || t('layout.driver.defaultTitle', 'Driver')}
-          </h1>
-          <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
-        </header>
-        <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+  const driverTabs = [
+    { to: '/driver/dashboard', icon: HomeIcon, label: 'الرئيسية' },
+    { to: '/driver/active', icon: TruckIcon, label: 'توصيلاتي' },
+    { to: '/driver/available', icon: MapIcon, label: 'الخريطة' },
+    { to: '/driver/profile', icon: UserCircleIcon, label: 'ملفي' },
+  ];
+
+  return (
+    <RoleLayoutShell
+      panelHome="/driver/dashboard"
+      panelTitle={t('layout.driver.panelTitle', 'Driver')}
+      panelIcon={(
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <TruckIcon className="w-5 h-5 text-white" />
+        </div>
+      )}
+      links={driverLinks}
+      desktopHeaderTitle={desktopHeaderTitle}
+      desktopProfilePath="/driver/profile"
+      mobileProfilePath="/driver/profile"
+      tabs={driverTabs}
+      onSignOut={() => signOut()}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+    >
+      <Outlet />
+    </RoleLayoutShell>
+  );
+};
+
+/**
+ * BuyerLayout - Sidebar layout for buyer panel
+ */
+export const BuyerLayout = () => {
+  const { signOut } = useAuthStore();
+  const { pathname } = useLocation();
+  const { t } = useTranslation();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const buyerLinks = [
+    { to: '/buyer/dashboard', icon: HomeIcon, label: t('layout.buyer.links.dashboard', 'Dashboard') },
+    { to: '/marketplace', icon: ShoppingBagIcon, label: t('layout.buyer.links.marketplace', 'Marketplace') },
+    { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: t('layout.buyer.links.orders', 'My Orders') },
+    { to: '/buyer/addresses', icon: MapIcon, label: t('layout.buyer.links.addresses', 'Addresses') },
+    { to: '/buyer/coupons', icon: CurrencyDollarIcon, label: t('layout.buyer.links.coupons', 'Coupons') },
+    { to: '/buyer/loyalty', icon: StarIcon, label: t('layout.buyer.links.loyalty', 'Loyalty') },
+    { to: '/buyer/shopping-lists', icon: ShoppingBagIcon, label: t('layout.buyer.links.shoppingLists', 'Shopping Lists') },
+    { to: '/buyer/rfq', icon: DocumentChartBarIcon, label: t('layout.buyer.links.rfq', 'RFQ') },
+    { to: '/buyer/security', icon: ShieldCheckIcon, label: t('layout.buyer.links.security', 'Security') },
+    { to: '/buyer/settings', icon: Cog6ToothIcon, label: t('layout.buyer.links.settings', 'Settings') },
+  ];
+
+  const desktopHeaderTitle = resolveActiveTitle(pathname, buyerLinks, t('layout.buyer.defaultTitle', 'Buyer'));
+
+  const buyerTabs = [
+    { to: '/buyer/dashboard', icon: HomeIcon, label: 'الرئيسية' },
+    { to: '/marketplace', icon: ShoppingBagIcon, label: 'السوق' },
+    { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: 'طلباتي' },
+    { to: '/buyer/settings', icon: UserCircleIcon, label: 'ملفي' },
+  ];
+
+  return (
+    <RoleLayoutShell
+      panelHome="/buyer/dashboard"
+      panelTitle={t('layout.buyer.panelTitle', 'Buyer')}
+      panelIcon={(
+        <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center">
+          <span className="text-white font-bold text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
+        </div>
+      )}
+      links={buyerLinks}
+      desktopHeaderTitle={desktopHeaderTitle}
+      desktopProfilePath="/buyer/settings"
+      mobileProfilePath="/buyer/settings"
+      tabs={buyerTabs}
+      onSignOut={() => signOut()}
+      drawerOpen={drawerOpen}
+      setDrawerOpen={setDrawerOpen}
+    >
+      <Outlet />
+    </RoleLayoutShell>
   );
 };
 

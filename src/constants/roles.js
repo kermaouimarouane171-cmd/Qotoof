@@ -50,12 +50,3 @@ export const PUBLIC_PATHS = [
   '/404',
 ];
 
-/**
- * تحديد المسارات المحمية لكل دور
- */
-export const PROTECTED_ROUTES_BY_ROLE = {
-  [USER_ROLES.ADMIN]: /^\/admin/,
-  [USER_ROLES.VENDOR]: /^\/vendor/,
-  [USER_ROLES.BUYER]: /^\/marketplace/,
-  [USER_ROLES.DRIVER]: /^\/driver/,
-};

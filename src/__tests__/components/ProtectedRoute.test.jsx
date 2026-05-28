@@ -1,88 +1,155 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
+import { useAuthStore } from '@/store/authStore'
+import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator'
+import { usePaymentGuard } from '@/contexts/PaymentGuard'
 
-// Simulated ProtectedRoute component (isolated, no real imports)
-const ProtectedRoute = ({ children, allowedRoles, mockAuth }) => {
-  const { user, profile, loading, mfaRequired, mfaPending } = mockAuth
+jest.mock('@/components/Navbar', () => () => null)
+jest.mock('@/components/notifications/NotificationLink', () => () => null)
 
-  if (loading) {
-    return <div data-testid="loading">Loading...</div>
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (_key, fallback) => fallback || _key,
+  }),
+}))
+
+jest.mock('@/store/authStore', () => ({
+  useAuthStore: jest.fn(),
+}))
+
+jest.mock('@/orchestrators/OnboardingOrchestrator', () => ({
+  useOnboardingGate: jest.fn(),
+}))
+
+jest.mock('@/contexts/PaymentGuard', () => ({
+  usePaymentGuard: jest.fn(),
+}))
+
+const renderRoute = ({
+  initialEntry = '/protected?tab=active#summary',
+  allowedRoles = ['buyer'],
+  requiredRole = null,
+} = {}) => {
+  const Layout = () => <div data-testid="protected-layout">Protected Content</div>
+
+  const LocationProbe = () => {
+    const location = useLocation()
+    return (
+      <>
+        <div data-testid="location-path">{`${location.pathname}${location.search}`}</div>
+        <div data-testid="location-state">{JSON.stringify(location.state || {})}</div>
+      </>
+    )
   }
 
-  if (!user) {
-    return <div data-testid="redirect-login">Redirect to /login</div>
-  }
-
-  if (mfaRequired && mfaPending) {
-    return <div data-testid="redirect-mfa">Redirect to /mfa-verify</div>
-  }
-
-  if (allowedRoles && !allowedRoles.includes(profile?.role)) {
-    return <div data-testid="redirect-role">Redirect to role dashboard</div>
-  }
-
-  return children
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route
+          path="/protected"
+          element={<ProtectedRoute Layout={Layout} allowedRoles={allowedRoles} requiredRole={requiredRole} />}
+        />
+        <Route path="/login" element={<LocationProbe />} />
+        <Route path="/mfa-verify" element={<LocationProbe />} />
+        <Route path="/unauthorized" element={<LocationProbe />} />
+        <Route path="/vendor/settings" element={<LocationProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  )
 }
 
-describe('ProtectedRoute Component', () => {
-  const defaultAuth = {
-    user: { id: '1', email: 'test@example.com' },
-    profile: { role: 'buyer', first_name: 'Test', mfa_enabled: true },
+describe('ProtectedRoute (real component)', () => {
+  const baseAuth = {
+    user: { id: 'user-1', email: 'user@example.com' },
+    profile: { id: 'profile-1', role: 'buyer' },
     loading: false,
+    profileLoading: false,
     mfaRequired: false,
     mfaPending: false,
   }
 
-  it('renders children when user is authenticated', () => {
-    render(
-      <ProtectedRoute mockAuth={defaultAuth}>
-        <div data-testid="protected-content">Secret Content</div>
-      </ProtectedRoute>
-    )
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument()
-    expect(screen.getByText('Secret Content')).toBeInTheDocument()
+  beforeEach(() => {
+    jest.clearAllMocks()
+
+    useAuthStore.mockReturnValue(baseAuth)
+    useOnboardingGate.mockReturnValue({ isBlocking: false })
+    usePaymentGuard.mockReturnValue({
+      shouldRedirect: false,
+      redirectTo: null,
+      message: null,
+    })
   })
 
-  it('shows loading state when auth is still loading', () => {
-    render(
-      <ProtectedRoute mockAuth={{ ...defaultAuth, loading: true }}>
-        <div data-testid="protected-content">Secret</div>
-      </ProtectedRoute>
-    )
-    expect(screen.getByTestId('loading')).toBeInTheDocument()
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  it('renders protected layout when auth and role checks pass', () => {
+    renderRoute()
+    expect(screen.getByTestId('protected-layout')).toBeInTheDocument()
   })
 
-  it('redirects to login when user is not authenticated', () => {
-    render(
-      <ProtectedRoute mockAuth={{ ...defaultAuth, user: null }}>
-        <div data-testid="protected-content">Secret</div>
-      </ProtectedRoute>
-    )
-    expect(screen.getByTestId('redirect-login')).toBeInTheDocument()
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  it('redirects unauthenticated users to login and preserves from-state', () => {
+    useAuthStore.mockReturnValue({ ...baseAuth, user: null })
+
+    renderRoute()
+
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/login')
+    expect(screen.getByTestId('location-state')).toHaveTextContent('/protected?tab=active#summary')
   })
 
-  it('redirects to MFA verification when MFA is required and pending', () => {
-    render(
-      <ProtectedRoute mockAuth={{ ...defaultAuth, mfaRequired: true, mfaPending: true }}>
-        <div data-testid="protected-content">Secret</div>
-      </ProtectedRoute>
-    )
-    expect(screen.getByTestId('redirect-mfa')).toBeInTheDocument()
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  it('redirects to MFA verify when MFA is required and pending', () => {
+    useAuthStore.mockReturnValue({ ...baseAuth, mfaRequired: true, mfaPending: true })
+
+    renderRoute()
+
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/mfa-verify')
   })
 
-  it('redirects when user role is not in allowedRoles', () => {
-    render(
-      <ProtectedRoute
-        mockAuth={defaultAuth}
-        allowedRoles={['admin', 'vendor']}
-      >
-        <div data-testid="protected-content">Secret</div>
-      </ProtectedRoute>
-    )
-    expect(screen.getByTestId('redirect-role')).toBeInTheDocument()
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument()
+  it('does not redirect for missing role until profile.role exists', () => {
+    useAuthStore.mockReturnValue({ ...baseAuth, profile: { id: 'profile-1' } })
+
+    renderRoute({ allowedRoles: ['admin'] })
+
+    expect(screen.getByTestId('protected-layout')).toBeInTheDocument()
+  })
+
+  it('redirects to unauthorized when role is not allowed', () => {
+    useAuthStore.mockReturnValue({ ...baseAuth, profile: { id: 'profile-1', role: 'buyer' } })
+
+    renderRoute({ allowedRoles: ['vendor'] })
+
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/unauthorized')
+  })
+
+  it('redirects to payment setup route when payment guard blocks access', () => {
+    usePaymentGuard.mockReturnValue({
+      shouldRedirect: true,
+      redirectTo: '/vendor/settings',
+      message: 'PayPal setup required',
+    })
+
+    renderRoute()
+
+    expect(screen.getByTestId('location-path')).toHaveTextContent('/vendor/settings')
+    expect(screen.getByTestId('location-state')).toHaveTextContent('paypalSetupRequired')
+    expect(screen.getByTestId('location-state')).toHaveTextContent('PayPal setup required')
+  })
+
+  it('shows timeout fallback when auth loading exceeds threshold', () => {
+    jest.useFakeTimers()
+    useAuthStore.mockReturnValue({ ...baseAuth, loading: true })
+
+    renderRoute()
+
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+
+    act(() => {
+      jest.advanceTimersByTime(10001)
+    })
+
+    expect(
+      screen.getByText('Authentication is taking longer than expected'),
+    ).toBeInTheDocument()
+
+    jest.useRealTimers()
   })
 })

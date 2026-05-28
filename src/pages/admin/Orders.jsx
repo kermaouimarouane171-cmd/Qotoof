@@ -112,12 +112,13 @@ const AdminOrders = () => {
 
   // Redirect if not admin
   useEffect(() => {
+    if (!profile?.role) return
+
     if (profile?.role !== 'admin') {
       toast.error(t('common.error', 'Unauthorized access'))
       navigate('/unauthorized')
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile, navigate])
+  }, [profile?.role, navigate, t])
 
   // ============================================
   // Load Orders

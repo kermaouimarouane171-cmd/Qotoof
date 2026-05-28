@@ -34,7 +34,7 @@ const VendorPreferenceSetup = () => {
       setLoadingPartner(true)
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, store_name, first_name, last_name, phone, city, rating, has_own_driver')
           .eq('id', profile.preferred_vendor_id)
           .maybeSingle()

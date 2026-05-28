@@ -53,6 +53,17 @@ ALTER TABLE active_sessions
 --     tables join consistently through the application schema.
 -- ────────────────────────────────────────────
 
+-- Remove orphan rows first so the new FK can be created safely.
+DELETE FROM mfa_settings ms
+WHERE NOT EXISTS (
+  SELECT 1 FROM profiles p WHERE p.id = ms.user_id
+);
+
+DELETE FROM active_sessions s
+WHERE NOT EXISTS (
+  SELECT 1 FROM profiles p WHERE p.id = s.user_id
+);
+
 DO $$
 DECLARE
   v_constraint TEXT;

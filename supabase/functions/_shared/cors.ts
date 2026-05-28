@@ -7,7 +7,7 @@ export function getCorsHeaders(requestOrigin: string | null): HeadersInit {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, x-client-security, apikey, content-type',
   }
 }
 

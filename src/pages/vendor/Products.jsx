@@ -11,6 +11,7 @@ import { MAIN_CATEGORIES, getSuggestedSubcategories } from '@/constants/categori
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { isPayPalSetupComplete } from '@/utils/paypalEligibility'
 // mammoth is loaded dynamically inside the DOCX upload handler — see parseBulkFile()
 
 // Move lazy loading OUTSIDE the component to prevent re-mounting issues
@@ -31,6 +32,7 @@ const VendorProducts = () => {
   const [existingImages, setExistingImages] = useState([])
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [needsLocation, setNeedsLocation] = useState(false)
+  const [rejectionReasonProduct, setRejectionReasonProduct] = useState(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -107,6 +109,53 @@ const VendorProducts = () => {
   useEffect(() => {
     loadProducts()
   }, [loadProducts])
+
+  // Realtime: listen for approval_status changes on vendor's own products
+  useEffect(() => {
+    if (!profile?.id) return
+
+    const channel = supabase
+      .channel(`vendor-product-approvals:${profile.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'products',
+          filter: `vendor_id=eq.${profile.id}`,
+        },
+        (payload) => {
+          const updated = payload.new
+          const prev    = payload.old
+
+          if (updated.approval_status !== prev.approval_status) {
+            if (updated.approval_status === 'published') {
+              toast.success(
+                `تمت الموافقة على منتج “${updated.name}” — هو الآن ظاهر للمشترين`,
+                { duration: 6000 }
+              )
+            } else if (updated.approval_status === 'rejected') {
+              toast.error(
+                `تم رفض منتج “${updated.name}” — اضغط للاطلاع على السبب`,
+                { duration: 8000 }
+              )
+            } else if (updated.approval_status === 'suspended') {
+              toast(`تم تعليق منتج “${updated.name}” مؤقتاً من قبل الإدارة`, { icon: '⚠️', duration: 6000 })
+            }
+
+            // Refresh the local list to reflect the new status immediately
+            setProducts((prev) =>
+              prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p))
+            )
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [profile?.id])
   
   const resetForm = () => {
     setFormData({
@@ -314,6 +363,12 @@ const VendorProducts = () => {
     setBulkProgress({ current: 0, total: 0, success: 0, failed: 0 })
 
     try {
+      if (!isPayPalSetupComplete(profile)) {
+        toast.error('يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات')
+        setBulkParsing(false)
+        return
+      }
+
       let products = []
 
       // Handle DOCX files
@@ -437,6 +492,11 @@ const VendorProducts = () => {
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    if (!isPayPalSetupComplete(profile)) {
+      toast.error('يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات')
+      return
+    }
+
     // Validation - Accurate Product Description
     if (!formData.name.trim()) {
       toast.error('Product name is required')
@@ -521,7 +581,7 @@ const VendorProducts = () => {
           await uploadImages(editingProduct.id)
         }
         
-        toast.success('Product updated successfully!')
+        toast.success(t('vendor.products.updatedSuccess', 'Product updated successfully!'))
       } else {
         // Create new product
         const { data, error } = await supabase
@@ -537,7 +597,13 @@ const VendorProducts = () => {
           await uploadImages(data.id)
         }
         
-        toast.success('Product added successfully!')
+        toast.success(
+          t(
+            'vendor.products.createdPending',
+            'تم حفظ المنتج بنجاح — قيد مراجعة الأدمن. سيُنشر خلال 24 ساعة.'
+          ),
+          { duration: 6000 }
+        )
       }
       
       setModalOpen(false)
@@ -618,6 +684,24 @@ const VendorProducts = () => {
         <VendorAlerts />
       </div>
 
+      {/* Pending-approval banner */}
+      {(() => {
+        const pendingCount = products.filter((p) => p.approval_status === 'pending').length
+        if (!pendingCount) return null
+        return (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-yellow-300 bg-yellow-50 p-4">
+            <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-yellow-600" />
+            <p className="text-sm text-yellow-800">
+              {t(
+                'vendor.products.pendingBanner',
+                'لديك {{count}} منتج قيد مراجعة الأدمن — ستظهر للمشترين بعد الموافقة عليها',
+                { count: pendingCount }
+              )}
+            </p>
+          </div>
+        )
+      })()}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -692,9 +776,33 @@ const VendorProducts = () => {
                     <td>{formatPrice(product.price_per_unit)}/{product.unit_type}</td>
                     <td>{product.available_quantity?.toLocaleString()}</td>
                     <td>
-                      <span className={`badge ${product.is_available ? 'badge-primary' : 'badge-danger'}`}>
-                        {product.is_available ? 'Active' : 'Inactive'}
-                      </span>
+                      {/* Approval status badge */}
+                      {product.approval_status === 'pending' && (
+                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                          • {t('vendor.products.status.pending', 'قيد المراجعة')}
+                        </span>
+                      )}
+                      {product.approval_status === 'published' && (
+                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                          ✔ {t('vendor.products.status.published', 'منشور')}
+                        </span>
+                      )}
+                      {product.approval_status === 'rejected' && (
+                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+                          ✖ {t('vendor.products.status.rejected', 'مرفوض')}
+                        </span>
+                      )}
+                      {product.approval_status === 'suspended' && (
+                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                          ⏸ {t('vendor.products.status.suspended', 'موقوف')}
+                        </span>
+                      )}
+                      {/* Fallback for legacy is_available only */}
+                      {!product.approval_status && (
+                        <span className={`badge ${product.is_available ? 'badge-primary' : 'badge-danger'}`}>
+                          {product.is_available ? 'Active' : 'Inactive'}
+                        </span>
+                      )}
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -710,6 +818,14 @@ const VendorProducts = () => {
                         >
                           <TrashIcon className="w-5 h-5" />
                         </button>
+                        {product.approval_status === 'rejected' && product.rejection_reason && (
+                          <button
+                            onClick={() => setRejectionReasonProduct(product)}
+                            className="text-xs text-red-600 underline hover:text-red-800"
+                          >
+                            {t('vendor.products.viewReason', 'عرض السبب')}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -977,6 +1093,44 @@ const VendorProducts = () => {
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Rejection Reason Modal */}
+      <Modal
+        isOpen={Boolean(rejectionReasonProduct)}
+        onClose={() => setRejectionReasonProduct(null)}
+        title={t('vendor.products.rejectionReasonTitle', 'سبب رفض المنتج')}
+        size="sm"
+      >
+        {rejectionReasonProduct && (
+          <div className="space-y-3 text-sm" dir="rtl">
+            <p className="font-medium text-gray-800">{rejectionReasonProduct.name}</p>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-red-700">
+              {rejectionReasonProduct.rejection_reason ||
+                t('vendor.products.noReasonProvided', 'لم يُحدد سبب من قبل الأدمن')}
+            </div>
+            <p className="text-gray-500 text-xs">
+              {t('vendor.products.rejectionHint', 'يمكنك تعديل المنتج وإعادة إرساله للمراجعة.')}
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setRejectionReasonProduct(null)
+                  handleOpenModal(rejectionReasonProduct)
+                }}
+                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 transition-colors"
+              >
+                {t('vendor.products.editProduct', 'تعديل المنتج')}
+              </button>
+              <button
+                onClick={() => setRejectionReasonProduct(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                {t('common.close', 'إغلاق')}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

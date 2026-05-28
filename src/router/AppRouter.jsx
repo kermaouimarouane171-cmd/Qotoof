@@ -8,7 +8,8 @@
 import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ProtectedRoute, MainLayout, AdminLayout, VendorLayout, DriverLayout } from '@/components/ProtectedRoute';
+import { useAuthStore } from '@/store/authStore';
+import { ProtectedRoute, MainLayout, AdminLayout, VendorLayout, DriverLayout, BuyerLayout } from '@/components/ProtectedRoute';
 import { USER_ROLES } from '@/constants/roles';
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
@@ -29,6 +30,24 @@ const LoadingFallback = () => {
 const SuspenseRoute = ({ children }) => (
   <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
 );
+
+/**
+ * RoleOrdersRedirect — send each role to their own orders page.
+ * Unauthenticated users are redirected to login (ProtectedRoute handles that
+ * for inner routes; here we cover the bare /orders path).
+ */
+const RoleOrdersRedirect = () => {
+  const { profile, loading, profileLoading } = useAuthStore();
+  if (loading || profileLoading) return null;
+  if (!profile) return <Navigate to="/login" replace />;
+  const destinations = {
+    buyer:  '/buyer/orders',
+    vendor: '/vendor/orders',
+    driver: '/driver/active',
+    admin:  '/admin/orders',
+  };
+  return <Navigate to={destinations[profile.role] || '/marketplace'} replace />;
+};
 
 // ── Auth pages ────────────────────────────────────────────────────────────────
 const LoginPage             = lazy(() => import('@/pages/auth/Login'));
@@ -166,9 +185,14 @@ export function AppRouter() {
       <Route path="/auth/callback"   element={<SuspenseRoute><AuthCallbackPage /></SuspenseRoute>} />
 
       {/* ── Onboarding ───────────────────────────────────────────────────── */}
-      <Route path="/onboarding/buyer"  element={<SuspenseRoute><BuyerOnboardingPage /></SuspenseRoute>} />
-      <Route path="/onboarding/vendor" element={<SuspenseRoute><VendorOnboardingPage /></SuspenseRoute>} />
-      <Route path="/onboarding/driver" element={<SuspenseRoute><DriverOnboardingPage /></SuspenseRoute>} />
+      {/* Require authentication: unauthenticated users must log in first.    */}
+      {/* Role restriction intentionally omitted – OnboardingOrchestrator     */}
+      {/* enforces the correct role/path mapping after auth is verified.      */}
+      <Route element={<ProtectedRoute />}>
+        <Route path="/onboarding/buyer"  element={<SuspenseRoute><BuyerOnboardingPage /></SuspenseRoute>} />
+        <Route path="/onboarding/vendor" element={<SuspenseRoute><VendorOnboardingPage /></SuspenseRoute>} />
+        <Route path="/onboarding/driver" element={<SuspenseRoute><DriverOnboardingPage /></SuspenseRoute>} />
+      </Route>
 
       {/* ── Main (public + auth-gated) ───────────────────────────────────── */}
       <Route path="/" element={<MainLayout />}>
@@ -180,7 +204,7 @@ export function AppRouter() {
         <Route path="stores/:id"           element={<SuspenseRoute><StoreDetailPage /></SuspenseRoute>} />
         <Route path="cart"                 element={<SuspenseRoute><CartPage /></SuspenseRoute>} />
         <Route path="search"               element={<SuspenseRoute><SearchResultsPage /></SuspenseRoute>} />
-        <Route path="orders"               element={<Navigate to="/buyer/orders" replace />} />
+        <Route path="orders"               element={<RoleOrdersRedirect />} />
         <Route path="about"                element={<SuspenseRoute><AboutPage /></SuspenseRoute>} />
         <Route path="contact"              element={<SuspenseRoute><ContactPage /></SuspenseRoute>} />
         <Route path="help"                 element={<SuspenseRoute><HelpCenterPage /></SuspenseRoute>} />
@@ -205,25 +229,43 @@ export function AppRouter() {
           <Route path="favorites"                 element={<SuspenseRoute><FavoritesPage /></SuspenseRoute>} />
           <Route path="notifications"             element={<SuspenseRoute><NotificationsPage /></SuspenseRoute>} />
           <Route path="profile"                   element={<SuspenseRoute><ProfilePage /></SuspenseRoute>} />
-          <Route path="checkout"                  element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
+          {/* checkout: buyer only – vendors/drivers have no checkout flow */}
           <Route path="chat"                      element={<SuspenseRoute><ChatPage /></SuspenseRoute>} />
           <Route path="messages"                  element={<SuspenseRoute><MessagesPage /></SuspenseRoute>} />
           <Route path="bank-account"              element={<SuspenseRoute><BankAccountPage /></SuspenseRoute>} />
           <Route path="activity-log"              element={<SuspenseRoute><ActivityLogPage /></SuspenseRoute>} />
         </Route>
 
-        {/* Buyer dashboard */}
-        <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.BUYER]} />}>
-          <Route path="buyer/dashboard"       element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
-          <Route path="buyer/orders"          element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
-          <Route path="buyer/addresses"       element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
-          <Route path="buyer/settings"        element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
-          <Route path="buyer/coupons"         element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
-          <Route path="buyer/loyalty"         element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
-          <Route path="buyer/security"        element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
-          <Route path="buyer/shopping-lists"  element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
-          <Route path="buyer/rfq"             element={<SuspenseRoute><BuyerRFQ /></SuspenseRoute>} />
+        {/* buyer-only routes inside MainLayout */}
+        <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.BUYER]} requiredRole={USER_ROLES.BUYER} />}>
+          <Route path="checkout"                  element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
         </Route>
+
+      </Route>
+
+      {/* ── Buyer ────────────────────────────────────────────────────────── */}
+      <Route
+        path="/buyer"
+        element={
+          <SuspenseRoute>
+            <ProtectedRoute
+              Layout={BuyerLayout}
+              requiredRole={USER_ROLES.BUYER}
+              allowedRoles={[USER_ROLES.BUYER]}
+            />
+          </SuspenseRoute>
+        }
+      >
+        <Route index                    element={<Navigate to="/buyer/dashboard" replace />} />
+        <Route path="dashboard"        element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
+        <Route path="orders"           element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
+        <Route path="addresses"        element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
+        <Route path="settings"         element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
+        <Route path="coupons"          element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
+        <Route path="loyalty"          element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
+        <Route path="security"         element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
+        <Route path="shopping-lists"   element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
+        <Route path="rfq"              element={<SuspenseRoute><BuyerRFQ /></SuspenseRoute>} />
       </Route>
 
       {/* ── Vendor ───────────────────────────────────────────────────────── */}

@@ -45,8 +45,6 @@ const parseQuantityInput = (value, item) => {
   })
 }
 
-const MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE = 'لا يمكن إتمام الطلب من أكثر من متجر في آنٍ واحد. فصّل سلتك حسب البائع ثم أعد المحاولة.'
-
 // ============================================
 // Cart Page Component
 // ============================================
@@ -100,7 +98,7 @@ const CartPage = () => {
 
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, store_name, min_order_amount')
           .in('id', vendorIds)
 
@@ -123,6 +121,7 @@ const CartPage = () => {
     () => evaluateVendorMinimumOrders({ items, vendorProfiles }),
     [items, vendorProfiles]
   )
+  const multiVendorCheckoutDisabledMessage = t('cart.messages.singleVendorCheckout')
   const vendorGroups = useMemo(() => {
     const groups = new Map()
 
@@ -130,7 +129,7 @@ const CartPage = () => {
       const key = item.vendor_id || 'unknown-vendor'
       const existing = groups.get(key) || {
         vendorId: key,
-        vendorName: item.vendor_name || 'بائع غير معروف',
+        vendorName: item.vendor_name || t('cart.labels.unknownVendor'),
         items: [],
         subtotal: 0,
       }
@@ -141,7 +140,7 @@ const CartPage = () => {
     })
 
     return Array.from(groups.values())
-  }, [items])
+  }, [items, t])
 
   const validateCartOnMount = useCallback(async () => {
     setValidating(true)
@@ -175,31 +174,27 @@ const CartPage = () => {
         const updatedCount = result.changes.filter(c => c.type !== 'removed').length
         const summaryParts = []
 
-        if (removedCount > 0) {
-          summaryParts.push(`حُذف ${removedCount} منتج(ات)`)
-        }
-        if (updatedCount > 0) {
-          summaryParts.push(`حُدِّث ${updatedCount} منتج(ات)`)
-        }
+        if (removedCount > 0) summaryParts.push(t('cart.validation.itemsRemoved', { count: removedCount }))
+        if (updatedCount > 0) summaryParts.push(t('cart.validation.itemsUpdated', { count: updatedCount }))
 
         setLastValidationSummary(summaryParts.join(' • '))
 
         if (removedCount > 0) {
-          toast.error(`تم حذف ${removedCount} منتج(ات) من السلة لأنها غير متاحة حالياً`)
+          toast.error(t('cart.validation.itemsRemovedToast', { count: removedCount }))
         }
         if (updatedCount > 0) {
-          toast(`تم تحديث ${updatedCount} منتج(ات) في سلتك`, { icon: '⚠️' })
+          toast(t('cart.validation.itemsUpdatedToast', { count: updatedCount }), { icon: '⚠️' })
         }
       } else {
-        setLastValidationSummary('أسعار سلتك وتوفرها محدّثة.')
+        setLastValidationSummary(t('cart.validation.synced'))
       }
     } catch (error) {
       logger.error('Cart validation failed:', error)
-      setLastValidationSummary('تعذّر تحديث حالة السلة. حاول مرة أخرى.')
+      setLastValidationSummary(t('cart.validation.syncFailed'))
     } finally {
       setValidating(false)
     }
-  }, [validateCart])
+  }, [t, validateCart])
 
   // Validate cart on mount and re-validate periodically
   useEffect(() => {
@@ -233,7 +228,10 @@ const CartPage = () => {
     const newQty = parseFloat((currentItem.quantity + step).toFixed(2))
 
     if (newQty > maxQty) {
-      toast.error(`وصلت للحد الأقصى المتاح: ${formatQuantity(maxQty, currentItem.unit_type)} ${currentItem.unit_type}`)
+      toast.error(t('cart.errors.maxAvailableReached', {
+        quantity: formatQuantity(maxQty, currentItem.unit_type),
+        unit: currentItem.unit_type,
+      }))
       return
     }
 
@@ -243,7 +241,7 @@ const CartPage = () => {
       [item.id]: formatQuantity(newQty, currentItem.unit_type),
     }))
     setInputErrors(prev => ({ ...prev, [item.id]: '' }))
-  }, [updateQuantity])
+  }, [t, updateQuantity])
 
   const handleDecrement = useCallback((item) => {
     // Read from store to avoid stale closure
@@ -293,16 +291,22 @@ const CartPage = () => {
 
     let error = ''
     if (parsed === 0) {
-      error = 'الكمية يجب أن تكون أكبر من صفر'
+      error = t('cart.errors.quantityMustBePositive')
     } else if (parsed < minQty) {
-      error = `الحد الأدنى للطلب ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`
+      error = t('cart.errors.minimumOrder', {
+        quantity: formatQuantity(minQty, item.unit_type),
+        unit: item.unit_type,
+      })
     } else if (maxQty !== null && parsed > maxQty) {
-      error = `المتاح فقط ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type}`
+      error = t('cart.errors.onlyAvailable', {
+        quantity: formatQuantity(maxQty, item.unit_type),
+        unit: item.unit_type,
+      })
     }
 
     setInputQuantities(prev => ({ ...prev, [productId]: rawValue }))
     setInputErrors(prev => ({ ...prev, [productId]: error }))
-  }, [])
+  }, [t])
 
   const handleInputBlur = useCallback((item) => {
     const productId = item.id
@@ -335,7 +339,10 @@ const CartPage = () => {
     if (parsed < minQty) {
       setInputErrors(prev => ({
         ...prev,
-        [productId]: `الحد الأدنى للطلب ${formatQuantity(minQty, item.unit_type)} ${item.unit_type}`,
+        [productId]: t('cart.errors.minimumOrder', {
+          quantity: formatQuantity(minQty, item.unit_type),
+          unit: item.unit_type,
+        }),
       }))
       // Revert
       setInputQuantities(prev => ({
@@ -363,7 +370,10 @@ const CartPage = () => {
 
       setInputErrors(prev => ({
         ...prev,
-        [productId]: `المتاح فقط ${formatQuantity(maxQty, item.unit_type)} ${item.unit_type}`,
+        [productId]: t('cart.errors.onlyAvailable', {
+          quantity: formatQuantity(maxQty, item.unit_type),
+          unit: item.unit_type,
+        }),
       }))
       // Clamp to max AND update store to keep them in sync
       updateQuantity(item.id, clampedMaxQty)
@@ -379,7 +389,7 @@ const CartPage = () => {
       updateQuantity(item.id, parsed)
     }
     setInputErrors(prev => ({ ...prev, [productId]: '' }))
-  }, [inputQuantities, updateQuantity])
+  }, [inputQuantities, t, updateQuantity])
 
   const handleInputKeyDown = useCallback((item, e) => {
     if (e.key === 'Enter') {
@@ -414,8 +424,8 @@ const CartPage = () => {
     setInputErrors({})
     setPriceAlerts({})
     setShowClearConfirm(false)
-    toast.success('تم تفريغ السلة')
-  }, [clearCart])
+    toast.success(t('cart.messages.cartCleared'))
+  }, [clearCart, t])
 
   // ============================================
   // Checkout with Server Validation
@@ -426,14 +436,14 @@ const CartPage = () => {
 
     const vendorIds = [...new Set(items.map((item) => item.vendor_id).filter(Boolean))]
     if (vendorIds.length > 1) {
-      toast.error(MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE)
+      toast.error(multiVendorCheckoutDisabledMessage)
       return
     }
 
     setCheckoutLoading(true)
     try {
       const { data: freshVendorProfiles, error: vendorProfilesError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, store_name, min_order_amount')
         .in('id', vendorIds)
 
@@ -468,19 +478,27 @@ const CartPage = () => {
         const fresh = freshMap.get(item.id)
 
         if (!fresh || !fresh.is_available) {
-          issues.push(`${item.name} لم يعد متاحاً`)
+          issues.push(t('cart.checkout.itemUnavailable', { name: item.name }))
           continue
         }
 
         // Verify price hasn't changed significantly
         const priceDiff = Math.abs(fresh.price_per_unit - item.price_per_unit)
         if (priceDiff > 0.01) {
-          issues.push(`${item.name}: تغيّر السعر من ${formatPrice(item.price_per_unit)} إلى ${formatPrice(fresh.price_per_unit)}`)
+          issues.push(t('cart.checkout.priceChanged', {
+            name: item.name,
+            oldPrice: formatPrice(item.price_per_unit),
+            newPrice: formatPrice(fresh.price_per_unit),
+          }))
         }
 
         // Verify stock
         if (fresh.available_quantity !== null && item.quantity > fresh.available_quantity) {
-          issues.push(`${item.name}: المتاح فقط ${formatQuantity(fresh.available_quantity, item.unit_type)} ${item.unit_type}`)
+          issues.push(t('cart.checkout.onlyAvailable', {
+            name: item.name,
+            quantity: formatQuantity(fresh.available_quantity, item.unit_type),
+            unit: item.unit_type,
+          }))
         }
       }
 
@@ -497,23 +515,23 @@ const CartPage = () => {
       navigate('/checkout')
     } catch (error) {
       logger.error('Checkout validation error:', error)
-      toast.error('تعذّر التحقق من السلة. حاول مرة أخرى.')
+      toast.error(t('cart.checkout.validationFailed'))
     } finally {
       setCheckoutLoading(false)
     }
-  }, [clearCheckoutVendor, items, validateCart, navigate])
+  }, [clearCheckoutVendor, items, multiVendorCheckoutDisabledMessage, navigate, t, validateCart])
 
   const handleCheckoutForVendor = useCallback((vendorId) => {
     const didSelectVendor = setCheckoutVendor(vendorId)
 
     if (!didSelectVendor) {
-      toast.error('تعذر تجهيز سلة هذا البائع حالياً. حاول مرة أخرى.')
+      toast.error(t('cart.checkout.prepareVendorCartFailed'))
       return
     }
 
-    toast.success('تم تجهيز السلة لهذا البائع فقط. يمكنك الآن متابعة الدفع.')
+    toast.success(t('cart.checkout.prepareVendorCartSuccess'))
     navigate('/checkout')
-  }, [navigate, setCheckoutVendor])
+  }, [navigate, setCheckoutVendor, t])
 
   // ============================================
   // Computed Values
@@ -563,7 +581,7 @@ const CartPage = () => {
           {(lastValidatedAt || lastValidationSummary) && (
             <p className="text-xs text-gray-500 mt-2" data-testid="cart-validation-status">
               {lastValidationSummary}
-              {lastValidatedAt && ` · آخر تحقق: ${formatValidationTime(lastValidatedAt)}`}
+              {lastValidatedAt && ` · ${t('cart.validation.lastChecked', { time: formatValidationTime(lastValidatedAt) })}`}
             </p>
           )}
         </div>
@@ -576,7 +594,7 @@ const CartPage = () => {
               data-testid="cart-refresh-status"
               className="text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
             >
-              {validating ? 'جارٍ التحقق…' : 'تحديث الأسعار'}
+              {validating ? t('cart.validation.checking') : t('cart.validation.refreshPrices')}
             </button>
             <button
               onClick={() => setShowClearConfirm(true)}
@@ -601,9 +619,9 @@ const CartPage = () => {
             {multiVendorCheckoutBlocked && vendorGroups.length > 1 && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 space-y-4">
                 <div>
-                  <h2 className="text-base sm:text-lg font-semibold text-amber-900">قسّم السلة بخطوة واحدة</h2>
+                  <h2 className="text-base sm:text-lg font-semibold text-amber-900">{t('cart.checkout.splitCartTitle')}</h2>
                   <p className="text-sm text-amber-800 mt-1 leading-6">
-                    اختر البائع الذي تريد إتمام طلبه الآن، وسنحتفظ بمنتجاته فقط داخل السلة ثم ننقلك مباشرة إلى صفحة الدفع.
+                    {t('cart.checkout.splitCartDescription')}
                   </p>
                 </div>
 
@@ -616,7 +634,7 @@ const CartPage = () => {
                       <div>
                         <p className="font-semibold text-gray-900">{group.vendorName}</p>
                         <p className="text-sm text-gray-500 mt-1">
-                          {group.items.length} منتج · {formatPrice(group.subtotal)}
+                          {t('cart.checkout.vendorItemSummary', { count: group.items.length })} · {formatPrice(group.subtotal)}
                         </p>
                       </div>
 
@@ -625,7 +643,7 @@ const CartPage = () => {
                         onClick={() => handleCheckoutForVendor(group.vendorId)}
                         className="btn-outline w-full sm:w-auto"
                       >
-                        اختيار هذا البائع والمتابعة للدفع
+                        {t('cart.checkout.selectVendorAndContinue')}
                       </button>
                     </div>
                   ))}
@@ -656,7 +674,7 @@ const CartPage = () => {
                   {vendorCount > 1 && item.vendor_name && (
                     <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                        البائع: {item.vendor_name}
+                        {t('cart.labels.vendorPrefix', { name: item.vendor_name })}
                       </p>
                     </div>
                   )}
@@ -666,7 +684,10 @@ const CartPage = () => {
                     <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2">
                       <BoltIcon className="w-4 h-4 text-amber-500 flex-shrink-0" />
                       <p className="text-xs text-amber-700">
-                        تحديث السعر: {formatPrice(hasPriceAlert.oldPrice)} ← {formatPrice(hasPriceAlert.newPrice)}
+                        {t('cart.labels.priceUpdated', {
+                          oldPrice: formatPrice(hasPriceAlert.oldPrice),
+                          newPrice: formatPrice(hasPriceAlert.newPrice),
+                        })}
                       </p>
                     </div>
                   )}
@@ -712,7 +733,7 @@ const CartPage = () => {
                             onClick={() => setPendingRemove({ id: item.id, name: item.name })}
                             data-testid="cart-item-remove"
                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            aria-label={`Remove ${item.name}`}
+                            aria-label={t('cart.removeItemAria', { name: item.name })}
                           >
                             <TrashIcon className="w-5 h-5" />
                           </button>
@@ -722,10 +743,13 @@ const CartPage = () => {
                         {isLowStock && (
                           <p className="text-xs text-orange-600 mt-2 flex items-center gap-1">
                             <ExclamationTriangleIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                            المتاح فقط {formatQuantity(item.available_quantity, item.unit_type)} {item.unit_type}
+                            {t('cart.errors.onlyAvailable', {
+                              quantity: formatQuantity(item.available_quantity, item.unit_type),
+                              unit: item.unit_type,
+                            })}
                             {item.quantity > item.available_quantity * 0.8 && (
                               <span className="ml-1 px-1.5 py-0.5 bg-orange-100 rounded text-[10px] font-medium">
-                                80%+ محجوز
+                                {t('cart.labels.stockReservedBadge')}
                               </span>
                             )}
                           </p>
@@ -783,8 +807,11 @@ const CartPage = () => {
 
                           {/* Step Info */}
                           <p className="text-xs text-gray-400 sm:text-right">
-                            الوحدة: {formatQuantity(step, item.unit_type)} {item.unit_type}
-                            {minQty > 1 && ` · الحد الأدنى: ${formatQuantity(minQty, item.unit_type)}`}
+                            {t('cart.labels.unitStep', {
+                              quantity: formatQuantity(step, item.unit_type),
+                              unit: item.unit_type,
+                            })}
+                            {minQty > 1 && ` · ${t('cart.labels.minimumLabel', { quantity: formatQuantity(minQty, item.unit_type) })}`}
                           </p>
 
                           {/* Item Subtotal */}
@@ -813,32 +840,32 @@ const CartPage = () => {
           {/* ===== Order Summary (Desktop Sidebar) ===== */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="card p-6 sticky top-24 bg-white border border-gray-200 rounded-xl" data-testid="cart-summary">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">ملخص الطلب</h2>
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('cart.orderSummary')}</h2>
 
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between text-gray-600">
-                  <span>الإجمالي الفرعي ({items.length} منتج)</span>
+                  <span>{t('cart.summary.subtotalWithCount', { count: items.length })}</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
                 {tax > 0 && (
                   <div className="flex justify-between text-gray-600">
-                    <span>الضريبة</span>
+                    <span>{t('cart.summary.tax')}</span>
                     <span>{formatPrice(tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-gray-600">
-                  <span>التوصيل</span>
-                  <span className="text-gray-400 text-sm">يُحسب عند الدفع</span>
+                  <span>{t('cart.summary.delivery')}</span>
+                  <span className="text-gray-400 text-sm">{t('cart.summary.deliveryAtCheckout')}</span>
                 </div>
                 {vendorCount > 1 && (
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>طلب متعدد البائعين</span>
-                    <span>{vendorCount} بائعين</span>
+                    <span>{t('cart.summary.multiVendorOrder')}</span>
+                    <span>{t('cart.summary.vendorCount', { count: vendorCount })}</span>
                   </div>
                 )}
                 {multiVendorCheckoutBlocked && (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 leading-5">
-                    {MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE}
+                    {multiVendorCheckoutDisabledMessage}
                   </div>
                 )}
                 {minimumOrderStatus.hasViolations && (
@@ -847,7 +874,10 @@ const CartPage = () => {
                       <div key={vendor.vendorId} className="text-xs text-amber-800">
                         <p className="font-semibold">{vendor.vendorName}</p>
                         <p>
-                          الحد الأدنى {formatPrice(vendor.minOrderAmount)} ويتبقى {formatPrice(vendor.shortfall)}
+                          {t('cart.summary.minimumOrderStatus', {
+                            minAmount: formatPrice(vendor.minOrderAmount),
+                            shortfall: formatPrice(vendor.shortfall),
+                          })}
                         </p>
                       </div>
                     ))}
@@ -855,7 +885,7 @@ const CartPage = () => {
                 )}
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-xl font-bold text-gray-900" data-testid="cart-total">
-                  <span>الإجمالي</span>
+                  <span>{t('cart.total')}</span>
                   <span className="text-green-600">{formatPrice(total)}</span>
                 </div>
               </div>
@@ -869,37 +899,37 @@ const CartPage = () => {
                 {checkoutLoading ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    جارٍ التحقق...
+                    {t('cart.validation.checking')}
                   </>
                 ) : multiVendorCheckoutBlocked ? (
-                  'فصّل السلة حسب البائع'
+                  t('cart.checkout.splitByVendorCta')
                 ) : minimumOrderStatus.hasViolations ? (
-                  'لم يُستوفَ الحد الأدنى'
+                  t('cart.checkout.minimumNotMetCta')
                 ) : (
                   <>
-                    المتابعة للدفع
+                    {t('cart.checkout')}
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
               </button>
 
               <Link to="/marketplace" className="btn-ghost w-full mt-3 text-center block">
-                {t('cart.continueShopping', 'متابعة التسوق')}
+                {t('cart.continueShopping')}
               </Link>
 
               {/* Trust Badges */}
               <div className="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-500">
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>دفع آمن ومشفر</span>
+                  <span>{t('cart.trust.securePayment')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>حماية المشتري</span>
+                  <span>{t('cart.trust.buyerProtection')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                  <span>ضمان جودة المنتجات</span>
+                  <span>{t('cart.trust.qualityGuarantee')}</span>
                 </div>
               </div>
             </div>
@@ -913,14 +943,14 @@ const CartPage = () => {
           <div className="px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <p className="text-xs text-gray-500">الإجمالي ({items.length} منتج)</p>
+                <p className="text-xs text-gray-500">{t('cart.summary.totalWithCount', { count: items.length })}</p>
                 <p className="text-2xl font-bold text-gray-900">{formatPrice(total)}</p>
-                {tax > 0 && <p className="text-xs text-gray-400">شامل ضريبة {formatPrice(tax)}</p>}
+                {tax > 0 && <p className="text-xs text-gray-400">{t('cart.summary.taxIncluded', { amount: formatPrice(tax) })}</p>}
                 {multiVendorCheckoutBlocked && (
-                  <p className="text-xs text-amber-700 mt-1">فصّل السلة حسب البائع قبل الدفع.</p>
+                  <p className="text-xs text-amber-700 mt-1">{t('cart.checkout.splitByVendorHint')}</p>
                 )}
                 {minimumOrderStatus.hasViolations && (
-                  <p className="text-xs text-amber-700 mt-1">استوفِ الحد الأدنى للطلب لكل بائع قبل المتابعة.</p>
+                  <p className="text-xs text-amber-700 mt-1">{t('cart.checkout.minimumNotMetHint')}</p>
                 )}
               </div>
               <button
@@ -932,15 +962,15 @@ const CartPage = () => {
                 {checkoutLoading ? (
                   <>
                     <LoadingSpinner size="sm" />
-                    جارٍ التحقق...
+                    {t('cart.validation.checking')}
                   </>
                 ) : multiVendorCheckoutBlocked ? (
-                  'فصّل حسب البائع'
+                  t('cart.checkout.splitByVendorShortCta')
                 ) : minimumOrderStatus.hasViolations ? (
-                  'الحد الأدنى غير مستوفى'
+                  t('cart.checkout.minimumNotMetShortCta')
                 ) : (
                   <>
-                    إتمام الطلب
+                    {t('cart.checkout')}
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
@@ -966,24 +996,24 @@ const CartPage = () => {
               <TrashIcon className="w-6 h-6 text-red-600" />
             </div>
             <h3 id="remove-dialog-title" className="text-lg font-semibold text-gray-900 mb-2 text-center">
-              حذف المنتج؟
+              {t('cart.removeDialog.title')}
             </h3>
             <p className="text-sm text-gray-600 mb-6 text-center">
-              هل تريد حذف <strong>{pendingRemove.name}</strong> من السلة؟
+              {t('cart.removeDialog.description', { name: pendingRemove.name })}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setPendingRemove(null)}
                 className="btn-outline flex-1"
               >
-                إلغاء
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmRemoveItem}
                 data-testid="cart-remove-confirm"
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
               >
-                حذف
+                {t('common.delete')}
               </button>
             </div>
           </div>
@@ -1005,23 +1035,23 @@ const CartPage = () => {
               <ExclamationTriangleIcon className="w-6 h-6 text-amber-600" />
             </div>
             <h3 id="clear-dialog-title" className="text-lg font-semibold text-gray-900 mb-2 text-center">
-              تفريغ السلة كاملاً؟
+              {t('cart.clearDialog.title')}
             </h3>
             <p className="text-sm text-gray-600 mb-6 text-center">
-              سيتم حذف جميع <strong>{items.length}</strong> منتج{items.length !== 1 ? '' : ''} من سلتك. لا يمكن التراجع عن هذا الإجراء.
+              {t('cart.clearDialog.description', { count: items.length })}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowClearConfirm(false)}
                 className="btn-outline flex-1"
               >
-                إلغاء
+                {t('common.cancel')}
               </button>
               <button
                 onClick={confirmClearCart}
                 className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors"
               >
-                تفريغ الكل
+                {t('cart.clearDialog.confirm')}
               </button>
             </div>
           </div>

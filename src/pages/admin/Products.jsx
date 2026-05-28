@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { formatPrice } from '@/utils/currency'
 import { logger } from '@/utils/logger'
 
-const STATUS_OPTIONS = ['pending', 'approved', 'rejected']
+const STATUS_OPTIONS = ['all', 'pending', 'published', 'rejected', 'suspended']
 
 const AdminProductsPage = () => {
   const { t, i18n } = useTranslation()
@@ -37,7 +37,7 @@ const AdminProductsPage = () => {
     setLoading(true)
     try {
       const response = await productsApi.getAll({
-        approvalStatus: statusFilter,
+        approvalStatus: statusFilter === 'all' ? undefined : statusFilter,
         category: categoryFilter === 'all' ? undefined : categoryFilter,
         vendorId: vendorFilter === 'all' ? undefined : vendorFilter,
         search: search.trim() || undefined,
@@ -86,6 +86,10 @@ const AdminProductsPage = () => {
 
   const allSelected = products.length > 0 && selectedIds.length === products.length
 
+  const canBatchApprove = selectedIds.length > 0 && selectedIds.every(
+    (id) => products.find((p) => p.id === id)?.approval_status === 'pending'
+  )
+
   const toggleSelect = (id) => {
     setSelectedIds((prev) => (
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -93,12 +97,12 @@ const AdminProductsPage = () => {
   }
 
   const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? [] : products.map((p) => p.id))
+    const pendingIds = products.filter((p) => p.approval_status === 'pending').map((p) => p.id)
+    const allPendingSelected = pendingIds.length > 0 && pendingIds.every((id) => selectedIds.includes(id))
+    setSelectedIds(allPendingSelected ? [] : pendingIds)
   }
-
   const sendProductNotification = async ({ userId, title, message, productId, type = 'system' }) => {
     if (!userId) return
-
     const { error } = await supabase
       .from('notifications')
       .insert({
@@ -108,10 +112,7 @@ const AdminProductsPage = () => {
         type,
         data: { product_id: productId, source: 'admin-products' },
       })
-
-    if (error) {
-      logger.error('Product notification insert failed:', error)
-    }
+    if (error) logger.error('Product notification insert failed:', error)
   }
 
   const approveSingle = async (product) => {
@@ -155,6 +156,27 @@ const AdminProductsPage = () => {
     } catch (error) {
       logger.error('Bulk approve failed:', error)
       toast.error(t('admin.products.bulkApproveFailed', 'تعذرت الموافقة الجماعية'))
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const suspendSingle = async (product) => {
+    setActionLoading(true)
+    try {
+      await productsApi.suspend(product.id)
+      await sendProductNotification({
+        userId: product.vendor_id,
+        productId: product.id,
+        title: t('admin.products.notifications.suspendedTitle', 'تم تعليق المنتج'),
+        message: t('admin.products.notifications.suspendedMessage', 'تم تعليق منتجك مؤقتاً من قبل الإدارة.'),
+        type: 'system',
+      })
+      toast.success(t('admin.products.suspendedSuccess', 'تم تعليق المنتج'))
+      await loadProducts()
+    } catch (error) {
+      logger.error('Suspend product failed:', error)
+      toast.error(t('admin.products.suspendedFailed', 'تعذر تعليق المنتج'))
     } finally {
       setActionLoading(false)
     }
@@ -223,7 +245,7 @@ const AdminProductsPage = () => {
           type="button"
           variant="primary"
           onClick={approveSelected}
-          disabled={!selectedIds.length || statusFilter !== 'pending'}
+          disabled={!canBatchApprove}
           isLoading={actionLoading}
           data-cy="admin-products-batch-approve"
         >
@@ -243,7 +265,9 @@ const AdminProductsPage = () => {
         >
           {STATUS_OPTIONS.map((status) => (
             <option key={status} value={status}>
-              {t(`admin.products.status.${status}`, status)}
+              {status === 'all'
+                ? t('admin.products.status.all', 'الكل')
+                : t(`admin.products.status.${status}`, status)}
             </option>
           ))}
         </select>
@@ -287,9 +311,9 @@ const AdminProductsPage = () => {
               <th className="px-3 py-3 w-10">
                 <input
                   type="checkbox"
-                  checked={allSelected}
+                  checked={products.filter(p => p.approval_status === 'pending').every(p => selectedIds.includes(p.id)) && products.some(p => p.approval_status === 'pending')}
                   onChange={toggleSelectAll}
-                  disabled={statusFilter !== 'pending' || !products.length}
+                  disabled={!products.some(p => p.approval_status === 'pending')}
                   data-cy="admin-products-select-all"
                 />
               </th>
@@ -297,6 +321,7 @@ const AdminProductsPage = () => {
               <th className="px-3 py-3">{t('admin.products.columns.vendor', 'البائع')}</th>
               <th className="px-3 py-3">{t('admin.products.columns.category', 'التصنيف')}</th>
               <th className="px-3 py-3">{t('admin.products.columns.price', 'السعر')}</th>
+              <th className="px-3 py-3">{t('admin.products.columns.status', 'الحالة')}</th>
               <th className="px-3 py-3">{t('admin.products.columns.submittedAt', 'تاريخ الإرسال')}</th>
               <th className="px-3 py-3">{t('admin.products.columns.actions', 'الإجراءات')}</th>
             </tr>
@@ -324,7 +349,7 @@ const AdminProductsPage = () => {
                         type="checkbox"
                         checked={selectedIds.includes(product.id)}
                         onChange={() => toggleSelect(product.id)}
-                        disabled={statusFilter !== 'pending'}
+                        disabled={product.approval_status !== 'pending'}
                         data-cy={`admin-products-select-${product.id}`}
                       />
                     </td>
@@ -332,7 +357,17 @@ const AdminProductsPage = () => {
                     <td className="px-3 py-3">{vendorName}</td>
                     <td className="px-3 py-3">{product.category || '-'}</td>
                     <td className="px-3 py-3">{formatPrice(product.price_per_unit || 0)}</td>
-                    <td className="px-3 py-3">{new Date(product.created_at).toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : 'en-US')}</td>
+                    <td className="px-3 py-3">
+                      <span className={[
+                        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                        product.approval_status === 'pending'   && 'bg-yellow-100 text-yellow-800',
+                        product.approval_status === 'published' && 'bg-green-100  text-green-800',
+                        product.approval_status === 'rejected'  && 'bg-red-100    text-red-800',
+                        product.approval_status === 'suspended' && 'bg-gray-100   text-gray-700',
+                      ].filter(Boolean).join(' ')}>
+                        {t(`admin.products.status.${product.approval_status}`, product.approval_status)}
+                      </span>
+                    </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-2">
                         <Button
@@ -364,6 +399,30 @@ const AdminProductsPage = () => {
                               {t('admin.products.actions.reject', 'رفض')}
                             </Button>
                           </>
+                        )}
+
+                        {product.approval_status === 'published' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => suspendSingle(product)}
+                            isLoading={actionLoading}
+                            data-cy={`admin-products-suspend-${product.id}`}
+                          >
+                            {t('admin.products.actions.suspend', 'تعليق')}
+                          </Button>
+                        )}
+
+                        {product.approval_status === 'suspended' && (
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() => approveSingle(product)}
+                            isLoading={actionLoading}
+                            data-cy={`admin-products-restore-${product.id}`}
+                          >
+                            {t('admin.products.actions.restore', 'إعادة نشر')}
+                          </Button>
                         )}
                       </div>
                     </td>

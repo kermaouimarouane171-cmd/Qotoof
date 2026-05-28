@@ -175,7 +175,7 @@ const BuyerDashboard = () => {
 
         // Favorite/recently visited stores
         supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, first_name, last_name, store_name, avatar_url, city, is_verified')
           .eq('role', 'vendor')
           .order('created_at', { ascending: false })

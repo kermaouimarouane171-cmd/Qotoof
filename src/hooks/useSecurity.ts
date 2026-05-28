@@ -2,7 +2,7 @@
  * @fileoverview Shared role-agnostic security hooks.
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, type Dispatch, type SetStateAction } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { auditLogger } from '@/services/auditLogger'
@@ -76,7 +76,7 @@ type SecurityHookResult = {
   sessionCount: number
   loading: boolean
   disablingMFA: boolean
-  setDisablingMFA: React.Dispatch<React.SetStateAction<boolean>>
+  setDisablingMFA: Dispatch<SetStateAction<boolean>>
   loadSecurityData: () => Promise<void>
 }
 
@@ -224,7 +224,7 @@ export const usePasswordStrength = (password: string = ''): PasswordStrengthResu
     Number(checks.special)
   ) as PasswordScore
 
-  const labels = {
+  const labels: Record<PasswordScore, PasswordStrengthResult['label']> = {
     0: 'weak',
     1: 'weak',
     2: 'fair',
@@ -233,7 +233,7 @@ export const usePasswordStrength = (password: string = ''): PasswordStrengthResu
     5: 'very strong',
   }
 
-  const colors = {
+  const colors: Record<PasswordScore, string> = {
     0: 'text-red-600',
     1: 'text-red-600',
     2: 'text-orange-500',

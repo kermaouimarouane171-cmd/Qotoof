@@ -142,14 +142,14 @@ const About = () => {
   const loadStats = useCallback(async () => {
     try {
       const [{ count: vendorsCount }, { count: productsCount }, { count: ordersCount }] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'vendor'),
+        supabase.from('public_profiles').select('*', { count: 'exact', head: true }).eq('role', 'vendor'),
         supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_available', true).eq('approval_status', 'approved'),
         supabase.from('orders').select('*', { count: 'exact', head: true }),
       ])
 
       // Get unique cities count
       const { data: citiesData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('city')
         .eq('role', 'vendor')
         .not('city', 'is', null)

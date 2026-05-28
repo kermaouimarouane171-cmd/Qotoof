@@ -272,6 +272,7 @@ export const persistPayPalOrderState = async ({
     const { error: orderUpdateError } = await client
       .from('orders')
       .update({
+        payment_intent_id: paypalOrderId,
         payment_status: orderPaymentStatus,
         updated_at: now,
       })

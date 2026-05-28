@@ -5,8 +5,8 @@ import { ProductCard, EmptyState, StateSkeleton as Skeleton } from '@/components
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SearchBar from '@/components/Search/SearchBar'
 import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
-import productSearchService from '@/services/search/productSearchService'
 import { getDisplayErrorMessage } from '@/utils/errorHandler'
+import { useAvailableRegions, useProducts } from '@/hooks/useProducts'
 import { FunnelIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -18,11 +18,7 @@ const _SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'rating_desc',
 const MarketplacePage = () => {
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState([])
   const [filtersOpen, setFiltersOpen] = useState(false)
-  const [totalCount, setTotalCount] = useState(0)
-  const [availableRegions, setAvailableRegions] = useState([])
 
   const filters = {
     search: searchParams.get('search') || '',
@@ -37,7 +33,6 @@ const MarketplacePage = () => {
     page: Math.max(Number(searchParams.get('page') || '1') || 1, 1),
   }
 
-  const totalPages = Math.max(Math.ceil(totalCount / ITEMS_PER_PAGE), 1)
   const subcategoryOptions = filters.category !== 'all' ? getSuggestedSubcategories(filters.category) : []
   const sortOptions = [
     { value: 'newest', label: t('marketplace.sortBy.newest', 'Newest First') },
@@ -52,71 +47,39 @@ const MarketplacePage = () => {
     { value: '2', label: t('marketplace.ratingOptions.2', '2+ stars') },
   ]
 
+  const productsQuery = useProducts({
+    query: filters.search,
+    category: filters.category,
+    subcategory: filters.subcategory,
+    region: filters.region,
+    minPrice: filters.minPrice,
+    maxPrice: filters.maxPrice,
+    rating: filters.rating,
+    inStock: filters.inStock,
+    sortBy: filters.sortBy,
+    page: filters.page - 1,
+    hitsPerPage: ITEMS_PER_PAGE,
+  })
+
+  const regionsQuery = useAvailableRegions()
+
+  const loading = productsQuery.isLoading || productsQuery.isFetching
+  const products = productsQuery.data?.hits || []
+  const totalCount = productsQuery.data?.nbHits || 0
+  const totalPages = Math.max(Math.ceil(totalCount / ITEMS_PER_PAGE), 1)
+  const availableRegions = regionsQuery.data || []
+
   useEffect(() => {
-    let cancelled = false
+    if (!productsQuery.isError) return
 
-    const loadRegions = async () => {
-      const regions = await productSearchService.getAvailableRegions()
-      if (!cancelled) setAvailableRegions(regions)
-    }
-
-    loadRegions()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const searchParamsKey = searchParams.toString()
-
-  useEffect(() => {
-    let cancelled = false
-
-    const loadProducts = async () => {
-      setLoading(true)
-      try {
-        const data = await productSearchService.searchProducts({
-          query: filters.search,
-          category: filters.category,
-          subcategory: filters.subcategory,
-          region: filters.region,
-          minPrice: filters.minPrice,
-          maxPrice: filters.maxPrice,
-          rating: filters.rating,
-          inStock: filters.inStock,
-          sortBy: filters.sortBy,
-          page: filters.page - 1,
-          hitsPerPage: ITEMS_PER_PAGE,
-        })
-
-        if (!cancelled) {
-          setProducts(data.hits || [])
-          setTotalCount(data.nbHits || 0)
-        }
-      } catch (error) {
-        logger.error('Marketplace: failed to load products', error)
-        if (!cancelled) {
-          toast.error(getDisplayErrorMessage(error, {
-            network_error: 'تعذر تحميل المنتجات بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.',
-            server_error: 'الخدمة مشغولة حالياً. حاول مرة أخرى بعد قليل.',
-            not_found: 'لم نتمكن من العثور على المنتجات المطلوبة. جرّب تعديل الفلاتر أو البحث.',
-            default: 'تعذر تحميل المنتجات حالياً. أعد المحاولة بعد قليل.',
-          }))
-          setProducts([])
-          setTotalCount(0)
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadProducts()
-    return () => {
-      cancelled = true
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParamsKey]) // searchParamsKey serializes all filter state
+    logger.error('Marketplace: failed to load products', productsQuery.error)
+    toast.error(getDisplayErrorMessage(productsQuery.error, {
+      network_error: 'تعذر تحميل المنتجات بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.',
+      server_error: 'الخدمة مشغولة حالياً. حاول مرة أخرى بعد قليل.',
+      not_found: 'لم نتمكن من العثور على المنتجات المطلوبة. جرّب تعديل الفلاتر أو البحث.',
+      default: 'تعذر تحميل المنتجات حالياً. أعد المحاولة بعد قليل.',
+    }))
+  }, [productsQuery.error, productsQuery.isError])
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const nextParams = new URLSearchParams(searchParams)

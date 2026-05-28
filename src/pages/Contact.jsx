@@ -30,7 +30,7 @@ const Contact = () => {
     setEmailError('')
 
     if (!validateEmail(formData.email)) {
-      setEmailError(t('contact.errors.invalidEmail', 'يرجى إدخال بريد إلكتروني صحيح'))
+      setEmailError(t('contact.errors.invalidEmail'))
       return
     }
 
@@ -50,11 +50,11 @@ const Contact = () => {
 
       if (error) throw error
 
-      toast.success(t('contact.success', 'تم إرسال رسالتك بنجاح، وسنرد عليك قريباً.'))
+      toast.success(t('contact.success'))
       setFormData({ name: '', email: '', subject: '', message: '' })
     } catch (error) {
       logger.error('Error sending contact message:', error)
-      toast.error(t('contact.error', 'حدث خطأ أثناء إرسال الرسالة، حاول مرة أخرى.'))
+      toast.error(t('contact.error'))
     } finally {
       setLoading(false)
     }
@@ -64,8 +64,8 @@ const Contact = () => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
       <div className="text-center mb-12">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">{t('contact.title', 'Contact Us')}</h1>
-        <p className="text-gray-600">{t('contact.subtitle', 'Have a question or feedback? We\'d love to hear from you.')}</p>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">{t('contact.title')}</h1>
+        <p className="text-gray-600">{t('contact.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -77,7 +77,7 @@ const Contact = () => {
                 <EnvelopeIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.email', 'Email')}</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.email')}</h3>
                 <p className="text-sm text-gray-600">{APP_CONFIG.supportEmail}</p>
               </div>
             </div>
@@ -89,9 +89,9 @@ const Contact = () => {
                 <PhoneIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.phone', 'Phone')}</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.phone')}</h3>
                 <p className="text-sm text-gray-600">{APP_CONFIG.supportPhoneDisplay}</p>
-                <p className="text-xs text-gray-500">{t('contact.phoneHours', 'الاثنين إلى الجمعة، 09:00 - 18:00')}</p>
+                <p className="text-xs text-gray-500">{t('contact.phoneHours')}</p>
               </div>
             </div>
           </Card>
@@ -102,8 +102,8 @@ const Contact = () => {
                 <PhoneIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.whatsapp', 'WhatsApp')}</h3>
-                <a href={getWhatsappUrl('مرحباً، أحتاج إلى دعم في منصة قطوف')} target="_blank" rel="noreferrer" className="text-sm text-green-700 hover:underline">
+                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.whatsapp')}</h3>
+                <a href={getWhatsappUrl(t('contact.whatsappMessage'))} target="_blank" rel="noreferrer" className="text-sm text-green-700 hover:underline">
                   {APP_CONFIG.supportWhatsappDisplay}
                 </a>
               </div>
@@ -116,7 +116,7 @@ const Contact = () => {
                 <MapPinIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.address', 'Address')}</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('contact.address')}</h3>
                 <p className="text-sm text-gray-600">{t('contact.addressValue', APP_CONFIG.headquarters)}</p>
               </div>
             </div>
@@ -125,18 +125,18 @@ const Contact = () => {
 
         {/* Contact Form */}
         <Card className="lg:col-span-2 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('contact.formTitle', 'Send Us a Message')}</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('contact.formTitle')}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label={t('contact.form.name', 'Name')}
+                label={t('contact.form.name')}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
               <div>
                 <Input
-                  label={t('contact.form.email', 'Email Address')}
+                  label={t('contact.form.email')}
                   type="email"
                   value={formData.email}
                   onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setEmailError('') }}
@@ -148,13 +148,13 @@ const Contact = () => {
               </div>
             </div>
             <Input
-              label={t('contact.form.subject', 'Subject')}
+              label={t('contact.form.subject')}
               value={formData.subject}
               onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
               required
             />
             <div>
-              <label className="input-label">{t('contact.form.message', 'Message')}</label>
+              <label className="input-label">{t('contact.form.message')}</label>
               <textarea
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
@@ -165,7 +165,7 @@ const Contact = () => {
             <button type="submit" className="btn-primary w-full sm:w-auto" disabled={loading}>
               <span className="flex items-center justify-center gap-2">
                 <PaperAirplaneIcon className="w-4 h-4" />
-                {loading ? t('contact.form.sending', 'Sending...') : t('contact.form.send', 'Send Message')}
+                {loading ? t('contact.form.sending') : t('contact.form.send')}
               </span>
             </button>
           </form>

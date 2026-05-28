@@ -13,6 +13,7 @@ type TableDef<Row, Insert, Update> = {
   Row: Row
   Insert: Insert
   Update: Update
+  Relationships: []
 }
 
 export type Database = {
@@ -5146,6 +5147,9 @@ export type Database = {
         user_id?: string | null
       }>
     }
+    Views: {
+      [_ in never]: never
+    }
     Functions: {
       apply_notification_defaults_and_preferences: {
         Args: {
@@ -6222,6 +6226,12 @@ export type Database = {
         }
         Returns: boolean
       }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

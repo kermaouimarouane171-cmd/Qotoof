@@ -24,7 +24,7 @@ const VendorProfilePublic = () => {
       setLoading(true)
       try {
         const { data: vendorData, error: vendorError } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, first_name, last_name, store_name, city, phone, email, rating, store_type, delivery_option, active_products_count, preferred_driver_id, partnership_status')
           .eq('id', id)
           .eq('role', 'vendor')

@@ -33,7 +33,18 @@ const ONBOARDING_ROLES = [USER_ROLES.BUYER, USER_ROLES.VENDOR, USER_ROLES.DRIVER
 export function useOnboardingGate() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, loading } = useAuthStore();
+
+  // Select only primitives — avoids re-running effects when Zustand creates
+  // a new `profile` object reference for unrelated state changes (e.g. deviceFingerprint).
+  const userId            = useAuthStore((s) => s.user?.id);
+  const loading           = useAuthStore((s) => s.loading);
+  const profileRole       = useAuthStore((s) => s.profile?.role);
+  const onboardingCompleted = useAuthStore((s) => s.profile?.onboarding_completed);
+  const phoneVerified     = useAuthStore((s) => s.profile?.phone_verified);
+
+  // Kept as full objects only where identity comparison is intentional:
+  const user    = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
 
   const [pendingPhoneVerification, setPendingPhoneVerification] = useState(
     () => getPendingPhoneVerification()
@@ -50,15 +61,15 @@ export function useOnboardingGate() {
 
   // 2. Clear pending phone verification once the user's phone is confirmed
   useEffect(() => {
-    if (user?.id && pendingPhoneVerification?.userId === user.id && profile?.phone_verified) {
+    if (userId && pendingPhoneVerification?.userId === userId && phoneVerified) {
       clearPendingPhoneVerification();
     }
-  }, [pendingPhoneVerification?.userId, profile?.phone_verified, user?.id]);
+  }, [pendingPhoneVerification?.userId, phoneVerified, userId]);
 
   const requiresPhoneVerification = Boolean(
-    user?.id &&
-    pendingPhoneVerification?.userId === user.id &&
-    profile?.phone_verified !== true
+    userId &&
+    pendingPhoneVerification?.userId === userId &&
+    phoneVerified !== true
   );
 
   // 3. Redirect to /verify-phone while phone verification is outstanding
@@ -70,16 +81,19 @@ export function useOnboardingGate() {
   }, [location.pathname, navigate, requiresPhoneVerification]);
 
   // 4. Determine whether onboarding is required for the current user/role
+  // IMPORTANT: only depend on primitive Zustand-selector values, NOT the full `profile`
+  // object — Zustand creates a new object reference on every store update (even for
+  // unrelated fields like `deviceFingerprint`), which would re-trigger this effect
+  // endlessly and cause an infinite loading-spinner loop.
   useEffect(() => {
-    const role = profile?.role;
-    const supportsOnboarding = ONBOARDING_ROLES.includes(role);
+    const supportsOnboarding = ONBOARDING_ROLES.includes(profileRole);
 
     if (loading) {
       setOnboardingResolved(false);
       return;
     }
 
-    if (!user?.id || !supportsOnboarding) {
+    if (!userId || !supportsOnboarding) {
       setNeedsOnboarding(false);
       setOnboardingResolved(true);
       return;
@@ -88,27 +102,27 @@ export function useOnboardingGate() {
     let cancelled = false;
     setOnboardingResolved(false);
 
-    checkOnboardingNeeded(user.id, role)
+    checkOnboardingNeeded(userId, profileRole)
       .then((required) => { if (!cancelled) setNeedsOnboarding(required); })
       .catch(() => {
-        if (!cancelled) setNeedsOnboarding(Boolean(profile && !profile.onboarding_completed));
+        if (!cancelled) setNeedsOnboarding(!onboardingCompleted);
       })
       .finally(() => { if (!cancelled) setOnboardingResolved(true); });
 
     return () => { cancelled = true; };
-  }, [loading, profile?.onboarding_completed, profile?.role, user?.id, profile]); // profile added for completeness
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, onboardingCompleted, profileRole, userId]);
 
   // 5. Redirect to/from the onboarding path based on resolved state
   useEffect(() => {
-    const role = profile?.role;
-    const supportsOnboarding = ONBOARDING_ROLES.includes(role);
+    const supportsOnboarding = ONBOARDING_ROLES.includes(profileRole);
 
-    if (!user?.id || !supportsOnboarding || !onboardingResolved) return;
+    if (!userId || !supportsOnboarding || !onboardingResolved) return;
 
     const isOnboardingPath = location.pathname.startsWith('/onboarding');
 
     if (needsOnboarding) {
-      const targetPath = getOnboardingPathForRole(role);
+      const targetPath = getOnboardingPathForRole(profileRole);
       if (targetPath && location.pathname !== targetPath) {
         navigate(targetPath, { replace: true });
       }
@@ -116,14 +130,20 @@ export function useOnboardingGate() {
     }
 
     if (!needsOnboarding && isOnboardingPath) {
-      navigate(getPostOnboardingPath(role), { replace: true });
+      navigate(getPostOnboardingPath(profileRole), { replace: true });
     }
-  }, [location.pathname, navigate, needsOnboarding, onboardingResolved, profile?.role, user?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, navigate, needsOnboarding, onboardingResolved, profileRole, userId]);
 
-  // Block rendering while phone verification or onboarding state is unresolved
-  const shouldBlockForOnboarding = Boolean(
-    user?.id &&
-    ONBOARDING_ROLES.includes(profile?.role) &&
+  // Block rendering while phone verification or onboarding state is unresolved.
+  // Also block when user is authenticated but profile hasn't loaded yet —
+  // this prevents ProtectedRoute from doing a premature /unauthorized redirect
+  // before the profile (and role) has been fetched from Supabase.
+  const profileNotYetLoaded = Boolean(userId && !profile && !loading);
+
+  const shouldBlockForOnboarding = profileNotYetLoaded || Boolean(
+    userId &&
+    ONBOARDING_ROLES.includes(profileRole) &&
     (
       !onboardingResolved ||
       (needsOnboarding  && !location.pathname.startsWith('/onboarding')) ||

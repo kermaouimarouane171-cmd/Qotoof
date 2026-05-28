@@ -311,12 +311,16 @@ class PaymentGateway {
           return { success: false, error: error.message }
         }
 
-        // Update order status if payment completed
+        // Update order status if payment completed — uses SECURITY DEFINER RPC
+        // to prevent direct client-side payment_status manipulation.
         if (status === 'completed' && payment) {
-          await supabase
-            .from('orders')
-            .update({ payment_status: 'paid' })
-            .eq('id', payment.order_id)
+          const { error: rpcError } = await supabase.rpc('confirm_cmi_payment', {
+            p_transaction_id: oid,
+            p_order_id: payment.order_id,
+          })
+          if (rpcError) {
+            logger.error('Error confirming CMI payment via RPC:', rpcError)
+          }
         }
 
         return {

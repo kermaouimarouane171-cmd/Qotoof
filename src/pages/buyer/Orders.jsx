@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
@@ -13,6 +13,8 @@ import {
   ShoppingBagIcon,
   TruckIcon,
   MapPinIcon,
+  EyeIcon,
+  PhoneIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -59,6 +61,10 @@ const OrdersPage = () => {
   const [returnSubmitting, setReturnSubmitting] = useState(false)
   const [selectedOrders, setSelectedOrders] = useState(new Set())
   const [_downloadingInvoice, setDownloadingInvoice] = useState(null)
+  const subscriptionRef = useRef(null)
+  const currentPageRef = useRef(1)
+  const isMountedRef = useRef(true)
+  const buyerId = profile?.id
 
   // Server-side pagination state
   const PAGE_SIZE = 20
@@ -76,58 +82,21 @@ const OrdersPage = () => {
     paymentStatus: '',
   })
 
-  // Load orders with server-side pagination
   useEffect(() => {
-    if (!profile?.id) return
-    loadOrders(1) // Reset to page 1 on mount or filter change
-
-    // Real-time subscription — only refresh current page, not all data
-    const channel = ordersApi.subscribeToBuyerOrders(
-      profile.id,
-      () => loadOrders(page, true) // Silent refresh of current page
-    )
-
-    return () => channel.unsubscribe()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id, filter, advancedFilters.dateFrom, advancedFilters.dateTo])
-
-  // Load active delivery
-  useEffect(() => {
-    if (!profile?.id) return
-    loadActiveDelivery()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
-
-  useEffect(() => {
-    if (!profile?.id) return
-
-    let cancelled = false
-
-    const syncBuyerBenefits = async () => {
-      try {
-        const result = await loyaltyApi.syncDeliveredOrderBenefits(profile.id)
-        if (!cancelled && result?.ordersProcessed > 0) {
-          loadOrders(1, true)
-        }
-      } catch (error) {
-        logger.warn('Buyer loyalty sync skipped:', error)
-      }
-    }
-
-    syncBuyerBenefits()
-
+    isMountedRef.current = true
     return () => {
-      cancelled = true
+      isMountedRef.current = false
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.id])
+  }, [])
 
   /**
    * Load orders from server with pagination
    * @param {number} pageNum - Page number to load
    * @param {boolean} silent - If true, don't show loading spinner
    */
-  const loadOrders = async (pageNum = 1, silent = false) => {
+  const loadOrders = useCallback(async (pageNum = 1, silent = false) => {
+    if (!buyerId) return
+
     if (silent) {
       setLoadingMore(true)
     } else {
@@ -137,7 +106,7 @@ const OrdersPage = () => {
     try {
       const pageEndIndex = pageNum * PAGE_SIZE - 1
 
-      const { data, error, total } = await fetchBuyerOrders(profile.id, {
+      const { data, error, total } = await fetchBuyerOrders(buyerId, {
         status: filter,
         dateFrom: advancedFilters.dateFrom,
         dateTo: advancedFilters.dateTo,
@@ -148,6 +117,8 @@ const OrdersPage = () => {
       if (error) {
         throw error
       }
+
+      if (!isMountedRef.current) return
 
       const count = total || 0
 
@@ -162,13 +133,104 @@ const OrdersPage = () => {
 
       setPage(pageNum)
     } catch (error) {
+      if (!isMountedRef.current) return
       logger.error('Error loading orders:', error)
       toast.error(t('buyer.orders.notifications.loadFailed', 'Failed to load orders'))
     } finally {
-      setLoading(false)
-      setLoadingMore(false)
+      if (isMountedRef.current) {
+        setLoading(false)
+        setLoadingMore(false)
+      }
     }
-  }
+  }, [advancedFilters.dateFrom, advancedFilters.dateTo, buyerId, filter])
+
+  // Load orders with server-side pagination
+  useEffect(() => {
+    if (!buyerId) return undefined
+    loadOrders(1) // Reset to page 1 on mount or filter change
+    return undefined
+  }, [buyerId, loadOrders])
+
+  useEffect(() => {
+    if (!buyerId || subscriptionRef.current) return undefined
+
+    const handleOrderChange = () => {
+      loadOrders(currentPageRef.current, true)
+    }
+
+    if (typeof supabase?.channel === 'function') {
+      const channel = supabase
+        .channel(`buyer-orders-${buyerId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `buyer_id=eq.${buyerId}`,
+          },
+          handleOrderChange,
+        )
+        .subscribe()
+
+      subscriptionRef.current = channel
+    } else if (typeof ordersApi?.subscribeToBuyerOrders === 'function') {
+      subscriptionRef.current = ordersApi.subscribeToBuyerOrders(buyerId, handleOrderChange)
+    } else {
+      return undefined
+    }
+
+    return () => {
+      if (subscriptionRef.current) {
+        const activeSubscription = subscriptionRef.current
+
+        if (typeof activeSubscription === 'function') {
+          activeSubscription()
+        } else if (typeof activeSubscription?.unsubscribe === 'function') {
+          activeSubscription.unsubscribe()
+        } else if (typeof supabase?.removeChannel === 'function') {
+          supabase.removeChannel(activeSubscription)
+        }
+
+        subscriptionRef.current = null
+      }
+    }
+  }, [buyerId, loadOrders])
+
+  useEffect(() => {
+    currentPageRef.current = page
+  }, [page])
+
+  // Load active delivery
+  useEffect(() => {
+    if (!buyerId) return undefined
+    loadActiveDelivery()
+    return undefined
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buyerId])
+
+  useEffect(() => {
+    if (!buyerId) return undefined
+
+    let cancelled = false
+
+    const syncBuyerBenefits = async () => {
+      try {
+        const result = await loyaltyApi.syncDeliveredOrderBenefits(buyerId)
+        if (!cancelled && result?.ordersProcessed > 0) {
+          loadOrders(1, true)
+        }
+      } catch (error) {
+        logger.warn('Buyer loyalty sync skipped:', error)
+      }
+    }
+
+    syncBuyerBenefits()
+
+    return () => {
+      cancelled = true
+    }
+  }, [buyerId, loadOrders])
 
   /**
    * Load more orders (infinite scroll style)
@@ -179,14 +241,17 @@ const OrdersPage = () => {
     }
   }
 
-  const loadActiveDelivery = async () => {
+  const loadActiveDelivery = useCallback(async () => {
+    if (!buyerId) return
     try {
-      const delivery = await deliveriesApi.getBuyerActiveDelivery(profile.id)
+      const delivery = await deliveriesApi.getBuyerActiveDelivery(buyerId)
+      if (!isMountedRef.current) return
       setActiveDelivery(delivery)
     } catch {
+      if (!isMountedRef.current) return
       setActiveDelivery(null)
     }
-  }
+  }, [buyerId])
 
   // ============================================
   // Search Suggestions

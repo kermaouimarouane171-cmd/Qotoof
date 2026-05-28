@@ -27,7 +27,7 @@ serve(async (req) => {
     const token = await getPayPalAccessToken()
     const captureResult = await capturePayPalOrder(token, orderId)
     const captures = extractPayPalCaptures(captureResult)
-    const persistedState = await persistCaptureState({
+    const persistedState = await persistPayPalOrderState({
       paypalOrderId: orderId,
       paypalOrderData: captureResult,
     })

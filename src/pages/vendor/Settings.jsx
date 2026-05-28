@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { profilesService } from '@/services/profilesService'
 import storeTypeService from '@/services/storeTypeService'
-import { Card, Input, LoadingSpinner } from '@/components/ui'
+import { Card, Input, LoadingSpinner, Tooltip } from '@/components/ui'
 import LocationPicker from '@/components/ui/LocationPicker'
 import PaymentPolicySettings from '@/components/vendor/PaymentPolicySettings'
 import CancellationPolicy from '@/components/vendor/CancellationPolicy'
@@ -26,10 +27,12 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { auditLogger } from '@/services/auditLogger'
+import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
 
 const VendorSettings = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,6 +52,8 @@ const VendorSettings = () => {
     split: true,
     cod: false,
   })
+  const [paypalEmail, setPaypalEmail] = useState('')
+  const [paypalVerified, setPaypalVerified] = useState(false)
   const [cancellationPolicy, setCancellationPolicy] = useState({ ...DEFAULT_VENDOR_CANCELLATION_POLICY })
   const [refundPolicy, setRefundPolicy] = useState({ ...DEFAULT_REFUND_POLICY })
 
@@ -95,6 +100,8 @@ const VendorSettings = () => {
         split: data?.payment_policy_split ?? true,
         cod: data?.payment_policy_cod ?? false,
       })
+      setPaypalEmail(data?.paypal_email || '')
+      setPaypalVerified(data?.paypal_verified === true)
       setCancellationPolicy(vendorCancellationPolicy)
       setRefundPolicy(vendorRefundPolicy)
       setNotifyNewOrders(data?.notify_new_orders ?? true)
@@ -139,6 +146,12 @@ const VendorSettings = () => {
 
     if (!paymentPolicies.full && !paymentPolicies.split && !paymentPolicies.cod) {
       errors.paymentPolicies = 'يجب تفعيل سياسة دفع واحدة على الأقل.'
+    }
+
+    if (!paypalEmail.trim()) {
+      errors.paypalEmail = 'بريد PayPal الإلكتروني إلزامي للبائع.'
+    } else if (!hasValidPayPalEmail(paypalEmail)) {
+      errors.paypalEmail = 'أدخل بريد PayPal إلكترونيًا صالحًا.'
     }
 
     const normalizedCancellationPolicy = normalizeCancellationPolicy(cancellationPolicy)
@@ -198,6 +211,8 @@ const VendorSettings = () => {
             notify_customer_messages: previousProfile.notify_customer_messages,
             notify_low_stock: previousProfile.notify_low_stock,
             notify_reviews: previousProfile.notify_reviews,
+            paypal_email: previousProfile.paypal_email,
+            paypal_verified: previousProfile.paypal_verified,
           }
         : null
 
@@ -217,6 +232,8 @@ const VendorSettings = () => {
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
         notify_reviews: notifyReviews,
+        paypal_email: paypalEmail.trim().toLowerCase(),
+        payout_method: 'paypal',
         ...(storeLocation?.lat ? {
           latitude: storeLocation.lat,
           longitude: storeLocation.lng,
@@ -246,6 +263,8 @@ const VendorSettings = () => {
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
           payment_policy_cod: paymentPolicies.cod,
+          paypal_email: paypalEmail.trim().toLowerCase(),
+          payout_method: 'paypal',
         }
       })
       setCancellationPolicy(savedCancellationPolicy)
@@ -266,6 +285,8 @@ const VendorSettings = () => {
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
         notify_reviews: notifyReviews,
+        paypal_email: paypalEmail.trim().toLowerCase(),
+        paypal_verified: paypalVerified,
         cancellation_policy: savedCancellationPolicy,
         refund_policy: savedRefundPolicy,
       }, {
@@ -392,6 +413,12 @@ const VendorSettings = () => {
 
   return (
     <div>
+      {location.state?.paypalSetupRequired && (
+        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {location.state?.paypalSetupMessage || 'يجب إكمال إعداد PayPal للمتابعة.'}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
           {t('vendor.settings.title', 'Vendor Settings')}
@@ -457,6 +484,41 @@ const VendorSettings = () => {
         </Card>
 
         {/* Store Settings */}
+        <Card className="p-6">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            PayPal Setup
+            <Tooltip
+              title="ما هو PayPal؟"
+              content={(
+                <>
+                  <p>PayPal خدمة دفع إلكتروني آمنة لاستلام مستحقاتك من المبيعات.</p>
+                  <p>نحتاجه لتحويل أرباحك من المنصة بسرعة وبشكل موثوق.</p>
+                  <p>يجب إدخال بريد مرتبط بحساب PayPal نشط.</p>
+                  <a className="text-blue-600 underline" href="https://www.paypal.com/ma/webapps/mpp/account-selection" target="_blank" rel="noreferrer">إنشاء حساب PayPal مجاني</a>
+                </>
+              )}
+            />
+          </h2>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="PayPal Email"
+              type="email"
+              value={paypalEmail}
+              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
+              error={errors.paypalEmail}
+              required
+              placeholder="name@example.com"
+            />
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
+              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
+                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
         <Card className="p-6">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Cog6ToothIcon className="w-5 h-5 text-gray-600" />

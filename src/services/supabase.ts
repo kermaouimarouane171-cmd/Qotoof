@@ -205,7 +205,6 @@ export const supabase: SupabaseClient<Database> = createClient<Database>(
     global: {
       headers: {
         'X-Client-Info': 'qotoof@1.0.0',
-        'X-Client-Security': 'enhanced',
       },
     },
     db: {
@@ -272,8 +271,8 @@ export const supabaseWithRetry = {
           }
         }
       },
-      insert: (...args) => {
-        const originalInsert = originalQuery.insert(...args)
+      insert: (values: any, options?: any) => {
+        const originalInsert = originalQuery.insert(values, options)
         return {
           ...originalInsert,
           select: (...selectArgs) => {
@@ -287,12 +286,12 @@ export const supabaseWithRetry = {
           }
         }
       },
-      update: (...args) => {
-        const originalUpdate = originalQuery.update(...args)
+      update: (values: any, options?: any) => {
+        const originalUpdate = originalQuery.update(values, options)
         return {
           ...originalUpdate,
-          eq: (...eqArgs) => {
-            const originalEq = originalUpdate.eq(...eqArgs)
+          eq: (column: any, value: any) => {
+            const originalEq = (originalUpdate as any).eq(column, value)
             return {
               ...originalEq,
               select: (...selectArgs) => {
@@ -312,8 +311,8 @@ export const supabaseWithRetry = {
         const originalDelete = originalQuery.delete()
         return {
           ...originalDelete,
-          eq: (...eqArgs) => {
-            const originalEq = originalDelete.eq(...eqArgs)
+          eq: (column: any, value: any) => {
+            const originalEq = (originalDelete as any).eq(column, value)
             return {
               ...originalEq,
               then: async (onfulfilled, onrejected) => {

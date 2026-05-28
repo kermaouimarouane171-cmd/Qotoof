@@ -215,6 +215,9 @@ async function routeEvent(eventType: string, payload: Record<string, unknown>) {
     case 'delivery.completed':
       await handleDeliveryCompleted(payload)
       break
+    case 'auth.role_changed':
+      await invokeFunction('sync-role', payload)
+      break
     default:
       throw new Error(`Unsupported event type: ${eventType}`)
   }

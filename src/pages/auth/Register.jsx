@@ -10,12 +10,14 @@ import CINInput from '@/components/ui/CINInput'
 import CityAutocomplete from '@/components/ui/CityAutocomplete'
 import { useAuthStore } from '@/store/authStore'
 import { checkSignupRate } from '@/utils/rateLimiter'
+import { MOROCCAN_CITIES_221 } from '@/constants/moroccanCities'
 import {
   registerSchema,
   registerBuyerProfileSchema,
   registerVendorProfileSchema,
   registerDriverProfileSchema,
 } from '@/utils/validationSchemas'
+import { formatSupabaseError } from '@/utils/errorFormatter'
 import { validateCIN as validateMoroccanCIN } from '@/utils/cinValidation'
 import { logger } from '@/utils/logger'
 
@@ -27,8 +29,6 @@ const STEP_LABELS = [
   'auth.register.steps.profile',
   'auth.register.steps.confirm',
 ]
-
-
 
 const emptyErrors = {
   role: '',
@@ -340,8 +340,9 @@ function RegisterPage() {
       navigate(result.redirect || '/dashboard')
     } catch (error) {
       logger.error('Registration failed:', error)
-      setFieldError('general', error.message || t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
-      toast.error(error.message || t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
+      const formattedError = formatSupabaseError(error, t('auth.register.error.default', 'تعذر إنشاء الحساب، حاول مرة أخرى'))
+      setFieldError('general', formattedError)
+      toast.error(formattedError)
       recaptchaRef.current?.reset()
       setCaptchaToken(null)
     } finally {
@@ -609,13 +610,20 @@ function RegisterPage() {
                       <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
                       <CityAutocomplete
                         value={formData.city}
-                        onChange={(val) => {
-                          setFormData((prev) => ({ ...prev, city: val }))
+                        onChange={(cityValue) => {
+                          setFormData((prev) => ({ ...prev, city: cityValue }))
                           clearFieldError('city')
                         }}
-                        placeholder={t('auth.register.city.placeholder', 'ابحث عن مدينتك...')}
-                        error={errors.city}
+                        cities={MOROCCAN_CITIES_221}
+                        name="city"
+                        required
+                        dataTestId="register-city-input"
+                        placeholder={t('auth.register.city.placeholder', 'ابحث عن المدينة أو اخترها')}
                       />
+                      <p className="mt-1 text-xs text-gray-500">
+                        {t('auth.register.city.totalCitiesHint', 'تضم القائمة 221 مدينة مغربية مع بحث سريع.')}
+                      </p>
+                      {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
                     </div>
                   </div>
 

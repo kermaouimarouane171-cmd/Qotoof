@@ -68,4 +68,33 @@ describe('productImages helpers', () => {
       image_url: 'primary.jpg',
     })
   })
+
+  test('runs relation-error callback when fallback query is used', async () => {
+    const onRelationError = jest.fn()
+
+    const result = await runProductImageFallbackQuery({
+      buildQuery: async (selectClause) => {
+        if (selectClause.includes('product_images')) {
+          return {
+            data: null,
+            error: {
+              message: "Could not find a relationship between 'products' and 'product_images' in the schema cache",
+            },
+          }
+        }
+
+        return {
+          data: [{ id: 'product-2', name: 'Mint' }],
+          error: null,
+        }
+      },
+      selectWithImages: '*, product_images(url, is_primary)',
+      selectWithoutImages: '*',
+      hydrate: async (rows) => rows,
+      onRelationError,
+    })
+
+    expect(onRelationError).toHaveBeenCalledTimes(1)
+    expect(result.data).toEqual([{ id: 'product-2', name: 'Mint' }])
+  })
 })

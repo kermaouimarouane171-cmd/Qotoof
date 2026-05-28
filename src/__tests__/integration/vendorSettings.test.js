@@ -157,6 +157,7 @@ jest.mock('@/components/ErrorBoundary', () => {
 jest.mock('@/components/ui', () => ({
   Card: ({ children, className = '' }) => <div className={className}>{children}</div>,
   LoadingSpinner: () => <div>Loading...</div>,
+  Tooltip: ({ children }) => <>{children}</>,
   Input: ({ label, value, onChange, type = 'text', error, ...props }) => (
     <div>
       <label>
@@ -221,6 +222,8 @@ describe('Vendor settings integration', () => {
           min_order_amount: 50,
           currency: 'MAD',
           low_stock_threshold: 10,
+          paypal_email: 'vendor@greenatlas.ma',
+          paypal_verified: true,
           payment_policy_full: true,
           payment_policy_split: true,
           payment_policy_cod: false,
@@ -243,6 +246,8 @@ describe('Vendor settings integration', () => {
           min_order_amount: 50,
           currency: 'MAD',
           low_stock_threshold: 10,
+          paypal_email: 'vendor@greenatlas.ma',
+          paypal_verified: true,
           payment_policy_full: true,
           payment_policy_split: true,
           payment_policy_cod: false,

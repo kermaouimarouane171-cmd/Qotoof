@@ -54,7 +54,7 @@ const HelpCenter = () => {
 
   const handleOpenTicketForm = useCallback(() => {
     if (!user) {
-      toast.error(t('helpCenter.loginRequired', 'Please sign in to submit a support ticket.'))
+      toast.error(t('helpCenter.loginRequired'))
       redirectToLogin()
       return
     }
@@ -66,14 +66,14 @@ const HelpCenter = () => {
     e.preventDefault()
 
     if (!user?.id) {
-      toast.error(t('helpCenter.loginRequired', 'Please sign in to submit a support ticket.'))
+      toast.error(t('helpCenter.loginRequired'))
       setShowTicketForm(false)
       redirectToLogin()
       return
     }
 
     if (!ticketSubject.trim() || !ticketDescription.trim()) {
-      toast.error(t('helpCenter.errors.fillFields', 'يرجى تعبئة جميع الحقول المطلوبة'))
+      toast.error(t('helpCenter.errors.fillFields'))
       return
     }
 
@@ -85,17 +85,17 @@ const HelpCenter = () => {
         category: 'general',
       })
 
-      toast.success(t('helpCenter.ticketSuccess', 'تم إرسال تذكرتك بنجاح. سنرد عليك خلال 24 ساعة.'))
+      toast.success(t('helpCenter.ticketSuccess'))
       setTicketSubject('')
       setTicketDescription('')
       setShowTicketForm(false)
     } catch (error) {
       logger.error('Error submitting ticket:', error)
       toast.error(getDisplayErrorMessage(error, {
-        network_error: t('helpCenter.ticketErrorNetwork', 'تعذر إرسال التذكرة بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.'),
-        validation: t('helpCenter.ticketErrorValidation', 'يرجى مراجعة البيانات المدخلة ثم إعادة الإرسال.'),
-        server_error: t('helpCenter.ticketErrorServer', 'فريق الدعم غير متاح مؤقتاً. حاول مرة أخرى بعد قليل.'),
-        default: t('helpCenter.ticketError', 'تعذر إرسال التذكرة حالياً. حاول مرة أخرى بعد قليل.'),
+        network_error: t('helpCenter.errors.ticketNetwork'),
+        validation: t('helpCenter.errors.ticketValidation'),
+        server_error: t('helpCenter.errors.ticketServer'),
+        default: t('helpCenter.ticketError'),
       }))
     } finally {
       setSubmitting(false)
@@ -112,9 +112,9 @@ const HelpCenter = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <QuestionMarkCircleIcon className="w-7 h-7 text-blue-600" />
-            {t('helpCenter.title', 'Help Center')}
+            {t('helpCenter.title')}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">{t('helpCenter.subtitle', 'Find answers or contact support')}</p>
+          <p className="text-sm text-gray-500 mt-1">{t('helpCenter.subtitle')}</p>
         </div>
       </div>
 
@@ -123,24 +123,24 @@ const HelpCenter = () => {
         <Card className="p-5 text-center cursor-pointer hover:shadow-md transition-shadow"
           onClick={handleOpenTicketForm}>
           <ChatBubbleLeftRightIcon className="w-8 h-8 text-green-600 mx-auto mb-2" />
-          <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.ticket', 'Support Ticket')}</h3>
+          <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.ticket')}</h3>
           <p className="text-xs text-gray-500 mt-1">
             {user
-              ? t('helpCenter.contact.ticketDesc', 'Submit a ticket')
-              : t('helpCenter.contact.ticketLoginDesc', 'Sign in to submit a support ticket')}
+              ? t('helpCenter.contact.ticketDesc')
+              : t('helpCenter.contact.ticketLoginDesc')}
           </p>
         </Card>
         <a href={`tel:${APP_CONFIG.supportPhone}`} className="block">
           <Card className="p-5 text-center hover:shadow-md transition-shadow">
             <PhoneIcon className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.call', 'Call Us')}</h3>
+            <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.call')}</h3>
             <p className="text-xs text-gray-500 mt-1">{APP_CONFIG.supportPhoneDisplay}</p>
           </Card>
         </a>
         <a href={`mailto:${APP_CONFIG.supportEmail}`} className="block">
           <Card className="p-5 text-center hover:shadow-md transition-shadow">
             <EnvelopeIcon className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-            <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.email', 'Email')}</h3>
+            <h3 className="font-semibold text-gray-900">{t('helpCenter.contact.email')}</h3>
             <p className="text-xs text-gray-500 mt-1">{APP_CONFIG.supportEmail}</p>
           </Card>
         </a>
@@ -150,40 +150,40 @@ const HelpCenter = () => {
       {showTicketForm && (
         <Card className="p-6 mb-8 border-2 border-green-200 bg-green-50/30">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-900">{t('helpCenter.ticketForm.title', 'Submit a Support Ticket')}</h2>
+            <h2 className="font-semibold text-gray-900">{t('helpCenter.ticketForm.title')}</h2>
             <button onClick={() => setShowTicketForm(false)} className="p-1 hover:bg-gray-100 rounded-lg">
               <XMarkIcon className="w-5 h-5 text-gray-400" />
             </button>
           </div>
           <form onSubmit={handleSubmitTicket} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('helpCenter.ticketForm.subject', 'Subject')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('helpCenter.ticketForm.subject')}</label>
               <input
                 type="text"
                 value={ticketSubject}
                 onChange={(e) => setTicketSubject(e.target.value)}
-                placeholder={t('helpCenter.ticketForm.subjectPlaceholder', 'Brief description of your issue')}
+                placeholder={t('helpCenter.ticketForm.subjectPlaceholder')}
                 className="input"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('helpCenter.ticketForm.description', 'Description')}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('helpCenter.ticketForm.description')}</label>
               <textarea
                 value={ticketDescription}
                 onChange={(e) => setTicketDescription(e.target.value)}
                 rows={4}
-                placeholder={t('helpCenter.ticketForm.descriptionPlaceholder', 'Describe your issue in detail...')}
+                placeholder={t('helpCenter.ticketForm.descriptionPlaceholder')}
                 className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
                 required
               />
             </div>
             <div className="flex gap-3">
               <button type="button" onClick={() => setShowTicketForm(false)} className="btn-outline flex-1">
-                {t('common.cancel', 'Cancel')}
+                {t('common.cancel')}
               </button>
               <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-60">
-                {submitting ? t('helpCenter.ticketForm.submitting', 'Submitting...') : t('helpCenter.ticketForm.submit', 'Submit Ticket')}
+                {submitting ? t('helpCenter.ticketForm.submitting') : t('helpCenter.ticketForm.submit')}
               </button>
             </div>
           </form>
@@ -192,7 +192,7 @@ const HelpCenter = () => {
 
       {/* FAQs */}
       <div id="faq" className="scroll-mt-20">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('helpCenter.faq.title', 'Frequently Asked Questions')}</h2>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">{t('helpCenter.faq.title')}</h2>
         <div className="space-y-6">
           {faqs.map(category => (
             <div key={category.category}>

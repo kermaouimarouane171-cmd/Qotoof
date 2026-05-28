@@ -96,6 +96,8 @@ const CheckoutSimplified = () => {
     lng: profile?.longitude || null,
   })
   const [errors, setErrors] = useState({})
+  const [pendingPayPalCheckout, setPendingPayPalCheckout] = useState(null)
+  const [paypalInlineProcessing, setPaypalInlineProcessing] = useState(false)
 
   const savedAddresses = useMemo(() => {
     const candidates = [
@@ -330,6 +332,13 @@ const CheckoutSimplified = () => {
   }, [cartItems, checkoutVendorId, clearCheckoutVendor])
 
   useEffect(() => {
+    if (selectedPaymentMethod !== 'paypal' || paymentType === 'cod') {
+      setPendingPayPalCheckout(null)
+      setPaypalInlineProcessing(false)
+    }
+  }, [paymentType, selectedPaymentMethod])
+
+  useEffect(() => {
     checkoutRequestKeyRef.current = null
   }, [checkoutRequestSignature])
 
@@ -488,7 +497,7 @@ const CheckoutSimplified = () => {
 
       try {
         const { data, error } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, store_name, min_order_amount')
           .in('id', cartVendorIds)
 
@@ -569,7 +578,7 @@ const CheckoutSimplified = () => {
   const loadVendorLocation = async (vendorId) => {
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('city, latitude, longitude, store_name, store_type, delivery_option, active_products_count, has_own_driver, preferred_driver_id, partnership_status')
         .eq('id', vendorId)
         .maybeSingle()
@@ -590,7 +599,7 @@ const CheckoutSimplified = () => {
 
         if (data.preferred_driver_id) {
           const { data: preferredDriverData, error: preferredDriverError } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select(DRIVER_SELECT)
             .eq('id', data.preferred_driver_id)
             .maybeSingle()
@@ -913,7 +922,7 @@ const CheckoutSimplified = () => {
         setPlatformCommissionRate(serverPricing.platformCommissionRate ?? platformCommissionRate)
       }
 
-      let paypalApprovalUrl = null
+      let pendingPaypalOrder = null
       if (selectedPaymentMethod === 'paypal' && paymentType !== 'cod') {
         const primaryOrder = orders[0]
         if (!primaryOrder) {
@@ -966,7 +975,12 @@ const CheckoutSimplified = () => {
           },
         })
 
-        paypalApprovalUrl = paypalInit.approvalUrl || null
+        pendingPaypalOrder = {
+          internalOrderId: primaryOrder.id,
+          paypalOrderId: paypalInit.orderId,
+          amount: paypalAmount,
+          createdAt: new Date().toISOString(),
+        }
       }
 
       // Enrich order data with items, buyer, vendor, and payment_method for the confirmation page
@@ -994,7 +1008,7 @@ const CheckoutSimplified = () => {
 
           // Fetch vendor profile
           const { data: vendorData } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('store_name, city')
             .eq('id', order.vendor_id)
             .maybeSingle()
@@ -1052,9 +1066,11 @@ const CheckoutSimplified = () => {
         toast.success('🎉 تم تقديم الطلب بنجاح!')
       }
 
-      if (paypalApprovalUrl) {
+      if (pendingPaypalOrder) {
+        setPendingPayPalCheckout(pendingPaypalOrder)
         checkoutRequestKeyRef.current = null
-        window.location.href = paypalApprovalUrl
+        toast.success('تم إنشاء الطلب. أكمل الآن الدفع عبر أزرار PayPal في نفس الصفحة.')
+        setLoading(false)
         return
       }
 
@@ -1073,6 +1089,37 @@ const CheckoutSimplified = () => {
       toast.error(error.message || 'تعذر إتمام الطلب حالياً. حاول مرة أخرى.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleInlinePayPalApprove = async () => {
+    if (!pendingPayPalCheckout?.paypalOrderId || !pendingPayPalCheckout?.internalOrderId) {
+      toast.error('تعذر إكمال الدفع: بيانات طلب PayPal غير مكتملة.')
+      return
+    }
+
+    setPaypalInlineProcessing(true)
+    try {
+      const { data: captureResult, error: captureError } = await supabase.functions.invoke('capture-paypal-order', {
+        body: { orderId: pendingPayPalCheckout.paypalOrderId },
+      })
+
+      if (captureError) {
+        throw new Error(captureError.message || 'تعذر تأكيد دفع PayPal')
+      }
+
+      if (!captureResult || captureResult?.status === 'FAILED') {
+        throw new Error('لم تكتمل عملية الدفع عبر PayPal.')
+      }
+
+      setPendingPayPalCheckout(null)
+      toast.success('تم تأكيد الدفع عبر PayPal بنجاح.')
+      navigate(`/order-confirmation/${pendingPayPalCheckout.internalOrderId}?paypal=success`)
+    } catch (error) {
+      logger.error('Inline PayPal approval failed:', error)
+      toast.error(error.message || 'فشل تأكيد عملية الدفع عبر PayPal')
+    } finally {
+      setPaypalInlineProcessing(false)
     }
   }
 
@@ -1556,13 +1603,35 @@ const CheckoutSimplified = () => {
                     </div>
                   ),
                   onBack: () => setStep(2),
+                  paypalInline: {
+                    enabled: Boolean(pendingPayPalCheckout?.paypalOrderId) && selectedPaymentMethod === 'paypal' && paymentType !== 'cod',
+                    clientId: getPayPalClientId(),
+                    disabled: loading || paypalInlineProcessing,
+                    forceRenderKey: `${pendingPayPalCheckout?.paypalOrderId || 'none'}:${paypalInlineProcessing}`,
+                    createOrder: () => pendingPayPalCheckout?.paypalOrderId,
+                    onApprove: async () => {
+                      await handleInlinePayPalApprove()
+                    },
+                    onCancel: () => {
+                      toast.error('تم إلغاء عملية PayPal. يمكنك المحاولة مرة أخرى.')
+                    },
+                    onError: (error) => {
+                      logger.error('PayPal inline button error:', error)
+                      toast.error('حدث خطأ أثناء تحميل أزرار PayPal')
+                    },
+                  },
                   onPlaceOrder: () => {
+                    if (pendingPayPalCheckout?.paypalOrderId) {
+                      toast('لديك طلب PayPal جاهز. أكمل الدفع من الأزرار أسفل الصفحة أولاً.', { icon: 'ℹ️' })
+                      return
+                    }
+
                     const form = document.querySelector('[data-testid="checkout-form"]')
                     if (form) {
                       form.requestSubmit()
                     }
                   },
-                  submitDisabled: loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable,
+                  submitDisabled: loading || paypalInlineProcessing || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable,
                   submitLabel: loading ? 'Loading...' : `Place Order - ${formatPrice(total)}`,
                   blockers: (loading || !availablePaymentTypes.hasAny || vendorMinimumStatus.hasViolations || shippingLoading || !shippingInfo_data || isShippingUnavailable || paymentStepBlockers.length > 0) ? paymentStepBlockers : [],
                   shippingError: errors.shipping,

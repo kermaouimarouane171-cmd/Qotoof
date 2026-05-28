@@ -61,7 +61,7 @@ export function createAuthActions(set, get) {
     // ============================================
     signIn: async (email, password, captchaToken = null, preferredRedirect = null) => {
       try {
-        set({ loading: true, _signingInProgress: true })
+        set({ loading: true, isSigningIn: true, profileError: false })
         const _safeRedirect = setPendingAuthRedirect(preferredRedirect)
 
         // Check rate limit
@@ -100,7 +100,7 @@ export function createAuthActions(set, get) {
             session,
             profile,
             loading: false,
-            _signingInProgress: false,
+            isSigningIn: false,
             mfaRequired: true,
             mfaPending: true,
             passwordRecoveryMode: false,
@@ -121,7 +121,7 @@ export function createAuthActions(set, get) {
           session,
           profile,
           loading: false,
-          _signingInProgress: false,
+          isSigningIn: false,
           mfaRequired: false,
           mfaPending: false,
           passwordRecoveryMode: false,
@@ -146,7 +146,7 @@ export function createAuthActions(set, get) {
         toast.success('Welcome back!')
         return { success: true, redirect }
       } catch (error) {
-        set({ loading: false, _signingInProgress: false })
+        set({ loading: false, isSigningIn: false })
 
         if (!preferredRedirect) {
           clearPendingAuthRedirect()
@@ -246,6 +246,9 @@ export function createAuthActions(set, get) {
           session: null,
           profile: null,
           loading: false,
+          profileLoading: false,
+          profileError: false,
+          isSigningIn: false,
           mfaRequired: false,
           mfaPending: false,
           passwordRecoveryMode: false,
@@ -277,7 +280,7 @@ export function createAuthActions(set, get) {
     // ============================================
     signUp: async (email, password, userData, captchaToken = null) => {
       try {
-        set({ loading: true, _signingInProgress: true })
+        set({ loading: true, isSigningIn: true, profileError: false })
         const normalizedEmail = String(email || '').trim().toLowerCase()
         const emailRedirectTo = getEmailCallbackUrl()
         const signUpOptions = {
@@ -343,7 +346,7 @@ export function createAuthActions(set, get) {
               profile,
               deviceFingerprint,
               loading: false,
-              _signingInProgress: false,
+              isSigningIn: false,
               mfaRequired: false,
               mfaPending: false,
               passwordRecoveryMode: false,
@@ -370,7 +373,7 @@ export function createAuthActions(set, get) {
           }
 
           // No session means email confirmation is enabled
-          set({ loading: false, _signingInProgress: false })
+          set({ loading: false, isSigningIn: false })
           toast.success('Account created! Please check your email to verify.')
           return {
             success: true,
@@ -382,7 +385,7 @@ export function createAuthActions(set, get) {
           }
         }
 
-        set({ loading: false, _signingInProgress: false })
+        set({ loading: false, isSigningIn: false })
         toast.success('Account created! Please check your email to verify.')
         return {
           success: true,
@@ -393,7 +396,7 @@ export function createAuthActions(set, get) {
           requiresPhoneVerification: Boolean(userData.phone),
         }
       } catch (error) {
-        set({ loading: false, _signingInProgress: false })
+        set({ loading: false, isSigningIn: false })
 
         if (isAlreadyRegisteredAuthError(error)) {
           const normalizedEmail = String(email || '').trim().toLowerCase()
@@ -710,6 +713,9 @@ export function createAuthActions(set, get) {
           session: null,
           profile: null,
           loading: false,
+          profileLoading: false,
+          profileError: false,
+          isSigningIn: false,
           mfaRequired: false,
           mfaPending: false,
           deviceFingerprint: null,

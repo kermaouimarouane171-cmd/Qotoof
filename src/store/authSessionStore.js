@@ -22,7 +22,19 @@ let autoLogoutWarningTimerId = null
 const _redirectToLogin = (path = '/login') => {
   // Use window.location.href to ensure full app reload and session clear
   setTimeout(() => {
-    window.location.href = path
+    if (typeof window !== 'undefined' && /jsdom/i.test(window.navigator?.userAgent || '')) {
+      return
+    }
+
+    try {
+      if (typeof window?.location?.assign === 'function') {
+        window.location.assign(path)
+      } else {
+        window.location.href = path
+      }
+    } catch (error) {
+      logger.warn('Login redirect skipped in non-browser test environment', error)
+    }
   }, 100)
 }
 
@@ -32,6 +44,9 @@ const _redirectAfterAutoLogout = (set) => {
     session: null,
     profile: null,
     loading: false,
+    profileLoading: false,
+    profileError: false,
+    isSigningIn: false,
     autoLogoutWarning: false
   })
 
@@ -51,11 +66,15 @@ export function createSessionActions(set, get) {
     // ENHANCED INITIALIZATION WITH SECURITY
     // ============================================
     initialize: async () => {
+      if (get().initialized) return
+
+      set({ loading: true, profileError: false })
+
       // Safety timeout: ensure loading is always resolved within 10 seconds
       const loadingTimeout = setTimeout(() => {
         if (get().loading) {
           logger.warn('Auth initialization timed out, forcing loading: false')
-          set({ loading: false, securityInitialized: true })
+          set({ loading: false, profileLoading: false, securityInitialized: true, initialized: true })
         }
       }, 10000)
 
@@ -74,78 +93,102 @@ export function createSessionActions(set, get) {
           }
         }
 
-        if (session) {
-          // Verify session is still valid before fetching profile
-          const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (!session) {
+          set({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            profileLoading: false,
+            profileError: false,
+            securityInitialized: true,
+            initialized: true,
+          })
+          return
+        }
 
-          if (userError || !user) {
-            logger.warn('Session expired during initialization, clearing auth state')
-            set({ user: null, session: null, profile: null, loading: false })
-            secureStorage.clear()
-            clearSupabaseLocalStorage()
-            return
-          }
+        // Verify session is still valid before fetching profile
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-          const profile = await get().fetchProfile(user.id)
+        if (userError || !user) {
+          logger.warn('Session expired during initialization, clearing auth state')
+          set({
+            user: null,
+            session: null,
+            profile: null,
+            loading: false,
+            profileLoading: false,
+            profileError: false,
+            securityInitialized: true,
+            initialized: true,
+          })
+          secureStorage.clear()
+          clearSupabaseLocalStorage()
+          return
+        }
 
-          // Only set state if profile fetch succeeded
-          if (profile) {
-            // Generate device fingerprint
-            const deviceFingerprint = await generateDeviceFingerprint()
-            set({ deviceFingerprint })
+        const profile = await get().fetchProfile(user.id)
 
-            // Register session (with safety check)
-            if (sessionService?.registerSession) {
-              await sessionService.registerSession()
-            }
+        // Generate device fingerprint
+        const deviceFingerprint = await generateDeviceFingerprint()
+        set({ deviceFingerprint })
 
-            // Check if MFA is required
-            let mfaSettings = null
-            if (mfaService?.getSettings) {
-              mfaSettings = await mfaService.getSettings()
-            }
-            if (mfaSettings?.is_enabled) {
-              set({ 
-                user,
-                session,
-                profile,
-                loading: false,
-                mfaRequired: true,
-                mfaPending: true,
-                securityInitialized: true
-              })
-              return // Don't complete login until MFA verified
-            }
+        // Register session (with safety check)
+        if (sessionService?.registerSession) {
+          await sessionService.registerSession()
+        }
 
-            // Start auto logout monitoring
-            get().startAutoLogout()
+        // Check if MFA is required
+        let mfaSettings = null
+        if (mfaService?.getSettings) {
+          mfaSettings = await mfaService.getSettings()
+        }
+        if (mfaSettings?.is_enabled) {
+          set({
+            user,
+            session,
+            profile: profile || null,
+            loading: false,
+            mfaRequired: true,
+            mfaPending: true,
+            securityInitialized: true,
+            initialized: true,
+          })
+          return // Don't complete login until MFA verified
+        }
 
-            set({
-              user,
-              session,
-              profile,
-              loading: false,
-              mfaRequired: false,
-              mfaPending: false,
-              securityInitialized: true
-            })
+        // Start auto logout monitoring
+        get().startAutoLogout()
 
-            // Log successful initialization
-            await auditLogger.logAuthAction('AUTH_INITIALIZED', user.id, {
-              deviceFingerprint,
-              role: profile.role
-            })
-          } else {
-            // Profile fetch failed, user needs to re-login
-            logger.warn('Profile fetch failed during initialization')
-            set({ user: null, session: null, profile: null, loading: false })
-          }
-        } else {
-          set({ loading: false, securityInitialized: true })
+        set({
+          user,
+          session,
+          profile: profile || null,
+          loading: false,
+          mfaRequired: false,
+          mfaPending: false,
+          securityInitialized: true,
+          initialized: true,
+        })
+
+        // Log successful initialization only when profile is available
+        if (profile) {
+          await auditLogger.logAuthAction('AUTH_INITIALIZED', user.id, {
+            deviceFingerprint,
+            role: profile.role,
+          })
         }
       } catch (error) {
         logger.error('Auth initialization error:', error)
-        set({ user: null, session: null, profile: null, loading: false, securityInitialized: true })
+        set({
+          user: null,
+          session: null,
+          profile: null,
+          loading: false,
+          profileLoading: false,
+          securityInitialized: true,
+          initialized: true,
+        })
       } finally {
         clearTimeout(loadingTimeout)
       }
@@ -159,7 +202,7 @@ export function createSessionActions(set, get) {
       let lastEventTime = 0
       let hasHandledInitialSession = false
 
-      const { unsubscribe } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
         const now = Date.now()
 
         // Skip duplicate events within 100ms window
@@ -167,7 +210,6 @@ export function createSessionActions(set, get) {
           return
         }
 
-        // Skip INITIAL_SESSION if already handled during initialization
         if (event === 'INITIAL_SESSION' && hasHandledInitialSession) {
           return
         }
@@ -188,7 +230,7 @@ export function createSessionActions(set, get) {
               // If signIn()/signUp() is currently in progress, skip — they handle everything.
               // Also skip if user + profile are already loaded (e.g. after initialize()).
               const existingState = get()
-              if (existingState._signingInProgress) {
+              if (existingState.isSigningIn) {
                 break
               }
               if (existingState.user && existingState.user.id === session.user?.id && existingState.profile) {
@@ -205,22 +247,23 @@ export function createSessionActions(set, get) {
 
               const user = session.user
 
+              set({ user, session, loading: false })
+
               // Generate device fingerprint (non-blocking)
               generateDeviceFingerprint().then(fp => set({ deviceFingerprint: fp })).catch(() => {})
 
-              // Fetch profile and MFA in parallel
-              const [profile, mfaSettings] = await Promise.all([
-                get().fetchProfile(user.id),
-                mfaService?.getSettings ? mfaService.getSettings() : Promise.resolve(null),
-              ])
+              let profile = existingState.profile
+              if (existingState.initialized && !profile) {
+                profile = await get().fetchProfile(user.id)
+              }
 
-              if (!profile) break
+              const mfaSettings = mfaService?.getSettings ? await mfaService.getSettings() : null
 
               if (mfaSettings?.is_enabled) {
                 set({ 
                   user, 
                   session, 
-                  profile, 
+                  profile: profile || null,
                   loading: false,
                   mfaRequired: true,
                   mfaPending: true,
@@ -235,7 +278,7 @@ export function createSessionActions(set, get) {
               set({ 
                 user, 
                 session, 
-                profile, 
+                profile: profile || null,
                 loading: false,
                 mfaRequired: false,
                 mfaPending: false,
@@ -258,6 +301,9 @@ export function createSessionActions(set, get) {
               session: null,
               profile: null,
               loading: false,
+              profileLoading: false,
+              profileError: false,
+              isSigningIn: false,
               mfaRequired: false,
               mfaPending: false,
               passwordRecoveryMode: false,
@@ -313,6 +359,7 @@ export function createSessionActions(set, get) {
                 user: session.user,
                 session,
                 loading: false,
+                profileLoading: false,
                 mfaRequired: false,
                 mfaPending: false,
                 passwordRecoveryMode: true,
@@ -328,6 +375,9 @@ export function createSessionActions(set, get) {
               session: null,
               profile: null,
               loading: false,
+              profileLoading: false,
+              profileError: false,
+              isSigningIn: false,
               passwordRecoveryMode: false,
             })
             clearPendingAuthRedirect()
@@ -343,68 +393,59 @@ export function createSessionActions(set, get) {
       })
 
       // Store unsubscribe function for cleanup
-      return unsubscribe
+      return () => {
+        const maybeSubscription = authListener?.data?.subscription
+        if (typeof maybeSubscription?.unsubscribe === 'function') {
+          maybeSubscription.unsubscribe()
+          return
+        }
+
+        if (typeof authListener?.unsubscribe === 'function') {
+          authListener.unsubscribe()
+        }
+      }
     },
 
     // ============================================
-    // FETCH USER PROFILE (enhanced with JWT handling)
+    // FETCH USER PROFILE
     // ============================================
     fetchProfile: async (userId) => {
+      if (!userId) {
+        set({ profile: null, profileLoading: false, profileError: true })
+        return null
+      }
+
+      set({ profileLoading: true, profileError: false })
+
       try {
-        const { data, error } = await supabase
+        const profileQuery = supabase
           .from('profiles')
           .select('*')
           .eq('id', userId)
-          .single()
+
+        const { data, error } = profileQuery?.maybeSingle
+          ? await profileQuery.maybeSingle()
+          : await profileQuery.single()
 
         if (error) {
-          // Handle JWT expiration specifically (catches all JWT error variants)
-          if (error.message?.includes('JWT') || error.message?.includes('jwt') || error.message?.includes('bad_jwt') || error.code === 'PGRST303') {
-            logger.warn('Profile fetch failed due to JWT error, triggering session refresh')
-            // Try to refresh the session
-            try {
-              const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
-              if (refreshError || !session) {
-                // Session refresh failed, clear auth state and redirect to login
-                logger.warn('Session refresh failed, redirecting to login')
-                set({ user: null, session: null, profile: null, loading: false })
-                secureStorage.clear()
-                clearSupabaseLocalStorage()
-                _redirectToLogin('/login?expired=true')
-                return null
-              }
-              // Retry fetching profile with new session
-              const { data: retryData, error: retryError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
-
-              if (retryError) {
-                logger.error('Profile fetch failed after session refresh:', retryError)
-                throw retryError
-              }
-              return retryData
-            } catch (refreshError) {
-              logger.error('Session refresh failed during profile fetch:', refreshError)
-              set({ user: null, session: null, profile: null, loading: false })
-              secureStorage.clear()
-              clearSupabaseLocalStorage()
-              _redirectToLogin('/login?expired=true')
-              return null
-            }
-          }
           throw error
         }
 
-        if (data && data.role === 'buyer') {
+        if (!data) {
+          set({ profile: null, profileError: true })
+          return null
+        }
+
+        let resolvedProfile = data
+
+        if (resolvedProfile.role === 'buyer') {
           try {
             const { data: authUserData } = await supabase.auth.getUser()
             const pendingReferralCode = authUserData?.user?.id === userId
               ? authUserData.user.user_metadata?.referral_code_used
               : null
 
-            if (pendingReferralCode && !data.referred_by) {
+            if (pendingReferralCode && !resolvedProfile.referred_by) {
               const { default: loyaltyApi } = await import('@/services/loyalty')
               await loyaltyApi.attachReferralCode({
                 userId,
@@ -418,7 +459,7 @@ export function createSessionActions(set, get) {
                 .single()
 
               if (!refreshedProfileError && refreshedProfile) {
-                return refreshedProfile
+                resolvedProfile = refreshedProfile
               }
             }
           } catch (referralError) {
@@ -426,16 +467,14 @@ export function createSessionActions(set, get) {
           }
         }
 
-        return data
+        set({ profile: resolvedProfile, profileError: false })
+        return resolvedProfile
       } catch (error) {
         logger.error('Error fetching profile:', error)
-        // If it's a JWT error, redirect to login
-        if (error.message?.includes('JWT') || error.message?.includes('jwt') || error.message?.includes('bad_jwt') || error.code === 'PGRST303') {
-          logger.warn('Redirecting to login due to JWT expiration')
-          set({ user: null, session: null, profile: null, loading: false })
-          _redirectToLogin('/login?expired=true')
-        }
+        set({ profile: null, profileError: true })
         return null
+      } finally {
+        set({ profileLoading: false })
       }
     },
 
@@ -473,7 +512,7 @@ export function createSessionActions(set, get) {
       const paths = {
         admin: '/admin/dashboard',
         vendor: '/vendor/dashboard',
-        buyer: '/buyer/orders',
+        buyer: '/buyer/dashboard',
         driver: '/driver/dashboard',
       }
       return paths[role] || '/marketplace'

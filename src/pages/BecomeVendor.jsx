@@ -121,7 +121,7 @@ const BecomeVendor = () => {
     try {
       // Check if store name is already taken
       const { data: existingStore } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, store_name')
         .eq('store_name', formData.storeName.trim())
         .neq('id', user.id)

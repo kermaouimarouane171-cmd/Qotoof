@@ -153,6 +153,27 @@ serve(async (req) => {
       return json({ success: false, error: 'You do not have access to this order' }, 403)
     }
 
+    const { data: vendorProfile, error: vendorProfileError } = await adminClient
+      .from('profiles')
+      .select('paypal_email, paypal_verified')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (vendorProfileError) {
+      throw vendorProfileError
+    }
+
+    if (!vendorProfile?.paypal_email || vendorProfile?.paypal_verified !== true) {
+      return json(
+        {
+          success: false,
+          error: 'Vendor PayPal account setup and verification are required before accepting orders',
+          code: 'PAYPAL_SETUP_REQUIRED',
+        },
+        400,
+      )
+    }
+
     const snapshotDeliveryOption = currentOrder.delivery_option || 'self'
     const snapshotAssignedDriverId = currentOrder.preferred_driver_id || currentOrder.driver_id || null
 

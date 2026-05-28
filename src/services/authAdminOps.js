@@ -16,8 +16,26 @@ const invokeAuthAdminOp = async (body) => {
   return data
 }
 
+const assertAdminProfile = async () => {
+  const { data: authData, error: authError } = await supabase.auth.getUser()
+  if (authError || !authData?.user?.id) {
+    throw new Error('غير مصرح')
+  }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', authData.user.id)
+    .single()
+
+  if (profileError || profile?.role !== 'admin') {
+    throw new Error('غير مصرح')
+  }
+}
+
 export const authAdminOps = {
   cleanupPendingSignup: async ({ userId, email }) => {
+    await assertAdminProfile()
     return invokeAuthAdminOp({
       action: 'cleanup-pending-signup',
       userId,
@@ -26,6 +44,7 @@ export const authAdminOps = {
   },
 
   confirmEmail: async ({ email, otp }) => {
+    await assertAdminProfile()
     return invokeAuthAdminOp({
       action: 'confirm-email',
       email,
@@ -34,6 +53,7 @@ export const authAdminOps = {
   },
 
   deleteUser: async (userId) => {
+    await assertAdminProfile()
     return invokeAuthAdminOp({
       action: 'delete-user',
       userId,

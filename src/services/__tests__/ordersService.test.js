@@ -3,6 +3,7 @@ import {
   fetchVendorOrders,
   fetchAdminOrders,
   fetchOrderById,
+  submitReturnRequest,
   updateOrderStatus,
   subscribeToVendorOrders,
   subscribeToOrderById,
@@ -254,5 +255,68 @@ describe('ordersService', () => {
     unSubOrder()
 
     expect(supabase.removeChannel).toHaveBeenCalledTimes(2)
+  })
+
+  it('submitReturnRequest resolves vendor_id and inserts schema-compatible payload', async () => {
+    const orderLookupBuilder = createThenableBuilder({
+      data: { vendor_id: 'vendor-42' },
+      error: null,
+      count: null,
+    })
+
+    const returnInsertBuilder = createThenableBuilder({
+      data: { id: 'rr-1', order_id: 'order-1' },
+      error: null,
+      count: null,
+    })
+
+    supabase.from
+      .mockReturnValueOnce(orderLookupBuilder)
+      .mockReturnValueOnce(returnInsertBuilder)
+
+    const result = await submitReturnRequest({
+      orderId: 'order-1',
+      buyerId: 'buyer-9',
+      reason: 'damaged',
+      description: 'Item arrived damaged',
+      itemIds: ['item-a', 'item-b'],
+    })
+
+    expect(orderLookupBuilder.select).toHaveBeenCalledWith('vendor_id')
+    expect(orderLookupBuilder.eq).toHaveBeenCalledWith('id', 'order-1')
+
+    expect(returnInsertBuilder.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        order_id: 'order-1',
+        buyer_id: 'buyer-9',
+        user_id: 'buyer-9',
+        vendor_id: 'vendor-42',
+        items: ['item-a', 'item-b'],
+      }),
+    )
+
+    const insertedPayload = returnInsertBuilder.insert.mock.calls[0][0]
+    expect(insertedPayload).not.toHaveProperty('item_ids')
+    expect(result).toEqual({ id: 'rr-1', order_id: 'order-1' })
+  })
+
+  it('submitReturnRequest throws when vendor lookup fails', async () => {
+    const orderLookupBuilder = createThenableBuilder({
+      data: null,
+      error: { message: 'lookup failed' },
+      count: null,
+    })
+
+    supabase.from.mockReturnValueOnce(orderLookupBuilder)
+
+    await expect(
+      submitReturnRequest({
+        orderId: 'order-2',
+        buyerId: 'buyer-11',
+        reason: 'wrong_item',
+        description: 'Wrong product',
+        itemIds: ['item-c'],
+      }),
+    ).rejects.toEqual(expect.objectContaining({ message: 'lookup failed' }))
   })
 })

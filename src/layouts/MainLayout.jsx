@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { useCartStore } from '@/store/cartStore'
@@ -33,6 +33,7 @@ import { APP_CONFIG } from '@/config/appConfig'
 const MainLayout = () => {
   const { t } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -58,7 +59,7 @@ const MainLayout = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      window.location.href = `/marketplace?search=${encodeURIComponent(searchQuery)}`
+      navigate(`/marketplace?search=${encodeURIComponent(searchQuery)}`)
     }
   }
   

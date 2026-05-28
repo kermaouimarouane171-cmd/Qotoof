@@ -85,7 +85,7 @@ const fetchProfileResultTyped = async (userId: string): Promise<ProfileResult> =
 export const profilesService = {
   fetchActiveVerifiedVendors: async (): Promise<ProfilesResult> => {
     const { data, error } = await supabase
-      .from('profiles')
+      .from('public_profiles')
       .select('id, first_name, last_name, store_name, avatar_url, city, rating, created_at, is_verified, role')
       .eq('role', 'vendor')
       .eq('is_verified', true)
@@ -95,7 +95,7 @@ export const profilesService = {
       return { data: null, error }
     }
 
-    return { data: data || [], error: null }
+    return { data: (data as unknown as Profile[]) || [], error: null }
   },
 
   fetchProfile: async (userId: string): Promise<ProfileResult> => {
