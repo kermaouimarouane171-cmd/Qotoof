@@ -28,10 +28,16 @@ Cypress.Commands.add('checkPageA11y', (context = null, options = {}) => {
 })
 
 // Global beforeEach
+// The mobile-white-screen diagnostic spec manages its own visits and viewports.
+// Skip the default visit when that spec is running to avoid overwriting listeners.
+const IS_DIAGNOSTIC_SPEC = Cypress.spec?.relative?.includes('mobile-white-screen')
+
 beforeEach(() => {
+  if (IS_DIAGNOSTIC_SPEC) return  // diagnostic spec handles its own setup
+
   // Set viewport to desktop by default
   cy.viewport(1280, 720)
-  
+
   // Visit base URL
   cy.visit('/')
 })
@@ -40,7 +46,7 @@ beforeEach(() => {
 afterEach(() => {
   // Clear local storage between tests
   cy.clearLocalStorage()
-  
+
   // Clear cookies
   cy.clearCookies()
 })

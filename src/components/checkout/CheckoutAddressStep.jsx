@@ -14,7 +14,7 @@ const CheckoutAddressStep = ({
   onContinue,
 }) => {
   return (
-    <Card className="p-6" data-testid="checkout-step-shipping">
+    <Card className="p-6 checkout-address-step" data-testid="checkout-step-shipping">
       <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
         <TruckIcon className="w-5 h-5" />
         Shipping Information

@@ -26,6 +26,7 @@ import { emailService } from '@/services/emailService'
 import { getLatestOrderPaymentRecord, updateOrderPaymentRecord } from '@/services/paymentService'
 import { createCheckoutOrder } from '@/services/checkoutService'
 import { useCheckoutPricing } from '@/hooks/useCheckoutPricing'
+import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard'
 
 const toAmount = (value) => Number(Number(value || 0).toFixed(2))
 const todayDateValue = () => new Date().toISOString().slice(0, 10)
@@ -37,6 +38,7 @@ const MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE = 'يمكن إتمام الطلب �
 
 const CheckoutSimplified = () => {
   const { t } = useTranslation()
+  useMobileKeyboardGuard()
   const navigate = useNavigate()
   const { user, profile } = useAuthStore()
   const {

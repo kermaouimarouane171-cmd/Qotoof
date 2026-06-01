@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { createJSONStorage, persist } from 'zustand/middleware'
+import { persistStorage } from '@/utils/persistStorage'
 import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
 import { normalizeQuantity } from '@/utils/cartQuantity'
@@ -114,6 +115,7 @@ export const useCartStore = create(
       items: [],
       lastValidated: null,
       checkoutVendorId: null,
+      _hasHydrated: false,
 
       /**
        * Add item to cart with validation
@@ -494,11 +496,16 @@ export const useCartStore = create(
     }),
     {
       name: 'cart-storage',
-      version: 3,
+      version: 4,
+      storage: createJSONStorage(() => persistStorage),
       partialize: (state) => ({
         items: state.items,
         lastValidated: state.lastValidated,
+        checkoutVendorId: state.checkoutVendorId,
       }),
+      onRehydrateStorage: () => () => {
+        useCartStore.setState({ _hasHydrated: true })
+      },
       migrate: (persistedState, version) => {
         // Migrate from v1 (stored full products) to v2 (essential data only)
         if (version < 2 && persistedState?.items) {
@@ -522,12 +529,10 @@ export const useCartStore = create(
           persistedState.items = []
         }
 
-        if (persistedState) {
-          delete persistedState.checkoutVendorId
-        }
-
         return persistedState
       }
     }
   )
 )
+
+export const useCartHydrated = () => useCartStore((state) => state._hasHydrated)

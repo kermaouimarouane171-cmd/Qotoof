@@ -12,6 +12,15 @@ import { useAuthStore } from '@/store/authStore';
 import { ProtectedRoute, MainLayout, AdminLayout, VendorLayout, DriverLayout, BuyerLayout } from '@/components/ProtectedRoute';
 import { USER_ROLES } from '@/constants/roles';
 
+const BuyerIndexRedirect = () => {
+  const { profile, loading, profileLoading } = useAuthStore();
+  if (loading || profileLoading) return null;
+  if (profile?.role === USER_ROLES.BUYER && profile?.onboarding_completed === false) {
+    return <Navigate to="/onboarding/buyer" replace />;
+  }
+  return <Navigate to="/buyer/dashboard" replace />;
+};
+
 // ── Loading fallback ──────────────────────────────────────────────────────────
 const LoadingFallback = () => {
   const { t } = useTranslation();
@@ -256,7 +265,7 @@ export function AppRouter() {
           </SuspenseRoute>
         }
       >
-        <Route index                    element={<Navigate to="/buyer/dashboard" replace />} />
+        <Route index                    element={<BuyerIndexRedirect />} />
         <Route path="dashboard"        element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
         <Route path="orders"           element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
         <Route path="addresses"        element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />

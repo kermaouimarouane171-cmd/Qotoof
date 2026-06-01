@@ -131,18 +131,37 @@ const VENDOR_ORDERS_SELECT = `
   )
 `
 
+const BUYER_ORDER_COLUMNS = `
+  id,
+  order_number,
+  status,
+  payment_status,
+  payment_method,
+  payment_type,
+  total,
+  total_amount,
+  subtotal,
+  shipping_cost,
+  created_at,
+  updated_at,
+  delivered_at,
+  buyer_id,
+  vendor_id,
+  driver_id
+`
+
 const BUYER_ORDERS_SELECT = `
-  *,
+  ${BUYER_ORDER_COLUMNS},
   vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name, images:product_images(url, is_primary))),
-  deliveries:deliveries(*)
+  items:order_items(id, quantity, unit_price, product_id, product:products(id, name, images:product_images(url, is_primary))),
+  deliveries:deliveries(id, status, driver_id, current_latitude, current_longitude)
 `
 
 const BUYER_ORDERS_SELECT_NO_IMAGES = `
-  *,
+  ${BUYER_ORDER_COLUMNS},
   vendor:profiles!vendor_id(first_name, last_name, store_name, phone),
-  items:order_items(*, product:products(id, name)),
-  deliveries:deliveries(*)
+  items:order_items(id, quantity, unit_price, product_id, product:products(id, name)),
+  deliveries:deliveries(id, status, driver_id, current_latitude, current_longitude)
 `
 
 const ADMIN_ORDERS_SELECT = `

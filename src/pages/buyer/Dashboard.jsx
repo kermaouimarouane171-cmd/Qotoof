@@ -215,11 +215,15 @@ const BuyerDashboard = () => {
         statsResult,
         deliveryResult,
       ] = await Promise.allSettled([
-        // 1️⃣ Recent orders (limited to 5)
+        // 1️⃣ Recent orders (limited columns)
         supabase
           .from('orders')
           .select(`
-            *,
+            id,
+            order_number,
+            status,
+            total,
+            created_at,
             vendor:profiles!orders_vendor_id_fkey(store_name, first_name, last_name),
             items:order_items(count)
           `)
@@ -227,11 +231,13 @@ const BuyerDashboard = () => {
           .order('created_at', { ascending: false })
           .limit(5),
 
-        // 2️⃣ All orders for stats calculation
+        // 2️⃣ Stats from latest 10 orders (avoid full-table scan)
         supabase
           .from('orders')
           .select('status, total, delivered_at')
-          .eq('buyer_id', user.id),
+          .eq('buyer_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(10),
 
         // 3️⃣ Active delivery
         deliveriesApi.getBuyerActiveDelivery(user.id),

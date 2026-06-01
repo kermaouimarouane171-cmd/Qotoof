@@ -1,8 +1,6 @@
 import { supabase } from '@/services/supabase'
 import { useCartStore } from '@/store/cartStore'
 import { useAuthStore } from '@/store/authStore'
-import * as paymentService from '@/services/paymentService'
-import emailService from '@/services/emailService'
 
 const DEFAULT_SHIPPING_FEE = 30
 
@@ -145,44 +143,35 @@ export const createCheckoutOrder = async (params = {}) => {
     return { data: null, error: new Error('Authenticated user is required') }
   }
 
-  const orderPayload = {
-    buyer_id: activeUser.id,
-    status: 'pending',
-    subtotal: totals.subtotal,
-    shipping_cost: totals.shippingFee,
-    coupon_discount_total: totals.couponDiscount,
-    total: totals.total,
-    items: cartItems,
-  }
-
-  const { data: insertedOrder, error } = await supabase
-    .from('orders')
-    .insert(orderPayload)
-    .select('*')
-    .single()
+  const { data: insertedOrder, error } = await supabase.functions.invoke('create-checkout-order', {
+    body: buildCheckoutPayload({
+      items: cartItems,
+      shippingInfo: params.shippingInfo || {},
+      deliveryLocation: params.deliveryLocation || {},
+      paymentType: params.paymentType || 'full',
+      selectedPaymentMethod: params.selectedPaymentMethod || params.paymentMethod || 'cod',
+      selectedDriverId: params.selectedDriverId || null,
+      requestedDeliveryDate: params.requestedDeliveryDate || null,
+      selectedDeliverySlotId: params.selectedDeliverySlotId || null,
+      appliedCouponCode: params.appliedCouponCode || params.coupon?.code || null,
+      cargoSize: params.cargoSize || 'medium',
+      driverDeliveryPaymentMethod: params.driverDeliveryPaymentMethod || 'cash',
+      idempotencyKey: params.idempotencyKey || null,
+    }),
+  })
 
   if (error) {
     return { data: null, error }
   }
 
-  try {
-    if (typeof paymentService.createOrderPaymentRecord === 'function') {
-      await paymentService.createOrderPaymentRecord({
-        order_id: insertedOrder.id,
-        payment_method: params.selectedPaymentMethod || params.paymentMethod || 'cod',
-        amount: totals.total,
-      })
-    }
-
-    if (emailService?.sendOrderConfirmation) {
-      await emailService.sendOrderConfirmation(insertedOrder, {
-        email: activeUser.email,
-        name: activeUser.name || activeUser.full_name || 'Customer',
-      })
-    }
-  } catch {
-    // Side effects are intentionally best-effort and should not fail checkout creation.
+  if (!insertedOrder?.success || !Array.isArray(insertedOrder?.orders)) {
+    return { data: null, error: new Error(insertedOrder?.error || 'Failed to create checkout order') }
   }
 
-  return { data: insertedOrder, error: null }
+  const primaryOrder = insertedOrder.orders[0] || null
+  if (!primaryOrder) {
+    return { data: null, error: new Error('Failed to create checkout order') }
+  }
+
+  return { data: primaryOrder, error: null, orders: insertedOrder.orders, pricing: insertedOrder.pricing }
 }

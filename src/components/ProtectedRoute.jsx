@@ -107,7 +107,10 @@ export const ProtectedRoute = ({
     return () => clearTimeout(timeoutId)
   }, [loading, profileLoading])
 
-  if (loading || profileLoading || isBlocking) {
+  const isOnboardingPath = location.pathname.startsWith('/onboarding')
+  const profileNotYetLoaded = Boolean(user && !profile && !profileLoading && !loading)
+
+  if (loading || profileLoading || isBlocking || profileNotYetLoaded) {
     if (authLoadingTimedOut) {
       return <AuthTimeoutFallback />
     }
@@ -123,15 +126,25 @@ export const ProtectedRoute = ({
     return <Navigate to="/mfa-verify" state={{ from: redirectTarget }} replace />;
   }
 
+  // Incomplete buyer profile: allow onboarding + public marketplace paths (avoid login/dashboard loops).
+  const buyerNeedsOnboarding = profile?.role === 'buyer' && profile?.onboarding_completed === false
+  const buyerPublicPaths = isOnboardingPath
+    || /^\/(marketplace|cart|checkout|product|products|stores|favorites|search)(\/|$)/.test(location.pathname)
+
+  if (buyerNeedsOnboarding && !buyerPublicPaths && requiredRole === 'buyer') {
+    return <Navigate to="/onboarding/buyer" replace />;
+  }
+
   // Role check: allowedRoles takes precedence; requiredRole is a single-role shorthand.
-  // Using both simultaneously is redundant – the router always passes matching values.
-  if (profile && profile.role) {
+  if (profile?.role) {
     if (allowedRoles.length > 0 && !allowedRoles.includes(profile.role)) {
       return <Navigate to="/unauthorized" replace />;
     }
     if (!allowedRoles.length && requiredRole && profile.role !== requiredRole) {
       return <Navigate to="/unauthorized" replace />;
     }
+  } else if (requiredRole || allowedRoles.length > 0) {
+    return <LoadingFallback />;
   }
 
   if (shouldRedirect && redirectTo) {
@@ -614,7 +627,11 @@ export const VendorLayout = () => {
   const hasAcceptedContract = Boolean(profile?.agreement_accepted);
   const isDigitalContractPath = pathname.startsWith('/vendor/digital-contract');
 
-  if (!hasAcceptedContract && !isDigitalContractPath) {
+  // Only redirect when the profile has actually loaded (profile !== null).
+  // If profile is null (still loading or fetch failed) we must not redirect —
+  // otherwise a transient fetch failure causes an infinite redirect loop to
+  // /vendor/digital-contract even for vendors who already signed the contract.
+  if (profile !== null && !hasAcceptedContract && !isDigitalContractPath) {
     return <Navigate to="/vendor/digital-contract" replace />;
   }
 

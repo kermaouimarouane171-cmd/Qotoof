@@ -36,11 +36,15 @@ export function useOnboardingGate() {
 
   // Select only primitives — avoids re-running effects when Zustand creates
   // a new `profile` object reference for unrelated state changes (e.g. deviceFingerprint).
-  const userId            = useAuthStore((s) => s.user?.id);
-  const loading           = useAuthStore((s) => s.loading);
-  const profileRole       = useAuthStore((s) => s.profile?.role);
+  const userId              = useAuthStore((s) => s.user?.id);
+  const loading             = useAuthStore((s) => s.loading);
+  const profileRole         = useAuthStore((s) => s.profile?.role);
   const onboardingCompleted = useAuthStore((s) => s.profile?.onboarding_completed);
-  const phoneVerified     = useAuthStore((s) => s.profile?.phone_verified);
+  const phoneVerified       = useAuthStore((s) => s.profile?.phone_verified);
+  // profileError: set to true by fetchProfile when the DB/network call fails.
+  // When true the profile will never arrive — stop blocking to avoid a
+  // permanent white-screen spinner.
+  const profileError        = useAuthStore((s) => s.profileError);
 
   // Kept as full objects only where identity comparison is intentional:
   const user    = useAuthStore((s) => s.user);
@@ -139,15 +143,21 @@ export function useOnboardingGate() {
   // Also block when user is authenticated but profile hasn't loaded yet —
   // this prevents ProtectedRoute from doing a premature /unauthorized redirect
   // before the profile (and role) has been fetched from Supabase.
-  const profileNotYetLoaded = Boolean(userId && !profile && !loading);
+  // Do NOT block when profileError=true: the profile fetch has permanently
+  // failed (e.g. RLS error, network down) so we must let the app render
+  // rather than spinning forever on a white screen.
+  const profileNotYetLoaded = Boolean(userId && !profile && !loading && !profileError);
+
+  const isAuthEntryPath = ['/login', '/register', '/forgot-password', '/reset-password'].includes(location.pathname)
 
   const shouldBlockForOnboarding = profileNotYetLoaded || Boolean(
     userId &&
     ONBOARDING_ROLES.includes(profileRole) &&
+    !isAuthEntryPath &&
     (
       !onboardingResolved ||
-      (needsOnboarding  && !location.pathname.startsWith('/onboarding')) ||
-      (!needsOnboarding &&  location.pathname.startsWith('/onboarding'))
+      (needsOnboarding && !location.pathname.startsWith('/onboarding')) ||
+      (!needsOnboarding && location.pathname.startsWith('/onboarding'))
     )
   );
 

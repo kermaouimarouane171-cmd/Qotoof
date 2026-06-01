@@ -508,7 +508,11 @@ export function createSessionActions(set, get) {
     // ============================================
     // GET REDIRECT PATH (unchanged)
     // ============================================
-    getRedirectPath: (role) => {
+    getRedirectPath: (role, profile = get().profile) => {
+      if (role === 'buyer' && profile && profile.onboarding_completed === false) {
+        return '/onboarding/buyer'
+      }
+
       const paths = {
         admin: '/admin/dashboard',
         vendor: '/vendor/dashboard',
