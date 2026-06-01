@@ -78,52 +78,74 @@ const AdminVendors = () => {
 
       if (profilesError) throw profilesError
 
-      // Fetch product count and average rating for each vendor
-      const vendorsWithProducts = await Promise.all(
-        (profilesData || []).map(async (vendor) => {
-          const { count } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('vendor_id', vendor.id)
+      const vendorRows = profilesData || []
+      const vendorIds = vendorRows.map((vendor) => vendor.id)
 
-          // Fetch average rating from reviews
-          const { data: reviewData } = await supabase
-            .from('reviews')
-            .select('rating')
-            .eq('vendor_id', vendor.id)
+      if (vendorIds.length === 0) {
+        setVendors([])
+        return
+      }
 
-          const avgRating = reviewData && reviewData.length > 0
-            ? reviewData.reduce((sum, r) => sum + r.rating, 0) / reviewData.length
-            : null
+      const [productsResult, reviewsResult] = await Promise.all([
+        supabase
+          .from('products')
+          .select('vendor_id')
+          .in('vendor_id', vendorIds),
+        supabase
+          .from('reviews')
+          .select('vendor_id, rating')
+          .in('vendor_id', vendorIds),
+      ])
 
-          // Determine status from vendor_status field
-          const status = vendor.vendor_status || 'pending'
+      if (productsResult.error) throw productsResult.error
+      if (reviewsResult.error) throw reviewsResult.error
 
-          return {
-            id: vendor.id,
-            store_name: vendor.store_name || `${vendor.first_name} ${vendor.last_name}`,
-            owner: `${vendor.first_name} ${vendor.last_name}`,
-            email: vendor.email,
-            phone: vendor.phone,
-            city: vendor.city,
-            country: vendor.country,
-            store_description: vendor.store_description,
-            location: vendor.city || 'N/A',
-            status,
-            vendor_status: vendor.vendor_status,
-            is_suspended: status === 'suspended',
-            suspension_reason: null,
-            suspension_start: null,
-            suspension_end: null,
-            violation_count: vendor.vendor_warning_count || 0,
-            rating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
-            products: count || 0,
-            latitude: vendor.latitude,
-            longitude: vendor.longitude,
-            created_at: vendor.created_at,
-          }
+      const productCountsByVendor = new Map()
+      ;(productsResult.data || []).forEach((row) => {
+        const current = productCountsByVendor.get(row.vendor_id) || 0
+        productCountsByVendor.set(row.vendor_id, current + 1)
+      })
+
+      const ratingsByVendor = new Map()
+      ;(reviewsResult.data || []).forEach((row) => {
+        const current = ratingsByVendor.get(row.vendor_id) || { sum: 0, count: 0 }
+        ratingsByVendor.set(row.vendor_id, {
+          sum: current.sum + Number(row.rating || 0),
+          count: current.count + 1,
         })
-      )
+      })
+
+      const vendorsWithProducts = vendorRows.map((vendor) => {
+        const ratings = ratingsByVendor.get(vendor.id)
+        const avgRating = ratings?.count ? ratings.sum / ratings.count : null
+
+        // Determine status from vendor_status field
+        const status = vendor.vendor_status || 'pending'
+
+        return {
+          id: vendor.id,
+          store_name: vendor.store_name || `${vendor.first_name} ${vendor.last_name}`,
+          owner: `${vendor.first_name} ${vendor.last_name}`,
+          email: vendor.email,
+          phone: vendor.phone,
+          city: vendor.city,
+          country: vendor.country,
+          store_description: vendor.store_description,
+          location: vendor.city || 'N/A',
+          status,
+          vendor_status: vendor.vendor_status,
+          is_suspended: status === 'suspended',
+          suspension_reason: null,
+          suspension_start: null,
+          suspension_end: null,
+          violation_count: vendor.vendor_warning_count || 0,
+          rating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
+          products: productCountsByVendor.get(vendor.id) || 0,
+          latitude: vendor.latitude,
+          longitude: vendor.longitude,
+          created_at: vendor.created_at,
+        }
+      })
 
       setVendors(vendorsWithProducts)
     } catch (error) {
@@ -413,6 +435,11 @@ const AdminVendors = () => {
 
       {/* Vendors Grid */}
       <div className="space-y-4">
+        {filteredVendors.length === 0 && (
+          <Card className="p-6 text-center text-gray-500">
+            {t('admin.vendors.empty', 'لا يوجد باعة مطابقون للفلاتر الحالية')}
+          </Card>
+        )}
         {filteredVendors.map((vendor) => (
           <Card key={vendor.id} className="p-6">
             <div className="flex items-start justify-between gap-4">

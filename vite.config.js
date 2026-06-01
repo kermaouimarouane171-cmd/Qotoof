@@ -112,6 +112,9 @@ export default defineConfig({
     cors: true,
     headers: securityHeaders,
     hmr: { overlay: true },
+    watch: {
+      ignored: ['**/cypress/screenshots/**', '**/cypress/videos/**', '**/cypress/downloads/**'],
+    },
   },
   logLevel: 'info',
   preview: {

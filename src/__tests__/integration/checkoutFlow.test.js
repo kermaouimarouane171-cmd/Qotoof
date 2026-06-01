@@ -203,7 +203,7 @@ describe('Checkout Flow Integration', () => {
       // Checkout
       const order = await orders.createOrder({
         items: cart.getState().items,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
         paymentMethod: 'cod',
         total: cart.getTotal(),
       })
@@ -226,7 +226,7 @@ describe('Checkout Flow Integration', () => {
 
       await orders.createOrder({
         items: cart.getState().items,
-        shippingAddress: { city: 'Rabat', address: '456 Ave', phone: '0698765432' },
+        shippingAddress: { city: 'Rabat', address: '45 Avenue Mohammed V', phone: '0698765432' },
         paymentMethod: 'bank',
         total: cart.getTotal(),
       })

@@ -78,7 +78,7 @@ const _getDayLabel = (dateStr) => {
   const diff = Math.floor((today - date) / (1000 * 60 * 60 * 24))
   if (diff === 0) return 'Today'
   if (diff === 1) return 'Yesterday'
-  return date.toLocaleDateString('en-US', { weekday: 'short' })
+  return date.toLocaleDateString('fr-MA', { weekday: 'short' })
 }
 
 // ============================================================
@@ -144,170 +144,165 @@ const VendorDashboard = () => {
       const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString()
       const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0).toISOString()
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      const _fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
-
-      // ---- 1. Products count ----
-      const { count: productCount } = await supabase
-        .from('products')
-        .select('id', { count: 'exact' })
-        .eq('vendor_id', profile.id)
-        .range(0, 0)
-
-      // ---- 2. Low stock products (< threshold units, default 10) ----
       const lowStockThreshold = profile?.low_stock_threshold || 10
-      const { data: lowStock } = await supabase
-        .from('products')
-        .select('id, name, available_quantity')
-        .eq('vendor_id', profile.id)
-        .eq('is_available', true)
-        .lte('available_quantity', lowStockThreshold)
-        .gt('available_quantity', 0)
-        .order('available_quantity', { ascending: true })
-        .limit(10)
+      const [
+        productsCountResult,
+        lowStockResult,
+        outOfStockResult,
+        todayOrdersResult,
+        yesterdayOrdersResult,
+        pendingCountResult,
+        prevPendingCountResult,
+        monthOrdersResult,
+        prevMonthOrdersResult,
+        reviewsResult,
+        pendingOrdersResult,
+        recentOrdersResult,
+        weekOrdersResult,
+      ] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('vendor_id', profile.id),
+        supabase
+          .from('products')
+          .select('id, name, available_quantity')
+          .eq('vendor_id', profile.id)
+          .eq('is_available', true)
+          .lte('available_quantity', lowStockThreshold)
+          .gt('available_quantity', 0)
+          .order('available_quantity', { ascending: true })
+          .limit(10),
+        supabase
+          .from('products')
+          .select('id, name, available_quantity')
+          .eq('vendor_id', profile.id)
+          .eq('is_available', true)
+          .eq('available_quantity', 0)
+          .order('name', { ascending: true })
+          .limit(10),
+        supabase
+          .from('orders')
+          .select('total, status')
+          .eq('vendor_id', profile.id)
+          .gte('created_at', todayStart),
+        supabase
+          .from('orders')
+          .select('total, status')
+          .eq('vendor_id', profile.id)
+          .gte('created_at', yesterdayStart)
+          .lt('created_at', todayStart),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('vendor_id', profile.id)
+          .eq('status', 'pending'),
+        supabase
+          .from('orders')
+          .select('id', { count: 'exact', head: true })
+          .eq('vendor_id', profile.id)
+          .eq('status', 'pending')
+          .gte('created_at', yesterdayStart)
+          .lt('created_at', todayStart),
+        supabase
+          .from('orders')
+          .select('total, status')
+          .eq('vendor_id', profile.id)
+          .gte('created_at', monthStart),
+        supabase
+          .from('orders')
+          .select('total, status')
+          .eq('vendor_id', profile.id)
+          .gte('created_at', prevMonthStart)
+          .lte('created_at', prevMonthEnd),
+        supabase
+          .from('reviews')
+          .select('rating')
+          .eq('vendor_id', profile.id)
+          .eq('is_flagged', false)
+          .is('deleted_at', null),
+        supabase
+          .from('orders')
+          .select(`
+            id,
+            order_number,
+            total,
+            created_at,
+            shipping_address,
+            shipping_city,
+            buyer_notes,
+            buyer:profiles!orders_buyer_id_fkey(first_name, last_name, phone),
+            items:order_items(
+              id,
+              quantity,
+              unit_price,
+              product:products(id, name)
+            )
+          `)
+          .eq('vendor_id', profile.id)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('orders')
+          .select(`
+            id,
+            order_number,
+            total,
+            status,
+            created_at,
+            buyer:profiles!orders_buyer_id_fkey(first_name, last_name)
+          `)
+          .eq('vendor_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(10),
+        supabase
+          .from('orders')
+          .select('total, status, created_at')
+          .eq('vendor_id', profile.id)
+          .gte('created_at', sevenDaysAgo)
+          .order('created_at', { ascending: true }),
+      ])
 
-      setLowStockProducts(lowStock || [])
+      const lowStock = lowStockResult.data || []
+      const outOfStock = outOfStockResult.data || []
+      const todayOrders = todayOrdersResult.data || []
+      const yesterdayOrders = yesterdayOrdersResult.data || []
+      const monthOrders = monthOrdersResult.data || []
+      const prevMonthOrders = prevMonthOrdersResult.data || []
+      const reviews = reviewsResult.data || []
+      const pendingOrdersData = pendingOrdersResult.data || []
+      const recentOrdersData = recentOrdersResult.data || []
+      const weekOrders = weekOrdersResult.data || []
 
-      // ---- 3. Out of stock products ----
-      const { data: outOfStock } = await supabase
-        .from('products')
-        .select('id, name, available_quantity')
-        .eq('vendor_id', profile.id)
-        .eq('is_available', true)
-        .eq('available_quantity', 0)
-        .order('name', { ascending: true })
-        .limit(10)
+      setLowStockProducts(lowStock)
+      setOutOfStockProducts(outOfStock)
+      setPendingOrders(pendingOrdersData)
+      setRecentOrders(recentOrdersData)
 
-      setOutOfStockProducts(outOfStock || [])
-
-      // ---- 4. Daily sales (today) ----
-      const { data: todayOrders } = await supabase
-        .from('orders')
-        .select('total, status')
-        .eq('vendor_id', profile.id)
-        .gte('created_at', todayStart)
-
-      const dailySales = (todayOrders || [])
+      const dailySales = todayOrders
         .filter((o) => o.status !== 'vendor_rejected' && o.status !== 'cancelled')
         .reduce((sum, o) => sum + (o.total || 0), 0)
 
-      // ---- 5. Daily sales (yesterday) ----
-      const { data: yesterdayOrders } = await supabase
-        .from('orders')
-        .select('total, status')
-        .eq('vendor_id', profile.id)
-        .gte('created_at', yesterdayStart)
-        .lt('created_at', todayStart)
-
-      const dailySalesPrev = (yesterdayOrders || [])
+      const dailySalesPrev = yesterdayOrders
         .filter((o) => o.status !== 'vendor_rejected' && o.status !== 'cancelled')
         .reduce((sum, o) => sum + (o.total || 0), 0)
 
-      // ---- 6. New (pending) orders ----
-      const { data: pendingData } = await supabase
-        .from('orders')
-        .select('id, status')
-        .eq('vendor_id', profile.id)
-        .eq('status', 'pending')
+      const newOrders = pendingCountResult.count || 0
+      const newOrdersPrev = prevPendingCountResult.count || 0
 
-      const newOrders = pendingData?.length || 0
-
-      // Previous day pending
-      const { data: prevPending } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('vendor_id', profile.id)
-        .eq('status', 'pending')
-        .gte('created_at', yesterdayStart)
-        .lt('created_at', todayStart)
-
-      const newOrdersPrev = prevPending?.length || 0
-
-      // ---- 7. Monthly revenue ----
-      const { data: monthOrders } = await supabase
-        .from('orders')
-        .select('total, status')
-        .eq('vendor_id', profile.id)
-        .gte('created_at', monthStart)
-
-      const monthlyRevenue = (monthOrders || [])
+      const monthlyRevenue = monthOrders
         .filter((o) => o.status === 'delivered' || o.status === 'vendor_accepted' || o.status === 'on_the_way')
         .reduce((sum, o) => sum + (o.total || 0), 0)
 
-      // Previous month revenue
-      const { data: prevMonthOrders } = await supabase
-        .from('orders')
-        .select('total, status')
-        .eq('vendor_id', profile.id)
-        .gte('created_at', prevMonthStart)
-        .lte('created_at', prevMonthEnd)
-
-      const monthlyRevenuePrev = (prevMonthOrders || [])
+      const monthlyRevenuePrev = prevMonthOrders
         .filter((o) => o.status === 'delivered' || o.status === 'vendor_accepted' || o.status === 'on_the_way')
         .reduce((sum, o) => sum + (o.total || 0), 0)
 
-      // ---- 8. Store rating ----
-      const { data: reviews } = await supabase
-        .from('reviews')
-        .select('rating')
-        .eq('vendor_id', profile.id)
-        .eq('is_flagged', false)
-        .is('deleted_at', null)
-
-      const totalReviews = reviews?.length || 0
+      const totalReviews = reviews.length
       const storeRating = totalReviews > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
         : 0
-
-      // ---- 9. Pending orders (for quick actions) ----
-      const { data: pendingOrdersData } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          total,
-          created_at,
-          shipping_address,
-          shipping_city,
-          buyer_notes,
-          buyer:profiles!orders_buyer_id_fkey(first_name, last_name, phone),
-          items:order_items(
-            id,
-            quantity,
-            unit_price,
-            product:products(id, name)
-          )
-        `)
-        .eq('vendor_id', profile.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      setPendingOrders(pendingOrdersData || [])
-
-      // ---- 10. Recent orders (for table) ----
-      const { data: recentOrdersData } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          order_number,
-          total,
-          status,
-          created_at,
-          buyer:profiles!orders_buyer_id_fkey(first_name, last_name)
-        `)
-        .eq('vendor_id', profile.id)
-        .order('created_at', { ascending: false })
-        .limit(10)
-
-      setRecentOrders(recentOrdersData || [])
-
-      // ---- 11. 7-day sales chart data ----
-      const { data: weekOrders } = await supabase
-        .from('orders')
-        .select('total, status, created_at')
-        .eq('vendor_id', profile.id)
-        .gte('created_at', sevenDaysAgo)
-        .order('created_at', { ascending: true })
 
       // Build daily buckets
       const dailyTotals = {}
@@ -328,7 +323,7 @@ const VendorDashboard = () => {
 
       const chartLabels = Object.keys(dailyTotals).map((key) => {
         const d = new Date(key)
-        return d.toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US', {
+        return d.toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : 'fr-MA', {
           weekday: 'short',
         })
       })
@@ -376,7 +371,7 @@ const VendorDashboard = () => {
         monthlyRevenuePrev,
         storeRating,
         totalReviews,
-        totalProducts: productCount || 0,
+        totalProducts: productsCountResult.count || 0,
         lowStockCount: lowStock?.length || 0,
         outOfStockCount: outOfStock?.length || 0,
       })
@@ -423,7 +418,7 @@ const VendorDashboard = () => {
       const newLabels = []
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
-        newLabels.push(d.toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US', {
+        newLabels.push(d.toLocaleDateString(i18n.language === 'ar' ? 'ar-MA' : 'fr-MA', {
           weekday: 'short',
         }))
       }
@@ -1000,7 +995,7 @@ const VendorDashboard = () => {
       <RecentOrdersWidget
         recentOrders={recentOrders}
         formatPrice={formatPrice}
-        locale={i18n.language === 'ar' ? 'ar-MA' : i18n.language === 'fr' ? 'fr-MA' : 'en-US'}
+        locale={i18n.language === 'ar' ? 'ar-MA' : 'fr-MA'}
         onViewOrder={(orderId) => navigate(`/orders/${orderId}`)}
         onViewAll={() => navigate('/vendor/orders')}
         t={t}

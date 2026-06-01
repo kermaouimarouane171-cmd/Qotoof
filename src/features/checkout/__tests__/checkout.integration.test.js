@@ -407,7 +407,7 @@ describe('createCheckoutOrder – edge function path', () => {
     cartItems: [
       { id: 'item-1', product_id: 'p1', name: 'Tomatoes', quantity: 2, price: 15, price_per_unit: 15 },
     ],
-    shippingInfo: { fullName: 'Hassan Ali', phone: '0612345678', city: 'Casablanca', address: '123 Main St' },
+    shippingInfo: { fullName: 'Hassan Ali', phone: '0612345678', city: 'Casablanca', address: '12 Rue Hassan II' },
     deliveryLocation: { lat: 33.5731, lng: -7.5898 },
     selectedPaymentMethod: 'cash',
     coupon: null,

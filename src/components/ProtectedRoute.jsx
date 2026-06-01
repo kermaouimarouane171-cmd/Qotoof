@@ -27,6 +27,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator';
 import { usePaymentGuard } from '@/contexts/PaymentGuard';
+import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard';
 
 /**
  * مكون Loading Fallback للـ Suspense
@@ -270,7 +271,11 @@ const resolveActiveTitle = (pathname, links, fallback) => {
 
 const RoleMobileHeader = ({ title, onToggleDrawer, profilePath, t }) => {
   return (
-    <header dir="ltr" className="md:hidden fixed top-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 h-16 px-3 flex items-center">
+    <header
+      dir="ltr"
+      className="md:hidden fixed top-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 px-3 flex items-center mobile-top-header"
+      data-testid="role-mobile-header"
+    >
       <div className="w-1/3 flex items-center justify-start gap-1.5">
         <button
           type="button"
@@ -389,16 +394,17 @@ const RoleMobileDrawer = ({
   );
 };
 
-const RoleMobileBottomNav = ({ tabs }) => {
+const RoleMobileBottomNav = ({ tabs, roleName }) => {
   const { pathname } = useLocation();
 
   return (
     <nav
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 h-16"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mobile-bottom-nav"
       dir="rtl"
+      data-testid="role-mobile-bottom-nav"
+      data-role={roleName}
     >
-      <div className="h-full grid grid-cols-4">
+      <div className="h-16 grid grid-cols-4">
         {tabs.map((tab) => {
           const isActive = pathname === tab.to || pathname.startsWith(tab.to + '/');
 
@@ -406,12 +412,14 @@ const RoleMobileBottomNav = ({ tabs }) => {
             <Link
               key={tab.to}
               to={tab.to}
-              className={`h-full flex flex-col items-center justify-center gap-0.5 ${
+              className={`h-full flex flex-col items-center justify-center gap-0.5 px-1 ${
                 isActive
                   ? 'text-green-700 bg-green-50 dark:bg-green-900/20'
                   : 'text-slate-400 dark:text-slate-500'
               }`}
               style={{ fontFamily: 'Tajawal, sans-serif' }}
+              data-route={tab.to}
+              aria-current={isActive ? 'page' : undefined}
             >
               <tab.icon className="w-6 h-6" />
               <span className="text-[10px] leading-none">{tab.label}</span>
@@ -432,6 +440,7 @@ const RoleLayoutShell = ({
   desktopProfilePath,
   mobileProfilePath,
   tabs,
+  roleName,
   onSignOut,
   drawerOpen,
   setDrawerOpen,
@@ -440,6 +449,7 @@ const RoleLayoutShell = ({
   children,
 }) => {
   const { t } = useTranslation();
+  useMobileKeyboardGuard();
 
   // Close drawer on every navigation (title is derived from pathname).
   // setDrawerOpen is a stable useState setter — intentionally not in deps.
@@ -447,7 +457,7 @@ const RoleLayoutShell = ({
   useEffect(() => { setDrawerOpen(false); }, [desktopHeaderTitle]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950" dir="rtl" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-hidden" dir="rtl" style={{ fontFamily: 'Tajawal, sans-serif' }}>
       <aside className="hidden md:flex w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <Link to={panelHome} className="flex items-center gap-2">
@@ -475,7 +485,7 @@ const RoleLayoutShell = ({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <header className="hidden md:flex bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 items-center justify-between">
           <h1
             className="text-lg text-gray-900 dark:text-white"
@@ -516,11 +526,11 @@ const RoleLayoutShell = ({
           t={t}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pt-20 md:pt-6 pb-24 md:pb-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 md:pt-6 md:pb-6 mobile-safe-top-offset mobile-safe-bottom-offset" data-testid="role-layout-main">
           {children}
         </main>
 
-        <RoleMobileBottomNav tabs={tabs} />
+        <RoleMobileBottomNav tabs={tabs} roleName={roleName} />
       </div>
     </div>
   );
@@ -579,6 +589,7 @@ export const AdminLayout = () => {
       desktopProfilePath="/admin/settings"
       mobileProfilePath="/admin/settings"
       tabs={adminTabs}
+      roleName="admin"
       onSignOut={() => signOut()}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
@@ -646,6 +657,7 @@ export const VendorLayout = () => {
       desktopProfilePath="/vendor/profile"
       mobileProfilePath="/vendor/profile"
       tabs={vendorTabs}
+      roleName="vendor"
       onSignOut={() => signOut()}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
@@ -702,6 +714,7 @@ export const DriverLayout = () => {
       desktopProfilePath="/driver/profile"
       mobileProfilePath="/driver/profile"
       tabs={driverTabs}
+      roleName="driver"
       onSignOut={() => signOut()}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
@@ -756,6 +769,7 @@ export const BuyerLayout = () => {
       desktopProfilePath="/buyer/settings"
       mobileProfilePath="/buyer/settings"
       tabs={buyerTabs}
+      roleName="buyer"
       onSignOut={() => signOut()}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}

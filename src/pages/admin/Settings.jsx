@@ -230,12 +230,10 @@ const AdminSettings = () => {
                 <label className="input-label">{t('admin.settings.general.currency', 'Currency')}</label>
                 <select
                   value={settings.currency || 'MAD'}
-                  onChange={(e) => updateField('currency', e.target.value)}
+                  onChange={() => updateField('currency', 'MAD')}
                   className="input"
                 >
                   <option value="MAD">MAD - {t('admin.settings.general.currencyMAD', 'Moroccan Dirham')}</option>
-                  <option value="USD">USD - {t('admin.settings.general.currencyUSD', 'US Dollar')}</option>
-                  <option value="EUR">EUR - {t('admin.settings.general.currencyEUR', 'Euro')}</option>
                 </select>
               </div>
               <div>

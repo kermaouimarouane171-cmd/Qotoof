@@ -33,23 +33,12 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS last_violation_at   TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS vendor_status_updated_at TIMESTAMPTZ;
 
--- vendor_status CHECK constraint (if not already present)
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints tc
-    JOIN information_schema.constraint_column_usage ccu
-      ON tc.constraint_name = ccu.constraint_name
-    WHERE tc.table_schema   = 'public'
-      AND tc.table_name     = 'profiles'
-      AND tc.constraint_type = 'CHECK'
-      AND ccu.column_name   = 'vendor_status'
-  ) THEN
-    ALTER TABLE public.profiles
-      ADD CONSTRAINT profiles_vendor_status_check
-      CHECK (vendor_status IN ('pending', 'approved', 'rejected', 'suspended'));
-  END IF;
-END $$;
+-- vendor_status CHECK constraint intentionally omitted:
+-- The vendor_status column is of type vendor_status (PostgreSQL ENUM).
+-- The enum type itself enforces valid values; a redundant TEXT CHECK
+-- constraint is unnecessary and would fail when the column is an ENUM.
+-- 'suspended' was added to the enum in migration
+-- 20260527190000_add_vendor_status_suspended_enum.sql.
 
 -- ---------------------------------------------------------------------------
 -- 2. admin UPDATE policy — allows admin users to update any profile row

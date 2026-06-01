@@ -26,15 +26,18 @@ logger.log('[ENTRY] main.jsx loaded — starting app initialization')
 
 const RootMode = import.meta.env.DEV ? React.Fragment : StrictMode
 
+const defaultSentryDsn = 'https://60f815aec21ee3e9ad0a86d702a95d72@o4511488754778112.ingest.de.sentry.io/4511488771424336'
+
 const sentryDsn = typeof import.meta.env.VITE_SENTRY_DSN === 'string'
-  ? import.meta.env.VITE_SENTRY_DSN.trim()
-  : ''
+  ? (import.meta.env.VITE_SENTRY_DSN.trim() || defaultSentryDsn)
+  : defaultSentryDsn
 
 const hasValidSentryDsn = sentryDsnLooksIssued(sentryDsn)
 
 if (hasValidSentryDsn) {
   Sentry.init({
     dsn: sentryDsn,
+    sendDefaultPii: true,
     environment: import.meta.env.MODE,
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
     enabled: import.meta.env.PROD,

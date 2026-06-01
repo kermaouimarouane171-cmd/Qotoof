@@ -151,9 +151,14 @@ const CheckoutSimplified = () => {
   const [_bulkDiscountCandidates, setBulkDiscountCandidates] = useState([])
   const [couponLoading, setCouponLoading] = useState(false)
   const checkoutRequestKeyRef = useRef(null)
+  const lastLoadedVendorIdRef = useRef(null)
   const cartVendorIds = useMemo(
     () => Array.from(new Set(items.map((item) => item.vendor_id).filter(Boolean))),
     [items]
+  )
+  const primaryVendorId = useMemo(
+    () => (hasSingleVendorCart && items.length > 0 ? items[0]?.vendor_id || null : null),
+    [hasSingleVendorCart, items]
   )
   const checkoutRequestSignature = useMemo(() => JSON.stringify({
     items: items.map((item) => ({ id: item.id, quantity: item.quantity, vendor_id: item.vendor_id })),
@@ -385,15 +390,19 @@ const CheckoutSimplified = () => {
 
   // Load vendor location when items change
   useEffect(() => {
-    if (hasSingleVendorCart && items.length > 0 && items[0]?.vendor_id) {
-      loadVendorLocation(items[0].vendor_id)
+    if (primaryVendorId) {
+      if (lastLoadedVendorIdRef.current !== primaryVendorId) {
+        lastLoadedVendorIdRef.current = primaryVendorId
+        loadVendorLocation(primaryVendorId)
+      }
       return
     }
 
     setVendorStoreProfile(null)
     setVendorLocation(null)
     setPreferredDriverProfile(null)
-  }, [hasSingleVendorCart, items])
+    lastLoadedVendorIdRef.current = null
+  }, [primaryVendorId])
 
   useEffect(() => {
     let cancelled = false

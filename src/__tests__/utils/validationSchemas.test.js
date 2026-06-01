@@ -163,7 +163,7 @@ describe('validationSchemas', () => {
             unit_price: 10,
           },
         ],
-        shipping_address: '123 Main Street, Casablanca',
+        shipping_address: '12 Rue Hassan IIreet, Casablanca',
         shipping_city: 'Casablanca',
       })
 
@@ -173,7 +173,7 @@ describe('validationSchemas', () => {
     it('should reject empty items', () => {
       const result = orderSchema.safeParse({
         items: [],
-        shipping_address: '123 Main Street, Casablanca',
+        shipping_address: '12 Rue Hassan IIreet, Casablanca',
         shipping_city: 'Casablanca',
       })
 

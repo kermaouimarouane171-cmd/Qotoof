@@ -163,7 +163,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
 
       // Vendor accepts order
@@ -183,7 +183,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       await deliveries.createDelivery(order.id, 'v1')
@@ -207,7 +207,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -225,7 +225,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       await deliveries.createDelivery(order.id, 'v1')
@@ -242,7 +242,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -267,7 +267,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -285,7 +285,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -304,7 +304,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -341,7 +341,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -364,7 +364,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')
@@ -387,7 +387,7 @@ describe('Delivery Flow Integration', () => {
         vendorId: 'v1',
         items: [{ id: 'p1', name: 'Tomatoes', quantity: 2, price_per_unit: 12 }],
         total: 28.8,
-        shippingAddress: { city: 'Casablanca', address: '123 Main St', phone: '0612345678' },
+        shippingAddress: { city: 'Casablanca', address: '12 Rue Hassan II', phone: '0612345678' },
       })
       await orders.acceptOrder(order.id)
       const delivery = await deliveries.createDelivery(order.id, 'v1')

@@ -3545,7 +3545,7 @@ export type Database = {
         vendor_last_violation_at: string | null
         vendor_on_time_delivery_rate: Json | null
         vendor_search_done: boolean | null
-        vendor_status: 'pending' | 'approved' | 'rejected' | null
+        vendor_status: 'pending' | 'approved' | 'rejected' | 'suspended' | null
         vendor_suspension_count: number | null
         vendor_warning_count: number | null
         verification_documents: Json | null
@@ -3679,7 +3679,7 @@ export type Database = {
         vendor_last_violation_at?: string | null
         vendor_on_time_delivery_rate?: Json | null
         vendor_search_done?: boolean | null
-        vendor_status?: 'pending' | 'approved' | 'rejected' | null
+        vendor_status?: 'pending' | 'approved' | 'rejected' | 'suspended' | null
         vendor_suspension_count?: number | null
         vendor_warning_count?: number | null
         verification_documents?: Json | null
@@ -3813,7 +3813,7 @@ export type Database = {
         vendor_last_violation_at?: string | null
         vendor_on_time_delivery_rate?: Json | null
         vendor_search_done?: boolean | null
-        vendor_status?: 'pending' | 'approved' | 'rejected' | null
+        vendor_status?: 'pending' | 'approved' | 'rejected' | 'suspended' | null
         vendor_suspension_count?: number | null
         vendor_warning_count?: number | null
         verification_documents?: Json | null

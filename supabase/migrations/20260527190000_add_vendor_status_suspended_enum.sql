@@ -1,0 +1,25 @@
+-- Migration: Add 'suspended' value to vendor_status enum
+-- File:      20260527190000_add_vendor_status_suspended_enum.sql
+-- Date:      2026-05-27
+--
+-- Problem:
+--   vendor_status is a PostgreSQL ENUM type defined as:
+--     CREATE TYPE vendor_status AS ENUM ('pending', 'approved', 'rejected');
+--   The admin vendor-management page (admin/Vendors.jsx) and the
+--   20260528000001 migration both reference 'suspended' as a valid status,
+--   but that value was never added to the enum, causing:
+--     ERROR: invalid input value for enum vendor_status: "suspended"
+--
+-- Fix:
+--   ADD VALUE IF NOT EXISTS is non-transactional in PostgreSQL and must
+--   run outside of a BEGIN/COMMIT block.  It is also idempotent.
+--
+-- Note:
+--   The subsequent migration 20260528000001 adds a TEXT CHECK constraint
+--   that would also reference 'suspended'.  Now that the enum contains
+--   'suspended' that constraint would technically succeed, but it is
+--   redundant (enum enforces values) and has been removed from that
+--   migration.  This migration is the single source of truth for the
+--   'suspended' enum value.
+
+ALTER TYPE public.vendor_status ADD VALUE IF NOT EXISTS 'suspended';

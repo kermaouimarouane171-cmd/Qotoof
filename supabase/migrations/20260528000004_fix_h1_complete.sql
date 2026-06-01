@@ -92,8 +92,7 @@ SELECT
   -- timestamps
   created_at
 FROM public.profiles
-WHERE role IN ('vendor', 'driver')
-  AND deleted_at IS NULL;
+WHERE role IN ('vendor', 'driver');
 
 -- Grant SELECT on the view to both roles (the view itself is the security boundary)
 GRANT SELECT ON public.public_profiles TO authenticated;
@@ -110,7 +109,7 @@ COMMENT ON VIEW public.public_profiles IS
   'trust_score, locked_until, grace_period_ends, vendor_warning_count, '
   'vendor_suspension_count, vendor_status, vendor_status_updated_at, '
   'mfa_enabled, onboarding_completed, referral_code, referred_by, '
-  'last_seen_at, deleted_at.';
+  'last_seen_at.';  -- deleted_at not present on profiles table in this schema version
 
 -- ── 3. Order-participant policy ──────────────────────────────────────────────
 --
@@ -132,8 +131,7 @@ CREATE POLICY "profiles_select_order_participant"
     EXISTS (
       SELECT 1
       FROM   public.orders o
-      WHERE  o.deleted_at IS NULL
-        AND  (
+      WHERE  (
                -- buyer reads vendor or driver in their orders
                (o.buyer_id  = auth.uid() AND (id = o.vendor_id OR id = o.driver_id))
                -- vendor reads buyer or driver in their orders
@@ -161,5 +159,4 @@ CREATE POLICY "profiles_select_active_drivers"
     role = 'driver'
     AND is_available_for_delivery = true
     AND (is_suspended = false OR is_suspended IS NULL)
-    AND deleted_at IS NULL
   );

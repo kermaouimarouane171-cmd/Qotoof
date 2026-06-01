@@ -546,12 +546,10 @@ const VendorSettings = () => {
                 <label className="input-label">{t('vendor.settings.currency', 'Currency')}</label>
                 <select
                   value={currency}
-                  onChange={(e) => handleFieldChange(setCurrency, e.target.value)}
+                  onChange={() => handleFieldChange(setCurrency, 'MAD')}
                   className="input"
                 >
                   <option value="MAD">MAD - {t('vendor.settings.currencies.mad', 'Moroccan Dirham')}</option>
-                  <option value="USD">USD - {t('vendor.settings.currencies.usd', 'US Dollar')}</option>
-                  <option value="EUR">EUR - {t('vendor.settings.currencies.eur', 'Euro')}</option>
                 </select>
               </div>
             </div>

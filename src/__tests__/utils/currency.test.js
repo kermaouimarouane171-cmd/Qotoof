@@ -1,11 +1,11 @@
  
 
 // Import only pure functions — no React components
-const { formatPrice, formatPriceArabic, formatPriceShort } = require('@/utils/currency');
+const { formatPrice, formatPriceArabic, formatPriceShort, formatCurrency } = require('@/utils/currency');
 
 describe('currency utilities', () => {
   describe('formatPrice', () => {
-    it('should format positive MAD amount with symbol and decimals (en-MA)', () => {
+    it('should format positive MAD amount with symbol and decimals (default locale)', () => {
       const result = formatPrice(123.45);
       expect(result).toBe('MAD 123,45');
     });
@@ -45,14 +45,6 @@ describe('currency utilities', () => {
       expect(result).toBe('MAD 123');
     });
 
-    it('should format USD with en-US locale', () => {
-      const result = formatPrice(123.45, {
-        currencyCode: 'USD',
-        locale: 'en-US',
-      });
-      expect(result).toBe('$123.45');
-    });
-
     it('should format EUR with en-US locale', () => {
       const result = formatPrice(123.45, {
         currencyCode: 'EUR',
@@ -74,6 +66,11 @@ describe('currency utilities', () => {
         locale: 'invalid-locale',
       });
       expect(result).toMatch(/MAD \d+\.\d+/);
+    });
+
+    it('formatCurrency should always return MAD formatting', () => {
+      const result = formatCurrency(321.5, { locale: 'fr-MA' });
+      expect(result).toBe('MAD 321,50');
     });
   });
 
@@ -120,9 +117,9 @@ describe('currency utilities', () => {
       expect(result).toBe('-1.0K MAD');
     });
 
-    it('should support custom currency code', () => {
-      const result = formatPriceShort(1500, { currencyCode: 'USD' });
-      expect(result).toBe('1.5K USD');
+    it('should support custom currency code for short format', () => {
+      const result = formatPriceShort(1500, { currencyCode: 'EUR' });
+      expect(result).toBe('1.5K EUR');
     });
   });
 });
