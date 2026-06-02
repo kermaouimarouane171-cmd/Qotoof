@@ -269,7 +269,7 @@ describe('payment gateway and related services', () => {
         customer: { name: 'Buyer', phone: '+212611111111' },
       })
 
-      expect(result.status).toBe('confirmed')
+      expect(result.status).toBe('pending')
       expect(result.method).toBe('cod')
       expect(mockSupabase.functions.invoke).not.toHaveBeenCalled()
     })
