@@ -227,29 +227,22 @@ describe('paymentGateway', () => {
     })
   })
 
-  it('refundPayment creates a refund record and updates the payment', async () => {
-    const queryStates = []
-
-    mockSupabaseState.queryResolver.mockImplementation((state) => {
-      queryStates.push(state)
-
-      if (state.table === 'refunds') {
-        return {
-          data: { id: 'refund-1' },
-          error: null,
-        }
-      }
-
-      if (state.action === 'update') {
+  it('refundPayment delegates COD/Bank refund to process-manual-refund Edge Function', async () => {
+    mockSupabaseState.invokeResolver.mockImplementation((name, options) => {
+      if (name === 'process-manual-refund') {
         return {
           data: {
-            id: 'payment-3',
-            status: 'refunded',
+            success: true,
+            payment: { id: options.body.paymentId, status: 'refunded' },
+            order: { id: 'order-3', status: 'refunded' },
           },
           error: null,
         }
       }
+      return { data: null, error: null }
+    })
 
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
       return {
         data: {
           id: 'payment-3',
@@ -263,21 +256,17 @@ describe('paymentGateway', () => {
 
     const result = await paymentGateway.refundPayment('payment-3', 125, 'customer_request')
 
-    expect(result).toEqual({ success: true, status: 'refunded' })
-    expect(queryStates[1].payload).toMatchObject({
-      status: 'refunded',
-      refund_amount: 125,
-      refund_reason: 'customer_request',
-      refunded_at: fixedNow.toISOString(),
-    })
-    expect(queryStates[2].table).toBe('refunds')
-    expect(queryStates[2].payload).toMatchObject({
-      payment_id: 'payment-3',
-      order_id: 'order-3',
-      amount: 125,
-      reason: 'customer_request',
-      status: 'refunded',
-    })
+    expect(result).toEqual({ success: true, status: 'refunded', data: expect.any(Object) })
+    expect(mockSupabaseState.invokeResolver).toHaveBeenCalledWith(
+      'process-manual-refund',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          paymentId: 'payment-3',
+          amount: 125,
+          reason: 'customer_request',
+        }),
+      })
+    )
   })
 
   it('getPaymentById returns the payment row with joins', async () => {

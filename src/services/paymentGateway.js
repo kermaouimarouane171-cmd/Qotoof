@@ -152,7 +152,7 @@ class PaymentGateway {
           payment_method: PAYMENT_METHOD.CASH,
           method: PAYMENT_METHOD.CASH,
           paymentId: payment.id,
-          status: 'confirmed',
+          status: 'pending',
           message: 'سيتم الدفع عند الاستلام',
         }
       },
@@ -366,26 +366,22 @@ class PaymentGateway {
         } else if (paymentMethod === PAYMENT_METHOD.CMI || paymentMethod === 'card') {
           return await this.refundCmiPayment(payment, amount, reason)
         } else {
-          // Manual refund for COD/Bank
-          await updatePaymentRecordById({
-            paymentId,
-            values: {
-              status: 'refunded',
-              refund_amount: amount,
-              refund_reason: reason,
-              refunded_at: new Date().toISOString(),
+          // Manual refund for COD/Bank — delegated to secure Edge Function
+          const { data: result, error } = await supabase.functions.invoke('process-manual-refund', {
+            body: {
+              paymentId,
+              amount,
+              reason,
             },
-            select: 'id',
           })
 
-          await this.recordRefund({
-            payment,
-            amount,
-            reason,
-            status: 'refunded',
-          })
+          if (error) throw error
 
-          return { success: true, status: 'refunded' }
+          return {
+            success: result?.success === true,
+            status: result?.payment?.status,
+            data: result,
+          }
         }
       },
       { maxRetries: 2, baseDelay: 1000 }

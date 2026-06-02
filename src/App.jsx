@@ -16,6 +16,19 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import queryClient from '@/services/queryClient';
 import { useAuthOrchestrator } from '@/orchestrators/AuthOrchestrator';
 import { AppRouter } from '@/router/AppRouter';
+import { isSupabaseConfigured, supabaseConfigError } from '@/services/supabase';
+
+function ConfigErrorPage({ message }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <div className="max-w-md w-full rounded-lg bg-white p-6 shadow-lg">
+        <h1 className="mb-4 text-xl font-bold text-red-600">Configuration Error</h1>
+        <p className="mb-4 text-gray-700">{message}</p>
+        <p className="text-sm text-gray-500">Please check your environment variables and restart the dev server.</p>
+      </div>
+    </div>
+  );
+}
 
 function ErrorButton() {
   return (
@@ -31,7 +44,7 @@ function ErrorButton() {
   );
 }
 
-function App() {
+function AuthenticatedApp() {
   useAuthOrchestrator();
   return (
     <ErrorBoundary>
@@ -41,6 +54,14 @@ function App() {
       </QueryClientProvider>
     </ErrorBoundary>
   );
+}
+
+function App() {
+  if (!isSupabaseConfigured) {
+    return <ConfigErrorPage message={supabaseConfigError || 'Supabase is not configured correctly. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'} />;
+  }
+
+  return <AuthenticatedApp />;
 }
 
 export default App;

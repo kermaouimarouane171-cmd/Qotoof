@@ -155,8 +155,8 @@ serve(async (req) => {
     // Handle POST request - confirm bank transfer
     if (req.method === 'POST') {
       const body = await req.json()
-      const { 
-        orderId, 
+      const {
+        orderId,
         transactionId,
         transferProofUrl,
         bankName: customerBankName,
@@ -168,12 +168,43 @@ serve(async (req) => {
       if (!orderId) {
         return new Response(
           JSON.stringify({ error: 'Missing orderId' }),
-          { 
-            status: 400, 
-            headers: { 
+          {
+            status: 400,
+            headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-            } 
+            }
+          }
+        )
+      }
+
+      // Authenticate request
+      const authHeader = req.headers.get('Authorization')
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return new Response(
+          JSON.stringify({ error: 'Authentication required' }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
+        )
+      }
+
+      const token = authHeader.split(' ')[1]
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid or expired token' }),
+          {
+            status: 401,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            }
           }
         )
       }
@@ -182,9 +213,9 @@ serve(async (req) => {
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .select(`
-          id, 
-          total, 
-          buyer_id, 
+          id,
+          total,
+          buyer_id,
           payment_method,
           payment_status
         `)
@@ -194,12 +225,26 @@ serve(async (req) => {
       if (orderError || !order) {
         return new Response(
           JSON.stringify({ error: 'Order not found' }),
-          { 
-            status: 404, 
-            headers: { 
+          {
+            status: 404,
+            headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-            } 
+            }
+          }
+        )
+      }
+
+      // Verify buyer ownership
+      if (order.buyer_id !== user.id) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden' }),
+          {
+            status: 403,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            }
           }
         )
       }
@@ -208,12 +253,12 @@ serve(async (req) => {
       if (!isBankTransferMethod(order.payment_method)) {
         return new Response(
           JSON.stringify({ error: 'This order is not using bank transfer payment' }),
-          { 
-            status: 400, 
-            headers: { 
+          {
+            status: 400,
+            headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-            } 
+            }
           }
         )
       }
@@ -221,26 +266,43 @@ serve(async (req) => {
       // Check if already confirmed
       if (order.payment_status === 'paid' || order.payment_status === 'completed') {
         return new Response(
-          JSON.stringify({ 
+          JSON.stringify({
             error: 'Payment already confirmed for this order',
             status: 'already_paid',
           }),
-          { 
-            status: 400, 
-            headers: { 
+          {
+            status: 400,
+            headers: {
               'Content-Type': 'application/json',
               'Access-Control-Allow-Origin': '*',
-            } 
+            }
           }
         )
       }
 
-      // Update or create payment record
+      // Fetch payment record and verify status transition
       const { data: existingPayment } = await supabase
         .from('payments')
-        .select('id')
+        .select('id, status')
         .eq('order_id', orderId)
         .single()
+
+      const allowedPreviousStatuses = ['pending', 'awaiting_transfer']
+      if (existingPayment && !allowedPreviousStatuses.includes(existingPayment.status)) {
+        return new Response(
+          JSON.stringify({
+            error: 'Invalid payment status for confirmation',
+            currentStatus: existingPayment.status,
+          }),
+          {
+            status: 409,
+            headers: {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*',
+            }
+          }
+        )
+      }
 
       let paymentUpdateError
       if (existingPayment) {

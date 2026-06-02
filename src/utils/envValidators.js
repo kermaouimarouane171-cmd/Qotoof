@@ -34,7 +34,11 @@ export const supabaseUrlLooksIssued = (value) => {
 
   try {
     const url = new URL(normalized)
-    return url.protocol === 'https:' && /\.supabase\.co$/i.test(url.hostname)
+    return (
+      url.protocol === 'https:' &&
+      /\.supabase\.co$/i.test(url.hostname) &&
+      !/(YOUR_PROJECT_REF|placeholder|example|paste|replace|changeme)/i.test(url.hostname)
+    )
   } catch {
     return false
   }

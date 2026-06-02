@@ -104,16 +104,41 @@ export function useOnboardingGate() {
     }
 
     let cancelled = false;
+    let timeoutId = null;
     setOnboardingResolved(false);
 
-    checkOnboardingNeeded(userId, profileRole)
-      .then((required) => { if (!cancelled) setNeedsOnboarding(required); })
+    const onboardingPromise = checkOnboardingNeeded(userId, profileRole);
+    const timeoutPromise = new Promise((resolve) => {
+      timeoutId = setTimeout(() => resolve('timeout'), 5000);
+    });
+
+    Promise.race([onboardingPromise, timeoutPromise])
+      .then((result) => {
+        if (cancelled) return;
+        if (result === 'timeout') {
+          setNeedsOnboarding(!onboardingCompleted);
+        } else {
+          setNeedsOnboarding(result);
+        }
+      })
       .catch(() => {
         if (!cancelled) setNeedsOnboarding(!onboardingCompleted);
       })
-      .finally(() => { if (!cancelled) setOnboardingResolved(true); });
+      .finally(() => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (!cancelled) setOnboardingResolved(true);
+      });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, onboardingCompleted, profileRole, userId]);
 

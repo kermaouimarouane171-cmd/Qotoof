@@ -178,6 +178,10 @@ const healthMonitor = new SupabaseHealthMonitor()
 // CREATE SUPABASE CLIENT
 // ============================================
 
+export let isSupabaseConfigured = isConfigured
+export let supabaseConfigError: string | null = null
+export let supabase: SupabaseClient<Database>
+
 if (!isConfigured) {
   const missingOrInvalidVars = []
 
@@ -190,33 +194,34 @@ if (!isConfigured) {
 
   const configErrorMessage = `Supabase is not configured correctly. Missing/invalid env vars: ${missingOrInvalidVars.join(', ')}. Restart the dev server after updating .env.`
   logger.error(configErrorMessage)
-  throw new Error(configErrorMessage)
+  supabaseConfigError = configErrorMessage
+  supabase = null as unknown as SupabaseClient<Database>
+} else {
+  supabase = createClient<Database>(
+    supabaseUrl,
+    supabaseAnonKey,
+    {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+      global: {
+        headers: {
+          'X-Client-Info': 'qotoof@1.0.0',
+        },
+      },
+      db: {
+        schema: 'public',
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 10,
+        },
+      },
+    }
+  )
 }
-
-export const supabase: SupabaseClient<Database> = createClient<Database>(
-  supabaseUrl,
-  supabaseAnonKey,
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true,
-    },
-    global: {
-      headers: {
-        'X-Client-Info': 'qotoof@1.0.0',
-      },
-    },
-    db: {
-      schema: 'public',
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10,
-      },
-    },
-  }
-)
 
 // ============================================
 // ENHANCED SUPABASE METHODS WITH RETRY

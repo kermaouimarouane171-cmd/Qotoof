@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { paymentGateway } from '@/services/paymentGateway'
 import { resolvePaymentMethod } from '@/services/paymentRecords'
-import { createOrderPaymentRecord } from '@/services/paymentService'
+// import { createOrderPaymentRecord } from '@/services/paymentService'
 import { auditLogger, useEntityAuditLogs } from '@/services/auditLogger'
 import { Card, LoadingSpinner, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
@@ -321,61 +321,23 @@ const AdminOrders = () => {
         }
       }
 
-      // 3. Update payment record
-      if (payment && payment.id) {
-        await supabase
-          .from('payments')
-          .update({
-            status: 'refunded',
-            refund_amount: amount,
-            refund_reason: refundReason,
-            refunded_at: new Date().toISOString(),
-          })
-          .eq('id', payment.id)
-      } else {
-        // Create a refund payment record if no payment exists (COD/Bank)
-        await createOrderPaymentRecord({
-            order_id: selectedOrder.id,
-            amount: -amount, // Negative for refund
-            payment_method: paymentMethod,
-            status: 'refunded',
-            refund_amount: amount,
-            refund_reason: refundReason,
-            refunded_at: new Date().toISOString(),
-        })
+      // 3. Verify refund succeeded (Edge Function already updated DB records)
+      if (payment && payment.id && !refundResult?.success) {
+        throw new Error('Refund processing failed')
       }
 
-      // 4. Update order status if full refund
+      // 4. Determine new order status for audit logging
       let newOrderStatus = oldData.status
       if (amount >= selectedOrder.total * 0.99) {
         newOrderStatus = 'refunded'
-        await supabase
-          .from('orders')
-          .update({
-            status: 'refunded',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedOrder.id)
       }
 
-      // 5. Update return request if exists
+      // 5. Fetch return request for audit logging (already updated by Edge Function)
       const { data: returnReq } = await supabase
         .from('return_requests')
         .select('id')
         .eq('order_id', selectedOrder.id)
         .maybeSingle()
-
-      if (returnReq) {
-        await supabase
-          .from('return_requests')
-          .update({
-            status: 'refunded',
-            refund_amount: amount,
-            admin_id: user?.id,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', returnReq.id)
-      }
 
       // 6. Log comprehensive audit trail
       const newData = { ...oldData, status: newOrderStatus }

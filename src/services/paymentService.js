@@ -20,7 +20,8 @@ import {
 } from '@/services/paymentRecords'
 import { logger } from '@/utils/logger'
 import { withRetry } from '@/utils/withRetry'
-import { PAYMENT_METHOD, PAYMENT_STATUS } from '@/constants/payment'
+// Imports previously used for direct DB updates; now delegated to Edge Functions.
+// import { PAYMENT_METHOD, PAYMENT_STATUS } from '@/constants/payment'
 
 // ============================================================
 // 1. CREATE PAYMENT INTENT
@@ -138,37 +139,17 @@ export const confirmBankTransfer = async ({ orderId, receipt }) => {
   return withRetry(
     async () => {
       try {
-        // Fetch the pending bank transfer payment for this order
-        const { data: payment, error: fetchError } = await fetchLatestPaymentRecordForOrder({
-          orderId,
-          paymentMethod: PAYMENT_METHOD.BANK_TRANSFER,
-          select: 'id, status, payment_method, method',
-          allowMissing: true,
-        })
-
-        if (fetchError) throw fetchError
-        if (!payment?.id) {
-          return { success: false, error: 'لم يتم العثور على سجل دفع للتحويل البنكي' }
-        }
-
-        if (payment.status === PAYMENT_STATUS.COMPLETED) {
-          return { success: false, error: 'الدفع مكتمل بالفعل' }
-        }
-
-        // Attach receipt and move to processing
-        const { data: updated, error: updateError } = await updatePaymentRecordById({
-          paymentId: payment.id,
-          values: {
-            status: PAYMENT_STATUS.PROCESSING,
-            receipt_url: receipt,
-            receipt_uploaded_at: new Date().toISOString(),
+        const { data, error } = await supabase.functions.invoke('confirm-bank-transfer', {
+          body: {
+            orderId,
+            transferProofUrl: receipt,
           },
         })
 
-        if (updateError) throw updateError
+        if (error) throw error
 
-        logger.info('[paymentService] Bank transfer receipt uploaded for order:', orderId)
-        return { success: true, data: updated }
+        logger.info('[paymentService] Bank transfer confirmed via Edge Function for order:', orderId)
+        return { success: true, data }
       } catch (error) {
         logger.error('[paymentService] confirmBankTransfer error:', error)
         return { success: false, error: error.message }
