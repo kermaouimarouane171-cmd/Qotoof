@@ -100,6 +100,7 @@ jest.mock('@/components/ui', () => ({
   ),
   LoadingSpinner: () => <div data-testid="loading-spinner" />,
   StateSkeleton: Object.assign(() => null, { Card: () => null }),
+  OrderCardSkeleton: () => null,
   Input: ({ value, onChange, placeholder, 'data-testid': testId }) => (
     <input value={value || ''} onChange={onChange} placeholder={placeholder} data-testid={testId} />
   ),
@@ -238,6 +239,7 @@ describe('VendorOrders', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockNavigate.mockClear()
+    window.confirm = jest.fn(() => true)
     useAuthStore.mockReturnValue({
       profile: mockVendorProfile,
       user: { id: 'vendor-1' },
@@ -252,7 +254,7 @@ describe('VendorOrders', () => {
   test('shows "Orders Management" heading', async () => {
     renderWithRouter(<VendorOrders />)
     await waitFor(() => {
-      expect(screen.getByText(/Orders Management/i)).toBeInTheDocument()
+      expect(screen.getByText('إدارة الطلبات')).toBeInTheDocument()
     })
   })
 
@@ -273,27 +275,27 @@ describe('VendorOrders', () => {
   test('shows Pending badge for pending orders', async () => {
     renderWithRouter(<VendorOrders />)
     await waitFor(() => {
-      expect(screen.getByText('Pending')).toBeInTheDocument()
+      expect(screen.getByText('جديدة')).toBeInTheDocument()
     })
   })
 
   test('shows Accept button for pending orders', async () => {
     renderWithRouter(<VendorOrders />)
     await waitFor(() => {
-      expect(screen.getByText('Accept')).toBeInTheDocument()
+      expect(screen.getByText('قبول')).toBeInTheDocument()
     })
   })
 
   test('shows Reject button for pending orders', async () => {
     renderWithRouter(<VendorOrders />)
     await waitFor(() => {
-      expect(screen.getByText('Reject')).toBeInTheDocument()
+      expect(screen.getByText('رفض')).toBeInTheDocument()
     })
   })
 
   test('clicking Accept calls ordersApi.acceptOrder with orderId', async () => {
     renderWithRouter(<VendorOrders />)
-    await waitFor(() => expect(screen.getByText('Accept')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('قبول')).toBeInTheDocument())
 
     const acceptBtn = document.querySelector('[data-cy="accept-order-order-1"]')
     if (acceptBtn) {
@@ -303,7 +305,7 @@ describe('VendorOrders', () => {
       })
     } else {
       // Fallback: click by text if data-cy is not in the DOM
-      await userEvent.click(screen.getByText('Accept'))
+      await userEvent.click(screen.getByText('قبول'))
       await waitFor(() => {
         expect(ordersApi.acceptOrder).toHaveBeenCalledWith('order-1')
       })
@@ -312,7 +314,7 @@ describe('VendorOrders', () => {
 
   test('clicking Reject calls ordersApi.rejectOrder with orderId', async () => {
     renderWithRouter(<VendorOrders />)
-    await waitFor(() => expect(screen.getByText('Reject')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('رفض')).toBeInTheDocument())
 
     const rejectBtn = document.querySelector('[data-cy="reject-order-order-1"]')
     if (rejectBtn) {
@@ -321,7 +323,7 @@ describe('VendorOrders', () => {
         expect(ordersApi.rejectOrder).toHaveBeenCalledWith('order-1', expect.any(String))
       })
     } else {
-      await userEvent.click(screen.getByText('Reject'))
+      await userEvent.click(screen.getByText('رفض'))
       await waitFor(() => {
         expect(ordersApi.rejectOrder).toHaveBeenCalledWith('order-1', expect.any(String))
       })
@@ -332,7 +334,7 @@ describe('VendorOrders', () => {
     fetchVendorOrders.mockResolvedValue({ data: [acceptedOrder], error: null })
     renderWithRouter(<VendorOrders />)
     await waitFor(() => {
-      expect(screen.getByText('Assign Driver')).toBeInTheDocument()
+      expect(screen.getByText('تم التحضير')).toBeInTheDocument()
     })
   })
 
