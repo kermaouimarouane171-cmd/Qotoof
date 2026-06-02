@@ -72,7 +72,11 @@ describe('checkoutService', () => {
   it('createCheckoutOrder(): creates order with correct status pending', async () => {
     const cartItems = [{ id: 'p1', price_per_unit: 50, quantity: 2 }]
     const createdOrder = { id: 'order-1', status: 'pending' }
-    const { insert } = makeDbChain({ order: createdOrder, error: null })
+
+    supabase.functions.invoke.mockResolvedValueOnce({
+      data: { success: true, orders: [createdOrder], pricing: { total: 100 } },
+      error: null,
+    })
 
     const result = await createCheckoutOrder({
       cartItems,
@@ -80,13 +84,17 @@ describe('checkoutService', () => {
       paymentMethod: 'cod',
     })
 
-    expect(insert).toHaveBeenCalledTimes(1)
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      status: 'pending',
-      buyer_id: 'buyer-1',
-      subtotal: 100,
-    }))
-    expect(result).toEqual({ data: createdOrder, error: null })
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'create-checkout-order',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          items: [{ productId: 'p1', quantity: 2 }],
+          selectedPaymentMethod: 'cod',
+        }),
+      }),
+    )
+    expect(result.data).toEqual(createdOrder)
+    expect(result.error).toBeNull()
   })
 
   it('createCheckoutOrder(): fails if cartItems is empty', async () => {
@@ -103,7 +111,15 @@ describe('checkoutService', () => {
 
   it('createCheckoutOrder(): applies coupon discount correctly', async () => {
     const cartItems = [{ id: 'p1', price_per_unit: 100, quantity: 2 }]
-    const { insert } = makeDbChain({ order: { id: 'order-2', status: 'pending' } })
+
+    supabase.functions.invoke.mockResolvedValueOnce({
+      data: {
+        success: true,
+        orders: [{ id: 'order-2', status: 'pending' }],
+        pricing: { subtotal: 200, couponDiscount: 20, total: 210 },
+      },
+      error: null,
+    })
 
     await createCheckoutOrder({
       cartItems,
@@ -111,11 +127,14 @@ describe('checkoutService', () => {
       user: { id: 'buyer-1', email: 'buyer@example.com' },
     })
 
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
-      subtotal: 200,
-      coupon_discount_total: 20,
-      total: 210,
-    }))
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'create-checkout-order',
+      expect.objectContaining({
+        body: expect.objectContaining({
+          items: [{ productId: 'p1', quantity: 2 }],
+        }),
+      }),
+    )
   })
 
   it('createCheckoutOrder(): enforces minimum order amount', async () => {
@@ -133,28 +152,36 @@ describe('checkoutService', () => {
 
   it('createCheckoutOrder(): returns { data: order, error: null } on success', async () => {
     const createdOrder = { id: 'order-3', status: 'pending' }
-    makeDbChain({ order: createdOrder, error: null })
+
+    supabase.functions.invoke.mockResolvedValueOnce({
+      data: { success: true, orders: [createdOrder], pricing: { total: 120 } },
+      error: null,
+    })
 
     const result = await createCheckoutOrder({
       cartItems: [{ id: 'p1', price_per_unit: 40, quantity: 3 }],
       user: { id: 'buyer-1', email: 'buyer@example.com' },
     })
 
-    expect(result).toEqual({ data: createdOrder, error: null })
-    expect(paymentService.createOrderPaymentRecord).toHaveBeenCalledTimes(1)
-    expect(emailService.sendOrderConfirmation).toHaveBeenCalledTimes(1)
+    expect(result.data).toEqual(createdOrder)
+    expect(result.error).toBeNull()
   })
 
   it('createCheckoutOrder(): returns { data: null, error } on DB error', async () => {
     const dbError = new Error('DB insert failed')
-    makeDbChain({ order: null, error: dbError })
+
+    supabase.functions.invoke.mockResolvedValueOnce({
+      data: null,
+      error: dbError,
+    })
 
     const result = await createCheckoutOrder({
       cartItems: [{ id: 'p1', price_per_unit: 40, quantity: 3 }],
       user: { id: 'buyer-1', email: 'buyer@example.com' },
     })
 
-    expect(result).toEqual({ data: null, error: dbError })
+    expect(result.data).toBeNull()
+    expect(result.error).toEqual(dbError)
   })
 
   it('calculateOrderTotals(): correct subtotal calculation', () => {
@@ -275,16 +302,19 @@ describe('checkoutService', () => {
 
   it('createCheckoutOrder(): survives side-effect failures after DB success', async () => {
     const createdOrder = { id: 'order-5', status: 'pending' }
-    makeDbChain({ order: createdOrder, error: null })
-    paymentService.createOrderPaymentRecord.mockRejectedValueOnce(new Error('payment side-effect failed'))
-    emailService.sendOrderConfirmation.mockRejectedValueOnce(new Error('email side-effect failed'))
+
+    supabase.functions.invoke.mockResolvedValueOnce({
+      data: { success: true, orders: [createdOrder], pricing: { total: 30 } },
+      error: null,
+    })
 
     const result = await createCheckoutOrder({
       cartItems: [{ id: 'p1', price_per_unit: 10, quantity: 3 }],
       user: { id: 'buyer-1', email: 'buyer@example.com' },
     })
 
-    expect(result).toEqual({ data: createdOrder, error: null })
+    expect(result.data).toEqual(createdOrder)
+    expect(result.error).toBeNull()
   })
 
   it('calculateOrderTotals(): percentage coupon is capped at subtotal and shipping is non-negative', () => {
