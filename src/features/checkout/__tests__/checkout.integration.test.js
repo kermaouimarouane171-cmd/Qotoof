@@ -510,24 +510,28 @@ describe('createCheckoutOrder – direct DB path', () => {
       items: directParams.cartItems,
       clearCart: jest.fn(),
     })
-    globalThis.__mockCheckoutSingle.mockResolvedValue({
-      data: { id: 'order-1', order_number: 'ORD-001', status: 'pending' },
+    globalThis.__mockCheckoutInvoke.mockResolvedValue({
+      data: { success: true, orders: [{ id: 'order-1', order_number: 'ORD-001', status: 'pending' }] },
       error: null,
     })
   })
 
-  test('calls supabase.from("orders").insert() when no shippingInfo', async () => {
+  test('calls create-checkout-order edge function when no shippingInfo', async () => {
     await createCheckoutOrder(directParams)
-    expect(globalThis.__mockCheckoutFrom).toHaveBeenCalledWith('orders')
-    expect(globalThis.__mockCheckoutInsert).toHaveBeenCalled()
+    expect(globalThis.__mockCheckoutInvoke).toHaveBeenCalledWith(
+      'create-checkout-order',
+      expect.objectContaining({ body: expect.any(Object) })
+    )
   })
 
-  test('inserts order with correct buyer_id and status', async () => {
+  test('sends correct payload to create-checkout-order edge function', async () => {
     await createCheckoutOrder(directParams)
-    const insertedPayload = globalThis.__mockCheckoutInsert.mock.calls[0][0]
-    expect(insertedPayload).toMatchObject({
-      buyer_id: 'user-1',
-      status: 'pending',
+    const [, { body }] = globalThis.__mockCheckoutInvoke.mock.calls[0]
+    expect(body).toMatchObject({
+      items: [{ productId: 'item-1', quantity: 2 }],
+      selectedPaymentMethod: 'cod',
+      shippingInfo: {},
+      deliveryLocation: {},
     })
   })
 
@@ -545,20 +549,16 @@ describe('createCheckoutOrder – direct DB path', () => {
     }
   })
 
-  test('propagates DB error when insert fails', async () => {
-    globalThis.__mockCheckoutSingle.mockResolvedValue({
+  test('propagates edge function error', async () => {
+    const edgeError = new Error('Edge function failed')
+    globalThis.__mockCheckoutInvoke.mockResolvedValue({
       data: null,
-      error: { message: 'DB constraint violation' },
+      error: edgeError,
     })
-    // The service may return { error } or throw — either is valid
-    try {
-      const result = await createCheckoutOrder(directParams)
-      if (result && result.error) {
-        expect(result.error).toBeTruthy()
-      }
-    } catch (err) {
-      expect(err).toBeDefined()
-    }
+
+    const result = await createCheckoutOrder(directParams)
+    expect(result.data).toBeNull()
+    expect(result.error).toBeTruthy()
   })
 })
 
