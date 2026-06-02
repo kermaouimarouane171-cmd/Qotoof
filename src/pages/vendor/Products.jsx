@@ -4,9 +4,9 @@ import { supabase } from '@/services/supabase'
 import { runProductImageFallbackQuery } from '@/services/productImages'
 import { Button, Card, Modal, Input, Map, LoadingSpinner, VendorAlerts, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
 import InventoryManager from '@/components/vendor/InventoryManager'
-import { ImageUploader } from '@/components/vendor/ProductForm'
+import ImageUploader from '@/components/vendor/ProductForm'
 import { formatPrice } from '@/utils/currency'
-import { PlusIcon, PencilIcon, TrashIcon, ArrowUpTrayIcon, PhotoIcon, ExclamationTriangleIcon, DocumentArrowUpIcon, TagIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, ArrowUpTrayIcon, PhotoIcon, ExclamationTriangleIcon, DocumentArrowUpIcon, TagIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import { MAIN_CATEGORIES, getSuggestedSubcategories } from '@/constants/categories'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
@@ -22,7 +22,8 @@ const VendorProducts = () => {
   const { t } = useTranslation()
   
   const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [loadError, setLoadError] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [bulkModalOpen, setBulkModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
@@ -33,6 +34,8 @@ const VendorProducts = () => {
   const [selectedLocation, setSelectedLocation] = useState(null)
   const [needsLocation, setNeedsLocation] = useState(false)
   const [rejectionReasonProduct, setRejectionReasonProduct] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -64,6 +67,49 @@ const VendorProducts = () => {
     )
   }, [subcategoryInput, suggestedSubcategories])
 
+  const STATUS_FILTERS = [
+    { key: 'all', label: t('vendor.products.filters.all', 'الكل') },
+    { key: 'pending', label: t('vendor.products.filters.pending', 'قيد المراجعة') },
+    { key: 'published', label: t('vendor.products.filters.published', 'نشط') },
+    { key: 'rejected', label: t('vendor.products.filters.rejected', 'مرفوض') },
+    { key: 'suspended', label: t('vendor.products.filters.suspended', 'غير متوفر') },
+  ]
+
+  const statusBadgeClasses = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    published: 'bg-green-100 text-green-800',
+    rejected: 'bg-red-100 text-red-800',
+    suspended: 'bg-gray-100 text-gray-600',
+    inactive: 'bg-gray-100 text-gray-600',
+  }
+
+  const getStatusBadgeLabel = (status) => {
+    if (status === 'pending') return t('vendor.products.status.pending', 'قيد المراجعة')
+    if (status === 'published') return t('vendor.products.status.active', 'نشط')
+    if (status === 'rejected') return t('vendor.products.status.rejected', 'مرفوض')
+    if (status === 'suspended') return t('vendor.products.status.unavailable', 'غير متوفر')
+    return status === 'active' ? t('vendor.products.status.active', 'نشط') : t('vendor.products.status.inactive', 'غير متوفر')
+  }
+
+  const filteredProducts = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    return products.filter((product) => {
+      const matchesQuery =
+        !query ||
+        product.name?.toLowerCase().includes(query) ||
+        product.description?.toLowerCase().includes(query) ||
+        product.category?.toLowerCase().includes(query) ||
+        product.subcategory?.toLowerCase().includes(query)
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && product.approval_status === 'published') ||
+        product.approval_status === statusFilter
+
+      return matchesQuery && matchesStatus
+    })
+  }, [products, searchQuery, statusFilter])
+
   // Check if vendor has location set
   useEffect(() => {
     if (profile?.id) {
@@ -79,6 +125,7 @@ const VendorProducts = () => {
   const loadProducts = useCallback(async () => {
     if (!profile?.id) return
     
+    setLoadError(null)
     setLoading(true)
     try {
       const buildQuery = (selectClause) => supabase
@@ -101,6 +148,7 @@ const VendorProducts = () => {
     } catch (error) {
       logger.error('Error loading products:', error)
       toast.error('Failed to load products')
+      setLoadError('Failed to load products')
     } finally {
       setLoading(false)
     }
@@ -499,22 +547,22 @@ const VendorProducts = () => {
 
     // Validation - Accurate Product Description
     if (!formData.name.trim()) {
-      toast.error('Product name is required')
+      toast.error('اسم المنتج مطلوب')
       return
     }
 
     if (formData.name.trim().length < 3) {
-      toast.error('Product name must be at least 3 characters')
+      toast.error('اسم المنتج يجب أن يكون 3 أحرف على الأقل')
       return
     }
 
     if (!formData.description.trim()) {
-      toast.error('Product description is required - provide accurate details about quality, origin, and packaging')
+      toast.error('يجب إضافة وصف للمنتج يتضمن جودة وأصل ونوعية التغليف')
       return
     }
 
     if (formData.description.trim().length < 10) {
-      toast.error('Description too short - please provide accurate product details (min 10 characters)')
+      toast.error('الوصف قصير جداً — يرجى توفير وصف دقيق (10 أحرف على الأقل)')
       return
     }
 
@@ -524,28 +572,28 @@ const VendorProducts = () => {
     const minOrder = parseFloat(formData.min_order_quantity) || 1
 
     if (isNaN(price) || price <= 0) {
-      toast.error('Please enter a valid price in MAD')
+      toast.error('يجب إدخال سعر صحيح بالدرهم المغربي')
       return
     }
 
     if (price > 100000) {
-      toast.error('Price seems unusually high. Please verify your pricing complies with fair trade practices.')
+      toast.error('السعر يبدو مرتفعاً جداً. يرجى التحقق من توافق التسعير مع ممارسات التجارة العادلة.')
       return
     }
 
     if (isNaN(quantity) || quantity < 0) {
-      toast.error('Please enter a valid stock quantity')
+      toast.error('يجب إدخال كمية صحيحة')
       return
     }
 
     // Stock warning for low quantities
     if (quantity > 0 && quantity <= 10) {
-      toast(`Low stock warning: Only ${quantity} ${formData.unit_type} listed. Buyers may be disappointed if stock runs out.`, { icon: '⚠️' })
+      toast(`⚠️ تحذير: المخزون منخفض فقط ${quantity} ${formData.unit_type}. قد يخيب آمال المشترين إذا نفد المخزون.`, { duration: 5000 })
     }
 
     // Out of stock warning
     if (quantity === 0 && editingProduct?.is_available) {
-      toast('Setting quantity to 0 will mark this product as unavailable. Consider marking as "Out of Stock" instead.', { icon: '⚠️' })
+      toast('⚠️ تعيين الكمية إلى 0 سيجعل هذا المنتج غير متوفر.', { duration: 5000 })
     }
 
     setSubmitting(true)
@@ -581,7 +629,7 @@ const VendorProducts = () => {
           await uploadImages(editingProduct.id)
         }
         
-        toast.success(t('vendor.products.updatedSuccess', 'Product updated successfully!'))
+        toast.success('تم تحديث المنتج بنجاح!')
       } else {
         // Create new product
         const { data, error } = await supabase
@@ -598,10 +646,7 @@ const VendorProducts = () => {
         }
         
         toast.success(
-          t(
-            'vendor.products.createdPending',
-            'تم حفظ المنتج بنجاح — قيد مراجعة الأدمن. سيُنشر خلال 24 ساعة.'
-          ),
+          'تم إرسال المنتج للمراجعة. سيظهر بعد موافقة الإدارة خلال 24 ساعة.',
           { duration: 6000 }
         )
       }
@@ -611,14 +656,14 @@ const VendorProducts = () => {
       loadProducts()
     } catch (error) {
       logger.error('Error saving product:', error)
-      toast.error(error.message || 'Failed to save product')
+      toast.error(error.message || 'حدث خطأ أثناء حفظ المنتج')
     } finally {
       setSubmitting(false)
     }
   }
   
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this product? This cannot be undone.')) {
+    if (!confirm('هل تريد فعلاً حذف هذا المنتج؟ لا يمكن التراجع عن هذا الإجراء.')) {
       return
     }
     
@@ -643,11 +688,11 @@ const VendorProducts = () => {
         .eq('id', id)
       
       if (error) throw error
-      toast.success('Product deleted')
+      toast.success('تم حذف المنتج بنجاح')
       loadProducts()
     } catch (error) {
       logger.error('Error deleting product:', error)
-      toast.error('Failed to delete product')
+      toast.error('حدث خطأ أثناء حذف المنتج')
     }
   }
   
@@ -676,14 +721,31 @@ const VendorProducts = () => {
       </div>
     )
   }
-  
-  return (
-    <div>
-      {/* Vendor Alerts */}
-      <div className="mb-6">
-        <VendorAlerts />
-      </div>
 
+  if (loadError && products.length === 0) {
+    return (
+      <Card>
+        <EmptyState
+          title={t('vendor.products.errorTitle', 'Unable to load products')}
+          description={t('vendor.products.errorDescription', 'There was a problem loading your product list. Please try again.')}
+          actionLabel={t('vendor.products.retry', 'Retry')}
+          onAction={loadProducts}
+        />
+      </Card>
+    )
+  }
+  
+  // Calculate statistics
+  const stats = {
+    total: products.length,
+    active: products.filter(p => p.approval_status === 'published').length,
+    pending: products.filter(p => p.approval_status === 'pending').length,
+    rejected: products.filter(p => p.approval_status === 'rejected').length,
+    unavailable: products.filter(p => p.approval_status === 'suspended').length,
+  }
+
+  return (
+    <>
       {/* Pending-approval banner */}
       {(() => {
         const pendingCount = products.filter((p) => p.approval_status === 'pending').length
@@ -702,136 +764,207 @@ const VendorProducts = () => {
         )
       })()}
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Products</h1>
-          <p className="text-gray-500 mt-1">{products.length} products listed</p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline" leftIcon={<ArrowUpTrayIcon className="w-5 h-5" />} onClick={() => setBulkModalOpen(true)}>
-            Bulk Upload
-          </Button>
-          <Button variant="primary" leftIcon={<PlusIcon className="w-5 h-5" />} onClick={() => handleOpenModal()}>
-            Add Product
-          </Button>
-        </div>
-      </div>
-
-      {/* Compliance Notice */}
-      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-        <div className="flex items-start gap-3">
-          <ExclamationTriangleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">Vendor Compliance Reminder</p>
-            <p className="text-blue-700">
-              Ensure all product descriptions are accurate, prices are fair, and stock levels are up-to-date. 
-              Non-compliance with Moroccan consumer protection laws (Law 31-08) may result in penalties.
-            </p>
+      {/* Header with Logo and Title */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center justify-center h-12 w-12 rounded-full bg-green-600">
+            <span className="text-white text-lg font-bold">قطوف</span>
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 text-right">إدارة المنتجات</h1>
+            <p className="text-gray-500 text-right text-sm">نظّم منتجات متجرك بسهولة</p>
           </div>
         </div>
       </div>
 
-      <InventoryManager vendorId={profile?.id} onInventoryChange={loadProducts} />
-      
-      {/* Products Table */}
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 text-gray-400 -translate-y-1/2 rtl:left-auto rtl:right-3" />
+          <Input
+            className="pl-11 rtl:pl-0 rtl:pr-11 text-right"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="ابحث عن منتج..."
+            dir="rtl"
+          />
+        </div>
+      </div>
+
+      {/* Add Product Button */}
+      <div className="mb-6">
+        <Button 
+          variant="primary" 
+          leftIcon={<PlusIcon className="w-5 h-5" />} 
+          onClick={() => handleOpenModal()}
+          className="rounded-2xl px-6 py-3"
+        >
+          + إضافة منتج
+        </Button>
+      </div>
+
+      {/* Status Filters */}
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2 justify-start rtl:justify-end">
+          {STATUS_FILTERS.map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              onClick={() => setStatusFilter(option.key)}
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                statusFilter === option.key
+                  ? 'border-green-600 bg-green-100 text-green-800'
+                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">إجمالي المنتجات</p>
+              <p className="text-3xl font-bold text-green-600">{stats.total}</p>
+            </div>
+            <div className="text-4xl">📦</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">النشطة</p>
+              <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+            </div>
+            <div className="text-4xl">✅</div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-gray-500 text-sm">تحتاج مراجعة</p>
+              <p className="text-3xl font-bold text-orange-500">{stats.pending}</p>
+            </div>
+            <div className="text-4xl">⏱️</div>
+          </div>
+        </div>
+      </div>
+
       <Card>
         {products.length === 0 ? (
           <EmptyState
             icon="products"
-            title={t('vendor.products.emptyTitle', 'No products yet')}
-            description={t('vendor.products.emptyDescription', 'Add your first product to start selling')}
-            actionLabel={t('vendor.products.addFirst', 'Add Your First Product')}
+            title={t('vendor.products.emptyTitle', 'لم تضف أي منتج بعد')}
+            description={t('vendor.products.emptyDescription', 'ابدأ بإضافة أول منتج إلى متجرك')}
+            actionLabel={t('vendor.products.addFirst', 'إضافة منتج')}
             onAction={() => handleOpenModal()}
           />
+        ) : filteredProducts.length === 0 ? (
+          <EmptyState
+            icon="products"
+            title={t('vendor.products.filterEmptyTitle', 'لم يتم العثور على منتجات')}
+            description={t('vendor.products.filterEmptyDescription', 'جرّب تغيير الفلاتر أو البحث')}
+            actionLabel={t('vendor.products.clearFilters', 'إظهار الكل')}
+            onAction={() => {
+              setSearchQuery('')
+              setStatusFilter('all')
+            }}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Category</th>
-                  <th>Price</th>
-                  <th>Stock</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => (
-                  <tr key={product.id}>
-                    <td>
-                      <div className="flex items-center gap-3">
-                        {product.images?.[0] ? (
-                          <img src={product.images[0].url} alt={product.name} className="w-10 h-10 rounded-lg object-cover" />
-                        ) : (
-                          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <PhotoIcon className="w-5 h-5 text-gray-400" />
-                          </div>
-                        )}
-                        <span className="font-medium">{product.name}</span>
+          <div className="grid gap-4 grid-cols-1">
+            {filteredProducts.map((product) => (
+              <div 
+                key={product.id} 
+                className="overflow-hidden rounded-2xl border border-gray-200 bg-white hover:shadow-md transition"
+              >
+                {/* Product Card Header with Image and Info */}
+                <div className="flex flex-col sm:flex-row gap-4 p-4">
+                  {/* Product Image */}
+                  <div className="flex-shrink-0">
+                    {product.images?.[0] ? (
+                      <img
+                        src={product.images[0].url}
+                        alt={product.name}
+                        className="h-32 w-full sm:h-32 sm:w-32 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-32 w-full sm:h-32 sm:w-32 items-center justify-center rounded-xl bg-gray-100 text-gray-400">
+                        <PhotoIcon className="h-8 w-8" />
                       </div>
-                    </td>
-                    <td className="capitalize">{product.category}</td>
-                    <td>{formatPrice(product.price_per_unit)}/{product.unit_type}</td>
-                    <td>{product.available_quantity?.toLocaleString()}</td>
-                    <td>
-                      {/* Approval status badge */}
-                      {product.approval_status === 'pending' && (
-                        <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
-                          • {t('vendor.products.status.pending', 'قيد المراجعة')}
-                        </span>
-                      )}
-                      {product.approval_status === 'published' && (
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                          ✔ {t('vendor.products.status.published', 'منشور')}
-                        </span>
-                      )}
-                      {product.approval_status === 'rejected' && (
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                          ✖ {t('vendor.products.status.rejected', 'مرفوض')}
-                        </span>
-                      )}
-                      {product.approval_status === 'suspended' && (
-                        <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                          ⏸ {t('vendor.products.status.suspended', 'موقوف')}
-                        </span>
-                      )}
-                      {/* Fallback for legacy is_available only */}
-                      {!product.approval_status && (
-                        <span className={`badge ${product.is_available ? 'badge-primary' : 'badge-danger'}`}>
-                          {product.is_available ? 'Active' : 'Inactive'}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenModal(product)}
-                          className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                        {product.approval_status === 'rejected' && product.rejection_reason && (
-                          <button
-                            onClick={() => setRejectionReasonProduct(product)}
-                            className="text-xs text-red-600 underline hover:text-red-800"
-                          >
-                            {t('vendor.products.viewReason', 'عرض السبب')}
-                          </button>
-                        )}
+                    )}
+                  </div>
+
+                  {/* Product Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-xs text-gray-500 capitalize">{product.category}{product.subcategory ? ` • ${product.subcategory}` : ''}</p>
+                        <h2 className="text-lg font-semibold text-gray-900 text-right">{product.name}</h2>
                       </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${statusBadgeClasses[product.approval_status || (product.is_available ? 'active' : 'inactive')] || 'bg-gray-100 text-gray-600'}`}>
+                        {getStatusBadgeLabel(product.approval_status || (product.is_available ? 'active' : 'inactive'))}
+                      </span>
+                    </div>
+
+                    {/* Price and Stock */}
+                    <div className="flex flex-wrap items-center gap-3 mb-3 text-sm">
+                      <span className="font-bold text-lg text-green-600">{formatPrice(product.price_per_unit)}</span>
+                      <span className="text-gray-500">/{product.unit_type}</span>
+                      <span className="text-gray-500 ml-auto">✓ متوفر {product.available_quantity?.toLocaleString()} {product.unit_type}</span>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 text-right line-clamp-2">{product.description || t('vendor.products.noDescription', 'لا توجد وصف')}</p>
+                  </div>
+                </div>
+
+                {/* Rejected Product Warning */}
+                {product.approval_status === 'rejected' && (
+                  <div className="border-t border-gray-200 bg-red-50 p-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-red-500">❌</span>
+                      <div className="flex-1 text-right">
+                        <p className="font-semibold text-red-700 text-sm mb-1">سبب الرفض</p>
+                        <p className="text-red-600 text-sm">{product.rejection_reason || t('vendor.products.noReasonProvided', 'لم يتم تحديد سبب')}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="border-t border-gray-200 bg-gray-50 p-4 flex flex-wrap gap-2 justify-end">
+                  {product.approval_status === 'rejected' && (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenModal(product)}
+                      className="inline-flex items-center gap-2 rounded-xl bg-red-100 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-200"
+                    >
+                      🔄 تعديل وإعادة الإرسال
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleOpenModal(product)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
+                  >
+                    ✏️ تعديل
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(product.id)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-50"
+                  >
+                    🗑️ حذف
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </Card>
@@ -843,21 +976,22 @@ const VendorProducts = () => {
           setModalOpen(false)
           resetForm()
         }}
-        title={editingProduct ? 'Edit Product' : 'Add Product'}
+        title={editingProduct ? 'تعديل المنتج' : 'إضافة منتج'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" dir="rtl">
           <Input
-            label="Product Name"
+            label="اسم المنتج"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Fresh Organic Tomatoes"
+            placeholder="مثلاً: طماطم عضوية طازجة"
             required
+            dir="rtl"
           />
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="vendor-product-category" className="input-label">Category</label>
+              <label htmlFor="vendor-product-category" className="input-label">الفئة</label>
               <select
                 id="vendor-product-category"
                 value={formData.category}
@@ -879,8 +1013,8 @@ const VendorProducts = () => {
           <div className="relative">
             <label htmlFor="vendor-product-subcategory" className="input-label flex items-center gap-1">
               <TagIcon className="w-4 h-4 text-gray-400" />
-              Subcategory
-              <span className="text-xs text-gray-400 font-normal">(optional)</span>
+              الفئة الفرعية
+              <span className="text-xs text-gray-400 font-normal">(اختياري)</span>
             </label>
             <input
               id="vendor-product-subcategory"
@@ -895,8 +1029,9 @@ const VendorProducts = () => {
                 // Delay closing to allow click on suggestion
                 setTimeout(() => setShowSubcategorySuggestions(false), 200)
               }}
-              placeholder={`e.g., ${suggestedSubcategories[0] || 'Tomatoes'}`}
+              placeholder={`مثلاً: ${suggestedSubcategories[0] || 'طماطم'}`}
               className="input"
+              dir="rtl"
             />
 
             {/* Suggestions Dropdown */}
@@ -912,7 +1047,7 @@ const VendorProducts = () => {
                         setSubcategoryInput(suggestion)
                         setShowSubcategorySuggestions(false)
                       }}
-                      className={`w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 transition-colors ${
+                      className={`w-full text-right px-4 py-2.5 text-sm hover:bg-green-50 transition-colors ${
                         subcategoryInput === suggestion ? 'bg-green-50 text-green-700 font-medium' : 'text-gray-700'
                       }`}
                     >
@@ -920,8 +1055,8 @@ const VendorProducts = () => {
                     </button>
                   ))
                 ) : (
-                  <div className="px-4 py-2.5 text-sm text-gray-400">
-                    Type to add custom subcategory or select from suggestions
+                  <div className="px-4 py-2.5 text-sm text-gray-400 text-right">
+                    اكتب لإضافة فئة فرعية مخصصة أو حدد من الاقتراحات
                   </div>
                 )}
               </div>
@@ -930,59 +1065,70 @@ const VendorProducts = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="vendor-product-unit-type" className="input-label">Unit Type</label>
+              <label htmlFor="vendor-product-unit-type" className="input-label">وحدة القياس</label>
               <select
                 id="vendor-product-unit-type"
                 value={formData.unit_type}
                 onChange={(e) => setFormData({ ...formData, unit_type: e.target.value })}
                 className="input"
               >
-                <option value="kg">Kilogram (kg)</option>
-                <option value="ton">Ton</option>
-                <option value="piece">Piece</option>
-                <option value="box">Box</option>
+                <option value="kg">كيلوغرام (كغ)</option>
+                <option value="ton">طن</option>
+                <option value="piece">قطعة</option>
+                <option value="box">صندوق</option>
               </select>
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-4">
-            <Input
-              label="Price per Unit ($)"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.price_per_unit}
-              onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
-              placeholder="0.00"
-              required
-            />
-            <Input
-              label="Available Quantity"
-              type="number"
-              min="0"
-              value={formData.available_quantity}
-              onChange={(e) => setFormData({ ...formData, available_quantity: e.target.value })}
-              placeholder="1000"
-              required
-            />
-            <Input
-              label="Min Order"
-              type="number"
-              min="1"
-              value={formData.min_order_quantity}
-              onChange={(e) => setFormData({ ...formData, min_order_quantity: e.target.value })}
-              placeholder="1"
-            />
+          <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold text-gray-900 text-right">السعر والمخزون</p>
+              <p className="text-xs text-gray-500 text-right">جميع الأسعار بالدرهم المغربي (د.م)</p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Input
+                label="السعر لكل وحدة (د.م)"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.price_per_unit}
+                onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
+                placeholder="12.50"
+                required
+                dir="rtl"
+              />
+              <Input
+                label="الكمية المتاحة"
+                type="number"
+                min="0"
+                value={formData.available_quantity}
+                onChange={(e) => setFormData({ ...formData, available_quantity: e.target.value })}
+                placeholder="1000"
+                required
+                dir="rtl"
+              />
+              <Input
+                label="الحد الأدنى للطلب"
+                type="number"
+                min="1"
+                value={formData.min_order_quantity}
+                onChange={(e) => setFormData({ ...formData, min_order_quantity: e.target.value })}
+                placeholder="1"
+                dir="rtl"
+              />
+            </div>
           </div>
           
           <div>
-            <label htmlFor="vendor-product-description" className="input-label">Description</label>
+            <label htmlFor="vendor-product-description" className="input-label text-right">الوصف</label>
             <textarea
               id="vendor-product-description"
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="input h-24 resize-none"
-              placeholder="Describe your product quality, origin, packaging..."
+              className="input h-24 resize-none text-right"
+              placeholder="صف جودة المنتج والأصل والتغليف..."
+              dir="rtl"
             />
           </div>
           
@@ -998,8 +1144,8 @@ const VendorProducts = () => {
           
           {/* Location Map */}
           <div>
-            <p className="input-label">Product Location (optional)</p>
-            <p className="text-xs text-gray-500 mb-2">Click on the map to set product location</p>
+            <p className="input-label text-right">موقع المنتج (اختياري)</p>
+            <p className="text-xs text-gray-500 text-right mb-2">انقر على الخريطة لتعيين موقع المنتج</p>
             <Map
               center={selectedLocation || [33.5731, -7.5898]}
               zoom={selectedLocation ? 14 : 6}
@@ -1018,10 +1164,10 @@ const VendorProducts = () => {
                 resetForm()
               }}
             >
-              Cancel
+              إلغاء
             </Button>
             <Button type="submit" variant="primary" className="flex-1" isLoading={submitting}>
-              {editingProduct ? 'Update Product' : 'Add Product'}
+              {editingProduct ? 'تحديث المنتج' : 'إضافة المنتج'}
             </Button>
           </div>
         </form>
@@ -1132,7 +1278,7 @@ const VendorProducts = () => {
           </div>
         )}
       </Modal>
-    </div>
+    </>
   )
 }
 

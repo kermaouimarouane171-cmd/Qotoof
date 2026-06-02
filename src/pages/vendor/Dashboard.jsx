@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, lazy } from 'react'
+import React, { useState, useEffect, useCallback, useRef, lazy, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
@@ -12,6 +12,7 @@ import PartnershipRequests from '@/components/shared/PartnershipRequests'
 import PendingOrdersPanel from '@/components/vendor/PendingOrdersPanel'
 import RevenueChart from '@/components/vendor/RevenueChart'
 import RecentOrdersWidget from '@/components/vendor/RecentOrdersWidget'
+import VendorSetupChecklist from '@/components/vendor/VendorSetupChecklist'
 import {
   Card,
   LoadingSpinner,
@@ -20,10 +21,11 @@ import {
   StarRating,
   Modal,
   StateSkeleton as Skeleton,
+  ErrorState,
 } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
 import {
-  CurrencyDollarIcon,
+  WalletIcon,
   ShoppingBagIcon,
   CubeIcon,
   ArrowUpIcon,
@@ -32,8 +34,11 @@ import {
   TruckIcon,
   UsersIcon,
   BellIcon,
+  ClockIcon,
   SparklesIcon,
   CalendarIcon,
+  InformationCircleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid'
 import { logger } from '@/utils/logger'
@@ -91,6 +96,7 @@ const VendorDashboard = () => {
 
   // Core state
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [needsLocation, setNeedsLocation] = useState(false)
 
   // Stats state
@@ -114,6 +120,7 @@ const VendorDashboard = () => {
   const [lowStockProducts, setLowStockProducts] = useState([])
   const [outOfStockProducts, setOutOfStockProducts] = useState([])
   const [salesChartData, setSalesChartData] = useState({ labels: [], datasets: [] })
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
 
   // Action state
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
@@ -124,6 +131,41 @@ const VendorDashboard = () => {
 
   // Notification state
   const [newOrderNotification, setNewOrderNotification] = useState(null)
+
+  const storeStatus = useMemo(() => {
+    if (profile?.store_paused) {
+      return { label: 'متوقف مؤقتاً', tone: 'red' }
+    }
+    if (profile?.is_active) {
+      return { label: 'مفعل', tone: 'green' }
+    }
+    return { label: 'قيد المراجعة', tone: 'amber' }
+  }, [profile?.is_active, profile?.store_paused])
+
+  const nextAction = useMemo(() => {
+    if (!profile?.latitude || !profile?.longitude) {
+      return {
+        title: 'حدد موقع متجرك لإكمال التفعيل',
+        actionLabel: 'إعداد الموقع',
+        actionPath: '/vendor/location',
+      }
+    }
+    if (profile?.driver_search_done !== true) {
+      return {
+        title: 'حدد تفضيلات التوصيل لإكمال الإعداد',
+        actionLabel: 'إعداد التوصيل',
+        actionPath: '/vendor/driver-preferences',
+      }
+    }
+    if ((stats?.totalProducts || 0) === 0) {
+      return {
+        title: 'أضف أول منتج لبدء استقبال الطلبات',
+        actionLabel: 'إضافة منتج',
+        actionPath: '/vendor/products',
+      }
+    }
+    return null
+  }, [profile?.latitude, profile?.longitude, profile?.driver_search_done, stats?.totalProducts])
 
   // Refs
   const realtimeSubRef = useRef(null)
@@ -136,6 +178,7 @@ const VendorDashboard = () => {
     if (!profile?.id) return
 
     setLoading(true)
+    setLoadError(null)
     try {
       const now = new Date()
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
@@ -159,6 +202,7 @@ const VendorDashboard = () => {
         pendingOrdersResult,
         recentOrdersResult,
         weekOrdersResult,
+        pendingApprovalsResult,
       ] = await Promise.all([
         supabase
           .from('products')
@@ -262,6 +306,11 @@ const VendorDashboard = () => {
           .eq('vendor_id', profile.id)
           .gte('created_at', sevenDaysAgo)
           .order('created_at', { ascending: true }),
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .eq('vendor_id', profile.id)
+          .eq('approval_status', 'pending'),
       ])
 
       const lowStock = lowStockResult.data || []
@@ -274,11 +323,13 @@ const VendorDashboard = () => {
       const pendingOrdersData = pendingOrdersResult.data || []
       const recentOrdersData = recentOrdersResult.data || []
       const weekOrders = weekOrdersResult.data || []
+      const pendingApprovals = pendingApprovalsResult.count || 0
 
       setLowStockProducts(lowStock)
       setOutOfStockProducts(outOfStock)
       setPendingOrders(pendingOrdersData)
       setRecentOrders(recentOrdersData)
+      setPendingApprovalCount(pendingApprovals)
 
       const dailySales = todayOrders
         .filter((o) => o.status !== 'vendor_rejected' && o.status !== 'cancelled')
@@ -333,7 +384,7 @@ const VendorDashboard = () => {
         labels: chartLabels,
         datasets: [
           {
-            label: 'Daily Sales (MAD)',
+            label: 'مبيعات يومية (MAD)',
             data: chartValues,
             borderColor: '#16a34a',
             backgroundColor: (context) => {
@@ -377,7 +428,8 @@ const VendorDashboard = () => {
       })
     } catch (error) {
       logger.error('Error loading dashboard data:', error)
-      toast.error(t('vendor.dashboard.errors.loadFailed', 'Failed to load dashboard data'))
+      setLoadError(error)
+      toast.error(t('vendor.dashboard.errors.loadFailed', 'تعذر تحميل بيانات لوحة التحكم'))
     } finally {
       setLoading(false)
     }
@@ -402,11 +454,6 @@ const VendorDashboard = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id])
 
-  useEffect(() => {
-    if (profile?.id && profile?.driver_search_done === false) {
-      navigate('/vendor/driver-preferences')
-    }
-  }, [navigate, profile?.driver_search_done, profile?.id])
 
   // ============================================================
   // UPDATE CHART LABELS ON LANGUAGE CHANGE
@@ -562,9 +609,9 @@ const VendorDashboard = () => {
     const mins = minutes % 60
 
     if (hours > 0) {
-      return { expired: false, text: `${hours}h ${mins}m`, urgent: minutes < 30 }
+      return { expired: false, text: `${hours}س ${mins}د`, urgent: minutes < 30 }
     }
-    return { expired: false, text: `${mins}m`, urgent: minutes < 15 }
+    return { expired: false, text: `${mins}د`, urgent: minutes < 15 }
   }
 
   // ============================================================
@@ -634,6 +681,19 @@ const VendorDashboard = () => {
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="pb-20">
+        <ErrorState
+          title="تعذر تحميل لوحة التحكم"
+          description={loadError?.message || 'حدث خطأ أثناء جلب بيانات متجرك. حاول مرة أخرى.'}
+          onRetry={loadDashboardData}
+          retryLabel="إعادة المحاولة"
+        />
+      </div>
+    )
+  }
+
   // ============================================================
   // STAT CARDS DATA
   // ============================================================
@@ -643,35 +703,35 @@ const VendorDashboard = () => {
 
   const statCards = [
     {
-      title: t('vendor.dashboard.stats.dailySales', 'Today\'s Sales'),
+      title: t('vendor.dashboard.stats.dailySales', 'مبيعات اليوم'),
       value: formatPrice(stats.dailySales),
-      icon: CurrencyDollarIcon,
+      icon: WalletIcon,
       bgLight: 'bg-green-50',
       iconColor: 'text-green-600',
       trend: dailyTrend,
-      trendLabel: t('vendor.dashboard.stats.vsYesterday', 'vs yesterday'),
+      trendLabel: t('vendor.dashboard.stats.vsYesterday', 'مقارنة بالأمس'),
     },
     {
-      title: t('vendor.dashboard.stats.newOrders', 'New Orders'),
+      title: t('vendor.dashboard.stats.newOrders', 'طلبات جديدة'),
       value: stats.newOrders.toString(),
       icon: ShoppingBagIcon,
       bgLight: 'bg-blue-50',
       iconColor: 'text-blue-600',
       trend: ordersTrend,
-      trendLabel: t('vendor.dashboard.stats.vsYesterday', 'vs yesterday'),
+      trendLabel: t('vendor.dashboard.stats.vsYesterday', 'مقارنة بالأمس'),
       badge: stats.newOrders > 0 ? stats.newOrders : null,
     },
     {
-      title: t('vendor.dashboard.stats.monthlyRevenue', 'Monthly Revenue'),
+      title: t('vendor.dashboard.stats.monthlyRevenue', 'مبيعات الشهر'),
       value: formatPrice(stats.monthlyRevenue),
       icon: CalendarIcon,
       bgLight: 'bg-purple-50',
       iconColor: 'text-purple-600',
       trend: revenueTrend,
-      trendLabel: t('vendor.dashboard.stats.vsLastMonth', 'vs last month'),
+      trendLabel: t('vendor.dashboard.stats.vsLastMonth', 'مقارنة بالشهر الماضي'),
     },
     {
-      title: t('vendor.dashboard.stats.storeRating', 'Store Rating'),
+      title: t('vendor.dashboard.stats.storeRating', 'تقييم المتجر'),
       value: stats.storeRating.toFixed(1),
       icon: StarSolid,
       bgLight: 'bg-yellow-50',
@@ -685,7 +745,7 @@ const VendorDashboard = () => {
   // RENDER
   // ============================================================
   return (
-    <div>
+    <div className="min-w-0 overflow-x-hidden pb-20" data-testid="vendor-dashboard-page">
       {profile?.store_paused && (
         <div className="mb-4 rounded-2xl border border-red-300 bg-red-50 p-4">
           <div className="flex items-start gap-3">
@@ -712,7 +772,7 @@ const VendorDashboard = () => {
             </div>
             <div>
               <p className="font-semibold text-green-900 text-sm">
-                {t('vendor.dashboard.notifications.newOrderBanner', 'New Order Received!')}
+                {t('vendor.dashboard.notifications.newOrderBanner', 'تم استلام طلب جديد')}
               </p>
               <p className="text-xs text-green-700">
                 {newOrderNotification.orderNumber || newOrderNotification.id?.slice(0, 8)}
@@ -724,7 +784,7 @@ const VendorDashboard = () => {
           <button
             onClick={() => setNewOrderNotification(null)}
             className="p-1.5 hover:bg-green-100 rounded-lg transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
-            aria-label="Dismiss"
+            aria-label="إغلاق"
           >
             <XMarkIcon className="w-4 h-4 text-green-600" />
           </button>
@@ -756,18 +816,142 @@ const VendorDashboard = () => {
         />
       </div>
 
+      {/* Store status (design-aligned) */}
+      <Card className="mb-4 border border-green-200 bg-green-50 p-4 rounded-2xl" data-testid="vendor-dashboard-status-card">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white/70 text-green-700">
+              <TruckIcon className="w-5 h-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 text-right">
+              <p className="text-sm font-bold text-gray-900">حالة المتجر</p>
+              <p className="mt-1 text-xs text-gray-600 leading-5">
+                أكمل الخطوات التالية لتفعيل متجرك والبدء في استقبال الطلبات.
+              </p>
+            </div>
+          </div>
+
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${
+              storeStatus.tone === 'green'
+                ? 'bg-green-100 text-green-700'
+                : storeStatus.tone === 'red'
+                  ? 'bg-red-100 text-red-700'
+                  : 'bg-amber-100 text-amber-700'
+            }`}
+          >
+            <ClockIcon className="w-4 h-4" aria-hidden="true" />
+            {storeStatus.label}
+          </span>
+        </div>
+      </Card>
+
+      {profile?.driver_search_done === false && (
+        <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
+          <div className="flex items-start gap-3">
+            <div className="mt-1">
+              <InformationCircleIcon className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900">اختر تفضيلات التوصيل لإكمال إعداد المتجر.</p>
+              <p className="text-sm text-blue-700 mt-1">
+                هذا يساعدنا على توجيه الطلبات إلى السائقين الملائمين ويتجنّب توقف الإعداد في وقت مبكر.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate('/vendor/driver-preferences')}
+                className="mt-4 inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                حدد تفضيلات التوصيل
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <VendorSetupChecklist
+        items={[
+          {
+            key: 'contract',
+            label: 'توقيع العقد',
+            description: 'وقّع العقد الرقمي لتفعيل متجرك.',
+            complete: Boolean(profile?.agreement_accepted),
+            path: '/vendor/digital-contract',
+          },
+          {
+            key: 'storeInfo',
+            label: 'معلومات المتجر',
+            description: 'أضف اسم المتجر وبيانات التواصل الأساسية.',
+            complete: Boolean(profile?.store_name),
+            path: '/vendor/profile',
+          },
+          {
+            key: 'location',
+            label: 'الموقع',
+            description: 'أكمل تحديد موقع متجرك على الخريطة.',
+            complete: Boolean(profile?.latitude && profile?.longitude),
+            path: '/vendor/location',
+          },
+          {
+            key: 'delivery',
+            label: 'التوصيل',
+            description: 'اختر تفضيلات التوصيل المناسبة لمتجرك.',
+            complete: profile?.driver_search_done === true,
+            path: '/vendor/driver-preferences',
+          },
+          {
+            key: 'firstProduct',
+            label: 'إضافة أول منتج',
+            description: 'أضف منتجاً واحداً على الأقل لبدء البيع.',
+            complete: stats.totalProducts > 0,
+            path: '/vendor/products',
+          },
+          {
+            key: 'approval',
+            label: 'انتظار الموافقة',
+            description: stats.totalProducts > 0
+              ? 'فريق الإدارة يراجع منتجاتك حالياً.'
+              : 'سيتجه هذا العنصر إلى الانتظار بعد إضافة منتج.',
+            complete: stats.totalProducts > 0 && pendingApprovalCount === 0,
+            pending: stats.totalProducts > 0 && pendingApprovalCount > 0,
+            path: '/vendor/products',
+          },
+        ]}
+        title="إعداد المتجر"
+        subtitle="تابع المراحل الأساسية لتفعيل المتجر بسرعة وثقة."
+      />
+
+      {/* Next action (design-aligned) */}
+      {nextAction && (
+        <Card className="mb-6 border border-green-200 bg-green-50 p-4 rounded-2xl" data-testid="vendor-dashboard-next-action">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 text-right">
+              <p className="text-sm font-semibold text-gray-900">{nextAction.title}</p>
+              <p className="text-xs text-gray-600 mt-1">هذه الخطوة تساعد على تفعيل المتجر بسرعة.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(nextAction.actionPath)}
+              className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap px-4 py-2.5 rounded-2xl"
+              data-testid="vendor-dashboard-next-action-button"
+            >
+              <TruckIcon className="w-5 h-5" aria-hidden="true" />
+              {nextAction.actionLabel}
+            </button>
+          </div>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="mb-6 sm:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-              {t('vendor.dashboard.welcome', 'Welcome back, {{name}}!', {
-                name: profile?.first_name || profile?.store_name,
-              })}
+              {t('vendor.dashboard.welcome', 'مرحباً، {{name}}', { name: profile?.store_name || profile?.first_name || 'بائع' })}
               <span className="ml-1">👋</span>
             </h1>
             <p className="text-sm text-gray-500 mt-0.5">
-              {t('vendor.dashboard.subtitle', 'Here\'s what\'s happening with your store.')}
+              {t('vendor.dashboard.subtitle', 'أكمل خطوات الإعداد وابدأ في استقبال الطلبات بسهولة.')}
             </p>
           </div>
           {profile?.store_name && (
@@ -1012,7 +1196,7 @@ const VendorDashboard = () => {
           setRejectOtherReason('')
         }}
         size="md"
-        title={t('vendor.dashboard.rejectModal.title', 'Reject Order')}
+        title={t('vendor.dashboard.rejectModal.title', 'رفض الطلب')}
       >
         <div className="space-y-4">
           {/* Warning */}
@@ -1020,7 +1204,7 @@ const VendorDashboard = () => {
             <div className="flex items-start gap-2">
               <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-yellow-700">
-                {t('vendor.dashboard.rejectModal.warning', 'Rejecting an order will notify the buyer and cannot be undone.')}
+                {t('vendor.dashboard.rejectModal.warning', 'رفض الطلب سيُشعِر المشتري ولا يمكن التراجع عنه.')}
               </p>
             </div>
           </div>
@@ -1028,31 +1212,31 @@ const VendorDashboard = () => {
           {/* Reason Select */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('vendor.dashboard.rejectModal.reason', 'Reason for rejection')}
+              {t('vendor.dashboard.rejectModal.reason', 'سبب الرفض')}
             </label>
             <select
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent min-h-[48px]"
             >
-              <option value="">{t('vendor.dashboard.rejectModal.selectReason', 'Select a reason')}</option>
+              <option value="">{t('vendor.dashboard.rejectModal.selectReason', 'اختر سبباً')}</option>
               <option value="out_of_stock">
-                {t('vendor.dashboard.rejectModal.reasons.outOfStock', 'Out of stock')}
+                {t('vendor.dashboard.rejectModal.reasons.outOfStock', 'نفاد الكمية')}
               </option>
               <option value="quality_issue">
-                {t('vendor.dashboard.rejectModal.reasons.quality', 'Quality issue')}
+                {t('vendor.dashboard.rejectModal.reasons.quality', 'مشكلة في الجودة')}
               </option>
               <option value="capacity_full">
-                {t('vendor.dashboard.rejectModal.reasons.capacity', 'Full capacity')}
+                {t('vendor.dashboard.rejectModal.reasons.capacity', 'القدرة الاستيعابية ممتلئة')}
               </option>
               <option value="delivery_unavailable">
-                {t('vendor.dashboard.rejectModal.reasons.delivery', 'Delivery unavailable')}
+                {t('vendor.dashboard.rejectModal.reasons.delivery', 'التوصيل غير متاح')}
               </option>
               <option value="pricing_error">
-                {t('vendor.dashboard.rejectModal.reasons.pricing', 'Pricing error')}
+                {t('vendor.dashboard.rejectModal.reasons.pricing', 'خطأ في التسعير')}
               </option>
               <option value="other">
-                {t('vendor.dashboard.rejectModal.reasons.other', 'Other')}
+                {t('vendor.dashboard.rejectModal.reasons.other', 'سبب آخر')}
               </option>
             </select>
           </div>
@@ -1061,12 +1245,12 @@ const VendorDashboard = () => {
           {rejectReason === 'other' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('vendor.dashboard.rejectModal.otherReason', 'Please specify')}
+                {t('vendor.dashboard.rejectModal.otherReason', 'اكتب السبب')}
               </label>
               <textarea
                 value={rejectOtherReason}
                 onChange={(e) => setRejectOtherReason(e.target.value)}
-                placeholder={t('vendor.dashboard.rejectModal.otherPlaceholder', 'Describe the reason...')}
+                placeholder={t('vendor.dashboard.rejectModal.otherPlaceholder', 'اشرح السبب...')}
                 className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none min-h-[80px]"
                 rows={3}
                 maxLength={500}
@@ -1084,7 +1268,7 @@ const VendorDashboard = () => {
               }}
               className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-h-[48px]"
             >
-              {t('common.cancel', 'Cancel')}
+              {t('common.cancel', 'إلغاء')}
             </button>
             <button
               onClick={handleRejectSubmit}
@@ -1097,10 +1281,10 @@ const VendorDashboard = () => {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  {t('common.submitting', 'Processing...')}
+                  {t('common.submitting', 'جاري المعالجة...')}
                 </span>
               ) : (
-                t('vendor.dashboard.rejectModal.confirmReject', 'Confirm Rejection')
+                t('vendor.dashboard.rejectModal.confirmReject', 'تأكيد الرفض')
               )}
             </button>
           </div>
