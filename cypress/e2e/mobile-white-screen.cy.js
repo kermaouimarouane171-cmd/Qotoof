@@ -43,8 +43,8 @@ const PROTECTED_PAGES = [
 ]
 
 // ── Timing constants ─────────────────────────────────────────────────────────
-const LOAD_WAIT_MS     = 3000   // Wait after cy.visit() for React to mount
-const REDIRECT_WAIT_MS = 2000   // Extra wait to detect if redirects settle
+const LOAD_WAIT_MS     = 5000   // Wait after cy.visit() for React to mount
+const REDIRECT_WAIT_MS = 5000   // Extra wait to detect if redirects settle
 const MAX_RELOADS      = 2      // More than this = reload loop
 
 // ── Helper: install listeners inside the page ─────────────────────────────────
@@ -134,11 +134,14 @@ const collectDiag = () =>
 // ── Helper: assert page is NOT a white screen ─────────────────────────────────
 const assertNotWhiteScreen = (pageLabel, vpLabel) => {
   // 1. #root must exist
-  cy.get('#root', { timeout: 8000 }).should('exist')
+  cy.get('#root', { timeout: 10000 }).should('exist')
 
-  // 2. #root must have visible children
+  // 2. #root must have rendered descendants (retry until React mounts)
+  cy.get('#root *', { timeout: 10000 }).should('have.length.gte', 1)
+
+  // 3. #root must have meaningful text content
   cy.get('#root').then(($root) => {
-    const childCount = $root.children().length
+    const childCount = $root.find('*').length
     const text       = $root.text().trim()
 
     if (childCount === 0 || text.length < 5) {
@@ -257,10 +260,10 @@ describe('Mobile Diagnostic — Protected Pages (unauthenticated redirect)', () 
         cy.on('window:before:load', injectDiagnosticListeners)
 
         cy.visit(page.path, { failOnStatusCode: false })
-        cy.wait(REDIRECT_WAIT_MS)
 
-        // Must end at /login (or a sub-path of /login)
-        cy.location('pathname').should('include', '/login')
+        // Wait for redirect to settle — Cypress will retry the assertion
+        // for up to 20s, giving the app time to resolve auth state
+        cy.location('pathname', { timeout: 20000 }).should('include', '/login')
 
         // /login itself must not be a white screen
         assertNotWhiteScreen(page.label + ' → /login', vp.label)
