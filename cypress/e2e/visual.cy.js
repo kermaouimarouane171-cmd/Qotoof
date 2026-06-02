@@ -30,7 +30,20 @@ const stabilizeUi = () => {
   })
 
   cy.intercept('GET', '**/rest/v1/products*', { fixture: 'products.json' }).as('products')
-  cy.intercept('GET', '**/rest/v1/profiles*', { statusCode: 200, body: [] }).as('profiles')
+  cy.intercept('GET', '**/rest/v1/profiles*', {
+    statusCode: 200,
+    body: [
+      {
+        id: 'vendor-001',
+        first_name: 'Sofian',
+        last_name: 'Benjelloun',
+        store_name: 'Atlas Fresh Farm',
+        store_description: 'Fresh organic produce from the Atlas region',
+        city: 'Casablanca',
+        email: 'sofian@atlasfresh.ma',
+      },
+    ],
+  }).as('profiles')
   cy.intercept('POST', '**/auth/v1/token*').as('secureLogin')
 }
 
