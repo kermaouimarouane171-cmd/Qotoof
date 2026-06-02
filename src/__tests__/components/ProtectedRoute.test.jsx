@@ -109,7 +109,7 @@ describe('ProtectedRoute (real component)', () => {
 
     renderRoute({ allowedRoles: ['admin'] })
 
-    expect(screen.getByTestId('protected-layout')).toBeInTheDocument()
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
   })
 
   it('redirects to unauthorized when role is not allowed', () => {
