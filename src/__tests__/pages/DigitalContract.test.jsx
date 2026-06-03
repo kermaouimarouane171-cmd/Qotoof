@@ -103,12 +103,6 @@ const fillRequiredFields = async () => {
   fireEvent.change(screen.getByLabelText('رقم الهاتف'), { target: { value: '0612345678' } })
   fireEvent.change(screen.getByLabelText('بريد PayPal'), { target: { value: 'ahmed.paypal@example.ma' } })
 
-  fireEvent.click(screen.getByTestId('toggle-full-contract'))
-
-  await waitFor(() => {
-    expect(screen.getByTestId('full-contract-panel')).toBeInTheDocument()
-  })
-
   fireEvent.change(screen.getByLabelText('رقم بطاقة التعريف الوطنية'), { target: { value: 'AB123456' } })
   fireEvent.change(screen.getByLabelText('اسم البنك'), { target: { value: 'البنك المغربي للتجارة الخارجية' } })
   fireEvent.change(screen.getByLabelText('رقم IBAN'), { target: { value: 'MA123456789012345678901234' } })

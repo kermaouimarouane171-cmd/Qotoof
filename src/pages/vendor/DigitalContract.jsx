@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeftIcon,
   ArrowRightOnRectangleIcon,
+  BanknotesIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
@@ -334,7 +335,7 @@ const DigitalContract = () => {
       data-testid="digital-contract-page"
       dir="rtl"
     >
-      <header className="text-center space-y-2">
+      <header className="text-center space-y-3">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -344,14 +345,25 @@ const DigitalContract = () => {
           >
             <ArrowLeftIcon className="w-5 h-5" />
           </button>
-          <span className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
-            الخطوة 1 من 5
-          </span>
           <span className="w-9" aria-hidden="true" />
         </div>
         <h1 className="text-xl font-bold text-gray-900" data-testid="digital-contract-title">
           العقد الرقمي
         </h1>
+        <div className="flex items-center justify-center gap-2" role="list" aria-label="خطوات إعداد المتجر">
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">١</span>
+            معلوماتك
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white text-[10px] font-bold">٢</span>
+            بيانات البنك
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gray-400 text-white text-[10px] font-bold">٣</span>
+            الموافقات
+          </span>
+        </div>
       </header>
 
       <Card className="p-4 bg-green-50 border-green-200 rounded-2xl">
@@ -436,6 +448,65 @@ const DigitalContract = () => {
       </Card>
 
       <Card className="p-4 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center">
+            <BanknotesIcon className="w-5 h-5 text-green-600" />
+          </div>
+          <h2 className="text-base font-bold text-gray-900">بيانات الهوية والبنك</h2>
+        </div>
+        <p className="text-xs text-gray-500 mb-3 leading-5">
+          هذه البيانات مطلوبة لتفعيل حسابك واستلام مستحقاتك المالية من المبيعات.
+        </p>
+
+        <InfoRow icon={DocumentTextIcon} label="رقم بطاقة التعريف الوطنية (CIN)">
+          <Input
+            aria-label="رقم بطاقة التعريف الوطنية"
+            value={form.cin}
+            onChange={(e) => setForm((p) => ({ ...p, cin: e.target.value }))}
+            required
+            className="!mt-0"
+          />
+        </InfoRow>
+
+        <InfoRow icon={BanknotesIcon} label="اسم البنك">
+          <div>
+            <select
+              className="input w-full"
+              value={form.bank_name}
+              onChange={(e) => setForm((p) => ({ ...p, bank_name: e.target.value }))}
+              required
+              aria-label="اسم البنك"
+            >
+              <option value="">اختر البنك</option>
+              {MOROCCAN_BANKS.map((bank) => (
+                <option key={bank.code} value={bank.name}>{bank.name}</option>
+              ))}
+            </select>
+          </div>
+        </InfoRow>
+
+        <InfoRow icon={BanknotesIcon} label="رقم IBAN">
+          <Input
+            aria-label="رقم IBAN"
+            value={form.bank_iban}
+            onChange={(e) => setForm((p) => ({ ...p, bank_iban: e.target.value }))}
+            required
+            className="!mt-0"
+          />
+        </InfoRow>
+
+        <InfoRow icon={UserIcon} label="اسم صاحب الحساب">
+          <Input
+            aria-label="اسم صاحب الحساب"
+            value={form.bank_account_holder}
+            onChange={(e) => setForm((p) => ({ ...p, bank_account_holder: e.target.value }))}
+            required
+            className="!mt-0"
+          />
+        </InfoRow>
+      </Card>
+
+      <Card className="p-4 rounded-2xl border border-gray-200 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-9 h-9 rounded-full bg-green-50 flex items-center justify-center">
             <DocumentTextIcon className="w-5 h-5 text-green-600" />
@@ -479,43 +550,6 @@ const DigitalContract = () => {
         <Card className="p-4 rounded-2xl border border-gray-200 space-y-4" data-testid="full-contract-panel">
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 leading-8 text-gray-800 text-sm whitespace-pre-line">
             {buildFullContractText(form.full_name)}
-          </div>
-
-          <div className="space-y-3">
-            <h3 className="text-sm font-bold text-gray-900">بيانات الهوية والبنك (إلزامية للتوقيع)</h3>
-            <Input
-              label="رقم بطاقة التعريف الوطنية"
-              value={form.cin}
-              onChange={(e) => setForm((p) => ({ ...p, cin: e.target.value }))}
-              required
-            />
-            <div>
-              <label className="input-label">اسم البنك</label>
-              <select
-                className="input w-full"
-                value={form.bank_name}
-                onChange={(e) => setForm((p) => ({ ...p, bank_name: e.target.value }))}
-                required
-                aria-label="اسم البنك"
-              >
-                <option value="">اختر البنك</option>
-                {MOROCCAN_BANKS.map((bank) => (
-                  <option key={bank.code} value={bank.name}>{bank.name}</option>
-                ))}
-              </select>
-            </div>
-            <Input
-              label="رقم IBAN"
-              value={form.bank_iban}
-              onChange={(e) => setForm((p) => ({ ...p, bank_iban: e.target.value }))}
-              required
-            />
-            <Input
-              label="اسم صاحب الحساب"
-              value={form.bank_account_holder}
-              onChange={(e) => setForm((p) => ({ ...p, bank_account_holder: e.target.value }))}
-              required
-            />
           </div>
         </Card>
       )}
