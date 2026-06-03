@@ -26,6 +26,14 @@ logger.log('[ENTRY] main.jsx loaded — starting app initialization')
 
 const RootMode = import.meta.env.DEV ? React.Fragment : StrictMode
 
+const runWhenIdle = (callback) => {
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(callback)
+  } else {
+    setTimeout(callback, 1)
+  }
+}
+
 const defaultSentryDsn = 'https://60f815aec21ee3e9ad0a86d702a95d72@o4511488754778112.ingest.de.sentry.io/4511488771424336'
 
 const sentryDsn = typeof import.meta.env.VITE_SENTRY_DSN === 'string'
@@ -34,19 +42,22 @@ const sentryDsn = typeof import.meta.env.VITE_SENTRY_DSN === 'string'
 
 const hasValidSentryDsn = sentryDsnLooksIssued(sentryDsn)
 
-if (hasValidSentryDsn) {
-  Sentry.init({
-    dsn: sentryDsn,
-    sendDefaultPii: true,
-    environment: import.meta.env.MODE,
-    tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
-    enabled: import.meta.env.PROD,
+// Defer Sentry.init until after first paint to reduce main-thread work
+if (hasValidSentryDsn && import.meta.env.PROD) {
+  runWhenIdle(() => {
+    Sentry.init({
+      dsn: sentryDsn,
+      sendDefaultPii: true,
+      environment: import.meta.env.MODE,
+      tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
+      enabled: import.meta.env.PROD,
+    })
   })
 } else if (sentryDsn && import.meta.env.DEV) {
   logger.warn('Skipping Sentry initialization because the configured DSN is invalid')
 }
 
-// Initialize security headers
+// Initialize security headers — eager (critical pre-render protection)
 import { initializeSecurity } from './utils/securityHeaders'
 try {
   initializeSecurity()
@@ -54,21 +65,31 @@ try {
   console.error('Security initialization failed:', error)
 }
 
-// Initialize performance monitoring
-import { initializePerformance } from './utils/performance.jsx'
-try {
-  initializePerformance()
-} catch (error) {
-  console.error('Performance initialization failed:', error)
-}
+// Initialize performance monitoring — lazy after first paint
+runWhenIdle(() => {
+  import('./utils/performance.jsx')
+    .then(({ initializePerformance }) => {
+      try {
+        initializePerformance()
+      } catch (error) {
+        console.error('Performance initialization failed:', error)
+      }
+    })
+    .catch((err) => console.warn('Performance init module failed:', err))
+})
 
-// Initialize privacy-friendly analytics
-import { initializeAllAnalytics } from './services/analytics'
-try {
-  initializeAllAnalytics()
-} catch (error) {
-  console.error('Analytics initialization failed:', error)
-}
+// Initialize privacy-friendly analytics — lazy after first paint
+runWhenIdle(() => {
+  import('./services/analytics')
+    .then(({ initializeAllAnalytics }) => {
+      try {
+        initializeAllAnalytics()
+      } catch (error) {
+        console.error('Analytics initialization failed:', error)
+      }
+    })
+    .catch((err) => console.warn('Analytics init module failed:', err))
+})
 
 // Log initialization in dev
 if (import.meta.env.DEV) {
