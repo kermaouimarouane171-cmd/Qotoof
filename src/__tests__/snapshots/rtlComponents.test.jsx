@@ -332,7 +332,7 @@ describe('ProductCard - RTL Snapshot', () => {
 
     const productName = screen.getByText('طماطم طازجة')
     expect(productName.className).toContain('font-semibold')
-    expect(productName.className).toMatchInlineSnapshot('"font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-green-600 transition-colors"')
+    expect(productName.className).toMatchInlineSnapshot(`"font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors"`)
   })
 
   it('add to cart button text direction context is inherited from RTL root', () => {

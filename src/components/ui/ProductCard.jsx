@@ -139,7 +139,7 @@ const ProductCard = ({ product }) => {
             <button
               data-testid="add-to-cart-btn"
               onClick={handleQuickAdd}
-              className="absolute bottom-3 right-3 w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
+              className="absolute bottom-3 right-3 w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:scale-110 transition-all"
               aria-label={`إضافة ${product.name} إلى السلة`}
             >
               <ShoppingCartIcon className="w-5 h-5" />
@@ -162,7 +162,7 @@ const ProductCard = ({ product }) => {
           {product.vendor && (
             <div className="mb-2">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-[10px] font-bold">
                     {product.vendor.first_name?.[0]}{product.vendor.last_name?.[0]}
                   </span>
@@ -172,13 +172,13 @@ const ProductCard = ({ product }) => {
                 </span>
                 {product.vendor.city && (
                   <>
-                    <span className="text-gray-300">•</span>
-                    <MapPinIcon className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                    <span className="text-xs text-gray-400 truncate">{product.vendor.city}</span>
+                    <span className="text-gray-400">•</span>
+                    <MapPinIcon className="w-3 h-3 text-gray-500 flex-shrink-0" />
+                    <span className="text-xs text-gray-500 truncate">{product.vendor.city}</span>
                   </>
                 )}
                 {product.vendor.is_verified && (
-                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
                     <CheckIcon className="w-3 h-3" />
                     مزارع موثّق
                   </span>
@@ -192,7 +192,7 @@ const ProductCard = ({ product }) => {
                 <Link
                   to={`/vendor/public/${product.vendor_id}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[11px] text-green-700 hover:text-green-800 font-medium"
+                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-medium"
                 >
                   عرض البائع
                 </Link>
@@ -201,7 +201,7 @@ const ProductCard = ({ product }) => {
           )}
           
           {/* Product Name */}
-          <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-green-600 transition-colors">
+          <h3 className="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors">
             {product.name}
           </h3>
 
@@ -221,12 +221,12 @@ const ProductCard = ({ product }) => {
               />
             ))}
             {rating > 0 ? (
-              <span className="text-xs text-gray-400 ms-1">
+              <span className="text-xs text-gray-500 ms-1">
                 {rating.toFixed(1)}
                 {reviewsCount > 0 ? ` (${reviewsCount})` : ''}
               </span>
             ) : (
-              <span className="text-xs text-gray-400 ms-1">بدون تقييم</span>
+              <span className="text-xs text-gray-500 ms-1">بدون تقييم</span>
             )}
           </div>
           
@@ -237,10 +237,10 @@ const ProductCard = ({ product }) => {
                 <span className="text-xl font-bold text-gray-900" aria-label={`السعر: ${Number(product.price_per_unit || 0)} درهم`}>
                   {formatPrice(product.price_per_unit)}
                 </span>
-                {product.unit_type && <span className="text-sm text-gray-400">/{product.unit_type}</span>}
+                {product.unit_type && <span className="text-sm text-gray-500">/{product.unit_type}</span>}
               </div>
               {product.min_order_quantity > 1 && product.unit_type && (
-                <p className="text-xs text-gray-400 mt-0.5">
+                <p className="text-xs text-gray-500 mt-0.5">
                   أدنى كمية: {product.min_order_quantity} {product.unit_type}
                 </p>
               )}

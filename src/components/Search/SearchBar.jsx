@@ -113,7 +113,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
 
   return (
     <div ref={wrapperRef} className={`relative ${className}`} data-testid="search-bar">
-      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 px-3 py-2 focus-within:ring-2 focus-within:ring-green-500 gap-2">
+      <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 px-3 py-2 focus-within:ring-2 focus-within:ring-emerald-500 gap-2">
         <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 shrink-0" />
         <input
           ref={inputRef}
@@ -129,7 +129,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
           autoComplete="off"
         />
         {loading && (
-          <div className="h-4 w-4 animate-spin rounded-full border-2 border-green-500 border-t-transparent shrink-0" />
+          <div className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent shrink-0" />
         )}
         {query && !loading && (
           <button onClick={clearQuery} className="p-0.5 hover:text-gray-600 text-gray-400 shrink-0">
@@ -139,7 +139,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
         <button
           onClick={() => handleSubmit()}
           data-testid="search-bar-submit"
-          className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-colors shrink-0"
+          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded-lg transition-colors shrink-0"
         >
           {t('common.search', 'Search')}
         </button>
@@ -161,7 +161,7 @@ const SearchBar = memo(function SearchBar({ placeholder, className = '', onSearc
               onMouseDown={() => handleSubmit(hit.name)}
               className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm ${
                 i === activeIndex
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                  ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                   : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >

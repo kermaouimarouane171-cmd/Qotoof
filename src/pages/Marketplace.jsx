@@ -157,7 +157,7 @@ const MarketplacePage = () => {
               aria-controls="products-grid"
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                 filters.category === category.id
-                  ? 'bg-green-500 text-white'
+                  ? 'bg-emerald-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -174,7 +174,7 @@ const MarketplacePage = () => {
               <h3 className="font-semibold text-gray-900">{t('marketplace.filtersLabel', 'الفلاتر')}</h3>
               <button
                 onClick={clearFilters}
-                className="text-sm text-green-600 hover:underline"
+                className="text-sm text-emerald-600 hover:underline"
                 aria-label={t('marketplace.clearAllFilters', 'مسح جميع الفلاتر')}
               >
                 {t('marketplace.clearAll', 'مسح الكل')}
@@ -259,7 +259,7 @@ const MarketplacePage = () => {
                 type="checkbox"
                 checked={filters.inStock}
                 onChange={(event) => updateParams({ inStock: event.target.checked })}
-                className="accent-green-500"
+                className="accent-emerald-500"
               />
               {t('marketplace.inStockOnly', 'متوفر حالياً فقط')}
             </label>
@@ -283,7 +283,7 @@ const MarketplacePage = () => {
 
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
-          className="lg:hidden fixed bottom-20 right-4 rtl:left-4 rtl:right-auto z-30 p-3 bg-green-500 text-white rounded-full shadow-lg"
+          className="lg:hidden fixed bottom-20 right-4 rtl:left-4 rtl:right-auto z-30 p-3 bg-emerald-600 text-white rounded-full shadow-lg"
           aria-label={t('marketplace.openFilters', 'فتح الفلاتر')}
           aria-expanded={filtersOpen}
           aria-controls="mobile-filters-panel"
@@ -349,7 +349,7 @@ const MarketplacePage = () => {
                   </select>
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                  <input type="checkbox" checked={filters.inStock} onChange={(event) => updateParams({ inStock: event.target.checked })} className="accent-green-500" />
+                  <input type="checkbox" checked={filters.inStock} onChange={(event) => updateParams({ inStock: event.target.checked })} className="accent-emerald-500" />
                   {t('marketplace.inStockOnly', 'متوفر حالياً فقط')}
                 </label>
                 <div>
@@ -432,7 +432,7 @@ const MarketplacePage = () => {
                         }}
                         className={`w-10 h-10 rounded-lg font-medium transition-colors ${
                           filters.page === pageNumber
-                            ? 'bg-green-600 text-white'
+                            ? 'bg-emerald-600 text-white'
                             : 'border border-gray-300 hover:bg-gray-100'
                         }`}
                         aria-label={t('marketplace.pageNumber', 'الصفحة {{num}}', { num: pageNumber })}
