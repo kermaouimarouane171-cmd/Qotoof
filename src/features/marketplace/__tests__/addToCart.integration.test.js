@@ -153,13 +153,13 @@ describe('ProductCard – Add to Cart integration', () => {
     it('shows the minimum order quantity note when > 1', () => {
       renderCard(makeProduct({ min_order_quantity: 5, unit_type: 'kg' }))
 
-      expect(screen.getByText(/Min\.\s*5\s*kg/i)).toBeInTheDocument()
+      expect(screen.getByText(/أدنى كمية:\s*5\s*kg/i)).toBeInTheDocument()
     })
 
     it('does not show minimum order note when min_order_quantity is 1', () => {
       renderCard(makeProduct({ min_order_quantity: 1 }))
 
-      expect(screen.queryByText(/Min\./i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/أدنى كمية:/i)).not.toBeInTheDocument()
     })
 
     it('shows the add-to-cart button when product is available', () => {
@@ -336,23 +336,23 @@ describe('ProductCard – Add to Cart integration', () => {
       expect(screen.queryByTestId('add-to-cart-btn')).not.toBeInTheDocument()
     })
 
-    it('shows "Out of Stock" overlay when is_available is false', () => {
+    it('shows "غير متوفر" overlay when is_available is false', () => {
       renderCard(makeProduct({ is_available: false }))
 
-      expect(screen.getByText('Out of Stock')).toBeInTheDocument()
+      expect(screen.getByText('غير متوفر')).toBeInTheDocument()
     })
 
-    it('does not show "Out of Stock" when product is available', () => {
+    it('does not show "غير متوفر" when product is available', () => {
       renderCard(makeProduct({ is_available: true }))
 
-      expect(screen.queryByText('Out of Stock')).not.toBeInTheDocument()
+      expect(screen.queryByText('غير متوفر')).not.toBeInTheDocument()
     })
 
     it('does not show the out-of-stock overlay when is_available is true', () => {
       renderCard(makeProduct({ is_available: true }))
 
       // The overlay should not be in the DOM
-      expect(screen.queryByText('Out of Stock')).not.toBeInTheDocument()
+      expect(screen.queryByText('غير متوفر')).not.toBeInTheDocument()
     })
   })
 

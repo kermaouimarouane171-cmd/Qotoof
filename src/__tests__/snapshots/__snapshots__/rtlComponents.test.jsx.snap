@@ -921,7 +921,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
             <button
               aria-label="إضافة إلى المفضلة"
               aria-pressed="false"
-              class="w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+              class="w-11 h-11 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
             >
               <svg
                 aria-hidden="true"
@@ -943,7 +943,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
           </div>
           <button
             aria-label="إضافة طماطم طازجة إلى السلة"
-            class="absolute bottom-3 right-3 w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
+            class="absolute bottom-3 right-3 w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
             data-testid="add-to-cart-btn"
           >
             <svg
@@ -1038,7 +1038,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
                     stroke-linejoin="round"
                   />
                 </svg>
-                Verified Farmer
+                مزارع موثّق
               </span>
             </div>
             <div
@@ -1157,7 +1157,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
               />
             </svg>
             <span
-              class="text-xs text-gray-400 ml-1"
+              class="text-xs text-gray-400 ms-1"
             >
               بدون تقييم
             </span>

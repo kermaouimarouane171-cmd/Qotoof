@@ -7,6 +7,7 @@ import { formatPrice } from '@/utils/currency.jsx'
 import { logger } from '@/utils/logger'
 import {
   ArrowLeftIcon,
+  ArrowRightIcon,
   BuildingStorefrontIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
@@ -193,7 +194,7 @@ const HomePage = () => {
           </p>
 
           <form onSubmit={handleSearchSubmit} className="mt-8 max-w-2xl rounded-2xl bg-white p-2 shadow-2xl shadow-emerald-900/20">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center rtl:sm:flex-row-reverse">
               <div className="relative flex-1">
                 <MagnifyingGlassIcon className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                 <input
@@ -201,6 +202,7 @@ const HomePage = () => {
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
                   placeholder="ابحث عن خضر، فواكه، موردين..."
+                  aria-label="ابحث في السوق"
                   className="h-11 w-full rounded-xl border border-emerald-100 bg-emerald-50/30 pr-10 pl-3 text-sm outline-none ring-emerald-300 transition focus:ring"
                 />
               </div>
@@ -229,7 +231,7 @@ const HomePage = () => {
           </div>
           <Link to="/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
             عرض الكل
-            <ArrowLeftIcon className="h-4 w-4" />
+            {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
 
@@ -256,7 +258,7 @@ const HomePage = () => {
           </div>
           <Link to="/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
             المزيد
-            <ArrowLeftIcon className="h-4 w-4" />
+            {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
 
@@ -312,7 +314,7 @@ const HomePage = () => {
           </div>
           <Link to="/stores" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
             كل المتاجر
-            <ArrowLeftIcon className="h-4 w-4" />
+            {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
 
@@ -352,7 +354,7 @@ const HomePage = () => {
                     {Array.from({ length: 5 }).map((_, idx) => (
                       <StarIcon key={`${vendor.id}-star-${idx}`} className={`h-4 w-4 ${idx < Math.round(rating) ? 'opacity-100' : 'opacity-25'}`} />
                     ))}
-                    <span className="mr-2 text-xs font-semibold text-gray-700">{rating.toFixed(1)}</span>
+                    <span className="ms-2 text-xs font-semibold text-gray-700">{rating.toFixed(1)}</span>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between text-xs text-gray-600">

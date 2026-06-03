@@ -111,8 +111,8 @@ const ProductCard = ({ product }) => {
                   e.stopPropagation()
                   setShowReport(true)
                 }}
-                className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
-                title="Report this product"
+                className="w-11 h-11 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all opacity-0 group-hover:opacity-100"
+                title="الإبلاغ عن هذا المنتج"
                 aria-label="الإبلاغ عن المنتج"
               >
                 <FlagIcon className="w-4 h-4 text-gray-600 hover:text-red-500" />
@@ -122,7 +122,7 @@ const ProductCard = ({ product }) => {
             {/* Favorite Button */}
             <button
               onClick={handleToggleFavorite}
-              className="w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+              className="w-11 h-11 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
               aria-label={favorited ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
               aria-pressed={favorited}
             >
@@ -139,7 +139,7 @@ const ProductCard = ({ product }) => {
             <button
               data-testid="add-to-cart-btn"
               onClick={handleQuickAdd}
-              className="absolute bottom-3 right-3 w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
+              className="absolute bottom-3 right-3 w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center shadow-lg shadow-green-500/30 hover:scale-110 transition-all"
               aria-label={`إضافة ${product.name} إلى السلة`}
             >
               <ShoppingCartIcon className="w-5 h-5" />
@@ -150,7 +150,7 @@ const ProductCard = ({ product }) => {
           {!product.is_available && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <span className="px-3 py-1.5 bg-white rounded-lg text-sm font-semibold text-gray-900">
-                Out of Stock
+                غير متوفر
               </span>
             </div>
           )}
@@ -180,7 +180,7 @@ const ProductCard = ({ product }) => {
                 {product.vendor.is_verified && (
                   <span className="text-xs text-green-600 font-medium flex items-center gap-1">
                     <CheckIcon className="w-3 h-3" />
-                    Verified Farmer
+                    مزارع موثّق
                   </span>
                 )}
               </div>
@@ -221,12 +221,12 @@ const ProductCard = ({ product }) => {
               />
             ))}
             {rating > 0 ? (
-              <span className="text-xs text-gray-400 ml-1">
+              <span className="text-xs text-gray-400 ms-1">
                 {rating.toFixed(1)}
                 {reviewsCount > 0 ? ` (${reviewsCount})` : ''}
               </span>
             ) : (
-              <span className="text-xs text-gray-400 ml-1">بدون تقييم</span>
+              <span className="text-xs text-gray-400 ms-1">بدون تقييم</span>
             )}
           </div>
           
@@ -241,7 +241,7 @@ const ProductCard = ({ product }) => {
               </div>
               {product.min_order_quantity > 1 && product.unit_type && (
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Min. {product.min_order_quantity} {product.unit_type}
+                  أدنى كمية: {product.min_order_quantity} {product.unit_type}
                 </p>
               )}
             </div>

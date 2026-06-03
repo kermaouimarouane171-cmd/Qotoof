@@ -283,7 +283,7 @@ const MarketplacePage = () => {
 
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
-          className="lg:hidden fixed bottom-20 right-4 z-30 p-3 bg-green-500 text-white rounded-full shadow-lg"
+          className="lg:hidden fixed bottom-20 right-4 rtl:left-4 rtl:right-auto z-30 p-3 bg-green-500 text-white rounded-full shadow-lg"
           aria-label={t('marketplace.openFilters', 'فتح الفلاتر')}
           aria-expanded={filtersOpen}
           aria-controls="mobile-filters-panel"
@@ -407,7 +407,7 @@ const MarketplacePage = () => {
                     className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                     aria-label={t('marketplace.previousPage', 'الصفحة السابقة')}
                   >
-                    <ChevronLeftIcon className="w-5 h-5" />
+                    <ChevronLeftIcon className="w-5 h-5 rtl:scale-x-[-1]" />
                   </button>
 
                   {Array.from({ length: Math.min(5, totalPages) }, (_, index) => {
@@ -452,7 +452,7 @@ const MarketplacePage = () => {
                     className="p-2 rounded-lg border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100"
                     aria-label={t('marketplace.nextPage', 'الصفحة التالية')}
                   >
-                    <ChevronRightIcon className="w-5 h-5" />
+                    <ChevronRightIcon className="w-5 h-5 rtl:scale-x-[-1]" />
                   </button>
                 </nav>
               )}
