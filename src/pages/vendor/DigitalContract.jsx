@@ -348,7 +348,7 @@ const DigitalContract = () => {
           <span className="w-9" aria-hidden="true" />
         </div>
         <h1 className="text-xl font-bold text-gray-900" data-testid="digital-contract-title">
-          العقد الرقمي
+          تفعيل حساب البائع
         </h1>
         <div className="flex items-center justify-center gap-2" role="list" aria-label="خطوات إعداد المتجر">
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
@@ -372,10 +372,13 @@ const DigitalContract = () => {
           <div className="min-w-0">
             <p className="font-bold text-gray-900">لماذا هذه الخطوة مطلوبة؟</p>
             <p className="text-sm text-gray-600 mt-1 leading-6">
-              توقيع العقد الرقمي إلزامي لتفعيل متجرك، فهو يحمي حقوقك ويضمن تجربة آمنة وموثوقة لك ولمتسوقيك.
+              هذه الخطوة إلزامية لتفعيل حسابك كبائع قبل الوصول إلى لوحة البائع والمنتجات والطلبات.
             </p>
             <p className="text-sm text-gray-600 mt-2 leading-6">
-              بعد التوقيع مباشرةً ستتمكن من الوصول إلى لوحة البائع وإضافة المنتجات واستقبال الطلبات.
+              توقيع العقد الرقمي يحمي حقوقك ويضمن تجربة آمنة وموثوقة لك ولمتسوقيك.
+            </p>
+            <p className="text-sm text-gray-600 mt-2 leading-6">
+              بعد التوقيع مباشرةً ستتمكن من إضافة المنتجات واستقبال الطلبات وتلقي مستحقاتك.
             </p>
             <p className="text-sm text-gray-600 mt-2 leading-6">
               البيانات البنكية وبريد PayPal مطلوبة لتلقي مستحقاتك المالية من المبيعات.

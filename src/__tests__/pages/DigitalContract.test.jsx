@@ -113,7 +113,7 @@ const fillRequiredFields = async () => {
   fireEvent.click(screen.getByLabelText(/استخدام بريد PayPal/))
 }
 
-describe('صفحة العقد الرقمي /vendor/digital-contract', () => {
+describe('صفحة تفعيل حساب البائع /vendor/digital-contract', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     supabaseContractQueryResult = { data: [], error: null }
@@ -179,7 +179,7 @@ describe('صفحة العقد الرقمي /vendor/digital-contract', () => {
     fireEvent.click(screen.getByRole('button', { name: 'إعادة المحاولة' }))
 
     await waitFor(() => {
-      expect(screen.getByTestId('digital-contract-title')).toHaveTextContent('العقد الرقمي')
+      expect(screen.getByTestId('digital-contract-title')).toHaveTextContent('تفعيل حساب البائع')
     })
   })
 
@@ -187,7 +187,7 @@ describe('صفحة العقد الرقمي /vendor/digital-contract', () => {
     renderPage()
 
     await waitFor(() => {
-      expect(screen.getByTestId('digital-contract-title')).toHaveTextContent('العقد الرقمي')
+      expect(screen.getByTestId('digital-contract-title')).toHaveTextContent('تفعيل حساب البائع')
     })
 
     expect(screen.getByTestId('sign-contract-button')).toHaveTextContent('توقيع العقد')

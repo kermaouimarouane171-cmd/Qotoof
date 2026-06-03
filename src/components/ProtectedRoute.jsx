@@ -653,6 +653,18 @@ export const VendorLayout = () => {
     return <Navigate to="/vendor/digital-contract" replace />;
   }
 
+  // UX: when the vendor is on the digital-contract page and has not yet
+  // signed, render a minimal standalone experience so the vendor does not
+  // see the full dashboard sidebar/bottom-nav with disabled links.
+  const isPreActivation = !hasAcceptedContract && isDigitalContractPath;
+  if (isPreActivation) {
+    return (
+      <div className="min-h-screen bg-gray-50" dir="rtl">
+        <Outlet />
+      </div>
+    );
+  }
+
   const vendorLinks = [
     { to: '/vendor/dashboard', icon: HomeIcon, label: t('layout.vendor.links.dashboard', 'Dashboard') },
     { to: '/vendor/products', icon: ShoppingBagIcon, label: t('layout.vendor.links.products', 'My Products') },
