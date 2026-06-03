@@ -31,9 +31,10 @@ Cypress.Commands.add('checkPageA11y', (context = null, options = {}) => {
 // The mobile-white-screen diagnostic spec manages its own visits and viewports.
 // Skip the default visit when that spec is running to avoid overwriting listeners.
 const IS_DIAGNOSTIC_SPEC = Cypress.spec?.relative?.includes('mobile-white-screen')
+const IS_CHECKOUT_SPEC = Cypress.spec?.relative?.includes('checkout-to-payment')
 
 beforeEach(() => {
-  if (IS_DIAGNOSTIC_SPEC) return  // diagnostic spec handles its own setup
+  if (IS_DIAGNOSTIC_SPEC || IS_CHECKOUT_SPEC) return  // these specs handle their own setup
 
   // Set viewport to desktop by default
   cy.viewport(1280, 720)

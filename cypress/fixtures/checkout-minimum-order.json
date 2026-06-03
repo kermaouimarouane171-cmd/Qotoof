@@ -14,7 +14,8 @@
     "completed_orders_count": 14,
     "failed_payments_count": 0,
     "cod_eligible": true,
-    "cod_restricted_until": null
+    "cod_restricted_until": null,
+    "onboarding_completed": true
   },
   "vendor": {
     "id": "vendor-001",

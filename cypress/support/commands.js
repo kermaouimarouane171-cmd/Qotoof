@@ -190,7 +190,7 @@ Cypress.Commands.add('createOrder', (orderData) => {
  */
 Cypress.Commands.add('addToCart', (productId) => {
   cy.fixture('products').then((fixture) => {
-    const products = fixture?.products || []
+    const products = Array.isArray(fixture) ? fixture : (fixture?.products || [])
     const product = products.find((entry) => entry.id === productId)
 
     if (!product) {
@@ -250,6 +250,15 @@ Cypress.Commands.add('addToCart', (productId) => {
       }
 
       win.localStorage.setItem('cart-storage', JSON.stringify(nextCart))
+
+      const event = new StorageEvent('storage', {
+        key: 'cart-storage',
+        newValue: JSON.stringify(nextCart),
+        oldValue: rawCart,
+        storageArea: win.localStorage,
+        url: win.location.href,
+      })
+      win.dispatchEvent(event)
     })
   })
 })

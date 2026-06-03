@@ -1,5 +1,19 @@
 [
   {
+    "id": "prod-001",
+    "name": "Organic Tomatoes",
+    "price_per_unit": 40,
+    "unit_type": "kg",
+    "min_order_quantity": 1,
+    "available_quantity": 200,
+    "is_available": true,
+    "vendor_id": "vendor-001",
+    "vendor_name": "Atlas Fresh Farm",
+    "image_url": "https://images.example.com/products/tomatoes.jpg",
+    "category": "vegetables",
+    "subcategory": "tomatoes"
+  },
+  {
     "id": "product-1",
     "name": "Organic Tomatoes",
     "price_per_unit": 40,
