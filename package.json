@@ -28,6 +28,7 @@
     "perf:lighthouse": "lhci autorun",
     "perf:analyze": "vite build --mode analyze",
     "test:visual": "cypress run --spec 'cypress/e2e/visual-public.cy.js'",
+    "test:smoke": "cypress run --spec 'cypress/e2e/smoke-desktop.cy.js'",
     "test:mobile-white-screen": "cypress run --browser chrome --spec 'cypress/e2e/mobile-white-screen.cy.js'",
     "test:mobile-white-screen:open": "cypress open --spec 'cypress/e2e/mobile-white-screen.cy.js'",
     "test:security": "cypress run --spec 'cypress/e2e/security.cy.js'",
