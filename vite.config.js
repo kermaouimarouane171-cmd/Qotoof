@@ -216,8 +216,17 @@ export default defineConfig({
             return 'vendor-data'
           }
 
-          // ── 6. Keep the remainder together to avoid a long tail of empty vendor chunks ──
-          return 'vendor-misc'
+          // ── 5b. Payment SDKs ────────────────────────────────────────────────────────
+          if (matchesPackage(packageName, ['@paypal/react-paypal-js']) || matchesPrefix(packageName, ['@paypal'])) {
+            return 'vendor-payments'
+          }
+
+          // ── 6. Split remainder to avoid a single oversized vendor-misc chunk ──
+          // Packages are split alphabetically so shared deps tend to stay together
+          // while the total chunk size is reduced for better caching.
+          const firstChar = packageName.charCodeAt(0)
+          if (firstChar <= 109) return 'vendor-misc'
+          return 'vendor-misc-2'
         },
         chunkFileNames: 'assets/js/[name]-[hash].js',
         entryFileNames: 'assets/js/[name]-[hash].js',
