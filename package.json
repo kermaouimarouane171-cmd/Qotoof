@@ -25,7 +25,7 @@
     "test:a11y": "cypress run --spec 'cypress/e2e/accessibility.cy.js'",
     "test:a11y:unit": "jest --testPathPattern=a11y",
     "test:a11y:e2e": "cypress run --spec 'cypress/e2e/accessibility.cy.js'",
-    "perf:lighthouse": "lhci autorun",
+    "perf:lighthouse": "lhci autorun --config .lighthouserc.cjs",
     "perf:analyze": "vite build --mode analyze",
     "test:visual": "cypress run --spec 'cypress/e2e/visual-public.cy.js'",
     "test:smoke": "cypress run --spec 'cypress/e2e/smoke-desktop.cy.js'",
