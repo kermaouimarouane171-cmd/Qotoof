@@ -24,6 +24,7 @@ import {
   XMarkIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
 import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator';
 import { usePaymentGuard } from '@/contexts/PaymentGuard';
@@ -631,7 +632,24 @@ export const VendorLayout = () => {
   // If profile is null (still loading or fetch failed) we must not redirect —
   // otherwise a transient fetch failure causes an infinite redirect loop to
   // /vendor/digital-contract even for vendors who already signed the contract.
-  if (profile !== null && !hasAcceptedContract && !isDigitalContractPath) {
+  const mustSignContract = profile !== null && !hasAcceptedContract && !isDigitalContractPath;
+
+  // UX: explain the silent redirect so the vendor understands why other pages
+  // are unavailable. A fixed toast id de-duplicates the message across re-renders
+  // and route changes, so this never spams or causes a redirect loop.
+  useEffect(() => {
+    if (mustSignContract) {
+      toast(
+        t(
+          'layout.vendor.contractGate',
+          'لإكمال تفعيل حسابك كبائع، يجب توقيع العقد الرقمي أولًا. بعد التوقيع ستتمكن من استخدام لوحة البائع والمنتجات والطلبات.'
+        ),
+        { id: 'vendor-contract-gate', icon: 'ℹ️', duration: 5000 }
+      );
+    }
+  }, [mustSignContract, t]);
+
+  if (mustSignContract) {
     return <Navigate to="/vendor/digital-contract" replace />;
   }
 

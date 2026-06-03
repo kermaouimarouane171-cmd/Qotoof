@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeftIcon,
+  ArrowRightOnRectangleIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
   ChevronLeftIcon,
@@ -357,9 +358,15 @@ const DigitalContract = () => {
         <div className="flex items-start gap-3">
           <CheckCircleIcon className="w-6 h-6 text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
           <div className="min-w-0">
-            <p className="font-bold text-gray-900">يجب توقيع العقد الرقمي قبل تفعيل متجرك</p>
+            <p className="font-bold text-gray-900">لماذا هذه الخطوة مطلوبة؟</p>
             <p className="text-sm text-gray-600 mt-1 leading-6">
-              هذه الخطوة تحمي حقوقك وتضمن تجربة آمنة وموثوقة لك ولمتسوقيك.
+              توقيع العقد الرقمي إلزامي لتفعيل متجرك، فهو يحمي حقوقك ويضمن تجربة آمنة وموثوقة لك ولمتسوقيك.
+            </p>
+            <p className="text-sm text-gray-600 mt-2 leading-6">
+              بعد التوقيع مباشرةً ستتمكن من الوصول إلى لوحة البائع وإضافة المنتجات واستقبال الطلبات.
+            </p>
+            <p className="text-sm text-gray-600 mt-2 leading-6">
+              البيانات البنكية وبريد PayPal مطلوبة لتلقي مستحقاتك المالية من المبيعات.
             </p>
           </div>
         </div>
@@ -590,10 +597,11 @@ const DigitalContract = () => {
         <button
           type="button"
           onClick={handleCancel}
-          className="w-full rounded-2xl border-2 border-green-600 bg-white py-3 text-sm font-semibold text-green-700 hover:bg-green-50"
+          className="w-full rounded-2xl border-2 border-gray-300 bg-white py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center justify-center gap-2"
           data-testid="cancel-contract-button"
         >
-          إلغاء
+          <ArrowRightOnRectangleIcon className="w-5 h-5" aria-hidden="true" />
+          تسجيل الخروج والمتابعة لاحقًا
         </button>
       </div>
 

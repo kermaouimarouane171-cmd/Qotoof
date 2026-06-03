@@ -197,8 +197,8 @@ describe('صفحة العقد الرقمي /vendor/digital-contract', () => {
     })
 
     expect(screen.getByTestId('sign-contract-button')).toHaveTextContent('توقيع العقد')
-    expect(screen.getByTestId('cancel-contract-button')).toHaveTextContent('إلغاء')
-    expect(screen.getByText('يجب توقيع العقد الرقمي قبل تفعيل متجرك')).toBeInTheDocument()
+    expect(screen.getByTestId('cancel-contract-button')).toHaveTextContent('تسجيل الخروج والمتابعة لاحقًا')
+    expect(screen.getByText('لماذا هذه الخطوة مطلوبة؟')).toBeInTheDocument()
     expect(screen.getByText('منتجات الأطلس')).toBeInTheDocument()
   })
 
