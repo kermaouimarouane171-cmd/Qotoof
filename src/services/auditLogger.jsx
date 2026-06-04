@@ -122,6 +122,7 @@ class AuditLogger {
         user_id: userId,
         action,
         entity_type: entityType,
+        resource_type: entityType || 'general',
         entity_id: entityId,
         old_values: oldValues,
         new_values: newValues,
