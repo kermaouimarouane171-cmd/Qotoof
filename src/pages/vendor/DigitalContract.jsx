@@ -31,6 +31,7 @@ import { MOROCCAN_BANKS } from '@/constants/banks'
 import { APP_CONFIG, getWhatsappUrl } from '@/config/appConfig'
 import toast from 'react-hot-toast'
 import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
+import { completeOnboarding } from '@/services/onboardingService'
 
 const COMMISSION_PERCENT = (APP_CONFIG.commissionRate * 100).toFixed(0)
 
@@ -284,12 +285,12 @@ const DigitalContract = () => {
           agreement_accepted: true,
           agreement_accepted_at: nowIso,
           is_active: true,
-          paypal_email: form.paypal_email.trim().toLowerCase(),
-          payout_method: 'paypal',
         })
         .eq('id', user.id)
 
       if (updateProfileError) throw updateProfileError
+
+      await completeOnboarding(user.id)
 
       useAuthStore.setState((state) => ({
         ...state,
@@ -298,7 +299,8 @@ const DigitalContract = () => {
           agreement_accepted: true,
           agreement_accepted_at: nowIso,
           is_active: true,
-          paypal_email: form.paypal_email.trim().toLowerCase(),
+          onboarding_completed: true,
+          onboarding_step: 100,
         },
       }))
 

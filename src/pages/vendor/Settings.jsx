@@ -232,8 +232,6 @@ const VendorSettings = () => {
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
         notify_reviews: notifyReviews,
-        paypal_email: paypalEmail.trim().toLowerCase(),
-        payout_method: 'paypal',
         ...(storeLocation?.lat ? {
           latitude: storeLocation.lat,
           longitude: storeLocation.lng,
@@ -263,8 +261,6 @@ const VendorSettings = () => {
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
           payment_policy_cod: paymentPolicies.cod,
-          paypal_email: paypalEmail.trim().toLowerCase(),
-          payout_method: 'paypal',
         }
       })
       setCancellationPolicy(savedCancellationPolicy)

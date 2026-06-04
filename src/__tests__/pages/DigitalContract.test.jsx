@@ -45,6 +45,10 @@ jest.mock('@/store/authStore', () => ({
   }),
 }))
 
+jest.mock('@/services/onboardingService', () => ({
+  completeOnboarding: jest.fn().mockResolvedValue(undefined),
+}))
+
 jest.mock('@/services/supabase', () => ({
   supabase: {
     from: (...args) => mockSupabaseFrom(...args),
