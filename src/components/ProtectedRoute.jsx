@@ -48,7 +48,7 @@ const LoadingFallback = () => {
   );
 };
 
-const AuthTimeoutFallback = () => {
+const AuthTimeoutFallback = ({ onRetry }) => {
   const { t } = useTranslation();
 
   return (
@@ -63,7 +63,7 @@ const AuthTimeoutFallback = () => {
         <button
           type="button"
           className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-          onClick={() => window.location.reload()}
+          onClick={onRetry}
         >
           {t('auth.timeout.retry', 'Retry')}
         </button>
@@ -87,7 +87,7 @@ export const ProtectedRoute = ({
   allowedRoles = [],
 }) => {
   // Use Supabase-based auth store instead of broken custom middleware
-  const { user, profile, loading, profileLoading, mfaRequired, mfaPending } = useAuthStore();
+  const { user, profile, loading, profileLoading, profileError, mfaRequired, mfaPending } = useAuthStore();
   const { isBlocking } = useOnboardingGate();
   const { shouldRedirect, redirectTo, message } = usePaymentGuard();
   const location = useLocation();
@@ -109,11 +109,21 @@ export const ProtectedRoute = ({
   }, [loading, profileLoading])
 
   const isOnboardingPath = location.pathname.startsWith('/onboarding')
-  const profileNotYetLoaded = Boolean(user && !profile && !profileLoading && !loading)
+  // profileNotYetLoaded only blocks while the profile is genuinely loading.
+  // If fetchProfile permanently failed (profileError=true) we must NOT block
+  // forever — let the route proceed so the user sees a sensible fallback.
+  const profileNotYetLoaded = Boolean(user && !profile && !profileLoading && !loading && !profileError)
+
+  const handleRetry = () => {
+    if (user && !profile) {
+      useAuthStore.getState().refreshProfile?.().catch(() => {})
+    }
+    window.location.reload()
+  }
 
   if (loading || profileLoading || isBlocking || profileNotYetLoaded) {
     if (authLoadingTimedOut) {
-      return <AuthTimeoutFallback />
+      return <AuthTimeoutFallback onRetry={handleRetry} />
     }
     return <LoadingFallback />;
   }

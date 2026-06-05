@@ -436,38 +436,17 @@ export function createSessionActions(set, get) {
           return null
         }
 
-        let resolvedProfile = data
+        const resolvedProfile = data
+
+        // Resolve profile immediately so auth loading isn't held up by
+        // non-critical buyer referral logic.
+        set({ profile: resolvedProfile, profileError: false })
 
         if (resolvedProfile.role === 'buyer') {
-          try {
-            const { data: authUserData } = await supabase.auth.getUser()
-            const pendingReferralCode = authUserData?.user?.id === userId
-              ? authUserData.user.user_metadata?.referral_code_used
-              : null
-
-            if (pendingReferralCode && !resolvedProfile.referred_by) {
-              const { default: loyaltyApi } = await import('@/services/loyalty')
-              await loyaltyApi.attachReferralCode({
-                userId,
-                referralCode: pendingReferralCode,
-              })
-
-              const { data: refreshedProfile, error: refreshedProfileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
-
-              if (!refreshedProfileError && refreshedProfile) {
-                resolvedProfile = refreshedProfile
-              }
-            }
-          } catch (referralError) {
-            logger.warn('Automatic referral attachment skipped:', referralError)
-          }
+          // Fire-and-forget: referral attachment must not block initialization.
+          get()._attachBuyerReferralAsync(userId, resolvedProfile)
         }
 
-        set({ profile: resolvedProfile, profileError: false })
         return resolvedProfile
       } catch (error) {
         logger.error('Error fetching profile:', error)
@@ -475,6 +454,35 @@ export function createSessionActions(set, get) {
         return null
       } finally {
         set({ profileLoading: false })
+      }
+    },
+
+    _attachBuyerReferralAsync: async (userId, currentProfile) => {
+      try {
+        const { data: authUserData } = await supabase.auth.getUser()
+        const pendingReferralCode = authUserData?.user?.id === userId
+          ? authUserData.user.user_metadata?.referral_code_used
+          : null
+
+        if (pendingReferralCode && !currentProfile.referred_by) {
+          const { default: loyaltyApi } = await import('@/services/loyalty')
+          await loyaltyApi.attachReferralCode({
+            userId,
+            referralCode: pendingReferralCode,
+          })
+
+          const { data: refreshedProfile, error: refreshedProfileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single()
+
+          if (!refreshedProfileError && refreshedProfile) {
+            set({ profile: refreshedProfile, profileError: false })
+          }
+        }
+      } catch (referralError) {
+        logger.warn('Automatic referral attachment skipped:', referralError)
       }
     },
 

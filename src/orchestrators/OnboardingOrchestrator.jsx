@@ -179,6 +179,7 @@ export function useOnboardingGate() {
     userId &&
     ONBOARDING_ROLES.includes(profileRole) &&
     !isAuthEntryPath &&
+    !profileError &&
     (
       !onboardingResolved ||
       (needsOnboarding && !location.pathname.startsWith('/onboarding')) ||

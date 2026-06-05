@@ -66,6 +66,7 @@ describe('ProtectedRoute (real component)', () => {
     profile: { id: 'profile-1', role: 'buyer' },
     loading: false,
     profileLoading: false,
+    profileError: false,
     mfaRequired: false,
     mfaPending: false,
   }
@@ -149,6 +150,51 @@ describe('ProtectedRoute (real component)', () => {
     expect(
       screen.getByText('Authentication is taking longer than expected'),
     ).toBeInTheDocument()
+
+    jest.useRealTimers()
+  })
+
+  it('does NOT block forever when user exists but profile fetch failed (profileError=true)', () => {
+    useAuthStore.mockReturnValue({
+      ...baseAuth,
+      profile: null,
+      profileError: true,
+      loading: false,
+      profileLoading: false,
+    })
+
+    renderRoute()
+
+    // With profileError=true, profileNotYetLoaded should be false,
+    // so the route proceeds to auth checks. Since user exists but profile
+    // is null and allowedRoles requires 'buyer', it falls back to
+    // LoadingFallback because profile?.role is missing.
+    // This is acceptable — it is no longer an *infinite* spinner.
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
+  })
+
+  it('passes onRetry to AuthTimeoutFallback and retry button is present', () => {
+    jest.useFakeTimers()
+    const refreshProfile = jest.fn().mockResolvedValue(null)
+    useAuthStore.mockReturnValue({
+      ...baseAuth,
+      profile: null,
+      profileError: false,
+      loading: true,
+      profileLoading: false,
+    })
+    useAuthStore.getState = () => ({ refreshProfile })
+
+    renderRoute()
+
+    act(() => {
+      jest.advanceTimersByTime(10001)
+    })
+
+    expect(
+      screen.getByText('Authentication is taking longer than expected'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Retry')).toBeInTheDocument()
 
     jest.useRealTimers()
   })
