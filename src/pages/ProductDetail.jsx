@@ -26,6 +26,7 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import { checkDeliveryEligibility } from '@/services/deliveryEligibilityService'
 
 const REVIEWS_PER_PAGE = 10
 
@@ -39,7 +40,7 @@ const ProductDetailPage = () => {
   const { t, i18n } = useTranslation()
   const { id } = useParams()
   const { addItem } = useCartStore()
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
 
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -440,6 +441,36 @@ const ProductDetailPage = () => {
         })
       )
       return
+    }
+
+    // Delivery eligibility guard — prevent illogical distant orders
+    const eligibility = checkDeliveryEligibility({
+      buyerLocation: profile
+        ? {
+            latitude: profile.latitude,
+            longitude: profile.longitude,
+          }
+        : null,
+      vendorLocation: product.vendor
+        ? {
+            latitude: product.vendor.latitude,
+            longitude: product.vendor.longitude,
+          }
+        : null,
+      orderAmount: Number(product.price_per_unit || product.price || 0) * normalizedQuantity,
+      vendorPolicy: product.vendor || null,
+    })
+
+    if (!eligibility.allowed) {
+      toast.error(eligibility.message || 'التوصيل غير متاح لهذا الطلب.')
+      return
+    }
+
+    if (eligibility.reason === 'LOCATION_MISSING') {
+      toast(eligibility.message || 'سيتم التحقق من التوصيل بعد تحديد موقعك.', {
+        icon: '📍',
+        duration: 4000,
+      })
     }
 
     addItem(product, normalizedQuantity)
