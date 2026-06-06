@@ -164,8 +164,33 @@ const VendorDashboard = () => {
         actionPath: '/vendor/products',
       }
     }
-    return null
-  }, [profile?.latitude, profile?.longitude, profile?.driver_search_done, stats?.totalProducts])
+    if (pendingApprovalCount > 0) {
+      return {
+        title: 'منتجاتك قيد المراجعة من فريق الإدارة',
+        actionLabel: 'مراجعة المنتجات',
+        actionPath: '/vendor/products',
+      }
+    }
+    return {
+      title: 'متجرك جاهز لاستقبال الطلبات!',
+      actionLabel: 'إدارة المتجر',
+      actionPath: '/vendor/products',
+    }
+  }, [profile?.latitude, profile?.longitude, profile?.driver_search_done, stats?.totalProducts, pendingApprovalCount])
+
+  // Compute setup completion percentage for checklist
+  const setupProgress = useMemo(() => {
+    const steps = [
+      Boolean(profile?.agreement_accepted),
+      Boolean(profile?.store_name),
+      Boolean(profile?.latitude && profile?.longitude),
+      profile?.driver_search_done === true,
+      stats.totalProducts > 0,
+      stats.totalProducts > 0 && pendingApprovalCount === 0,
+    ]
+    const done = steps.filter(Boolean).length
+    return Math.round((done / steps.length) * 100)
+  }, [profile, stats.totalProducts, pendingApprovalCount])
 
   // Refs
   const realtimeSubRef = useRef(null)
@@ -919,6 +944,22 @@ const VendorDashboard = () => {
         ]}
         title="إعداد المتجر"
         subtitle="تابع المراحل الأساسية لتفعيل المتجر بسرعة وثقة."
+        progress={setupProgress}
+        nextAction={
+          !profile?.agreement_accepted
+            ? { title: 'وقّع العقد الرقمي', label: 'توقيع العقد', path: '/vendor/digital-contract' }
+            : !profile?.store_name
+              ? { title: 'أكمل معلومات المتجر', label: 'إعداد المتجر', path: '/vendor/profile' }
+              : !profile?.latitude || !profile?.longitude
+                ? { title: 'حدد موقع المتجر', label: 'تحديد الموقع', path: '/vendor/location' }
+                : profile?.driver_search_done !== true
+                  ? { title: 'اختر تفضيلات التوصيل', label: 'إعداد التوصيل', path: '/vendor/driver-preferences' }
+                  : stats.totalProducts === 0
+                    ? { title: 'أضف أول منتج', label: 'إضافة منتج', path: '/vendor/products' }
+                    : pendingApprovalCount > 0
+                      ? { title: 'منتجاتك قيد المراجعة', label: 'مراجعة المنتجات', path: '/vendor/products' }
+                      : null
+        }
       />
 
       {/* Next action (design-aligned) */}

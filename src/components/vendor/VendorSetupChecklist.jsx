@@ -6,15 +6,61 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline'
 
-const VendorSetupChecklist = ({ items, title = 'إعداد المتجر', subtitle }) => {
+const VendorSetupChecklist = ({
+  items,
+  title = 'إعداد المتجر',
+  subtitle,
+  progress,
+  nextAction,
+}) => {
   const navigate = useNavigate()
+  const completedCount = items.filter((i) => i.complete).length
+  const totalCount = items.length
+  const progressValue =
+    progress !== undefined ? progress : Math.round((completedCount / totalCount) * 100)
 
   return (
     <Card className="mb-4 p-4 rounded-2xl border border-gray-200 shadow-sm" data-testid="vendor-setup-checklist">
       <div className="mb-3">
-        <h2 className="text-base font-bold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-base font-bold text-gray-900">{title}</h2>
+          <span className="text-sm font-semibold text-green-700">
+            {progressValue}%
+          </span>
+        </div>
         {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+
+        {/* Progress bar */}
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="h-full rounded-full bg-green-500 transition-all duration-500 ease-out"
+            style={{ width: `${progressValue}%` }}
+            aria-valuenow={progressValue}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            role="progressbar"
+          />
+        </div>
       </div>
+
+      {/* Highlighted next action */}
+      {nextAction && (
+        <div className="mb-3 rounded-xl border border-green-200 bg-green-50 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 text-right">
+              <p className="text-sm font-semibold text-gray-900">{nextAction.title}</p>
+              <p className="text-xs text-gray-600 mt-0.5">{nextAction.subtitle || 'أكمل هذه الخطوة لتفعيل متجرك.'}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(nextAction.path)}
+              className="inline-flex flex-shrink-0 items-center justify-center rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+            >
+              {nextAction.label}
+            </button>
+          </div>
+        </div>
+      )}
 
       <ul className="space-y-2">
         {items.map((item) => {
