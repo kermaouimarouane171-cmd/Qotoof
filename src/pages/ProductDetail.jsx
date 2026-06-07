@@ -23,6 +23,7 @@ import {
   PhotoIcon,
   StarIcon,
   CheckCircleIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -776,6 +777,21 @@ const ProductDetailPage = () => {
               <span className="text-2xl font-bold text-gray-900">
                 {formatPrice(product.price_per_unit * quantity)}
               </span>
+            </div>
+          </div>
+
+          {/* Delivery Rules Info */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="flex items-start gap-3">
+              <InformationCircleIcon className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-blue-900">
+                  {t('productDetail.deliveryInfo.title', 'كيف يعمل التوصيل؟')}
+                </p>
+                <p className="text-sm text-blue-800 mt-1 leading-relaxed">
+                  {t('productDetail.deliveryInfo.description', 'تعتمد إمكانية التوصيل على المسافة بين موقعك وموقع البائع، وعلى قيمة الطلب. الطلبات الصغيرة قد لا تكون متاحة من بائعين بعيدين. ستظهر لك رسالة واضحة إذا كان الطلب يحتاج حداً أدنى أعلى أو إذا كان البائع خارج نطاق التوصيل.')}
+                </p>
+              </div>
             </div>
           </div>
 

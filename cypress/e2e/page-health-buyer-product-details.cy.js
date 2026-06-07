@@ -252,6 +252,11 @@ describe('Buyer Product Details Page — Page Health + UX + Critical Actions', (
       expect($body.text()).to.match(/Reviews|تقييمات/i)
     })
 
+    // UX: Delivery rules explanation visible
+    cy.get('body').should(($body) => {
+      expect($body.text()).to.match(/كيف يعمل التوصيل|توصيل|delivery/i)
+    })
+
     // Critical: Add to Cart visible and clickable
     cy.contains('button', /Add to Cart|إضافة إلى السلة/i)
       .should('be.visible')

@@ -14,6 +14,7 @@ import {
   CheckCircleIcon,
   XMarkIcon,
   BoltIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -883,6 +884,15 @@ const CartPage = () => {
                     ))}
                   </div>
                 )}
+                {/* Delivery Rules Notice */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                  <div className="flex items-start gap-2">
+                    <InformationCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-blue-800 leading-5">
+                      {t('cart.summary.deliveryRulesNotice', 'تعتمد إمكانية التوصيل على المسافة بين موقعك وموقع كل بائع وقيمة الطلب. ستتم مراجعة شروط التوصيل قبل إتمام الطلب.')}
+                    </p>
+                  </div>
+                </div>
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-xl font-bold text-gray-900" data-testid="cart-total">
                   <span>{t('cart.total')}</span>
