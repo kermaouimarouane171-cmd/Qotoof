@@ -6,6 +6,7 @@ import { Button } from '@/components/ui'
 import { supabase } from '@/services/supabase'
 import { passwordResetSchema } from '@/utils/validationSchemas'
 import { useAuthStore } from '@/store/authStore'
+import { logger } from '@/utils/logger'
 
 const VerifyEmailPage = () => {
   const { t } = useTranslation()
@@ -16,6 +17,9 @@ const VerifyEmailPage = () => {
 
   const [loading, setLoading] = useState(false)
   const [countdown, setCountdown] = useState(0)
+  const [otpCode, setOtpCode] = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verifyError, setVerifyError] = useState('')
 
   const email = useMemo(() => {
     const fromState = location.state?.email
@@ -61,6 +65,44 @@ const VerifyEmailPage = () => {
     }
   }, [getRedirectPath, initialize, navigate, t])
 
+  const handleVerify = async () => {
+    if (!otpCode || otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
+      setVerifyError(t('auth.verifyEmail.invalidOtp', 'أدخل رمز تحقق مكوّن من 6 أرقام'))
+      return
+    }
+
+    if (!email) {
+      setVerifyError(t('auth.verifyEmail.noEmail', 'البريد الإلكتروني غير متوفر'))
+      return
+    }
+
+    setVerifying(true)
+    setVerifyError('')
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpCode.trim(),
+        type: 'signup',
+      })
+
+      if (error) throw error
+
+      await initialize()
+      const role = useAuthStore.getState().profile?.role
+      const redirectPath = getRedirectPath(role)
+
+      toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
+      sessionStorage.removeItem('pendingVerificationEmail')
+      navigate(redirectPath, { replace: true })
+    } catch (error) {
+      logger.error('OTP verification error:', error)
+      setVerifyError(error.message || t('auth.verifyEmail.invalidOtp', 'رمز التحقق غير صحيح أو منتهي الصلاحية'))
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   const handleResend = async () => {
     if (!email || countdown > 0) return
 
@@ -71,21 +113,19 @@ const VerifyEmailPage = () => {
     }
 
     setLoading(true)
-    const emailRedirectTo = `${window.location.origin}/auth/callback`
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: parsed.data.email,
-      options: { emailRedirectTo },
     })
     setLoading(false)
 
     if (error) {
-      toast.error(error.message || t('auth.verifyEmail.resendFailed', 'تعذر إعادة إرسال رسالة التحقق'))
+      toast.error(error.message || t('auth.verifyEmail.resendFailed', 'تعذر إعادة إرسال رمز التحقق'))
       return
     }
 
     setCountdown(60)
-    toast.success(t('auth.verifyEmail.resendSuccess', 'تم إرسال رسالة التحقق مرة أخرى'))
+    toast.success(t('auth.verifyEmail.resendSuccess', 'تم إرسال رمز التحقق مرة أخرى'))
   }
 
   return (
@@ -94,16 +134,48 @@ const VerifyEmailPage = () => {
         {t('auth.verifyEmail.title', 'تحقق من بريدك الإلكتروني')}
       </h2>
       <p className="text-gray-600 mb-3">
-        {t('auth.verifyEmail.subtitle', 'أرسلنا رابط تأكيد إلى بريدك الإلكتروني. افتح الرسالة واضغط على رابط التأكيد.')}
+        {t('auth.verifyEmail.subtitle', 'أرسلنا رمز تحقق مكوّن من 6 أرقام إلى بريدك الإلكتروني. أدخل الرمز أدناه لتأكيد حسابك.')}
       </p>
 
       {email && (
-        <p className="mb-6 text-sm font-semibold text-green-700" data-cy="verify-email-address" data-testid="verify-email-address">{email}</p>
+        <p className="mb-4 text-sm font-semibold text-green-700" data-cy="verify-email-address" data-testid="verify-email-address">{email}</p>
       )}
 
-      <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 mb-6 text-sm text-blue-800" data-cy="verify-email-info" data-testid="verify-email-info">
-        {t('auth.verifyEmail.waitingMessage', 'سنبقي هذه الصفحة مفتوحة. عند اكتمال التحقق وتسجيل الدخول، سيتم تحويلك تلقائيًا.')}
+      <div className="mb-4">
+        <input
+          type="text"
+          inputMode="numeric"
+          maxLength={6}
+          pattern="\d{6}"
+          value={otpCode}
+          onChange={(e) => {
+            const value = e.target.value.replace(/\D/g, '').slice(0, 6)
+            setOtpCode(value)
+            if (verifyError) setVerifyError('')
+          }}
+          placeholder="123456"
+          className="w-full text-center text-2xl tracking-[0.5em] font-mono border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition"
+          disabled={verifying}
+          data-cy="verify-email-otp-input"
+          data-testid="verify-email-otp-input"
+        />
+        {verifyError && (
+          <p className="mt-2 text-sm text-red-600" role="alert" data-testid="verify-email-error">{verifyError}</p>
+        )}
       </div>
+
+      <Button
+        type="button"
+        variant="primary"
+        className="w-full mb-3"
+        onClick={handleVerify}
+        isLoading={verifying}
+        disabled={!email || otpCode.length !== 6}
+        data-cy="verify-email-verify-button"
+        data-testid="verify-email-verify-button"
+      >
+        {t('auth.verifyEmail.verifyButton', 'تحقق من الرمز')}
+      </Button>
 
       <Button
         type="button"
@@ -117,7 +189,7 @@ const VerifyEmailPage = () => {
       >
         {countdown > 0
           ? t('auth.verifyEmail.resendCountdown', 'إعادة الإرسال خلال {{seconds}} ثانية', { seconds: countdown })
-          : t('auth.verifyEmail.resendButton', 'إعادة إرسال رسالة التحقق')}
+          : t('auth.verifyEmail.resendButton', 'إعادة إرسال رمز التحقق')}
       </Button>
 
       <Link to="/login" className="inline-block mt-4 text-sm text-gray-600 hover:underline" data-cy="verify-email-login-link" data-testid="verify-email-login-link">

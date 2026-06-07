@@ -42,8 +42,6 @@ const resolvePublicAppOrigin = () => {
   return String(APP_CONFIG.siteUrl || '').replace(/\/$/, '')
 }
 
-const getEmailCallbackUrl = () => `${resolvePublicAppOrigin()}/auth/callback`
-
 const isAlreadyRegisteredAuthError = (error) => {
   const message = String(error?.message || '').toLowerCase()
   return (
@@ -282,7 +280,6 @@ export function createAuthActions(set, get) {
       try {
         set({ loading: true, isSigningIn: true, profileError: false })
         const normalizedEmail = String(email || '').trim().toLowerCase()
-        const emailRedirectTo = getEmailCallbackUrl()
         const signUpOptions = {
           data: {
             first_name: userData.firstName,
@@ -290,7 +287,6 @@ export function createAuthActions(set, get) {
             role: userData.role,
             referral_code_used: userData.referralCode || null,
           },
-          emailRedirectTo,
         }
 
         if (captchaToken) {
@@ -400,12 +396,10 @@ export function createAuthActions(set, get) {
 
         if (isAlreadyRegisteredAuthError(error)) {
           const normalizedEmail = String(email || '').trim().toLowerCase()
-          const emailRedirectTo = getEmailCallbackUrl()
 
           const { error: resendError } = await supabase.auth.resend({
             type: 'signup',
             email: normalizedEmail,
-            options: { emailRedirectTo },
           })
 
           if (!resendError) {
