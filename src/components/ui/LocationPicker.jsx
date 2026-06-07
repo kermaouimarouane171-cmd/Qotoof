@@ -10,6 +10,7 @@ import {
   MagnifyingGlassIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
 import Map from './Map'
+import { getCityCoordinates } from '@/utils/cityCoordinates'
 import { logger } from '@/utils/logger'
 
 async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 10000) {
@@ -67,6 +68,7 @@ const LocationPicker = ({
   const [locationSelected, setLocationSelected] = useState(!!value?.lat && !!value?.lng)
   const [showMapPrompt, setShowMapPrompt] = useState(false)
   const autoDetectCalledRef = useRef(false)
+  const cityAutoSetRef = useRef('')
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('')
@@ -187,20 +189,40 @@ const LocationPicker = ({
   useEffect(() => {
     if (city && !locationSelected) {
       setShowMapPrompt(true)
+    } else {
+      setShowMapPrompt(false)
     }
   }, [city, locationSelected])
 
-  // Auto-detect GPS on first mount if no location already set
+  // Auto-center map and set initial marker when city changes
+  useEffect(() => {
+    if (!city) {
+      cityAutoSetRef.current = ''
+      return
+    }
+    if (locationSelected) return
+    if (cityAutoSetRef.current === city) return
+
+    const coords = getCityCoordinates(city)
+    if (coords) {
+      cityAutoSetRef.current = city
+      onChange({ lat: coords.lat, lng: coords.lng, source: 'city_center', address: city, city })
+      setSearchQuery(city)
+    }
+  }, [city, locationSelected, onChange])
+
+  // Auto-detect GPS on first mount if no location already set and no city provided
   useEffect(() => {
     if (autoDetectCalledRef.current) return
     if (locationSelected) return
+    if (city) return
     if (!navigator.geolocation) return
     autoDetectCalledRef.current = true
     // Small delay to let the map render first
     const timer = setTimeout(() => detectMyLocation(), 600)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [city, locationSelected])
 
   return (
     <div className={`space-y-4 ${className}`} data-testid="location-picker">
@@ -231,7 +253,7 @@ const LocationPicker = ({
             type="text"
             value={searchQuery}
             onChange={handleSearchInput}
-            placeholder="ابحث عن عنوانك (شارع، حي، مدينة)..."
+            placeholder="ابحث عن الحي، الشارع، أو أقرب نقطة معروفة..."
             data-testid="location-search-input"
             className="flex-1 outline-none text-sm bg-transparent text-gray-700 placeholder-gray-400"
             dir="rtl"
@@ -318,13 +340,18 @@ const LocationPicker = ({
         </div>
       )}
 
-      {/* Map prompt */}
+      {/* Map prompt — shown when city is set but user hasn't precisely selected yet */}
       {showMapPrompt && !locationSelected && (
         <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <ExclamationTriangleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">
-            اخترت مدينة <strong>{city}</strong>. يرجى تحديد الموقع الدقيق على الخريطة أو عبر البحث.
-          </p>
+          <div className="text-sm text-amber-800">
+            <p>
+              حددنا مدينة <strong>{city}</strong> على الخريطة بشكل تقريبي.
+            </p>
+            <p className="mt-1">
+              من فضلك ابحث عن الحي أو حرّك العلامة إلى موقعك الدقيق حتى يتم التوصيل بشكل صحيح.
+            </p>
+          </div>
         </div>
       )}
 
@@ -343,7 +370,10 @@ const LocationPicker = ({
             locationSelected
               ? [value.lat, value.lng]
               : city
-                ? getCityCenter(city)
+                ? (() => {
+                    const coords = getCityCoordinates(city)
+                    return coords ? [coords.lat, coords.lng] : [33.5731, -7.5898]
+                  })()
                 : [33.5731, -7.5898]
           }
           zoom={locationSelected ? 16 : city ? 13 : 12}
@@ -397,37 +427,6 @@ const LocationPicker = ({
       </p>
     </div>
   )
-}
-
-// City centers for Morocco
-const getCityCenter = (city) => {
-  const cityCenters = {
-    'الدار البيضاء': [33.5731, -7.5898],
-    'casablanca': [33.5731, -7.5898],
-    'الرباط': [34.0209, -6.8417],
-    'rabat': [34.0209, -6.8417],
-    'مراكش': [31.6295, -7.9811],
-    'marrakech': [31.6295, -7.9811],
-    'فاس': [34.0181, -5.0078],
-    'fes': [34.0181, -5.0078],
-    'طنجة': [35.7595, -5.8340],
-    'tangier': [35.7595, -5.8340],
-    'أكادير': [30.4278, -9.5981],
-    'agadir': [30.4278, -9.5981],
-    'مكناس': [33.8935, -5.5473],
-    'meknes': [33.8935, -5.5473],
-    'وجدة': [34.6814, -1.9086],
-    'oujda': [34.6814, -1.9086],
-    'القنيطرة': [34.2610, -6.5802],
-    'kenitra': [34.2610, -6.5802],
-    'تطوان': [35.5889, -5.3626],
-    'tetouan': [35.5889, -5.3626],
-    'آسفي': [32.2994, -9.2372],
-    'saf': [32.2994, -9.2372],
-  }
-
-  const normalizedCity = city?.toLowerCase().trim()
-  return cityCenters[normalizedCity] || [33.5731, -7.5898] // Default: Casablanca
 }
 
 export default LocationPicker
