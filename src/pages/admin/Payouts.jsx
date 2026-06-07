@@ -24,8 +24,6 @@ import { subDays, format } from 'date-fns'
 // ============================================
 // Constants
 // ============================================
-const LARGE_AMOUNT_THRESHOLD = 10000 // 10,000 MAD requires dual approval
-
 const DATE_RANGES = [
   { id: '7d', labelKey: 'admin.payouts.dateRanges.7d', days: 7 },
   { id: '30d', labelKey: 'admin.payouts.dateRanges.30d', days: 30 },
@@ -53,8 +51,6 @@ const AdminPayouts = () => {
   const [auditLogs, setAuditLogs] = useState([])
   const [selectedPayout, setSelectedPayout] = useState(null)
   const [showAuditModal, setShowAuditModal] = useState(false)
-  const [showRejectModal, setShowRejectModal] = useState(false)
-  const [rejectionReason, setRejectionReason] = useState('')
   const [summary, setSummary] = useState({
     totalAmount: 0,
     totalCount: 0,
@@ -62,7 +58,6 @@ const AdminPayouts = () => {
     pendingCount: 0,
     completedAmount: 0,
     completedCount: 0,
-    requiresApprovalCount: 0,
   })
 
   // ============================================
@@ -85,7 +80,7 @@ const AdminPayouts = () => {
         .from('payouts')
         .select(`
           *,
-          vendor:profiles!payouts_vendor_id_fkey(id, first_name, last_name, email, store_name, phone)
+          user:profiles!payouts_user_id_fkey(id, first_name, last_name, email, store_name, phone)
         `)
         .order('created_at', { ascending: false })
 
@@ -112,7 +107,6 @@ const AdminPayouts = () => {
         pendingCount: allPayouts.filter(p => p.status === 'pending').length,
         completedAmount: allPayouts.filter(p => p.status === 'completed').reduce((sum, p) => sum + parseFloat(p.amount || 0), 0),
         completedCount: allPayouts.filter(p => p.status === 'completed').length,
-        requiresApprovalCount: allPayouts.filter(p => p.requires_second_approval && p.status === 'pending').length,
       })
 
       setLoading(false)
@@ -150,22 +144,17 @@ const AdminPayouts = () => {
   }
 
   // ============================================
-  // First Approval
+  // Update Status
   // ============================================
-  const handleFirstApproval = async (payoutId) => {
+  const handleUpdateStatus = async (payoutId, newStatus) => {
     setProcessing(payoutId)
     try {
       const payout = payouts.find(p => p.id === payoutId)
-      const requiresSecond = parseFloat(payout.amount) > LARGE_AMOUNT_THRESHOLD
+      const previousStatus = payout?.status || 'unknown'
 
       const { error } = await supabase
         .from('payouts')
-        .update({
-          status: requiresSecond ? 'pending' : 'approved',
-          requires_second_approval: requiresSecond,
-          first_approved_by: currentUser.id,
-          first_approved_at: new Date().toISOString(),
-        })
+        .update({ status: newStatus })
         .eq('id', payoutId)
 
       if (error) throw error
@@ -174,139 +163,30 @@ const AdminPayouts = () => {
       await supabase.rpc('log_financial_audit', {
         p_entity_type: 'payout',
         p_entity_id: payoutId,
-        p_action: 'first_approved',
-        p_previous_status: payout.status,
-        p_new_status: requiresSecond ? 'pending' : 'approved',
-        p_amount: payout.amount,
-        p_details: { approved_by: currentUser.id, requires_second: requiresSecond },
+        p_action: 'status_updated',
+        p_previous_status: previousStatus,
+        p_new_status: newStatus,
+        p_amount: payout?.amount || 0,
+        p_details: { updated_by: currentUser?.id, new_status: newStatus },
         p_reason: null,
       })
 
-      // Notify vendor
-      await supabase.from('notifications').insert({
-        user_id: payout.vendor_id,
-        title: requiresSecond ? 'Payout First Approval ✅' : 'Payout Approved ✅',
-        message: requiresSecond
-          ? `Your payout of ${formatPrice(payout.amount)} has received first approval. Awaiting second approval.`
-          : `Your payout of ${formatPrice(payout.amount)} has been approved and will be processed shortly.`,
-        type: 'payout',
-        data: { payout_id: payoutId, amount: payout.amount },
-      })
-
-      toast.success(requiresSecond
-        ? t('admin.payouts.toast.firstApprovalRecorded', 'First approval recorded. Awaiting second approval.')
-        : t('admin.payouts.toast.payoutApproved', 'Payout approved successfully!'))
-      loadPayouts()
-    } catch (error) {
-      logger.error('First approval error:', error)
-      toast.error(t('admin.payouts.errors.approveFailed', 'Failed to approve payout'))
-    } finally {
-      setProcessing(null)
-    }
-  }
-
-  // ============================================
-  // Second Approval (for large amounts)
-  // ============================================
-  const handleSecondApproval = async (payoutId) => {
-    setProcessing(payoutId)
-    try {
-      const payout = payouts.find(p => p.id === payoutId)
-
-      const { error } = await supabase
-        .from('payouts')
-        .update({
-          status: 'approved',
-          second_approved_by: currentUser.id,
-          second_approved_at: new Date().toISOString(),
+      // Notify user
+      if (payout?.user_id) {
+        await supabase.from('notifications').insert({
+          user_id: payout.user_id,
+          title: `Payout ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+          message: `Your payout of ${formatPrice(payout.amount)} has been updated to ${newStatus}.`,
+          type: 'payout',
+          data: { payout_id: payoutId, amount: payout.amount, status: newStatus },
         })
-        .eq('id', payoutId)
+      }
 
-      if (error) throw error
-
-      // Log audit
-      await supabase.rpc('log_financial_audit', {
-        p_entity_type: 'payout',
-        p_entity_id: payoutId,
-        p_action: 'second_approved',
-        p_previous_status: 'pending',
-        p_new_status: 'approved',
-        p_amount: payout.amount,
-        p_details: { second_approved_by: currentUser.id },
-        p_reason: null,
-      })
-
-      // Notify vendor
-      await supabase.from('notifications').insert({
-        user_id: payout.vendor_id,
-        title: 'Payout Fully Approved ✅',
-        message: `Your payout of ${formatPrice(payout.amount)} has received dual approval and will be processed.`,
-        type: 'payout',
-        data: { payout_id: payoutId, amount: payout.amount },
-      })
-
-      toast.success(t('admin.payouts.toast.secondApprovalRecorded', 'Second approval recorded. Payout is now fully approved!'))
+      toast.success(t('admin.payouts.toast.statusUpdated', 'Status updated'))
       loadPayouts()
     } catch (error) {
-      logger.error('Second approval error:', error)
-      toast.error(t('admin.payouts.errors.approveFailed', 'Failed to approve payout'))
-    } finally {
-      setProcessing(null)
-    }
-  }
-
-  // ============================================
-  // Reject Payout
-  // ============================================
-  const handleReject = async () => {
-    if (!selectedPayout || !rejectionReason.trim()) {
-      toast.error(t('admin.payouts.errors.rejectionReasonRequired', 'Please provide a rejection reason'))
-      return
-    }
-
-    setProcessing(selectedPayout.id)
-    try {
-      const { error } = await supabase
-        .from('payouts')
-        .update({
-          status: 'rejected',
-          rejected_by: currentUser.id,
-          rejection_reason: rejectionReason.trim(),
-          rejected_at: new Date().toISOString(),
-        })
-        .eq('id', selectedPayout.id)
-
-      if (error) throw error
-
-      // Log audit
-      await supabase.rpc('log_financial_audit', {
-        p_entity_type: 'payout',
-        p_entity_id: selectedPayout.id,
-        p_action: 'rejected',
-        p_previous_status: selectedPayout.status,
-        p_new_status: 'rejected',
-        p_amount: selectedPayout.amount,
-        p_details: { rejected_by: currentUser.id },
-        p_reason: rejectionReason.trim(),
-      })
-
-      // Notify vendor
-      await supabase.from('notifications').insert({
-        user_id: selectedPayout.vendor_id,
-        title: 'Payout Rejected ❌',
-        message: `Your payout request of ${formatPrice(selectedPayout.amount)} was rejected. Reason: ${rejectionReason}`,
-        type: 'payout',
-        data: { payout_id: selectedPayout.id, reason: rejectionReason },
-      })
-
-      toast.success(t('admin.payouts.toast.payoutRejected', 'Payout rejected'))
-      setShowRejectModal(false)
-      setSelectedPayout(null)
-      setRejectionReason('')
-      loadPayouts()
-    } catch (error) {
-      logger.error('Reject error:', error)
-      toast.error(t('admin.payouts.errors.rejectFailed', 'Failed to reject payout'))
+      logger.error('Status update error:', error)
+      toast.error(t('admin.payouts.errors.updateFailed', 'Failed to update status'))
     } finally {
       setProcessing(null)
     }
@@ -314,50 +194,16 @@ const AdminPayouts = () => {
 
   // ============================================
   // Process Payout (Bank Transfer)
-  // Delegates to the 'process-vendor-payout' Edge Function which
-  // enforces admin-only access and atomic audit logging server-side.
   // ============================================
   const handleProcessPayout = async (payoutId) => {
-    setProcessing(payoutId)
-    try {
-      const { data, error } = await supabase.functions.invoke('process-vendor-payout', {
-        body: { action: 'process', payoutId },
-      })
-
-      if (error) throw error
-      if (!data?.success) throw new Error(data?.error ?? 'Failed to process payout')
-
-      toast.success(t('admin.payouts.toast.processingStarted', 'Payout processing started. Ref: {{ref}}', { ref: data.referenceNumber }))
-      loadPayouts()
-    } catch (error) {
-      logger.error('Process payout error:', error)
-      toast.error(error.message || t('admin.payouts.errors.processFailed', 'Failed to process payout'))
-    } finally {
-      setProcessing(null)
-    }
+    await handleUpdateStatus(payoutId, 'processing')
   }
 
   // ============================================
   // Complete Payout
   // ============================================
   const handleCompletePayout = async (payoutId) => {
-    setProcessing(payoutId)
-    try {
-      const { data, error } = await supabase.functions.invoke('process-vendor-payout', {
-        body: { action: 'complete', payoutId },
-      })
-
-      if (error) throw error
-      if (!data?.success) throw new Error(data?.error ?? 'Failed to complete payout')
-
-      toast.success(t('admin.payouts.toast.payoutCompleted', 'Payout marked as completed'))
-      loadPayouts()
-    } catch (error) {
-      logger.error('Complete payout error:', error)
-      toast.error(t('admin.payouts.errors.completeFailed', 'Failed to complete payout'))
-    } finally {
-      setProcessing(null)
-    }
+    await handleUpdateStatus(payoutId, 'completed')
   }
 
   // ============================================
@@ -378,27 +224,17 @@ const AdminPayouts = () => {
         'Amount (MAD)',
         'Status',
         'Method',
-        'Orders Count',
-        'Period Start',
-        'Period End',
-        'First Approved By',
-        'Second Approved By',
         'Created At',
         'Notes',
       ]
 
       const rows = payouts.map(p => [
-        p.reference_number || p.id.slice(0, 8),
-        p.vendor?.store_name || `${p.vendor?.first_name || ''} ${p.vendor?.last_name || ''}`,
-        p.vendor?.email || '',
+        p.reference || p.id.slice(0, 8),
+        p.user?.store_name || `${p.user?.first_name || ''} ${p.user?.last_name || ''}`,
+        p.user?.email || '',
         parseFloat(p.amount).toFixed(2),
         p.status,
-        p.payout_method,
-        p.orders_count || 0,
-        p.period_start || '',
-        p.period_end || '',
-        p.first_approved_by ? 'Yes' : 'No',
-        p.second_approved_by ? 'Yes' : 'No',
+        p.payment_method,
         new Date(p.created_at).toLocaleString(),
         p.notes || '',
       ])
@@ -494,16 +330,16 @@ const AdminPayouts = () => {
                 <View style={[pdfStyles.tableRow, pdfStyles.tableHeader]}>
                   <Text style={pdfStyles.col1}>Reference</Text><Text style={pdfStyles.col2}>Vendor</Text>
                   <Text style={pdfStyles.col3}>Amount</Text><Text style={pdfStyles.col4}>Status</Text>
-                  <Text style={pdfStyles.col5}>Date</Text><Text style={pdfStyles.col6}>Approved By</Text>
+                  <Text style={pdfStyles.col5}>Date</Text><Text style={pdfStyles.col6}>Method</Text>
                 </View>
                 {p.slice(0, 50).map((payout, i) => (
                   <View key={i} style={pdfStyles.tableRow}>
-                    <Text style={pdfStyles.col1}>{payout.reference_number || payout.id.slice(0, 8)}</Text>
-                    <Text style={pdfStyles.col2}>{payout.vendor?.store_name || 'N/A'}</Text>
+                    <Text style={pdfStyles.col1}>{payout.reference || payout.id.slice(0, 8)}</Text>
+                    <Text style={pdfStyles.col2}>{payout.user?.store_name || 'N/A'}</Text>
                     <Text style={pdfStyles.col3}>{formatPrice(payout.amount)}</Text>
                     <Text style={pdfStyles.col4}>{payout.status}</Text>
                     <Text style={pdfStyles.col5}>{format(new Date(payout.created_at), 'dd/MM/yyyy')}</Text>
-                    <Text style={pdfStyles.col6}>{payout.second_approved_by ? 'Dual' : payout.first_approved_by ? 'Single' : '-'}</Text>
+                    <Text style={pdfStyles.col6}>{payout.payment_method || 'N/A'}</Text>
                   </View>
                 ))}
               </View>
@@ -548,10 +384,8 @@ const AdminPayouts = () => {
   const getStatusBadge = (status) => {
     const config = {
       pending: { color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon, labelKey: 'admin.payouts.status.pending' },
-      approved: { color: 'bg-green-100 text-green-800', icon: CheckCircleIcon, labelKey: 'admin.payouts.status.approved' },
       processing: { color: 'bg-blue-100 text-blue-800', icon: ArrowUpTrayIcon, labelKey: 'admin.payouts.status.processing' },
       completed: { color: 'bg-emerald-100 text-emerald-800', icon: CheckCircleIcon, labelKey: 'admin.payouts.status.completed' },
-      rejected: { color: 'bg-red-100 text-red-800', icon: XCircleIcon, labelKey: 'admin.payouts.status.rejected' },
       failed: { color: 'bg-gray-100 text-gray-800', icon: ExclamationTriangleIcon, labelKey: 'admin.payouts.status.failed' },
     }
     const { color, icon: Icon, labelKey } = config[status] || config.pending
@@ -611,10 +445,9 @@ const AdminPayouts = () => {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
             >
               <option value="pending">{t('admin.payouts.status.pending', 'Pending')}</option>
-              <option value="approved">{t('admin.payouts.status.approved', 'Approved')}</option>
               <option value="processing">{t('admin.payouts.status.processing', 'Processing')}</option>
               <option value="completed">{t('admin.payouts.status.completed', 'Completed')}</option>
-              <option value="rejected">{t('admin.payouts.status.rejected', 'Rejected')}</option>
+              <option value="failed">{t('admin.payouts.status.failed', 'Failed')}</option>
               <option value="all">{t('admin.payouts.filters.all', 'All')}</option>
             </select>
           </div>
@@ -627,11 +460,6 @@ const AdminPayouts = () => {
           <p className="text-sm text-gray-500 mb-1">{t('admin.payouts.stats.pendingPayouts', 'Pending Payouts')}</p>
           <p className="text-2xl font-bold text-gray-900">{formatPrice(summary.pendingAmount)}</p>
           <p className="text-xs text-gray-400 mt-1">{t('admin.payouts.stats.requests', '{{count}} requests', { count: summary.pendingCount })}</p>
-          {summary.requiresApprovalCount > 0 && (
-            <p className="text-xs text-orange-600 mt-1 font-medium">
-              {t('admin.payouts.stats.dualApprovalRequired', '{{count}} require dual approval', { count: summary.requiresApprovalCount })}
-            </p>
-          )}
         </Card>
         <Card className="p-6 border-l-4 border-blue-500">
           <p className="text-sm text-gray-500 mb-1">{t('admin.payouts.status.processing', 'Processing')}</p>
@@ -662,12 +490,9 @@ const AdminPayouts = () => {
       ) : (
         <div className="space-y-4">
           {payouts.map((payout) => {
-            const amount = parseFloat(payout.amount)
-            const requiresDual = amount > LARGE_AMOUNT_THRESHOLD
-            const canFirstApprove = payout.status === 'pending' && !payout.first_approved_by
-            const canSecondApprove = payout.status === 'pending' && payout.first_approved_by && payout.requires_second_approval && !payout.second_approved_by
-            const canProcess = payout.status === 'approved'
+            const canStartProcessing = payout.status === 'pending'
             const canComplete = payout.status === 'processing'
+            const canMarkFailed = payout.status === 'processing'
 
             return (
               <Card key={payout.id} className="p-6">
@@ -676,15 +501,9 @@ const AdminPayouts = () => {
                     <div className="flex items-center gap-3 mb-3">
                       <BanknotesIcon className="w-5 h-5 text-green-600" />
                       <h3 className="font-semibold text-gray-900">
-                        {payout.vendor?.store_name || `${payout.vendor?.first_name || ''} ${payout.vendor?.last_name || ''}`}
+                        {payout.user?.store_name || `${payout.user?.first_name || ''} ${payout.user?.last_name || ''}`}
                       </h3>
                       {getStatusBadge(payout.status)}
-                      {requiresDual && payout.status === 'pending' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                          <ExclamationTriangleIcon className="w-3 h-3" />
-                          {t('admin.payouts.badges.dualApprovalRequired', 'Dual Approval Required')}
-                        </span>
-                      )}
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -694,11 +513,11 @@ const AdminPayouts = () => {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">{t('admin.payouts.table.method', 'Method')}</p>
-                        <p className="text-sm font-medium text-gray-900 capitalize">{payout.payout_method}</p>
+                        <p className="text-sm font-medium text-gray-900 capitalize">{payout.payment_method}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-gray-500">{t('admin.payouts.table.orders', 'Orders')}</p>
-                        <p className="text-sm font-medium text-gray-900">{payout.orders_count || 0}</p>
+                        <p className="text-xs text-gray-500">{t('admin.payouts.table.reference', 'Reference')}</p>
+                        <p className="text-sm font-medium text-gray-900">{payout.reference || 'N/A'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500">{t('admin.payouts.table.created', 'Created')}</p>
@@ -706,18 +525,12 @@ const AdminPayouts = () => {
                       </div>
                     </div>
 
-                    {payout.vendor?.email && (
-                      <p className="text-xs text-gray-500 mt-2">{payout.vendor.email}</p>
+                    {payout.user?.email && (
+                      <p className="text-xs text-gray-500 mt-2">{payout.user.email}</p>
                     )}
 
-                    {payout.rejection_reason && (
-                      <div className="mt-3 p-2 bg-red-50 rounded text-xs text-red-700">
-                        <strong>{t('admin.payouts.table.rejectionReason', 'Rejection Reason')}:</strong> {payout.rejection_reason}
-                      </div>
-                    )}
-
-                    {payout.reference_number && (
-                      <p className="text-xs text-gray-500 mt-1">Ref: {payout.reference_number}</p>
+                    {payout.reference && (
+                      <p className="text-xs text-gray-500 mt-1">Ref: {payout.reference}</p>
                     )}
                   </div>
 
@@ -730,33 +543,13 @@ const AdminPayouts = () => {
                       <EyeIcon className="w-5 h-5" />
                     </button>
 
-                    {canFirstApprove && (
-                      <button
-                        onClick={() => handleFirstApproval(payout.id)}
-                        disabled={processing === payout.id}
-                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
-                      >
-                        {processing === payout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.actions.approve1st', 'Approve (1st)')}
-                      </button>
-                    )}
-
-                    {canSecondApprove && (
-                      <button
-                        onClick={() => handleSecondApproval(payout.id)}
-                        disabled={processing === payout.id}
-                        className="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50"
-                      >
-                        {processing === payout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.actions.approve2nd', 'Approve (2nd)')}
-                      </button>
-                    )}
-
-                    {canProcess && (
+                    {canStartProcessing && (
                       <button
                         onClick={() => handleProcessPayout(payout.id)}
                         disabled={processing === payout.id}
                         className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
                       >
-                        {processing === payout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.actions.processTransfer', 'Process Transfer')}
+                        {processing === payout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.actions.startProcessing', 'Start Processing')}
                       </button>
                     )}
 
@@ -770,16 +563,13 @@ const AdminPayouts = () => {
                       </button>
                     )}
 
-                    {payout.status === 'pending' && (
+                    {canMarkFailed && (
                       <button
-                        onClick={() => {
-                          setSelectedPayout(payout)
-                          setShowRejectModal(true)
-                        }}
+                        onClick={() => handleUpdateStatus(payout.id, 'failed')}
                         disabled={processing === payout.id}
                         className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
                       >
-                        {t('admin.payouts.actions.reject', 'Reject')}
+                        {processing === payout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.actions.markFailed', 'Mark Failed')}
                       </button>
                     )}
                   </div>
@@ -787,49 +577,6 @@ const AdminPayouts = () => {
               </Card>
             )
           })}
-        </div>
-      )}
-
-      {/* Reject Modal */}
-      {showRejectModal && selectedPayout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="max-w-md w-full p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">{t('admin.payouts.rejectModal.title', 'Reject Payout')}</h2>
-            <p className="text-sm text-gray-600 mb-4">
-              {t('admin.payouts.rejectModal.warning', 'Rejecting payout of {{amount}} for {{vendor}}', {
-                amount: formatPrice(selectedPayout.amount),
-                vendor: selectedPayout.vendor?.store_name || 'N/A'
-              })}
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">{t('admin.payouts.rejectModal.reasonLabel', 'Rejection Reason *')}</label>
-                <textarea
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder={t('admin.payouts.rejectModal.reasonPlaceholder', 'Provide a detailed reason for rejection...')}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                  required
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setShowRejectModal(false); setSelectedPayout(null); setRejectionReason('') }}
-                  className="flex-1 py-2 px-4 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50"
-                >
-                  {t('common.cancel', 'Cancel')}
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={processing === selectedPayout.id || !rejectionReason.trim()}
-                  className="flex-1 py-2 px-4 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
-                  {processing === selectedPayout.id ? t('admin.payouts.actions.processing', 'Processing...') : t('admin.payouts.rejectModal.confirmReject', 'Confirm Rejection')}
-                </button>
-              </div>
-            </div>
-          </Card>
         </div>
       )}
 
@@ -851,10 +598,10 @@ const AdminPayouts = () => {
               <p className="text-sm font-medium text-gray-900">
                 {t('admin.payouts.auditModal.payoutInfo', 'Payout: {{amount}} | {{vendor}}', {
                   amount: formatPrice(selectedPayout.amount),
-                  vendor: selectedPayout.vendor?.store_name || 'N/A'
+                  vendor: selectedPayout.user?.store_name || 'N/A'
                 })}
               </p>
-              <p className="text-xs text-gray-500">{t('admin.payouts.auditModal.ref', 'Ref: {{ref}}', { ref: selectedPayout.reference_number || selectedPayout.id.slice(0, 8) })}</p>
+              <p className="text-xs text-gray-500">{t('admin.payouts.auditModal.ref', 'Ref: {{ref}}', { ref: selectedPayout.reference || selectedPayout.id.slice(0, 8) })}</p>
             </div>
 
             {auditLogs.length === 0 ? (
