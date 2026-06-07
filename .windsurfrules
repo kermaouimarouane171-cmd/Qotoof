@@ -1,0 +1,207 @@
+# .windsurfrules — Qotoof (قطوف) Marketplace
+
+> هذا الملف يحكم طريقة عمل المساعد التقني داخل هذا المشروع تحديدًا.
+> القواعد هنا ليست عامة فقط، بل مبنية على البنية الحقيقية المكتشفة في الكود.
+> المشروع: تطبيق Marketplace باسم Qotoof (قطوف) — سوق جملة B2B للمنتجات الطازجة في المغرب.
+> اسم الحزمة في package.json: "qotoof". لا تغيّر الاسم إلا بطلب صريح.
+
+---
+
+## 0. الحقائق المرجعية للمشروع (لا تفترض غيرها دون دليل)
+
+- المسار الجذري للمشروع: `/home/marouane/Downloads/ chafi3-marouane-kermaoui/greenmarket`
+- لاحظ أن مسار الـ workspace يحتوي على مسافة بعد `Downloads/`. استخدم اقتباسًا مزدوجًا دائمًا في أوامر الـ shell.
+- Frontend: React 18 + Vite 6 + React Router v6 (`react-router-dom` ^6.26).
+- State: Zustand (مع `persist`) — المتجر الرئيسي `src/store/authStore.js`.
+- Data fetching: `@tanstack/react-query` v5.
+- DB/Auth/Realtime: Supabase (`@supabase/supabase-js` ^2.45) عبر `src/services/supabase.ts`.
+- Backend إضافي: خادم Express صغير في `src/api/` (مسارات driver فقط حاليًا) — موثّق بأن فيه `DEPRECATION_PLAN.md`.
+- الأدوار: معرّفة في `src/constants/roles.js` → `admin`, `vendor`, `buyer`, `driver`, `guest`.
+- ملاحظة عدم اتساق مؤكدة: `src/api/middleware/auth.js` يستخدم دور `seller` بينما باقي التطبيق يستخدم `vendor`. لا توحّدهما إلا بتحليل وتأكيد صريح.
+- i18n: `i18next` + `react-i18next`، اللغة الأساسية عربية RTL.
+- Tests: Jest (`jest.config.js`) للـ unit/integration + Cypress للـ e2e.
+- CI: `.github/workflows/ci.yml` (lint:ci → jest → snapshots → build → bundle size → lighthouse). CD: `cd.yml`. Node 22، `npm ci --legacy-peer-deps`.
+- Build/Deploy: Vite build + Firebase Hosting (`firebase.json`)، PWA عبر `vite-plugin-pwa`، Android عبر Capacitor (`capacitor.config.ts`).
+- Payments: PayPal (`@paypal/react-paypal-js`) + CMI (`src/services/cmiPayment.js`)، مع PaymentGuard في `src/contexts/PaymentGuard.jsx`.
+
+---
+
+## 1. قواعد عامة للعمل
+
+- أنت مسؤول عن جودة المشروع وحمايته، ولست مجرد منفذ أوامر.
+- اعمل بأصغر تغيير ممكن يحقق الهدف. لا refactor كبير دون ضرورة ومبرر.
+- لا تلمس عددًا كبيرًا من الملفات دفعة واحدة. ركّز التغيير.
+- قل الحقيقة دائمًا حتى لو كانت سيئة. لا تخفِ المخاطر ولا المشاكل غير المفحوصة.
+
+## 2. قواعد التحليل قبل التنفيذ
+
+- افهم المشروع/الملف قبل أي تعديل. اقرأ الملف فعليًا قبل تعديله.
+- حدّد السبب الجذري قبل الإصلاح، لا الأعراض.
+- عند وجود أكثر من حل، اختر الأكثر أمانًا والأقل تغييرًا والأكثر قابلية للاختبار.
+
+## 3. قواعد منع الافتراضات
+
+- لا تفترض أي شيء دون دليل من الكود أو الأوامر أو الملفات.
+- إذا لم تكن متأكدًا، قل صراحة: "غير مؤكد" أو "لم أجد دليلًا كافيًا".
+- لا تخترع نتائج اختبارات أبدًا. إذا لم تُشغّل اختبارًا، قل ذلك ووضّح السبب.
+- لا تشِر إلى دوال/أعمدة/جداول/متغيرات غير موجودة فعلًا في الكود.
+
+## 4. قواعد التعامل مع Git
+
+- لا تعمل `commit` أو `push` إلا بطلب صريح من المستخدم.
+- شغّل كل أوامر git من داخل مجلد المشروع الصحيح فقط (الجذر أعلاه)، واستخدم اقتباسًا للمسار.
+- ممنوع `git add .`. أضِف الملفات المقصودة بالاسم فقط.
+- لا تضف `cypress/downloads/` أو ملفات مولّدة (coverage/, dist/, *.log) إلى أي commit.
+- إذا فشل أمر git (مثل `fatal: not a git repository`)، توقف فورًا ولا تكرّره. فسّر السبب.
+- إذا فشل نفس الأمر مرتين لنفس السبب، توقف نهائيًا واشرح.
+
+## 5. قواعد التعامل مع Supabase
+
+- نقطة الوصول الوحيدة هي `src/services/supabase.ts` (تصدير `supabase` و`supabaseWithRetry`). لا تنشئ عميل Supabase جديدًا.
+- لا تشغّل migrations أو سكربتات `database/` أو `scripts/supabase-*` تلقائيًا. تتطلب تحليلًا وتأكيدًا صريحًا.
+- لا تلمس مفاتيح/أسرار: `.env`, `.env.local`, `.env.production`. استخدم `.env.example` للمرجع فقط.
+- احترم منطق `SupabaseHealthMonitor` و`withRetry`؛ لا تلتف حول إعادة المحاولة دون سبب.
+
+## 6. قواعد التعامل مع RLS
+
+- ملفات RLS في `migrations/SUPABASE_FIX_RLS_*.sql` و`database/fix-rls.sql` حسّاسة جدًا.
+- لا تعدّل أي سياسة RLS إلا بتحليل واضح يوضّح: الجدول، السياسة الحالية، الخطر، والتغيير الأدنى.
+- أي تغيير RLS يجب أن يُرفق باختبار أو خطة تحقق يدوية واضحة. لا تفترض نجاحه.
+
+## 7. قواعد التعامل مع Auth
+
+- مصدر الحقيقة لحالة المصادقة: `src/store/authStore.js` + `src/store/authSessionStore.js` + `src/services/authActionsService.js`.
+- أي مسار محمي يمرّ عبر `src/components/ProtectedRoute.jsx`. لا تكرّر منطق الحماية في الصفحات.
+- انتبه لمنطق الـ loading/timeout وحالات `profileError` و`profileNotYetLoaded`: تغييرها بإهمال يسبب حلقات إعادة توجيه لا نهائية (تاريخ المشروع يحتوي عدة إصلاحات لهذه الحلقات).
+- لا تلمس تدفّق OTP/verify-email/MFA دون تحليل؛ هناك إصلاحات سابقة حسّاسة (`fix(auth): prevent verify email OTP redirect loop`).
+
+## 8. قواعد التعامل مع Roles
+
+- استخدم دائمًا `USER_ROLES` من `src/constants/roles.js`. لا تستخدم سلاسل نصية حرّة للأدوار.
+- الحماية في `AppRouter.jsx` تعتمد `allowedRoles` و`requiredRole`. حافظ على هذا النمط.
+- لا توحّد التضارب بين `seller` (في `src/api/middleware/auth.js`) و`vendor` دون تأكيد صريح.
+
+## 9. قواعد التعامل مع Payments
+
+- مزوّدا الدفع: PayPal و CMI. منطق التأهّل في `src/utils/paypalEligibility.js` والحارس في `src/contexts/PaymentGuard.jsx`.
+- لا تعدّل منطق الدفع أو العمولات (`commissionService.js`, `payoutService.js`, `paymentService.js`, `cmiPayment.js`) إلا بتحليل مبرّر واختبار.
+- احترم مسارات الـ bypass في `PaymentGuard` (settings/digital-contract/onboarding) — تغييرها يحجب المستخدمين.
+
+## 10. قواعد التعامل مع Orders
+
+- منطق الطلبات في `src/services/ordersService.ts` و`src/services/checkoutService.js` و`src/features/orders`.
+- لا تغيّر آلية انتقالات حالة الطلب دون فهم كامل لتأثيرها على buyer/vendor/driver/admin.
+
+## 11. قواعد التعامل مع Products
+
+- منطق المنتجات في `src/services/` (مثل `productImages.js`, `inventoryService.js`) و`src/domains/catalog` و`src/pages/vendor`.
+- احترم تدفّق الموافقة على المنتجات (`migrations/SUPABASE_APPROVE_PRODUCTS.sql`).
+
+## 12. قواعد صفحات البائع (Vendor)
+
+- التخطيط في `VendorLayout` داخل `ProtectedRoute.jsx`. انتبه لبوابة العقد الرقمي: `mustSignContract` تعتمد `profile !== null` لتجنّب حلقة إعادة توجيه.
+- صفحة `VendorSettings` حسّاسة (إصلاحات متعددة لحفظ الإعدادات والتفعيل). أي تغيير يتطلب اختبار payload (يوجد `src/__tests__/pages/VendorSettings.payload.test.js`).
+
+## 13. قواعد صفحات المشتري (Buyer)
+
+- انتبه لمنطق `buyerNeedsOnboarding` و`buyerPublicPaths` في `ProtectedRoute.jsx`؛ لا تكسر الوصول إلى marketplace/cart/checkout.
+
+## 14. قواعد صفحات السائق (Driver)
+
+- ميزات السائق موزّعة بين Frontend (`src/pages/driver`) وخادم Express (`src/api/.../driver.*`). تحقّق من الجانبين قبل التعديل.
+- منطق المطابقة/التوزيع في `deliveryMatchingService.js`, `autoDispatch.js`, `driverLocationService.js` حسّاس.
+
+## 15. قواعد صفحات الإدارة (Admin)
+
+- لوحة الإدارة واسعة (انظر `adminLinks` في `ProtectedRoute.jsx`). تغيير صفحة admin يجب ألّا يكسر التحقق من دور `admin`.
+
+## 16. قواعد UI/UX
+
+- استخدم TailwindCSS والمكوّنات الموجودة في `src/components/ui` قبل إنشاء مكوّنات جديدة.
+- حافظ على نمط dark mode (`dark:`) الموجود.
+- لا تضف أيقونات/مكتبات جديدة إذا كانت `@heroicons/react` تكفي.
+
+## 17. قواعد RTL / العربية
+
+- اللغة الافتراضية عربية والاتجاه RTL (`dir="rtl"`). حافظ على الاتجاه والتناسق البصري.
+- لا تضع نصوصًا مكتوبة مباشرة (hard-coded) عندما يوجد مفتاح `t(...)`. استخدم i18n.
+- لاحظ أن بعض الترويسات تستخدم `dir="ltr"` عمدًا لتخطيط معيّن؛ لا تقلبها دون فهم.
+- خطوط: Cairo/Tajawal مستخدمة عمدًا؛ حافظ عليها.
+
+## 18. قواعد الاختبارات (عام)
+
+- كل برومت تنفيذي (إصلاح/ميزة) يجب أن ينتج عنه اختبار حقيقي جديد أو تحديث اختبار قائم، إلا إذا كان البرومت تحليليًا فقط.
+- لا تحذف أو تُضعف اختبارًا قائمًا دون إذن صريح.
+- ضع/حدّث الاختبار قبل أو مع التعديل، لا بعده كإجراء شكلي.
+
+## 19. قواعد Cypress
+
+- اختبارات e2e في `cypress/e2e/` (نمط `*.cy.js`). يوجد `page-health-*` لكل دور.
+- لا تشغّل Cypress تلقائيًا (يتطلب متصفح/بيئة). وفّر الأمر للمستخدم: `npm run test:cypress:run` أو spec محدد.
+- لا تضف نتائج Cypress المولّدة (`cypress/downloads/`, screenshots, videos) إلى git.
+
+## 20. قواعد Unit Tests
+
+- اختبارات الوحدة في `src/__tests__/` و`src/**/__tests__/` (نمط `*.test.js(x)`).
+- أمر التشغيل: `npm test` أو `npm run test:unit`. الأمر المستهدف: `npm test -- <path>`.
+- لا تشغّل الاختبار الكامل تلقائيًا إن كان طويلًا؛ شغّل الملف المعني فقط ووضّح ذلك.
+
+## 21. قواعد Build / Lint
+
+- لا تشغّل `npm install`/`npm update`/`npm audit fix`/`npm run build`/`npm run lint` في مرحلة تحليلية.
+- عتبة lint الحالية: `--max-warnings 1500` (وضع متساهل مؤقت). لا تخفض/ترفع العتبة دون إذن.
+- إذا أضفت كودًا، تأكد أنه لا يزيد التحذيرات بشكل كبير.
+
+## 22. قواعد Security
+
+- لا تطبع/تكشف أسرارًا أو مفاتيح API أبدًا. لا تضع أسرارًا في الكود (انظر `.github/SECRETS_REQUIRED.md`).
+- استخدم `dompurify` لأي محتوى HTML من المستخدم. لا تستخدم `dangerouslySetInnerHTML` دون تعقيم.
+- احترم `rateLimiter.js`, `ipBlocking.js`, `vendorSecurity.js` ولا تلتف حولها.
+
+## 23. قواعد Performance
+
+- حافظ على lazy-loading للصفحات في `AppRouter.jsx` (كل صفحة `lazy`).
+- انتبه لفحص حجم الحزمة في CI (`build:check`). لا تستورد مكتبات ثقيلة دون داعٍ.
+
+## 24. قواعد Documentation
+
+- لا تنشئ ملفات `.md` توثيقية جديدة دون طلب؛ المشروع مكتظ بها أصلًا.
+- إن لزم، حدّث الوثائق القائمة ذات الصلة بدل إنشاء ملفات مكرّرة.
+
+## 25. قواعد Reporting
+
+- بعد كل مهمة قدّم تقريرًا واضحًا: ما فُحص، ما تغيّر، أي اختبار أُضيف/شُغّل، وما المخاطر المتبقية.
+- ميّز بوضوح بين "تم التحقق" و"غير مؤكد".
+
+## 26. قواعد التعامل مع الأخطاء
+
+- استخدم `react-error-boundary` والأنماط الموجودة. لا تبتلع الأخطاء بصمت.
+- استخدم `logger` من `src/utils/logger.js` بدل `console.*` المباشر حيث أمكن.
+- Sentry مفعّل (`@sentry/react`); لا تعطّله.
+
+## 27. قواعد منع الحلقات المتكررة
+
+- لا تكرّر أمرًا فاشلًا في حلقة. إذا فشل أمر مرتين لنفس السبب، توقف وفسّر.
+- لا تشغّل أوامر git/مسارات قبل التأكد من المسار الصحيح (`pwd` + وجود `.git`).
+
+## 28. قواعد عدم الكذب أو إخفاء المشاكل
+
+- لا تقل "كل شيء جيد" إذا كانت هناك مخاطر أو أجزاء غير مفحوصة.
+- لا تدّعِ أن مشكلة حُلّت إلا إذا تحقّقت الشروط في القاعدة 29.
+
+## 29. قواعد إنشاء اختبار لكل إصلاح
+
+لا تعتبر مشكلة محلولة إلا إذا:
+1. عرفت سببها الجذري.
+2. أصلحتها بأصغر تعديل ممكن.
+3. أنشأت/عدّلت اختبارًا حقيقيًا يمنع عودتها.
+4. شغّلت الاختبار المناسب، أو وضّحت بدقة لماذا لم يُشغّل.
+
+## 30. قواعد متى تتوقف وتسأل المستخدم
+
+توقّف واسأل قبل المتابعة عندما:
+- يتطلب التغيير لمس Supabase/RLS/Auth/Payments/migrations.
+- يكون هناك أكثر من حل معقول بمقايضات مهمة.
+- يتطلب التغيير حذف ملف أو إعادة هيكلة واسعة.
+- تكون النية غير واضحة أو الأدلة غير كافية.
+- يُطلب commit/push (لا يتم إلا بإذن صريح لكل مرة).
