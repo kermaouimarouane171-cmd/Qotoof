@@ -99,6 +99,12 @@ class AuditLogger {
         userId = user?.id
       }
 
+      // Skip audit log if we still have no user_id — RLS requires auth.uid() = user_id
+      if (!userId) {
+        logger.warn('Audit log skipped: user_id is null')
+        return false
+      }
+
       // Get device info
       getDeviceInfo()
       const deviceFingerprint = await generateDeviceFingerprint()
@@ -116,8 +122,11 @@ class AuditLogger {
       }
       const signature = await createSignature(signatureData, userId)
 
-      // Create audit log entry
+      // Create audit log entry — map metadata into details (metadata column does not exist in DB)
       const resolvedMetadata = metadata ?? _metadata ?? null
+      const details = resolvedMetadata && Object.keys(resolvedMetadata).length > 0
+        ? resolvedMetadata
+        : null
       const auditLog = {
         user_id: userId,
         action,
@@ -131,9 +140,7 @@ class AuditLogger {
         device_fingerprint: deviceFingerprint,
         session_id: session?.access_token?.substring(0, 50) || null,
         signature: signature.hash,
-        metadata: resolvedMetadata && Object.keys(resolvedMetadata).length > 0
-          ? resolvedMetadata
-          : null,
+        details,
       }
 
       // If online, send immediately
