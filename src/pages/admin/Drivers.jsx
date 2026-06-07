@@ -62,7 +62,13 @@ const AdminDrivers = () => {
 
       if (driversRes.error) throw driversRes.error
       if (locationsRes.error) throw locationsRes.error
-      if (pendingRes.error) throw pendingRes.error
+      if (pendingRes.error) {
+        if (pendingRes.error.code === '42P01' || String(pendingRes.error.message).includes('does not exist')) {
+          logger.warn('driver_verification_documents table not found, skipping pending count')
+        } else {
+          throw pendingRes.error
+        }
+      }
 
       const driversList = driversRes.data || []
       const locationsList = locationsRes.data || []

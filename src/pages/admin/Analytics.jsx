@@ -86,7 +86,7 @@ const AdminAnalyticsPage = () => {
       // Orders dataset used for time-series, status pie, vendors and buyers aggregations.
       const { data: ordersRows, error: ordersError } = await supabase
         .from('orders')
-        .select('id, status, created_at, buyer_id, vendor_id, total, total_amount', { count: 'exact' })
+        .select('id, status, created_at, buyer_id, vendor_id, total', { count: 'exact' })
         .gte('created_at', startIso)
         .lte('created_at', endIso)
 
