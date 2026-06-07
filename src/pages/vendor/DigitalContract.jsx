@@ -31,7 +31,6 @@ import { MOROCCAN_BANKS } from '@/constants/banks'
 import { APP_CONFIG, getWhatsappUrl } from '@/config/appConfig'
 import toast from 'react-hot-toast'
 import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
-import { completeOnboarding } from '@/services/onboardingService'
 
 const COMMISSION_PERCENT = (APP_CONFIG.commissionRate * 100).toFixed(0)
 
@@ -161,7 +160,7 @@ const DigitalContract = () => {
       return
     }
 
-    if (profile?.agreement_accepted) {
+    if (profile?.agreement_accepted && profile?.onboarding_completed) {
       navigate('/vendor/dashboard', { replace: true })
       return
     }
@@ -184,12 +183,16 @@ const DigitalContract = () => {
       const existingContract = existingContracts?.[0] || null
 
       if (existingContract?.id) {
+        const nowIso = new Date().toISOString()
+
         useAuthStore.setState((state) => ({
           ...state,
           profile: {
             ...state.profile,
             agreement_accepted: true,
-            agreement_accepted_at: new Date().toISOString(),
+            agreement_accepted_at: nowIso,
+            onboarding_completed: true,
+            onboarding_step: 100,
           },
         }))
 
@@ -197,7 +200,9 @@ const DigitalContract = () => {
           .from('profiles')
           .update({
             agreement_accepted: true,
-            agreement_accepted_at: new Date().toISOString(),
+            agreement_accepted_at: nowIso,
+            onboarding_completed: true,
+            onboarding_step: 100,
           })
           .eq('id', user.id)
 
@@ -287,14 +292,10 @@ const DigitalContract = () => {
           is_active: true,
           onboarding_completed: true,
           onboarding_step: 100,
-          paypal_email: form.paypal_email.trim().toLowerCase(),
-          payout_method: 'paypal',
         })
         .eq('id', user.id)
 
       if (updateProfileError) throw updateProfileError
-
-      await completeOnboarding(user.id)
 
       useAuthStore.setState((state) => ({
         ...state,
@@ -305,8 +306,6 @@ const DigitalContract = () => {
           is_active: true,
           onboarding_completed: true,
           onboarding_step: 100,
-          paypal_email: form.paypal_email.trim().toLowerCase(),
-          payout_method: 'paypal',
         },
       }))
 

@@ -261,7 +261,7 @@ describe('صفحة تفعيل حساب البائع /vendor/digital-contract', (
     expect(screen.getByText(/عمولة التطبيق/)).toBeInTheDocument()
   })
 
-  it('يحفظ agreement_accepted و onboarding_completed و paypal_email في profiles', async () => {
+  it('يحفظ agreement_accepted و onboarding_completed و onboarding_step في profiles بدون أعمدة PayPal', async () => {
     const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
     const updateSpy = jest.fn().mockReturnValue({
       eq: jest.fn().mockResolvedValue({ error: null }),
@@ -294,10 +294,12 @@ describe('صفحة تفعيل حساب البائع /vendor/digital-contract', (
         agreement_accepted: true,
         onboarding_completed: true,
         onboarding_step: 100,
-        paypal_email: 'ahmed.paypal@example.ma',
-        payout_method: 'paypal',
       }),
     )
+
+    const updatePayload = updateSpy.mock.calls[0][0]
+    expect(updatePayload).not.toHaveProperty('paypal_email')
+    expect(updatePayload).not.toHaveProperty('payout_method')
 
     confirmSpy.mockRestore()
   })
