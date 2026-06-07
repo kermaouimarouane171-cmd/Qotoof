@@ -5,9 +5,12 @@ import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
 import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator'
 import { usePaymentGuard } from '@/contexts/PaymentGuard'
+import { VendorLayout } from '@/components/ProtectedRoute'
+import { Outlet } from 'react-router-dom'
 
 jest.mock('@/components/Navbar', () => () => null)
 jest.mock('@/components/notifications/NotificationLink', () => () => null)
+jest.mock('react-hot-toast', () => jest.fn())
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -197,5 +200,55 @@ describe('ProtectedRoute (real component)', () => {
     expect(screen.getByText('Retry')).toBeInTheDocument()
 
     jest.useRealTimers()
+  })
+})
+
+describe('VendorLayout digital-contract gate', () => {
+  const vendorAuth = {
+    user: { id: 'vendor-1', email: 'vendor@example.com' },
+    profile: { id: 'profile-vendor', role: 'vendor', agreement_accepted: false },
+    loading: false,
+    profileLoading: false,
+    profileError: false,
+    mfaRequired: false,
+    mfaPending: false,
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    useAuthStore.mockReturnValue(vendorAuth)
+    useOnboardingGate.mockReturnValue({ isBlocking: false })
+    usePaymentGuard.mockReturnValue({ shouldRedirect: false, redirectTo: null, message: null })
+  })
+
+  it('redirects unsigned vendor from /vendor/products to /vendor/digital-contract', () => {
+    render(
+      <MemoryRouter initialEntries={['/vendor/products']}>
+        <Routes>
+          <Route path="/vendor" element={<VendorLayout />}>
+            <Route path="products" element={<div data-testid="products-page">Products</div>} />
+            <Route path="digital-contract" element={<div data-testid="contract-page">Contract</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByTestId('products-page')).not.toBeInTheDocument()
+    expect(screen.getByTestId('contract-page')).toBeInTheDocument()
+  })
+
+  it('does not redirect loop when vendor is already on /vendor/digital-contract', () => {
+    render(
+      <MemoryRouter initialEntries={['/vendor/digital-contract']}>
+        <Routes>
+          <Route path="/vendor" element={<VendorLayout />}>
+            <Route path="products" element={<div data-testid="products-page">Products</div>} />
+            <Route path="digital-contract" element={<div data-testid="contract-page">Contract</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByTestId('contract-page')).toBeInTheDocument()
   })
 })
