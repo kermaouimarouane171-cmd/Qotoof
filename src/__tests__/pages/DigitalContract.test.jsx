@@ -260,4 +260,45 @@ describe('صفحة تفعيل حساب البائع /vendor/digital-contract', (
 
     expect(screen.getByText(/عمولة التطبيق/)).toBeInTheDocument()
   })
+
+  it('يحفظ agreement_accepted و onboarding_completed و paypal_email في profiles', async () => {
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true)
+    const updateSpy = jest.fn().mockReturnValue({
+      eq: jest.fn().mockResolvedValue({ error: null }),
+    })
+
+    mockSupabaseFrom.mockImplementation((tableName) => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+      update: tableName === 'profiles' ? updateSpy : jest.fn().mockReturnThis(),
+    }))
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByTestId('digital-contract-page')).toBeInTheDocument()
+    })
+
+    await fillRequiredFields()
+
+    fireEvent.click(screen.getByTestId('sign-contract-button'))
+
+    await waitFor(() => {
+      expect(mockToast.success).toHaveBeenCalledWith('تم توقيع العقد بنجاح، يمكنك الآن البدء في البيع')
+    })
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agreement_accepted: true,
+        onboarding_completed: true,
+        onboarding_step: 100,
+        paypal_email: 'ahmed.paypal@example.ma',
+        payout_method: 'paypal',
+      }),
+    )
+
+    confirmSpy.mockRestore()
+  })
 })

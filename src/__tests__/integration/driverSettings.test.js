@@ -70,6 +70,8 @@ const saveDriverSettings = async ({ userId, profileState, oldData }) => {
     driver_delivery_payment_cash: profileState.driverDeliveryPaymentCash,
     driver_delivery_payment_transfer: profileState.driverDeliveryPaymentTransfer,
     driver_delivery_payment_notes: profileState.driverDeliveryPaymentNotes || null,
+    paypal_email: profileState.paypalEmail?.trim().toLowerCase() || null,
+    payout_method: 'paypal',
   }
 
   const { error } = await profilesService.updateProfile(userId, updatePayload)

@@ -285,6 +285,10 @@ const DigitalContract = () => {
           agreement_accepted: true,
           agreement_accepted_at: nowIso,
           is_active: true,
+          onboarding_completed: true,
+          onboarding_step: 100,
+          paypal_email: form.paypal_email.trim().toLowerCase(),
+          payout_method: 'paypal',
         })
         .eq('id', user.id)
 
@@ -301,6 +305,8 @@ const DigitalContract = () => {
           is_active: true,
           onboarding_completed: true,
           onboarding_step: 100,
+          paypal_email: form.paypal_email.trim().toLowerCase(),
+          payout_method: 'paypal',
         },
       }))
 

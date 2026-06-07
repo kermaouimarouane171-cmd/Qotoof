@@ -237,6 +237,8 @@ const VendorSettings = () => {
           longitude: storeLocation.lng,
           store_address: storeLocation.address || null,
         } : {}),
+        paypal_email: paypalEmail.trim().toLowerCase(),
+        payout_method: 'paypal',
       })
 
       if (error) throw error
@@ -261,6 +263,8 @@ const VendorSettings = () => {
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
           payment_policy_cod: paymentPolicies.cod,
+          paypal_email: paypalEmail.trim().toLowerCase(),
+          payout_method: 'paypal',
         }
       })
       setCancellationPolicy(savedCancellationPolicy)

@@ -358,6 +358,8 @@ describe('Vendor settings integration', () => {
           payment_policy_cod: true,
           latitude: 33.57,
           longitude: -7.59,
+          paypal_email: 'vendor@greenatlas.ma',
+          payout_method: 'paypal',
         }),
       )
     })

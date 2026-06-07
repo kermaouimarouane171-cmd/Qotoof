@@ -3491,6 +3491,9 @@ export type Database = {
         partnership_notes: string | null
         partnership_status: string | null
         partnership_updated_at: string | null
+        paypal_email: string | null
+        paypal_verified: boolean | null
+        payout_method: string | null
         paused_active_products: string[] | null
         payment_policy_cod: boolean | null
         payment_policy_full: boolean | null
@@ -3625,6 +3628,9 @@ export type Database = {
         partnership_notes?: string | null
         partnership_status?: string | null
         partnership_updated_at?: string | null
+        paypal_email?: string | null
+        paypal_verified?: boolean | null
+        payout_method?: string | null
         paused_active_products?: string[] | null
         payment_policy_cod?: boolean | null
         payment_policy_full?: boolean | null
@@ -3759,6 +3765,9 @@ export type Database = {
         partnership_notes?: string | null
         partnership_status?: string | null
         partnership_updated_at?: string | null
+        paypal_email?: string | null
+        paypal_verified?: boolean | null
+        payout_method?: string | null
         paused_active_products?: string[] | null
         payment_policy_cod?: boolean | null
         payment_policy_full?: boolean | null
