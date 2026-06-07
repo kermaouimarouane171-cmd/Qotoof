@@ -47,7 +47,7 @@ const AdminDrivers = () => {
       const [driversRes, locationsRes, pendingRes] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, first_name, last_name, email, phone, city, vehicle_type, vehicle_plate, license_verified, insurance_verified, license_expiry_date, insurance_expiry_date, is_available_for_delivery, created_at')
+          .select('id, first_name, last_name, email, phone, city, vehicle_type, vehicle_plate, is_available_for_delivery, created_at')
           .eq('role', 'driver')
           .order('created_at', { ascending: false }),
         supabase
@@ -82,7 +82,9 @@ const AdminDrivers = () => {
       setDrivers(driversWithLocation)
       setActiveDrivers(locationsList)
 
-      const verifiedCount = driversList.filter(d => d.license_verified && d.insurance_verified).length
+      // Columns license_verified / insurance_verified do not exist in DB schema;
+      // treat missing data as unverified (safe fallback)
+      const verifiedCount = driversList.filter(d => !!d.license_verified && !!d.insurance_verified).length
       setStats({
         totalDrivers: driversList.length,
         verifiedDrivers: verifiedCount,
@@ -149,7 +151,7 @@ const AdminDrivers = () => {
 
   const filteredDrivers = drivers.filter(driver => {
     if (filter === 'online') return driver.location?.is_online
-    if (filter === 'verified') return driver.license_verified && driver.insurance_verified
+    if (filter === 'verified') return !!driver.license_verified && !!driver.insurance_verified
     if (filter === 'unverified') return !driver.license_verified || !driver.insurance_verified
     return true
   })
