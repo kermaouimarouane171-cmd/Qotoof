@@ -198,4 +198,20 @@ describe('VerifyEmail OTP page', () => {
     fireEvent.change(input, { target: { value: '000001' } })
     expect(screen.queryByTestId('verify-email-error')).not.toBeInTheDocument()
   })
+
+  it('does not auto-redirect on mount (anti-loop guard)', async () => {
+    renderPage({ email: 'test@example.ma' })
+
+    expect(screen.getByTestId('verify-email-page')).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
+    expect(mockAuthState.initialize).not.toHaveBeenCalled()
+  })
+
+  it('reads email from sessionStorage when location state is empty', async () => {
+    sessionStorage.setItem('pendingVerificationEmail', 'stored@example.ma')
+
+    renderPage({})
+
+    expect(screen.getByTestId('verify-email-address')).toHaveTextContent('stored@example.ma')
+  })
 })

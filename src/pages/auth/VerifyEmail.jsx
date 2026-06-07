@@ -39,32 +39,6 @@ const VerifyEmailPage = () => {
     return () => clearInterval(timer)
   }, [countdown])
 
-  useEffect(() => {
-    const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-        ;(async () => {
-          try {
-            await initialize()
-            const role = useAuthStore.getState().profile?.role || session?.user?.user_metadata?.role
-            const redirectPath = getRedirectPath(role)
-
-            toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
-            sessionStorage.removeItem('pendingVerificationEmail')
-            navigate(redirectPath, { replace: true })
-          } catch {
-            toast.success(t('auth.verifyEmail.verified', 'تم تأكيد البريد الإلكتروني بنجاح'))
-            sessionStorage.removeItem('pendingVerificationEmail')
-            navigate('/marketplace', { replace: true })
-          }
-        })()
-      }
-    })
-
-    return () => {
-      subscription?.subscription?.unsubscribe()
-    }
-  }, [getRedirectPath, initialize, navigate, t])
-
   const handleVerify = async () => {
     if (!otpCode || otpCode.length !== 6 || !/^\d{6}$/.test(otpCode)) {
       setVerifyError(t('auth.verifyEmail.invalidOtp', 'أدخل رمز تحقق مكوّن من 6 أرقام'))
