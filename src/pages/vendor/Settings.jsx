@@ -93,7 +93,6 @@ const VendorSettings = () => {
 
       setStoreName(data?.store_name || '')
       setMinOrderAmount(data?.min_order_amount?.toString() || '50')
-      setCurrency(data?.currency || 'MAD')
       setLowStockThreshold(data?.low_stock_threshold?.toString() || '10')
       setPaymentPolicies({
         full: data?.payment_policy_full ?? true,
@@ -104,11 +103,11 @@ const VendorSettings = () => {
       setPaypalVerified(data?.paypal_verified === true)
       setCancellationPolicy(vendorCancellationPolicy)
       setRefundPolicy(vendorRefundPolicy)
-      setNotifyNewOrders(data?.notify_new_orders ?? true)
+      setNotifyNewOrders(true)
       setNotifyOrderUpdates(data?.notify_order_updates ?? true)
       setNotifyCustomerMessages(data?.notify_customer_messages ?? true)
       setNotifyLowStock(data?.notify_low_stock ?? true)
-      setNotifyReviews(data?.notify_reviews ?? true)
+      setNotifyReviews(true)
       setStorePaused(Boolean(data?.store_paused))
       setStorePauseReason(data?.store_paused_reason || '')
       setStoreSetupSummary(storeTypeService.decorateStoreProfile(data))
@@ -201,16 +200,13 @@ const VendorSettings = () => {
         ? {
             store_name: previousProfile.store_name,
             min_order_amount: previousProfile.min_order_amount,
-            currency: previousProfile.currency,
             low_stock_threshold: previousProfile.low_stock_threshold,
             payment_policy_full: previousProfile.payment_policy_full,
             payment_policy_split: previousProfile.payment_policy_split,
             payment_policy_cod: previousProfile.payment_policy_cod,
-            notify_new_orders: previousProfile.notify_new_orders,
             notify_order_updates: previousProfile.notify_order_updates,
             notify_customer_messages: previousProfile.notify_customer_messages,
             notify_low_stock: previousProfile.notify_low_stock,
-            notify_reviews: previousProfile.notify_reviews,
             paypal_email: previousProfile.paypal_email,
             paypal_verified: previousProfile.paypal_verified,
           }
@@ -222,16 +218,13 @@ const VendorSettings = () => {
       const { error } = await profilesService.updateProfile(user.id, {
         store_name: storeName,
         min_order_amount: parseFloat(minOrderAmount),
-        currency,
         low_stock_threshold: parseInt(lowStockThreshold),
         payment_policy_full: paymentPolicies.full,
         payment_policy_split: paymentPolicies.split,
         payment_policy_cod: paymentPolicies.cod,
-        notify_new_orders: notifyNewOrders,
         notify_order_updates: notifyOrderUpdates,
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
-        notify_reviews: notifyReviews,
         ...(storeLocation?.lat ? {
           latitude: storeLocation.lat,
           longitude: storeLocation.lng,
@@ -258,7 +251,6 @@ const VendorSettings = () => {
           ...profile,
           store_name: storeName,
           min_order_amount: parseFloat(minOrderAmount),
-          currency,
           low_stock_threshold: parseInt(lowStockThreshold),
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
@@ -275,16 +267,13 @@ const VendorSettings = () => {
         ...oldData,
         store_name: storeName,
         min_order_amount: parseFloat(minOrderAmount),
-        currency,
         low_stock_threshold: parseInt(lowStockThreshold),
         payment_policy_full: paymentPolicies.full,
         payment_policy_split: paymentPolicies.split,
         payment_policy_cod: paymentPolicies.cod,
-        notify_new_orders: notifyNewOrders,
         notify_order_updates: notifyOrderUpdates,
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
-        notify_reviews: notifyReviews,
         paypal_email: paypalEmail.trim().toLowerCase(),
         paypal_verified: paypalVerified,
         cancellation_policy: savedCancellationPolicy,
