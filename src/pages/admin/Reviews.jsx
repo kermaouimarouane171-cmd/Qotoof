@@ -55,9 +55,7 @@ const AdminReviews = () => {
         .range(from, to)
 
       // Apply status filter
-      if (statusFilter === 'flagged') {
-        query = query.eq('is_flagged', true)
-      } else if (statusFilter === 'with_reply') {
+      if (statusFilter === 'with_reply') {
         query = query.not('vendor_reply', 'is', null)
       } else if (statusFilter === 'without_reply') {
         query = query.is('vendor_reply', null)
@@ -117,57 +115,14 @@ const AdminReviews = () => {
    * Flag a review (mark for review)
    */
   const handleFlagReview = async (reviewId) => {
-    try {
-      setActionLoading(true)
-      const { error } = await supabase
-        .from('reviews')
-        .update({
-          is_flagged: true,
-          flagged_at: new Date().toISOString(),
-          admin_notes: adminNotes || 'Flagged by admin'})
-        .eq('id', reviewId)
-
-      if (error) throw error
-
-      toast.success(t('admin.reviews.notifications.flagged', 'Review flagged successfully'))
-      setAdminNotes('')
-      setSelectedReview(null)
-      await loadReviews(page, filter)
-    } catch (error) {
-      logger.error('Flag review error:', error)
-      toast.error(t('admin.reviews.notifications.flagFailed', 'Failed to flag review'))
-    } finally {
-      setActionLoading(false)
-    }
+    toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 
   /**
    * Approve a review (remove flag, confirm it's valid)
    */
   const handleApproveReview = async (reviewId) => {
-    try {
-      setActionLoading(true)
-      const { error } = await supabase
-        .from('reviews')
-        .update({
-          is_flagged: false,
-          admin_notes: adminNotes || 'Approved by admin',
-          approved_by: user.id,
-          approved_at: new Date().toISOString()})
-        .eq('id', reviewId)
-
-      if (error) throw error
-
-      toast.success(t('admin.reviews.notifications.approved', 'Review approved'))
-      setAdminNotes('')
-      setSelectedReview(null)
-      await loadReviews(page, filter)
-    } catch (error) {
-      logger.error('Approve review error:', error)
-      toast.error(t('admin.reviews.notifications.approveFailed', 'Failed to approve review'))
-    } finally {
-      setActionLoading(false)
-    }
+    toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 
   /**
@@ -175,13 +130,6 @@ const AdminReviews = () => {
    */
   const handleDeleteReview = async (reviewId) => {
     if (!selectedReview) return
-
-    // Confirm deletion
-    const reason = adminNotes?.trim()
-    if (!reason) {
-      toast.error(t('admin.reviews.notifications.deleteReasonRequired', 'Please provide a reason for deleting this review'))
-      return
-    }
 
     try {
       setActionLoading(true)
@@ -197,10 +145,7 @@ const AdminReviews = () => {
       const { error } = await supabase
         .from('reviews')
         .update({
-          deleted_at: new Date().toISOString(),
-          admin_notes: reason,
-          approved_by: user.id,
-          approved_at: new Date().toISOString()})
+          deleted_at: new Date().toISOString()})
         .eq('id', reviewId)
 
       if (error) throw error
@@ -209,12 +154,11 @@ const AdminReviews = () => {
       await sendUserNotification(
         buyerId,
         t('admin.reviews.notifications.reviewRemovedTitle', 'Review Removed'),
-        t('admin.reviews.notifications.reviewRemovedMessage', 'Your review for "{{productName}}" has been removed by a moderator. Reason: {{reason}}', { productName: review.product?.name || 'a product', reason }),
+        t('admin.reviews.notifications.reviewRemovedMessage', 'Your review for "{{productName}}" has been removed by a moderator.', { productName: review.product?.name || 'a product' }),
         'moderation'
       )
 
       toast.success(t('admin.reviews.notifications.deleted', 'Review deleted. Notification sent to {{name}}', { name: buyerName }))
-      setAdminNotes('')
       setSelectedReview(null)
       await loadReviews(page, filter)
     } catch (error) {
@@ -229,27 +173,7 @@ const AdminReviews = () => {
    * Unflag a review
    */
   const handleUnflagReview = async (reviewId) => {
-    try {
-      setActionLoading(true)
-      const { error } = await supabase
-        .from('reviews')
-        .update({
-          is_flagged: false,
-          admin_notes: adminNotes || 'Unflagged by admin'})
-        .eq('id', reviewId)
-
-      if (error) throw error
-
-      toast.success(t('admin.reviews.notifications.unflagged', 'Review unflagged'))
-      setAdminNotes('')
-      setSelectedReview(null)
-      await loadReviews(page, filter)
-    } catch (error) {
-      logger.error('Unflag review error:', error)
-      toast.error(t('admin.reviews.notifications.unflagFailed', 'Failed to unflag review'))
-    } finally {
-      setActionLoading(false)
-    }
+    toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 
   // ============================================
@@ -268,7 +192,6 @@ const AdminReviews = () => {
 
   const _getFilterStats = () => ({
     all: totalCount,
-    flagged: reviews.filter(r => r.is_flagged).length,
     withReply: reviews.filter(r => r.vendor_reply).length,
     withoutReply: reviews.filter(r => !r.vendor_reply).length})
 
@@ -307,17 +230,6 @@ const AdminReviews = () => {
         </Card>
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-              <FlagIcon className="w-5 h-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{reviews.filter(r => r.is_flagged).length}</p>
-              <p className="text-xs text-gray-500">{t('admin.reviews.stats.flagged', 'Flagged')}</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
               <ChatBubbleLeftIcon className="w-5 h-5 text-green-600" />
             </div>
@@ -344,7 +256,6 @@ const AdminReviews = () => {
       <div className="flex gap-2 mb-6 overflow-x-auto">
         {[
           { key: 'all', label: t('admin.reviews.filters.all', 'All Reviews') },
-          { key: 'flagged', label: t('admin.reviews.filters.flagged', 'Flagged') },
           { key: 'with_reply', label: t('admin.reviews.filters.withReply', 'With Reply') },
           { key: 'without_reply', label: t('admin.reviews.filters.withoutReply', 'No Reply') },
         ].map(({ key, label }) => (
@@ -376,7 +287,7 @@ const AdminReviews = () => {
                 key={review.id}
                 className={`p-4 cursor-pointer transition-all hover:shadow-md ${
                   selectedReview?.id === review.id ? 'ring-2 ring-green-500' : ''
-                } ${review.is_flagged ? 'border-l-4 border-l-red-500' : ''}`}
+                }`}
                 onClick={() => setSelectedReview(review)}
               >
                 <div className="flex items-start gap-3">
@@ -393,11 +304,6 @@ const AdminReviews = () => {
                       <span className="font-semibold text-gray-900 truncate">
                         {review.buyer ? `${review.buyer.first_name} ${review.buyer.last_name}` : 'Unknown'}
                       </span>
-                      {review.is_flagged && (
-                        <span className="px-2 py-0.5 bg-red-100 text-red-800 text-xs font-medium rounded-full flex items-center gap-1">
-                          <FlagIcon className="w-3 h-3" /> {t('admin.reviews.flagged', 'Flagged')}
-                        </span>
-                      )}
                       {review.vendor_reply && (
                         <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                           {t('admin.reviews.replied', 'Replied')}
@@ -541,81 +447,13 @@ const AdminReviews = () => {
                   </div>
                 )}
 
-                {/* Flag Status */}
-                <div>
-                  <p className="text-sm text-gray-500">{t('admin.reviews.status', 'Status')}</p>
-                  {selectedReview.is_flagged ? (
-                    <span className="inline-block mt-1 px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium">
-                      {t('admin.reviews.flagged', 'Flagged')}
-                    </span>
-                  ) : (
-                    <span className="inline-block mt-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium">
-                      {t('admin.reviews.active', 'Active')}
-                    </span>
-                  )}
-                </div>
-
-                {/* Admin Notes */}
-                {selectedReview.admin_notes && (
-                  <div>
-                    <p className="text-sm text-gray-500">{t('admin.reviews.adminNotes', 'Admin Notes')}</p>
-                    <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg mt-1">
-                      {selectedReview.admin_notes}
-                    </p>
-                  </div>
-                )}
-
                 {/* Actions */}
                 <div className="space-y-3 pt-4 border-t">
-                  <div>
-                    <label className="input-label text-sm">{t('admin.reviews.adminNotes', 'Admin Notes')} / {t('admin.reviews.reason', 'Reason')}</label>
-                    <textarea
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      className="input h-20 resize-none text-sm"
-                      placeholder={t('admin.reviews.adminNotesPlaceholder', 'Add notes or deletion reason...')}
-                    />
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      {t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled while review schema is being updated.')}
+                    </p>
                   </div>
-
-                  <div className="space-y-2">
-                    {!selectedReview.is_flagged ? (
-                      <button
-                        onClick={() => handleFlagReview(selectedReview.id)}
-                        disabled={actionLoading}
-                        className="btn-outline w-full text-sm text-orange-600 border-orange-200"
-                      >
-                        <FlagIcon className="w-4 h-4 inline mr-1" /> {t('admin.reviews.actions.flag', 'Flag Review')}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleUnflagReview(selectedReview.id)}
-                        disabled={actionLoading}
-                        className="btn-outline w-full text-sm text-green-600 border-green-200"
-                      >
-                        <CheckCircleIcon className="w-4 h-4 inline mr-1" /> {t('admin.reviews.actions.unflag', 'Unflag / Approve')}
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => handleApproveReview(selectedReview.id)}
-                      disabled={actionLoading}
-                      className="btn-outline w-full text-sm text-green-600 border-green-200"
-                    >
-                      <CheckCircleIcon className="w-4 h-4 inline mr-1" /> {t('admin.reviews.actions.approve', 'Approve Review')}
-                    </button>
-
-                    <button
-                      onClick={() => handleDeleteReview(selectedReview.id)}
-                      disabled={actionLoading}
-                      className="btn-outline w-full text-sm text-red-600 border-red-200"
-                    >
-                      <TrashIcon className="w-4 h-4 inline mr-1" /> {t('admin.reviews.actions.delete', 'Delete Review')}
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-gray-400 mt-2">
-                    {t('admin.reviews.deleteWarning', 'Deleting a review will send a notification to the user explaining the reason.')}
-                  </p>
                 </div>
               </div>
             </Card>
