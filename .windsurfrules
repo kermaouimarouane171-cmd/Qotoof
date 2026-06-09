@@ -205,3 +205,235 @@
 - يتطلب التغيير حذف ملف أو إعادة هيكلة واسعة.
 - تكون النية غير واضحة أو الأدلة غير كافية.
 - يُطلب commit/push (لا يتم إلا بإذن صريح لكل مرة).
+
+---
+
+## 31. AI Engineering Agent Mode
+
+Windsurf يعمل كـ **AI Engineering Agent مستقل داخل المشروع**. هذا يعني:
+
+**مسؤولياته:**
+- **التحليل:** يقرأ الملفات بنفسه ويستخرج البنية والمشاكل بدون انتظار شرح من المستخدم.
+- **كشف الأخطاء:** يرصد الأخطاء من console errors، failing tests، schema mismatches، broken code paths.
+- **اقتراح الخطة:** يقدم خطة إصلاح آمنة ومرحلية بنفسه.
+- **تنفيذ الإصلاحات الآمنة:** يصلح المشاكل المثبتة بأقل تعديل ممكن.
+- **إضافة الاختبارات:** يكتب أو يحدث regression tests لكل إصلاح.
+- **تشغيل الاختبارات المستهدفة:** يشغّل الاختبار المرتبط بالملف المعني فقط.
+- **كتابة التقارير:** يقدم تقريرًا واضحًا بعد كل دورة.
+- **الانتقال المرحلي المنظم:** ينتقل من جزء إلى جزء بطريقة منظمة.
+
+**ما لا يعنيه الاستقلال:**
+- **commit تلقائي:** ممنوع. لا يتم إلا بإذن صريح.
+- **push تلقائي:** ممنوع. لا يتم إلا بإذن صريح.
+- **migrations تلقائية:** ممنوع. يتطلب تحليلًا منفصلًا وموافقة صريحة.
+- **تغييرات Supabase/RLS/Auth/Payments تلقائية:** ممنوع. يتطلب تحليلًا منفصلًا وموافقة صريحة.
+- **قرارات خطيرة بدون موافقة:** ممنوع.
+- **حذف وظائف كبيرة دون دليل وموافقة:** ممنوع.
+- **إصلاحات عشوائية أو افتراضات:** ممنوع.
+- **اختراق نتائج tests:** ممنوع.
+
+---
+
+## 32. Autonomous Repair Boundaries
+
+1. **الإصلاح التلقائي المسموح:** يمكن للـ Agent أن يصلح تلقائيًا فقط المشاكل الآمنة داخل الكود عندما تكون مثبتة بدليل واضح (console error، failing test، schema mismatch مثبت، code path broken، UX/validation bug واضح).
+2. **منطقة Supabase/RLS/Auth/Payments:** لا يمكنه لمسها إلا بعد موافقة صريحة.
+3. **الحذف:** لا يمكنه حذف ملفات أو وظائف كبيرة دون موافقة.
+4. **نطاق واحد في كل دورة:** لا يمكنه تعديل أكثر من نطاق واحد (page/service/flow) في نفس الدورة.
+5. **Test إلزامي:** لا يمكنه اعتبار المشكلة محلولة دون اختبار حقيقي.
+6. **تقرير إغلاق المرحلة:** لا يمكنه الانتقال إلى مرحلة جديدة دون تقرير إغلاق للمرحلة الحالية.
+7. **100/100 ممنوع:** لا يمكنه إعلان التطبيق 100/100 إلا بعد تحقق شامل من كل الجوانب.
+8. **لا refactor واسع بدون مبرر:** لا يمكنه إجراء refactor واسع إلا إذا كان جزءًا لا يتجزأ من إصلاح bug حرج.
+
+---
+
+## 33. Safe Autonomous Repair Workflow
+
+لكل دورة إصلاح، يجب اتباع هذا الـ Workflow الإلزامي:
+
+### 1. Scope Selection
+- اختيار صفحة واحدة أو خدمة واحدة أو flow واحد فقط.
+- لا يُسمح بتعديل أكثر من نطاق واحد في نفس الـ prompt.
+
+### 2. Audit
+- قراءة الملفات المعنية كاملةً.
+- استخراج queries / services / state / hooks / contexts.
+- تحديد السبب الجذري (root cause)، لا الأعراض.
+
+### 3. Evidence
+- console error (مع نص الخطأ).
+- failing test (مع نص الفشل).
+- schema mismatch مثبت (من migrations أو database.ts).
+- code path broken (مسار كود واضح مكسور).
+- missing table/column مثبت (من migrations أو database.ts).
+- UX أو validation bug واضح (مع screenshot أو وصف دقيق).
+
+### 4. Repair Plan
+- أقل تعديل ممكن (minimal upstream fix).
+- الملفات التي ستتغير (بالاسم بالضبط).
+- الاختبار المطلوب.
+
+### 5. Implementation
+- تنفيذ الإصلاح في أقل عدد ملفات.
+- منع refactor غير مطلوب.
+- عدم تعديل ملفات خارج النطاق.
+
+### 6. Regression Test
+- إضافة أو تحديث test يمنع عودة المشكلة.
+- الاختبار يجب أن يكون حقيقيًا (لا fake assertions).
+
+### 7. Targeted Test Run
+- تشغيل الاختبار المستهدف فقط (`npm test -- <path>`).
+- لا يتم تشغيل full test suite أو `npm run test:unit` إلا بطلب صريح.
+- إذا فشل الاختبار، لا تخترع نتيجة.
+
+### 8. Report
+- المشكلة: وصف واضح.
+- السبب الحقيقي: root cause.
+- الملفات المعدلة: بالمسار الكامل.
+- الاختبار: الملف والنتيجة.
+- git diff --stat.
+- git status --short.
+- هل جاهز للـ commit؟ (نعم/لا + السبب).
+
+### 9. Stop
+- التوقف فورًا وانتظار إذن commit أو تعليمات المرحلة التالية.
+- لا يتم الانتقال لنطاق آخر تلقائيًا.
+
+---
+
+## 34. Phase-Based Autonomous Completion Plan
+
+يصلح التطبيق تدريجيًا وفق هذه المراحل:
+
+| Phase | النطاق | الأولوية |
+|-------|--------|----------|
+| Phase 1 | Admin pages (22 page) | High |
+| Phase 2 | Public pages (marketplace, product, stores, search, static) | High |
+| Phase 3 | Buyer pages (dashboard, orders, addresses, settings, checkout) | High |
+| Phase 4 | Vendor pages (products, orders, analytics, settings, digital-contract) | High |
+| Phase 5 | Driver pages (dashboard, active, available, earnings, delivery flows) | Medium |
+| Phase 6 | Auth and onboarding flows (login, register, OTP, MFA, onboarding) | High |
+| Phase 7 | Orders and payments (checkout, payment gateway, commissions, payouts, refunds) | High |
+| Phase 8 | Supabase schema/RLS alignment (ghost columns, missing tables, RLS policies) | High |
+| Phase 9 | Mobile/PWA/Capacitor (white-screen, lazy-loading, offline, push) | Medium |
+| Phase 10 | Final production readiness audit (build, lint, full tests, performance) | High |
+
+لكل Phase يجب على الـ Agent:
+- إنشاء checklist محدد.
+- استخراج routes المعنية.
+- استخراج Supabase queries المعنية.
+- استخراج services المعنية.
+- تحديد risks.
+- تحديد tests الموجودة.
+- تحديد tests الناقصة.
+- إصلاح مشكلة واحدة في كل دورة (per prompt).
+- عدم الانتقال للمرحلة التالية حتى يقدم تقرير إغلاق كامل.
+
+---
+
+## 35. Per-Page Autonomous Repair Contract
+
+لكل صفحة يتم إصلاحها، يجب اتباع هذا العقد الإلزامي:
+
+1. **اقرأ الصفحة كاملةً** (من البداية إلى النهاية). لا تعتمد على summary قديم.
+2. **استخرج كل Supabase queries** (`.from(...)`, `.rpc(...)`) واكتبها.
+3. **استخرج كل RPCs** وحدد معاملاتها.
+4. **استخرج كل services/hooks/stores** المستوردة.
+5. **استخرج كل الأعمدة والجداول المطلوبة** في SELECT queries.
+6. **حدد schema/RLS/Auth/Role risks:** هل هناك ghost columns؟ هل هناك missing tables؟
+7. **حدد الوظائف التي تعمل والوظائف المعطلة:** أي action/loader/redirect مكسور؟
+8. **حدد اختبار regression المطلوب:** ما الاختبار الذي يمنع عودة المشكلة؟
+9. **أصلح bug واحد فقط في كل دورة.** لا تصلح كل شيء دفعة واحدة.
+10. **شغّل الاختبار المستهدف.** لا تعتبر الصفحة سليمة دون test.
+11. **لا تنتقل إلى صفحة أخرى حتى تقدم تقريرًا كاملاً.**
+
+---
+
+## 36. Database Schema Safety Rules
+
+1. **أي خطأ 400 من PostgREST** يُعامل أولًا كاحتمال schema mismatch (ghost column أو missing table).
+2. **ممنوع طلب أعمدة غير مثبتة من Supabase.** إذا كان العمود غير موجود في `database.ts` أو migrations، فهو ghost column.
+3. **ممنوع افتراض وجود جدول أو عمود** من اسم موجود في الكود فقط.
+4. **عند الشك:** يجب الرجوع إلى `src/types/database.ts` أو `database/migrations/` للتأكد.
+5. **إذا كان الإصلاح يحتاج migration:** توقف واطلب موافقة. لا تنشئ migration تلقائيًا.
+6. **إذا كان الإصلاح ممكنًا بالكود فقط:** نفذه بأقل تعديل (remove/disable ghost column usage) واختبره.
+7. **أي جدول مفقود:** يجب التعامل معه بتحليل (graceful degradation أو warning log) وليس بإنشاء تلقائي.
+8. **SQL verification query:** عندما يكون schema غير واضح، اعرض على المستخدم استعلام SQL للتحقق بدلاً من افتراض وجوده.
+
+---
+
+## 37. RLS/Auth/Payments Protected Zone
+
+أي تعديل في المناطق التالية يتطلب **حماية صارمة**:
+
+**المناطق المحمية:**
+- RLS policies (أي ملف في `migrations/` يبدأ بـ `SUPABASE_FIX_RLS_` أو `database/fix-rls.sql`)
+- Supabase migrations (`database/migrations/`, `supabase/migrations/`)
+- Auth flows (login, register, OTP, MFA, verify-email, password-reset, onboarding)
+- `ProtectedRoute` logic
+- `PaymentGuard` logic
+- PayPal integration (`src/services/paypal*.js`, `src/contexts/PaymentGuard.jsx`)
+- CMI integration (`src/services/cmiPayment.js`)
+- Orders status transitions (`src/services/ordersService.ts`, `src/features/orders`)
+- Payouts (`src/services/payoutService.js`, `src/pages/admin/Payouts.jsx`)
+- Refunds (`src/services/returns.js`)
+- Edge Functions (`supabase/functions/`)
+- Commission system (`src/services/commissionService.js`)
+
+**قبل أي تعديل في هذه المناطق، يجب:**
+1. تحليل منفصل يوضح الجدول/السياسة/الflow المعني.
+2. تحديد الخطر (security risk, data integrity, financial risk).
+3. SQL أو code verification (قراءة migrations الحالية).
+4. خطة اختبار واضحة.
+5. **موافقة صريحة من المستخدم قبل التنفيذ.**
+
+---
+
+## 38. Continuous Quality Loop
+
+لا يوجد شيء اسمه "إصلاح لا نهائي حرفيًا". الـ Agent يعمل في loop منظم ومحدود:
+
+```
+Audit → Fix → Test → Report → Stop
+```
+
+ثم ينتظر:
+- **إذن commit** (بعد التحقق من git status --short و git diff --stat)
+- **أو تعليمات للمرحلة التالية**
+- **أو موافقة على إصلاح حساس**
+
+**يمنع صراحة:**
+- الحلقات غير المحدودة (لا أصلح page تلو page دون توقف).
+- تكرار أوامر فاشلة (إذا فشل أمر مرتين لنفس السبب، توقف).
+- إصلاحات بلا دليل (لا تغيّر كود لمجرد "تحسين").
+- الانتقال بين عدة نطاقات دفعة واحدة.
+- إعلان 100/100 دون تحقق شامل.
+
+---
+
+## 39. Definition of Done
+
+### لا تعتبر صفحة أو flow مكتملًا إلا إذا:
+- يفتح بدون crash (no white screen, no infinite loading).
+- لا توجد console errors حرجة (أخطاء 400/500/Uncaught).
+- لا توجد Supabase queries بأعمدة ghost (أعمدة غير موجودة في schema).
+- لا توجد missing table errors (42P01 أو "does not exist").
+- loading / error / empty states تعمل بشكل صحيح.
+- role protection صحيح (لا يمكن للـ buyer الوصول لـ vendor page).
+- الاختبار المناسب موجود وناجح (regression test يمنع عودة المشكلة).
+- لا يوجد كسر لتدفق آخر (side effect على page/flow آخر).
+- git status واضح بعد التنفيذ (الملفات المعدلة معروفة).
+- التقرير مكتمل (Audit → Fix → Test → Report).
+
+### ولا يعتبر التطبيق 100/100 إلا إذا:
+- كل routes الأساسية فُحصت (public, auth, buyer, vendor, driver, admin).
+- كل roles الأساسية فُحصت (guest, buyer, vendor, driver, admin).
+- build ينجح (`npm run build` يمر).
+- lint لا يحتوي errors خطرة (تحذيرات مقبولة ضمن العتبة).
+- tests الأساسية تمر (unit tests للـ pages/services المُصلحة).
+- Supabase queries متوافقة مع schema (لا ghost columns).
+- RLS/Auth/Payments فُحصت (بشكل منفصل وموثق).
+- mobile/PWA فُحص (white-screen test, offline mode).
+- لا توجد مشاكل Critical أو High مفتوحة وغير موثقة.
+
