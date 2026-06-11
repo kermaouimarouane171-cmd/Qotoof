@@ -78,7 +78,7 @@ const AdminDashboard = () => {
         supabase
           .from('profiles')
           .select('*', { count: 'exact', head: true })
-          .gte('last_sign_in_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()),
+          .gte('last_seen_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()),
       ])
 
       const totalRevenue = ordersResult.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
