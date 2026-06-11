@@ -18,7 +18,7 @@ const AdminSupportTickets = () => {
     try {
       let query = supabase
         .from('support_tickets')
-        .select('id, user_id, subject, description, status, priority, created_at, updated_at, admin_response')
+        .select('id, user_id, subject, description, status, priority, created_at, updated_at')
         .order('created_at', { ascending: false })
 
       if (statusFilter !== 'all') {
@@ -96,7 +96,6 @@ const AdminSupportTickets = () => {
                   <th>الحالة</th>
                   <th>الأولوية</th>
                   <th>تاريخ الإنشاء</th>
-                  <th>رد الإدارة</th>
                   <th>إجراء</th>
                 </tr>
               </thead>
@@ -123,21 +122,6 @@ const AdminSupportTickets = () => {
                     </td>
                     <td>{ticket.priority || 'normal'}</td>
                     <td>{new Date(ticket.created_at).toLocaleString('ar-MA')}</td>
-                    <td>
-                      <textarea
-                        defaultValue={ticket.admin_response || ''}
-                        rows="2"
-                        className="input min-w-[260px]"
-                        placeholder="اكتب رد الإدارة..."
-                        onBlur={(event) => {
-                          const response = event.target.value.trim()
-                          if (response !== (ticket.admin_response || '')) {
-                            updateTicket(ticket.id, { admin_response: response || null })
-                          }
-                        }}
-                        disabled={savingId === ticket.id}
-                      />
-                    </td>
                     <td>
                       <button
                         type="button"

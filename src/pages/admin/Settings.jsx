@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { platformSettings } from '@/services/platformSettings'
 import { Card, LoadingSpinner, Input, Toggle } from '@/components/ui'
 import {
   Cog6ToothIcon,
   BuildingOfficeIcon,
-  ClockIcon,
   CurrencyDollarIcon,
   ShieldCheckIcon,
   TruckIcon,
@@ -21,7 +19,6 @@ import { APP_CONFIG } from '@/config/appConfig'
 
 const AdminSettings = () => {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const { user, profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -149,13 +146,6 @@ const AdminSettings = () => {
           <p className="text-gray-600">{t('admin.settings.subtitle', 'Manage global platform configuration')}</p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => navigate('/admin/settings/audit-log')}
-            className="btn-outline text-sm flex items-center gap-2"
-          >
-            <ClockIcon className="w-4 h-4" />
-            {t('admin.settings.actions.auditLog', 'Audit Log')}
-          </button>
           <button
             onClick={loadSettings}
             className="btn-outline text-sm flex items-center gap-2"

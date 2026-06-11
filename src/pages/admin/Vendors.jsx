@@ -72,7 +72,7 @@ const AdminVendors = () => {
       // Fetch all vendors from profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, email, phone, city, country, store_name, store_description, role, vendor_status, is_verified, vendor_warning_count, latitude, longitude, created_at')
+        .select('id, first_name, last_name, email, phone, city, country, store_name, store_description, role, vendor_status, is_verified, latitude, longitude, created_at')
         .eq('role', 'vendor')
         .order('created_at', { ascending: false })
 
@@ -138,7 +138,7 @@ const AdminVendors = () => {
           suspension_reason: null,
           suspension_start: null,
           suspension_end: null,
-          violation_count: vendor.vendor_warning_count || 0,
+          violation_count: 0,
           rating: avgRating ? parseFloat(avgRating.toFixed(1)) : null,
           products: productCountsByVendor.get(vendor.id) || 0,
           latitude: vendor.latitude,
@@ -306,7 +306,6 @@ const AdminVendors = () => {
 
       const updateData = {
         vendor_status: 'suspended',
-        vendor_warning_count: (vendors.find(v => v.id === suspendingVendorId)?.violation_count || 0) + 1,
       }
 
       if (suspensionEndDate) {

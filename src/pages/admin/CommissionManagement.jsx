@@ -3,6 +3,7 @@ import { Card, LoadingSpinner, Modal } from '@/components/ui'
 import { supabase } from '@/services/supabase'
 import { commissionService } from '@/services/commissionService'
 import { csvExport } from '@/services/reports/csvExport'
+import { platformSettings } from '@/services/platformSettings'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowDownTrayIcon,
@@ -68,42 +69,82 @@ const CommissionManagementPage = () => {
   const loadRows = async () => {
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('vendor_monthly_sales')
-        .select(`
-          id,
-          vendor_id,
-          month,
-          year,
-          total_sales,
-          commission_due,
-          commission_paid,
-          status,
-          due_date,
-          paid_at,
-          payment_method,
-          payment_reference,
-          vendor:profiles!vendor_monthly_sales_vendor_id_fkey(id, first_name, last_name, store_name, email, city, is_active)
-        `)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
-        .limit(400)
+      const settings = await platformSettings.getSettings()
+      const commissionRate = (settings?.commission_rate ?? 10) / 100
 
-      if (error) throw error
+      const twelveMonthsAgo = new Date()
+      twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)
+      const startDate = twelveMonthsAgo.toISOString()
 
-      const normalizedRows = (data || [])
-        .filter((row) => {
-          const hasValue = Number(row.total_sales || 0) > 0 || Number(row.commission_due || 0) > 0 || Number(row.commission_paid || 0) > 0
-          return hasValue || ['pending', 'overdue', 'paid'].includes(row.status)
-        })
-        .map((row) => ({
-          ...row,
-          month_label: new Date(row.year, row.month - 1, 1).toLocaleDateString('ar-MA', { month: 'long', year: 'numeric' }),
-          balance_remaining: Number(Math.max(Number(row.commission_due || 0) - Number(row.commission_paid || 0), 0).toFixed(2)),
-        }))
+      // Load orders and vendor profiles in parallel
+      const [ordersRes, profilesRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('id, vendor_id, total, status, created_at')
+          .gte('created_at', startDate)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('id, first_name, last_name, store_name, email, city, is_active')
+          .eq('role', 'vendor'),
+      ])
+
+      if (ordersRes.error) throw ordersRes.error
+      if (profilesRes.error) throw profilesRes.error
+
+      const orders = ordersRes.data || []
+      const profilesMap = new Map((profilesRes.data || []).map((p) => [p.id, p]))
+
+      // Group orders by vendor + month
+      const groups = {}
+      orders.forEach((order) => {
+        const date = new Date(order.created_at)
+        const month = date.getMonth() + 1
+        const year = date.getFullYear()
+        const key = `${order.vendor_id}-${year}-${month}`
+        if (!groups[key]) {
+          groups[key] = {
+            vendor_id: order.vendor_id,
+            month,
+            year,
+            total_sales: 0,
+            orders: 0,
+          }
+        }
+        groups[key].total_sales += Number(order.total || 0)
+        groups[key].orders += 1
+      })
+
+      const normalizedRows = Object.values(groups).map((group) => {
+        const commissionDue = Number((group.total_sales * commissionRate).toFixed(2))
+        return {
+          id: `${group.vendor_id}-${group.year}-${group.month}`,
+          vendor_id: group.vendor_id,
+          month: group.month,
+          year: group.year,
+          total_sales: group.total_sales,
+          commission_due: commissionDue,
+          commission_paid: 0,
+          status: 'active',
+          due_date: null,
+          paid_at: null,
+          payment_method: null,
+          payment_reference: null,
+          vendor: profilesMap.get(group.vendor_id) || null,
+          month_label: new Date(group.year, group.month - 1, 1).toLocaleDateString('ar-MA', { month: 'long', year: 'numeric' }),
+          balance_remaining: commissionDue,
+        }
+      })
+
+      // Sort by year desc, month desc
+      normalizedRows.sort((a, b) => {
+        if (b.year !== a.year) return b.year - a.year
+        return b.month - a.month
+      })
 
       setRows(normalizedRows)
     } catch (error) {
+      logger.error('Load commission rows error:', error)
       toast.error(error.message || t('marketplaceFeatures.commissionManagement.errors.loadFailed'))
     } finally {
       setLoading(false)

@@ -53,12 +53,11 @@ export const getSettings = async () => {
     // localStorage not available
   }
 
-  // Fetch from database
+  // Fetch from database (key-value store)
   try {
     const { data, error } = await supabase
       .from('platform_settings')
-      .select('*')
-      .single()
+      .select('setting_key, setting_value')
 
     if (error) {
       // Table might not exist yet, return defaults
@@ -66,8 +65,16 @@ export const getSettings = async () => {
       return getDefaultSettings()
     }
 
+    const settingsFromDb = {}
+    ;(data || []).forEach((row) => {
+      settingsFromDb[row.setting_key] = row.setting_value
+    })
+
+    // Merge with defaults so missing keys still work
+    const merged = { ...getDefaultSettings(), ...settingsFromDb }
+
     // Update cache
-    const cacheData = { data, timestamp: now }
+    const cacheData = { data: merged, timestamp: now }
     settingsCache = cacheData
     try {
       localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(cacheData))
@@ -75,7 +82,7 @@ export const getSettings = async () => {
       // localStorage not available
     }
 
-    return data
+    return merged
   } catch (error) {
     logger.error('Get settings error:', error)
     return getDefaultSettings()
@@ -138,17 +145,17 @@ export const updateSettings = async (updates, adminId, adminName) => {
       return { success: false, error: 'No valid fields to update' }
     }
 
-    // Upsert settings
-    const { data, error } = await supabase
+    // Upsert settings as key-value rows
+    const upsertRows = Object.entries(filteredUpdates).map(([key, value]) => ({
+      setting_key: key,
+      setting_value: value,
+      updated_at: new Date().toISOString(),
+      updated_by: adminId,
+    }))
+
+    const { error } = await supabase
       .from('platform_settings')
-      .upsert({
-        id: 'default', // Single row for settings
-        ...filteredUpdates,
-        updated_at: new Date().toISOString(),
-        updated_by: adminId,
-      })
-      .select()
-      .single()
+      .upsert(upsertRows, { onConflict: 'setting_key' })
 
     if (error) throw error
 
@@ -156,7 +163,7 @@ export const updateSettings = async (updates, adminId, adminName) => {
     invalidateSettingsCache()
 
     // Log the change in audit log
-    await logSettingsChange(filteredUpdates, currentSettings, adminId, adminName)
+    await logSettingsChange(filteredUpdates, currentSettings, adminId)
 
     // If commission rate changed, notify all vendors
     if (filteredUpdates.commission_rate !== undefined && filteredUpdates.commission_rate !== currentSettings?.commission_rate) {
@@ -164,7 +171,7 @@ export const updateSettings = async (updates, adminId, adminName) => {
     }
 
     logger.info(`Settings updated by ${adminName}:`, Object.keys(filteredUpdates))
-    return { success: true, data }
+    return { success: true }
   } catch (error) {
     logger.error('Update settings error:', error)
     return { success: false, error: error.message }
@@ -224,38 +231,34 @@ const jsonb_build_object_safe = (...args) => {
 /**
  * Log settings change in audit table
  */
-const logSettingsChange = async (newValues, oldValues, adminId, adminName) => {
+const logSettingsChange = async (newValues, oldValues, adminId) => {
   try {
-    // Find what actually changed
-    const changes = []
+    // Find what actually changed and insert one audit row per changed key
+    const changedAt = new Date().toISOString()
+    const rows = []
     for (const [key, newValue] of Object.entries(newValues)) {
       const oldValue = oldValues?.[key]
       if (oldValue !== newValue) {
-        changes.push({
+        rows.push({
           setting_key: key,
-          old_value: oldValue,
-          new_value: newValue,
+          old_value: oldValue ?? null,
+          new_value: newValue ?? null,
+          changed_by: adminId,
+          created_at: changedAt,
         })
       }
     }
 
-    if (changes.length === 0) return
+    if (rows.length === 0) return
 
     const { error } = await supabase
       .from('settings_audit_log')
-      .insert({
-        admin_id: adminId,
-        admin_name: adminName,
-        changes,
-        changed_at: new Date().toISOString(),
-        ip_address: await getClientIP(),
-        user_agent: navigator.userAgent,
-      })
+      .insert(rows)
 
     if (error) {
       logger.error('Log settings change error:', error)
     } else {
-      logger.info(`Settings audit log created for ${adminName}`)
+      logger.info(`Settings audit log created for ${rows.length} changes`)
     }
   } catch (error) {
     logger.error('Log settings change error:', error)
@@ -283,7 +286,7 @@ export const getSettingsAuditLog = async (limit = 50, offset = 0) => {
     const { data, error, count } = await supabase
       .from('settings_audit_log')
       .select('*', { count: 'exact' })
-      .order('changed_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
     if (error) throw error

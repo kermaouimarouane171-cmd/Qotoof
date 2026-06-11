@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
+import { platformSettings } from '@/services/platformSettings'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
   BanknotesIcon,
@@ -55,11 +56,15 @@ const AdminCommissionsPage = () => {
       }[period] || 30
       const startDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString()
 
-      // Load all payments with commissions
-      const { data: paymentsData, error: paymentsError } = await supabase
+      // Fetch platform commission rate (default 10%)
+      const settings = await platformSettings.getSettings()
+      const commissionRate = (settings?.commission_rate ?? 10) / 100
+
+      // Load all payments (commission is calculated from amount)
+      const { data: paymentsRaw, error: paymentsError } = await supabase
         .from('payments')
         .select(`
-          id, order_id, user_id, amount, commission, vendor_amount, status, created_at,
+          id, order_id, user_id, amount, status, created_at,
           user:profiles(first_name, last_name, email)
         `)
         .gte('created_at', startDate)
@@ -68,18 +73,24 @@ const AdminCommissionsPage = () => {
 
       if (paymentsError) throw paymentsError
 
-      setPayments(paymentsData || [])
+      const paymentsData = (paymentsRaw || []).map((p) => ({
+        ...p,
+        commission: (p.amount || 0) * commissionRate,
+        vendor_amount: (p.amount || 0) * (1 - commissionRate),
+      }))
+
+      setPayments(paymentsData)
 
       // Calculate stats
-      const totalCommission = (paymentsData || []).reduce((sum, p) => sum + (p.commission || 0), 0)
-      const thisMonth = (paymentsData || [])
+      const totalCommission = paymentsData.reduce((sum, p) => sum + (p.commission || 0), 0)
+      const thisMonth = paymentsData
         .filter(p => {
           const date = new Date(p.created_at)
           return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
         })
         .reduce((sum, p) => sum + (p.commission || 0), 0)
 
-      const lastMonth = (paymentsData || [])
+      const lastMonth = paymentsData
         .filter(p => {
           const date = new Date(p.created_at)
           const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
@@ -91,8 +102,8 @@ const AdminCommissionsPage = () => {
 
       setStats({
         totalCommission: totalCommission.toFixed(2),
-        totalOrders: paymentsData?.length || 0,
-        avgCommission: paymentsData?.length > 0 ? (totalCommission / paymentsData.length).toFixed(2) : 0,
+        totalOrders: paymentsData.length,
+        avgCommission: paymentsData.length > 0 ? (totalCommission / paymentsData.length).toFixed(2) : 0,
         thisMonth: thisMonth.toFixed(2),
         lastMonth: lastMonth.toFixed(2),
         growth: growth.toFixed(1),
@@ -100,7 +111,7 @@ const AdminCommissionsPage = () => {
 
       // Chart data - group by day
       const dailyData = {}
-      ;(paymentsData || []).forEach(p => {
+      paymentsData.forEach(p => {
         const date = new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
         if (!dailyData[date]) {
           dailyData[date] = { date, commission: 0, orders: 0 }
