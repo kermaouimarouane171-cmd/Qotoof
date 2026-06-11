@@ -9,8 +9,8 @@ async function generateSalesReport({ startDate, endDate, vendorId = null } = {})
     let query = supabase
       .from('orders')
       .select(`
-        id, created_at, total_amount, status, payment_method,
-        buyer:profiles!orders_buyer_id_fkey(full_name, email),
+        id, created_at, total, status,
+        buyer:profiles!orders_buyer_id_fkey(first_name, last_name, email),
         items:order_items(quantity, unit_price, product:products(name, category))
       `)
       .gte('created_at', startDate)
@@ -25,7 +25,7 @@ async function generateSalesReport({ startDate, endDate, vendorId = null } = {})
     const { data, error } = await query
     if (error) throw error
 
-    const total = (data || []).reduce((sum, o) => sum + (o.total_amount || 0), 0)
+    const total = (data || []).reduce((sum, o) => sum + (o.total || 0), 0)
     const count = data?.length || 0
 
     return {
@@ -49,7 +49,7 @@ async function generateUserReport({ startDate, endDate } = {}) {
   try {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, role, created_at, is_active')
+      .select('id, first_name, last_name, email, role, created_at')
       .gte('created_at', startDate)
       .lte('created_at', endDate)
       .order('created_at', { ascending: false })
@@ -70,8 +70,8 @@ async function generateInventoryReport({ vendorId = null } = {}) {
     let query = supabase
       .from('products')
       .select(`
-        id, name, category, price, stock_quantity, is_active, created_at,
-        vendor:profiles!products_vendor_id_fkey(full_name)
+        id, name, category, price, stock_quantity, created_at,
+        vendor:profiles!products_vendor_id_fkey(first_name, last_name, store_name)
       `)
       .order('stock_quantity', { ascending: true })
 
@@ -95,8 +95,8 @@ async function generateDeliveryReport({ startDate, endDate } = {}) {
       .from('orders')
       .select(`
         id, created_at, status, delivered_at,
-        driver:profiles!orders_driver_id_fkey(full_name),
-        buyer:profiles!orders_buyer_id_fkey(full_name, city)
+        driver:profiles!orders_driver_id_fkey(first_name, last_name),
+        buyer:profiles!orders_buyer_id_fkey(first_name, last_name, city)
       `)
       .gte('created_at', startDate)
       .lte('created_at', endDate)
