@@ -64,8 +64,7 @@ const AdminCommissionsPage = () => {
       const { data: paymentsRaw, error: paymentsError } = await supabase
         .from('payments')
         .select(`
-          id, order_id, user_id, amount, status, created_at,
-          user:profiles(first_name, last_name, email)
+          id, order_id, amount, payment_method, status, created_at
         `)
         .gte('created_at', startDate)
         .order('created_at', { ascending: false })
@@ -280,8 +279,8 @@ const AdminCommissionsPage = () => {
                 payments.map((payment) => (
                   <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 font-mono text-xs">{payment.order_id?.substring(0, 8)}</td>
-                    <td className="py-3 px-4">
-                      {payment.user?.first_name} {payment.user?.last_name}
+                    <td className="py-3 px-4 text-gray-400">
+                      {t('admin.commissions.userUnavailable', 'Unavailable')}
                     </td>
                     <td className="py-3 px-4 text-right font-medium">{payment.amount?.toFixed(2)} MAD</td>
                     <td className="py-3 px-4 text-right text-green-600 font-semibold">
