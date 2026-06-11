@@ -183,7 +183,7 @@ const AdminOrders = () => {
       const { data, error } = await supabase
         .from('return_requests')
         .select(`
-          *,
+          id, order_id, buyer_id, vendor_id, reason, status, refund_amount, created_at, updated_at,
           buyer:profiles!buyer_id(first_name, last_name, email),
           vendor:profiles!vendor_id(first_name, last_name, store_name),
           order:orders(order_number, total, status)
@@ -296,7 +296,7 @@ const AdminOrders = () => {
       // 1. Find the payment record for this order
       const { data: payment, error: paymentError } = await supabase
         .from('payments')
-        .select('id, order_id, status, amount, payment_method, method, gateway, transaction_id, created_at, metadata')
+        .select('id, order_id, status, amount, payment_method, transaction_id, created_at')
         .eq('order_id', selectedOrder.id)
         .eq('status', 'completed')
         .order('created_at', { ascending: false })
@@ -392,7 +392,7 @@ const AdminOrders = () => {
     try {
       const { data: returnReq, error: fetchError } = await supabase
         .from('return_requests')
-        .select('id, order_id, buyer_id, status, reason, description, item_ids, admin_response, admin_id, created_at, updated_at')
+        .select('id, order_id, buyer_id, vendor_id, status, reason, refund_amount, created_at, updated_at')
         .eq('id', returnId)
         .single()
 
@@ -411,8 +411,6 @@ const AdminOrders = () => {
         .from('return_requests')
         .update({
           status: newStatus,
-          admin_response: adminResponse,
-          admin_id: user?.id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', returnId)
@@ -425,7 +423,7 @@ const AdminOrders = () => {
         entityType: 'return_request',
         entityId: returnId,
         oldValues: { status: oldStatus },
-        newValues: { status: newStatus, admin_response: adminResponse },
+        newValues: { status: newStatus, notes: adminResponse },
         metadata: {
           orderId: returnReq.order_id,
           buyerId: returnReq.buyer_id,
@@ -888,13 +886,8 @@ const ReturnRequestsList = ({ returns, onAction, loading }) => {
                   <div>
                     <h4 className="text-sm font-medium text-gray-700 mb-2">{t('admin.orders.returnRequests.returnDetails', 'Return Details')}</h4>
                     <p className="text-sm text-gray-600"><strong>{t('admin.orders.returnRequests.reason', 'Reason')}:</strong> {ret.reason}</p>
-                    {ret.description && (
-                      <p className="text-sm text-gray-600 mt-1"><strong>{t('common.description', 'Description')}:</strong> {ret.description}</p>
-                    )}
-                    {ret.items && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        <strong>{t('admin.orders.detailModal.items', 'Items')}:</strong> {Array.isArray(ret.items) ? ret.items.length : JSON.stringify(ret.items)}
-                      </p>
+                    {ret.refund_amount > 0 && (
+                      <p className="text-sm text-gray-600 mt-1"><strong>{t('admin.orders.refundModal.refundAmount', 'Refund Amount')}:</strong> {formatPrice(ret.refund_amount)}</p>
                     )}
                   </div>
                   <div>
@@ -926,11 +919,7 @@ const ReturnRequestsList = ({ returns, onAction, loading }) => {
                         </div>
                       </div>
                     )}
-                    {ret.admin_response && (
-                      <p className="text-sm text-gray-600">
-                        <strong>{t('admin.orders.returnRequests.adminResponse', 'Admin Response')}:</strong> {ret.admin_response}
-                      </p>
-                    )}
+                    {/* response field disabled — column does not exist in return_requests schema */}
                   </div>
                 </div>
               </div>
