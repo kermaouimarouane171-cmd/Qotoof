@@ -17,4 +17,18 @@ describe('Admin CommissionManagement — does not reference ghost tables in Supa
   test('imports platformSettings for commission rate', () => {
     expect(commissionManagementSource).toContain("import { platformSettings } from '@/services/platformSettings'")
   })
+
+  test('does not select is_active from profiles', () => {
+    expect(commissionManagementSource).not.toMatch(/\.from\(['"]profiles['"]\).*is_active/)
+  })
+
+  test('does not depend on vendor.is_active in frozen count or UI', () => {
+    expect(commissionManagementSource).not.toContain('vendor?.is_active')
+  })
+
+  test('still aggregates orders and profiles', () => {
+    expect(commissionManagementSource).toContain('.from(\'orders\')')
+    expect(commissionManagementSource).toContain('.from(\'profiles\')')
+    expect(commissionManagementSource).toContain('vendor_id')
+  })
 })

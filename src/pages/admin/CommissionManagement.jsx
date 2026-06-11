@@ -85,7 +85,7 @@ const CommissionManagementPage = () => {
           .order('created_at', { ascending: false }),
         supabase
           .from('profiles')
-          .select('id, first_name, last_name, store_name, email, city, is_active')
+          .select('id, first_name, last_name, store_name, email, city')
           .eq('role', 'vendor'),
       ])
 
@@ -206,7 +206,8 @@ const CommissionManagementPage = () => {
     const paidAmount = filteredRows
       .filter((r) => r.status === 'paid')
       .reduce((sum, r) => sum + Number(r.commission_paid || 0), 0)
-    const frozenCount = filteredRows.filter((r) => r.vendor?.is_active === false).length
+    // Note: frozen account tracking requires DB schema support (is_active column removed)
+    const frozenCount = 0
 
     return {
       pendingCount: pending.length,
@@ -302,7 +303,7 @@ const CommissionManagementPage = () => {
         paid_at: formatDate(row.paid_at, i18n.language),
         payment_method: row.payment_method || '',
         payment_reference: row.payment_reference || '',
-        account_state: row.vendor?.is_active === false ? 'frozen' : 'active',
+        account_state: 'active', // freeze tracking disabled — requires DB schema support
       }))
 
       csvExport.exportToCSV(
@@ -486,8 +487,8 @@ const CommissionManagementPage = () => {
                     <p className="text-[11px] text-gray-500 mt-1">{row.payment_method || t('marketplaceFeatures.commissionManagement.table.notDeclared')}</p>
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${row.vendor?.is_active === false ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                      {row.vendor?.is_active === false ? t('marketplaceFeatures.commissionManagement.statusLabels.frozen') : t('marketplaceFeatures.commissionManagement.statusLabels.active')}
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                      {t('marketplaceFeatures.commissionManagement.statusLabels.active')}
                     </span>
                   </td>
                   <td className="py-3 px-4">{row.due_date ? new Date(row.due_date).toLocaleDateString(getLocale(i18n.language)) : '-'}</td>
@@ -504,7 +505,7 @@ const CommissionManagementPage = () => {
                         <span className="text-xs text-gray-400">{t('marketplaceFeatures.commissionManagement.table.noPendingPayment')}</span>
                       )}
 
-                      {(row.status === 'overdue' || row.vendor?.is_active === false) ? (
+                      {row.status === 'overdue' ? (
                         <button
                           onClick={() => setSelectedUnfreezeRow(row)}
                           className="px-3 py-1.5 rounded-lg text-xs font-medium border border-rose-300 text-rose-700 hover:bg-rose-50"
