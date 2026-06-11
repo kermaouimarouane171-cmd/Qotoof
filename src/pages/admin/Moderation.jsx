@@ -155,9 +155,7 @@ const AdminModerationPage = () => {
         .from('user_reports')
         .update({
           status: 'resolved',
-          action_taken: action,
-          admin_notes: notes || actionNotes,
-          suspension_duration_hours: action === 'suspension' ? suspensionHours : null,
+          resolution_notes: notes || actionNotes || `Action: ${action}`,
           resolved_by: user.id,
           resolved_at: new Date().toISOString()})
         .eq('id', reportId)
@@ -169,8 +167,8 @@ const AdminModerationPage = () => {
         action: 'MODERATION_RESOLVED',
         entityType: 'moderation',
         entityId: reportId,
-        oldValues: { status: report.status, action_taken: null },
-        newValues: { status: 'resolved', action_taken: action, notes: notes || actionNotes },
+        oldValues: { status: report.status, resolution_notes: null },
+        newValues: { status: 'resolved', resolution_notes: notes || actionNotes, action },
         userId: user?.id,
         metadata: {
           reportType: report.report_type,
@@ -268,7 +266,7 @@ const AdminModerationPage = () => {
         .from('user_reports')
         .update({
           status: 'dismissed',
-          admin_notes: actionNotes || 'No violation found',
+          resolution_notes: actionNotes || 'No violation found',
           resolved_by: user.id,
           resolved_at: new Date().toISOString()})
         .eq('id', reportId)
@@ -474,9 +472,11 @@ const AdminModerationPage = () => {
                       <span className="font-semibold text-gray-900 truncate">
                         {report.report_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span>
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(report.priority)}`}>
-                        {report.priority}
-                      </span>
+                      {report.priority && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(report.priority)}`}>
+                          {report.priority}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                       {report.description}
@@ -564,17 +564,10 @@ const AdminModerationPage = () => {
                   )}
                 </div>
 
-                {selectedReport.action_taken && (
-                  <div>
-                    <p className="text-sm text-gray-500">{t('admin.moderation.actionTaken', 'Action Taken')}</p>
-                    <p className="font-medium capitalize">{selectedReport.action_taken.replace('_', ' ')}</p>
-                  </div>
-                )}
-
-                {selectedReport.admin_notes && (
+                {selectedReport.resolution_notes && (
                   <div>
                     <p className="text-sm text-gray-500">{t('admin.moderation.adminNotes', 'Admin Notes')}</p>
-                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedReport.admin_notes}</p>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{selectedReport.resolution_notes}</p>
                   </div>
                 )}
 
