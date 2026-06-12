@@ -23,6 +23,12 @@
 - CI: `.github/workflows/ci.yml` (lint:ci → jest → snapshots → build → bundle size → lighthouse). CD: `cd.yml`. Node 22، `npm ci --legacy-peer-deps`.
 - Build/Deploy: Vite build + Firebase Hosting (`firebase.json`)، PWA عبر `vite-plugin-pwa`، Android عبر Capacitor (`capacitor.config.ts`).
 - Payments: PayPal (`@paypal/react-paypal-js`) + CMI (`src/services/cmiPayment.js`)، مع PaymentGuard في `src/contexts/PaymentGuard.jsx`.
+- عدد الصفحات التقريبي: 74 صفحة موزعة على public (14)، auth (8)، onboarding (3)، buyer (9)، vendor (18)، driver (13)، admin (22).
+- عدد الخدمات: 86 ملف في `src/services/` + 4 في `src/services/reports/` + 2 في `src/services/webhooks/` + 1 في `src/services/sms/` + 3 في `src/services/search/`.
+- عدد الاختبارات: 24 ملف اختبار للصفحات + 29 للخدمات + 4 للمتاجر + 15 للأدوات + 38 اختبار Cypress e2e.
+- الجداول المفقودة المؤكدة: `fraud_reports`، `payment_disputes` — لا توجد في أي migration.
+- الجدول المشكوك فيه: `driver_locations` — يُشار إليه في الكود لكن قد لا يكون موجودًا في schema.
+- Express backend في `src/api/` مُعلَّم deprecated (`DEPRECATION_PLAN.md`) ويستخدم `seller` role بدلاً من `vendor`.
 
 ---
 
@@ -436,4 +442,172 @@ Audit → Fix → Test → Report → Stop
 - RLS/Auth/Payments فُحصت (بشكل منفصل وموثق).
 - mobile/PWA فُحص (white-screen test, offline mode).
 - لا توجد مشاكل Critical أو High مفتوحة وغير موثقة.
+
+---
+
+## 40. Project Architecture Map (Discovered, Not Assumed)
+
+### Pages by Role (74 total)
+
+**Public (14):** Home, Marketplace, ProductDetail, Stores, StoreDetail, SearchResults, Seasonal, About, Contact, HelpCenter, Terms, Privacy, BecomeVendor, Returns, Shipping, Tracking, OrderDetail, OrderTracking, OrderConfirmation, ProductCondition, Cart, Favorites, Notifications, Profile, Messages, Chat, BankAccount, ActivityLog
+
+**Auth (8):** Login, Register, ForgotPassword, ResetPassword, VerifyEmail, TwoFactor, PhoneVerification, AuthCallback
+
+**Onboarding (3):** BuyerOnboarding, VendorOnboarding, DriverOnboarding
+
+**Buyer (9):** Dashboard, Orders, Addresses, Settings, Coupons, Loyalty, Security, ShoppingLists, RFQ
+
+**Vendor (18):** Dashboard, Products, Orders, Analytics, Profile, Reviews, Settings, Coupons, Schedules, Security, LocationSetup, DriverPreferenceSetup, FindDriver, DeliveryOptionSetup, DigitalContract, Subscription, RFQs, VendorPublicProfile
+
+**Driver (13):** Dashboard, Active, Available, History, Earnings, Profile, Settings, Security, VendorPreferenceSetup, FindVendor, DeliveryPickup, DeliveryTracking, DeliveryComplete
+
+**Admin (22):** Dashboard, Users, Products, Orders, Analytics, Settings, Reports, Vendors, Drivers, Moderation, Commissions, Payouts, Reviews, Security, CommissionManagement, Verification, DisputeManagement, FraudReports, SupportTickets, CircuitBreakers, DriverVerification, SettingsAuditLog
+
+### Services (86+ files)
+
+**Core:** supabase.ts, authActionsService.js, authServices.js, authGateway.js, platformSettings.js
+**Orders:** ordersService.ts, checkoutService.js, cancellationService.js, returns.js
+**Payments:** paymentService.js, paymentGateway.js, paymentRecords.js, cmiPayment.js, payoutService.js, commissionService.js
+**Delivery:** deliveryMatchingService.js, autoDispatch.js, driverLocationService.js, deliveries.js, shippingCalculator.js
+**Products:** inventoryService.js, productImages.js, vendorAnalytics.js
+**Users:** profilesService.ts, onboardingService.js, authAdminOps.js
+**Communication:** chatService.jsx, notifications.js, emailService.js, sms/
+**Security:** ipBlocking.js, rateLimiter.js, vendorSecurity.js, fraudReportService.js, fraudAwarenessService.js, trustScoreService.js
+**Analytics:** analytics.js, googleAnalytics.js, realtime.js, realtimeManager.js
+**Reports:** reports/ (csvExport, pdfExport, etc.)
+**Other:** coupons.js, loyalty.js, rfqService.js, reviewService.js, search/, webhooks/
+
+### Stores (6 files)
+- `authStore.js` — Zustand + persist, المصدر الرئيسي للمصادقة
+- `authSessionStore.js` — جلسات متعددة
+- `useAuthStore` hook يُستخدم في `AppRouter.jsx` و`ProtectedRoute`
+
+### Layouts (5)
+- `MainLayout` — للصفحات العامة
+- `AdminLayout` — /admin/*
+- `VendorLayout` — /vendor/*
+- `DriverLayout` — /driver/*
+- `BuyerLayout` — /buyer/*
+
+### Hooks (20+ files)
+- `useAuthStore`, `useFetch`, `useRealtime`, `useDeliveryTracking`, `useVendorAnalytics`, `useDriverLocation`, `useNotifications`, `useCart`, etc.
+
+### Contexts
+- `PaymentGuard.jsx` — يتحكم في صلاحية الدفع والعمولة
+
+---
+
+## 41. Known Ghost Columns & Missing Tables Registry
+
+> هذا السجل مبني على التحليل الفعلي للكود مقابل migrations. يُحدّث بعد كل Audit جديد.
+
+### الجداول المفقودة (Missing Tables — مؤكدة)
+
+| الجدول | الملفات المعتمدة | الحالة |
+|--------|-----------------|--------|
+| `fraud_reports` | `AdminFraudReports.jsx`, `fraudReportService.js` | ❌ غير موجود في أي migration |
+| `payment_disputes` | `AdminDisputeManagement.jsx`, `disputeService.js` | ❌ غير موجود في أي migration |
+
+### الأعمدة الشبحية (Ghost Columns — تم إصلاحها)
+
+| العمود | الجدول | الملفات التي كانت تستخدمه | الحالة |
+|--------|--------|--------------------------|--------|
+| `last_sign_in_at` | `profiles` | `AdminDashboard.jsx` | ✅ Fixed → `last_seen_at` |
+| `full_name` | `profiles` | `AdminDrivers.jsx`, `reportService.js` | ✅ Fixed → `first_name`+`last_name` |
+| `is_active` | `profiles` | `AdminDrivers.jsx`, `CommissionManagement.jsx`, `reportService.js` | ✅ Fixed — removed |
+| `payment_method` | `orders` | `reportService.js` | ✅ Fixed — removed |
+| `total_amount` | `orders` | `reportService.js` | ✅ Fixed → `total` |
+| `completed_at` | `deliveries` | `reportService.js` | ✅ Fixed → `delivered_at` |
+| `action_taken` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolution_notes` |
+| `admin_notes` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolution_notes` |
+| `reviewed_by` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolved_by` |
+| `reviewed_at` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolved_at` |
+| `method`, `gateway`, `metadata` | `payments` | `AdminOrders.jsx` | ✅ Fixed — removed |
+| `description`, `item_ids`, `admin_response`, `admin_id` | `return_requests` | `AdminOrders.jsx` | ✅ Fixed — removed |
+| `vendor_monthly_sales` | (ghost table) | `CommissionManagement.jsx` | ✅ Fixed — replaced with dynamic calc |
+| `admin_response` | `support_tickets` | `SupportTickets.jsx` | ✅ Fixed — removed |
+| `is_active` | `profiles` | `CommissionManagement.jsx` | ✅ Fixed — removed |
+| `user_id` | `payments` | `Commissions.jsx` | ✅ Fixed — removed |
+
+### الأعمدة المشكوك فيها (Needs SQL Verification)
+
+| العمود/الجدول | السبب |
+|--------------|-------|
+| `payments.user_id` | Migration `004-add-bank-accounts.sql` يعرّف `payments` مع `user_id` لكنه `CREATE TABLE IF NOT EXISTS` — إذا كان الجدول موجودًا مسبقًا من `000-complete-fresh-setup.sql`، فإن `user_id` لن يُضاف |
+| `driver_locations` | يُشار إليه في `driverLocationService.js` لكن لا يوجد migration واضح له |
+
+---
+
+## 42. Test Coverage Map & Gaps
+
+### Tests الموجودة والحالة
+
+| النوع | العدد | المغطى | النواقص |
+|-------|-------|--------|---------|
+| Page unit tests (`src/__tests__/pages/`) | 24 | Admin pages (13)، Login/Register/VerifyEmail، Checkout، DigitalContract، VendorDashboard/Settings، buyerOrdersRealtime، vendorOrdersRealtime | Buyer pages (8 missing)، Vendor pages (16 missing)، Driver pages (13 missing)، Public pages (14 missing) |
+| Service tests (`src/__tests__/services/`) | 29 | reportService، ordersService، authActionsService، paymentGateway، commissionService، deliveryMatchingService، etc. | Many services uncovered |
+| Store tests (`src/__tests__/stores/`) | 4 | authStore، authSessionStore، useCartStore | Limited coverage |
+| Utility tests (`src/__tests__/utils/`) | 15 | formatters، validators، helpers | Acceptable |
+| Cypress e2e (`cypress/e2e/`) | 38 | page-health-* لكل role، auth-flows، checkout، marketplace، mobile-white-screen، accessibility، security، smoke | Some flows need updating after ghost column fixes |
+
+### Regression Tests المضافة في مرحلة Admin
+
+| الملف | الصفحة/الخدمة | الغرض |
+|-------|--------------|-------|
+| `AdminDashboard.columns.test.jsx` | Dashboard | يمنع `last_sign_in_at` |
+| `AdminReviews.columns.test.jsx` | Reviews | يمنع `helpful_count`/`images`/`moderation_notes`/`response` |
+| `AdminDrivers.columns.test.jsx` | Drivers | يمنع `full_name`/`is_active` |
+| `AdminDrivers.resilience.test.jsx` | Drivers | يتعامل مع `driver_locations` المفقود |
+| `AdminOrders.columns.test.jsx` | Orders | يمنع ghost columns في payments و return_requests |
+| `reportService.columns.test.js` | Report Service | يمنع `total_amount`/`full_name`/`is_active`/`payment_method`/`completed_at` |
+| `AdminModeration.columns.test.jsx` | Moderation | يمنع `action_taken`/`admin_notes`/`reviewed_by`/`reviewed_at` |
+| `AdminCommissionManagement.columns.test.jsx` | CommissionManagement | يمنع `vendor_monthly_sales`/`is_active` |
+| `AdminCommissions.columns.test.jsx` | Commissions | يمنع `user_id`/`commission`/`vendor_amount`/`method`/`gateway`/`metadata` |
+| `AdminPayouts.test.jsx` | Payouts | يتحقق من schema الحقيقي |
+| `AdminSupportTickets.columns.test.jsx` | SupportTickets | يمنع `admin_response` |
+
+### Tests التي تحتاج update بعد fixes
+
+- `AdminDrivers.resilience.test.jsx` — يتحقق من `driver_locations` table absence
+- `AdminPayouts.test.jsx` — يعتمد على `user_id` schema (live DB confirmed)
+
+---
+
+## 43. Express Backend Deprecation Note
+
+- Express server في `src/api/` مُعلَّم deprecated بوضوح (`DEPRECATION_PLAN.md`).
+- يحتوي على مسارات driver فقط (`driver.routes.js`, `admin-drivers.routes.js`).
+- يستخدم `seller` role في `src/api/middleware/auth.js` بينما باقي التطبيق يستخدم `vendor`.
+- **قاعدة:** لا تضيف مسارات Express جديدة. لا تُصلح bugs في Express إلا إذا كانت حرجة ولا يوجد بديل في Supabase/Frontend.
+- **قاعدة:** إذا كان هناك تعارض بين `seller` و`vendor`، لا توحّدهما تلقائيًا. رجّح `vendor` في أي تعديل frontend جديد.
+
+---
+
+## 44. Capacitor / Mobile / PWA Notes
+
+- Capacitor Android configured (`capacitor.config.ts`).
+- PWA via `vite-plugin-pwa` with service worker.
+- **Tests:** `cypress/e2e/mobile-white-screen.cy.js` (white-screen detection).
+- **Risk:** Lazy-loaded pages may white-screen on slow networks if chunk fails to load.
+- **Rule:** When fixing a page, consider `Suspense` fallback and error boundary behavior on mobile.
+- **Rule:** Do not add heavy libraries (check bundle size in CI).
+
+---
+
+## 45. Emergency Stop Conditions
+
+توقف فورًا ولا تُكمل إذا حدث أي مما يلي:
+
+1. **Git repository corrupt أو not found** — لا تُكرر `git` commands.
+2. **npm install fails** — لا تحاول `npm install` أو `npm update` تلقائيًا.
+3. **Supabase connection fails** — لا تفترض أن المشكلة في الكود. قد يكون outage.
+4. **Same test fails twice** لنفس السبب — توقف واشرح.
+5. **Same command fails twice** لنفس السبب — توقف واشرح.
+6. **Build fails after your change** — لا تدّعِ نجاحًا. وثّق الخطأ.
+7. **Lint errors increase significantly** — لا تتجاوز العتبة دون تبرير.
+8. **User explicitly says "stop" or "pause"** — توقف فورًا.
+9. **You discover a security vulnerability** — توقف وبلّغ فورًا.
+10. **You are unsure about a change** — توقف واسأل.
+
+---
 
