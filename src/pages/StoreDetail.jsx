@@ -13,8 +13,6 @@ import {
   EnvelopeIcon,
   ClockIcon,
   ShareIcon,
-  BellIcon,
-  BellSlashIcon,
   ChatBubbleLeftRightIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -344,7 +342,11 @@ const StoreDetail = () => {
     }
   }, [id])
 
+  // TEMPORARILY DISABLED: store_follows.store_id references stores.id,
+  // but current public store routes use profiles.id and vendors have no stores rows.
   const checkFollowStatus = useCallback(async () => {
+    return
+    /*
     if (!user || !id) return
     try {
       const { data } = await supabase
@@ -358,6 +360,7 @@ const StoreDetail = () => {
     } catch {
       setIsFollowing(false)
     }
+    */
   }, [user, id])
 
   // Debounced auto-search for product search
@@ -380,12 +383,16 @@ const StoreDetail = () => {
     if (id) loadReviews()
   }, [id, loadReviews])
 
-  // Check follow status when store loads
-  useEffect(() => {
-    if (store && user) checkFollowStatus()
-  }, [store, user, checkFollowStatus])
+  // TEMPORARILY DISABLED: checkFollowStatus disabled — see checkFollowStatus comment above
+  // useEffect(() => {
+  //   if (store && user) checkFollowStatus()
+  // }, [store, user, checkFollowStatus])
 
+  // TEMPORARILY DISABLED: store_follows.store_id references stores.id,
+  // but current public store routes use profiles.id and vendors have no stores rows.
   const handleFollowStore = async () => {
+    return
+    /*
     if (!user) {
       toast.error(t('storeDetail.actions.loginToFollow', 'Please login to follow stores'))
       return
@@ -416,6 +423,7 @@ const StoreDetail = () => {
     } finally {
       setFollowLoading(false)
     }
+    */
   }
 
   const handleCallSeller = useCallback(() => {
@@ -814,7 +822,9 @@ const StoreDetail = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3">
-          {/* Follow Button */}
+          {/* Follow Button — TEMPORARILY DISABLED: store_follows.store_id references stores.id,
+              but current public store routes use profiles.id and vendors have no stores rows. */}
+          {/*
           <button
             onClick={handleFollowStore}
             disabled={followLoading}
@@ -833,6 +843,7 @@ const StoreDetail = () => {
             )}
             {isFollowing ? t('storeDetail.actions.following', 'Following') : t('storeDetail.actions.followStore', 'Follow Store')}
           </button>
+          */}
 
           {/* Call Seller */}
           {store.phone && (
