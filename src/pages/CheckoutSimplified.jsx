@@ -984,7 +984,6 @@ const CheckoutSimplified = () => {
           paymentId: paymentRecord.id,
           values: {
             transaction_id: paypalInit.orderId,
-            gateway_response: paypalInit,
           },
         })
 
@@ -1008,7 +1007,7 @@ const CheckoutSimplified = () => {
           // Fetch payment method
           const paymentData = await getLatestOrderPaymentRecord({
             orderId: order.id,
-            select: 'payment_method, method',
+            select: 'payment_method',
             allowMissing: true,
           })
 

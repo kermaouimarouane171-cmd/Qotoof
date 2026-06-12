@@ -88,10 +88,7 @@ const buildPaymentMethodOrFilter = (paymentMethod) => {
   const candidates = getPaymentMethodCandidates(paymentMethod)
   if (candidates.length === 0) return ''
 
-  return candidates.flatMap((candidate) => [
-    `${PAYMENT_METHOD_COLUMN}.eq.${candidate}`,
-    `${LEGACY_PAYMENT_METHOD_COLUMN}.eq.${candidate}`,
-  ]).join(',')
+  return candidates.map((candidate) => `${PAYMENT_METHOD_COLUMN}.eq.${candidate}`).join(',')
 }
 
 export const applyPaymentMethodFilter = (query, paymentMethod) => {
