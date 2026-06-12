@@ -317,7 +317,6 @@ const StoreDetail = () => {
           *
         `, { count: 'exact' })
         .eq('vendor_id', id)
-        .eq('is_flagged', false)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(10)
@@ -333,7 +332,6 @@ const StoreDetail = () => {
           .from('reviews')
           .select('rating')
           .eq('vendor_id', id)
-          .eq('is_flagged', false)
           .is('deleted_at', null)
 
         if (allRatings && allRatings.length > 0) {

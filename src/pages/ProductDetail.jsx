@@ -250,7 +250,6 @@ const ProductDetailPage = () => {
           reviewer:profiles!reviews_user_id_fkey(first_name, last_name, avatar_url)
         `, { count: 'exact' })
         .eq('product_id', id)
-        .eq('is_flagged', false)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .range(from, to)
@@ -266,7 +265,6 @@ const ProductDetailPage = () => {
           .from('reviews')
           .select('rating')
           .eq('product_id', id)
-          .eq('is_flagged', false)
           .is('deleted_at', null)
 
         if (allRatings && allRatings.length > 0) {
