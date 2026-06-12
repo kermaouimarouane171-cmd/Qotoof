@@ -169,8 +169,9 @@ const AdminReviews             = lazy(() => import('@/pages/admin/Reviews'));
 const AdminSecurity            = lazy(() => import('@/pages/admin/Security'));
 const AdminCommissionManagement = lazy(() => import('@/pages/admin/CommissionManagement'));
 const AdminVerification        = lazy(() => import('@/pages/admin/Verification'));
-const AdminDisputeManagement   = lazy(() => import('@/pages/admin/DisputeManagement'));
-const AdminFraudReports        = lazy(() => import('@/pages/admin/FraudReports'));
+/* TEMPORARILY DISABLED: payment_disputes and fraud_reports tables do not exist in DB schema — requires migration before re-enabling */
+// const AdminDisputeManagement   = lazy(() => import('@/pages/admin/DisputeManagement'));
+// const AdminFraudReports        = lazy(() => import('@/pages/admin/FraudReports'));
 const AdminSupportTickets      = lazy(() => import('@/pages/admin/SupportTickets'));
 
 // ── Error pages ───────────────────────────────────────────────────────────────
@@ -370,8 +371,9 @@ export function AppRouter() {
         <Route path="security"                element={<SuspenseRoute><AdminSecurity /></SuspenseRoute>} />
         <Route path="commission-management"   element={<SuspenseRoute><AdminCommissionManagement /></SuspenseRoute>} />
         <Route path="verification"            element={<SuspenseRoute><AdminVerification /></SuspenseRoute>} />
-        <Route path="disputes"                element={<SuspenseRoute><AdminDisputeManagement /></SuspenseRoute>} />
-        <Route path="fraud-reports"           element={<SuspenseRoute><AdminFraudReports /></SuspenseRoute>} />
+        {/* TEMPORARILY DISABLED: payment_disputes and fraud_reports tables do not exist in DB schema — requires migration before re-enabling */}
+        {/* <Route path="disputes"                element={<SuspenseRoute><AdminDisputeManagement /></SuspenseRoute>} /> */}
+        {/* <Route path="fraud-reports"           element={<SuspenseRoute><AdminFraudReports /></SuspenseRoute>} /> */}
         <Route path="support-tickets"         element={<SuspenseRoute><AdminSupportTickets /></SuspenseRoute>} />
         <Route path="support"                 element={<Navigate to="/admin/support-tickets" replace />} />
       </Route>
