@@ -61,7 +61,7 @@ const StoreCardSkeleton = () => (
 )
 
 const Stores = () => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState([])
   const [search, setSearch] = useState('')
@@ -173,8 +173,8 @@ const Stores = () => {
   return (
     <div dir={isArabic ? 'rtl' : 'ltr'} className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">المتاجر</h1>
-        <p className="mt-1 text-sm text-gray-500">اكتشف كل البائعين الموثقين والنشطين في قطوف</p>
+        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">{t('stores.title')}</h1>
+        <p className="mt-1 text-sm text-gray-500">{t('stores.browseStores', { count: filteredStores.length })}</p>
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-white p-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -183,20 +183,20 @@ const Stores = () => {
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            placeholder="ابحث باسم المتجر"
+            placeholder={t('stores.searchPlaceholder')}
             className="h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/30 pr-9 pl-3 text-sm outline-none ring-emerald-300 transition focus:ring"
           />
         </div>
 
         <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-3 text-sm outline-none ring-emerald-300 focus:ring">
-          <option value="">كل الفئات</option>
+          <option value="">{t('stores.filters.allCategories')}</option>
           {CATEGORY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+            <option key={option.value} value={option.value}>{t(`stores.specialties.${option.value}`)}</option>
           ))}
         </select>
 
         <select value={city} onChange={(event) => setCity(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-3 text-sm outline-none ring-emerald-300 focus:ring">
-          <option value="">كل المدن</option>
+          <option value="">{t('stores.filters.allCities')}</option>
           {MOROCCAN_CITIES.map((cityName) => (
             <option key={cityName} value={cityName}>{cityName}</option>
           ))}
@@ -204,7 +204,7 @@ const Stores = () => {
 
         <div className="grid grid-cols-2 gap-2">
           <select value={ratingFilter} onChange={(event) => setRatingFilter(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-2 text-sm outline-none ring-emerald-300 focus:ring">
-            <option value="">التقييم</option>
+            <option value="">{t('stores.filters.rating')}</option>
             <option value="4">4+ ⭐</option>
             <option value="3">3+ ⭐</option>
             <option value="2">2+ ⭐</option>
@@ -212,7 +212,7 @@ const Stores = () => {
 
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} className="h-10 rounded-xl border border-emerald-100 px-2 text-sm outline-none ring-emerald-300 focus:ring">
             {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
+              <option key={option.value} value={option.value}>{t(`stores.sortOptions.${option.value}`)}</option>
             ))}
           </select>
         </div>
@@ -226,13 +226,13 @@ const Stores = () => {
         </div>
       ) : paginatedStores.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-14 text-center text-sm text-gray-500">
-          لا توجد متاجر مطابقة للفلاتر الحالية.
+          {t('stores.empty.description')}
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {paginatedStores.map((store) => {
-              const storeName = (store.store_name || `${store.first_name || ''} ${store.last_name || ''}`).trim() || 'متجر بدون اسم'
+              const storeName = (store.store_name || `${store.first_name || ''} ${store.last_name || ''}`).trim() || t('stores.unnamedStore')
               return (
                 <article key={store.id} className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                   <div className="flex items-start gap-3">
@@ -258,14 +258,14 @@ const Stores = () => {
                   <div className="mt-4 space-y-2 text-xs text-gray-600">
                     <p className="flex items-center gap-1">
                       <MapPinIcon className="h-4 w-4 text-emerald-600" />
-                      {store.city || 'غير محدد'}
+                      {store.city || t('stores.unknownCity')}
                     </p>
-                    <p>عدد المنتجات: <span className="font-semibold text-gray-800">{store.productCount}</span></p>
-                    <p>عدد الطلبات: <span className="font-semibold text-gray-800">{store.orderCount}</span></p>
+                    <p>{t('stores.productCount')}: <span className="font-semibold text-gray-800">{store.productCount}</span></p>
+                    <p>{t('stores.orderCount')}: <span className="font-semibold text-gray-800">{store.orderCount}</span></p>
                   </div>
 
                   <Link to={`/stores/${store.id}`} className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-xl bg-emerald-600 text-sm font-semibold text-white transition hover:bg-emerald-700">
-                    View Store
+                    {t('stores.cta.visitStore')}
                   </Link>
                 </article>
               )
@@ -279,7 +279,7 @@ const Stores = () => {
               disabled={page === 1}
               className="h-9 rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              السابق
+              {t('common.previous')}
             </button>
 
             <span className="px-3 text-sm text-gray-600">{page} / {totalPages}</span>
@@ -290,7 +290,7 @@ const Stores = () => {
               disabled={page === totalPages}
               className="h-9 rounded-lg border border-emerald-200 px-3 text-sm text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              التالي
+              {t('common.next')}
             </button>
           </div>
         </>

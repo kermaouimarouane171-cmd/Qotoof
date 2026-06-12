@@ -258,7 +258,8 @@
       "sortBy": "ترتيب المتاجر",
       "clearAll": "مسح الكل",
       "removeCity": "إزالة فلتر المدينة",
-      "removeCategory": "إزالة فلتر الفئة"
+      "removeCategory": "إزالة فلتر الفئة",
+      "rating": "التقييم"
     },
     "specialties": {
       "plants": "نباتات",
@@ -271,7 +272,9 @@
       "newest": "الأحدث أولاً",
       "oldest": "الأقدم أولاً",
       "highest_rated": "الأعلى تقييماً",
-      "most_reviewed": "الأكثر مراجعة"
+      "most_reviewed": "الأكثر مراجعة",
+      "rating": "الأعلى تقييماً",
+      "most_orders": "الأكثر طلبات"
     },
     "status": {
       "online": "متصل",
@@ -293,7 +296,11 @@
       "loadFailed": "تعذر تحميل المتاجر. حاول مرة أخرى.",
       "genericTitle": "حدث خطأ ما",
       "tryAgain": "حاول مرة أخرى"
-    }
+    },
+    "unnamedStore": "متجر بدون اسم",
+    "unknownCity": "غير محدد",
+    "productCount": "عدد المنتجات",
+    "orderCount": "عدد الطلبات"
   },
   "storeDetail": {
     "breadcrumb": "مسار التنقل",

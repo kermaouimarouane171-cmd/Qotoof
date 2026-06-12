@@ -260,7 +260,8 @@
       "sortBy": "Sort stores",
       "clearAll": "Clear all",
       "removeCity": "Remove city filter",
-      "removeCategory": "Remove category filter"
+      "removeCategory": "Remove category filter",
+      "rating": "Rating"
     },
     "specialties": {
       "plants": "Plants",
@@ -273,7 +274,9 @@
       "newest": "Newest First",
       "oldest": "Oldest First",
       "highest_rated": "Highest Rated",
-      "most_reviewed": "Most Reviewed"
+      "most_reviewed": "Most Reviewed",
+      "rating": "Highest Rated",
+      "most_orders": "Most Orders"
     },
     "status": {
       "online": "Online",
@@ -295,7 +298,11 @@
       "loadFailed": "Failed to load stores. Please try again.",
       "genericTitle": "Something went wrong",
       "tryAgain": "Try Again"
-    }
+    },
+    "unnamedStore": "Unnamed Store",
+    "unknownCity": "Not specified",
+    "productCount": "Products",
+    "orderCount": "Orders"
   },
   "storeDetail": {
     "breadcrumb": "Breadcrumb",

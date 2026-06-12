@@ -231,7 +231,8 @@
       "sortBy": "Trier les boutiques",
       "clearAll": "Tout effacer",
       "removeCity": "Supprimer le filtre de ville",
-      "removeCategory": "Supprimer le filtre de catégorie"
+      "removeCategory": "Supprimer le filtre de catégorie",
+      "rating": "Note"
     },
     "specialties": {
       "plants": "Plantes",
@@ -244,7 +245,9 @@
       "newest": "Plus récent",
       "oldest": "Plus ancien",
       "highest_rated": "Mieux noté",
-      "most_reviewed": "Le plus évalué"
+      "most_reviewed": "Le plus évalué",
+      "rating": "Mieux noté",
+      "most_orders": "Le plus de commandes"
     },
     "status": {
       "online": "En ligne",
@@ -266,7 +269,11 @@
       "loadFailed": "Impossible de charger les boutiques. Veuillez réessayer.",
       "genericTitle": "Une erreur est survenue",
       "tryAgain": "Réessayer"
-    }
+    },
+    "unnamedStore": "Boutique sans nom",
+    "unknownCity": "Non spécifié",
+    "productCount": "Produits",
+    "orderCount": "Commandes"
   },
   "storeDetail": {
     "breadcrumb": "Fil d'Ariane",
