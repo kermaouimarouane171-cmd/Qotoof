@@ -33,8 +33,6 @@ const PRODUCT_CORE_SELECT = `
   min_order_quantity,
   is_available,
   approval_status,
-  average_rating,
-  reviews_count,
   created_at,
   vendor_id,
 `
@@ -60,7 +58,6 @@ const _PRODUCT_SUGGESTION_SELECT = `
   category,
   subcategory,
   price_per_unit,
-  average_rating,
   vendor_id,
   product_images(url, is_primary),
   vendor:profiles(id, first_name, last_name, store_name, email)
@@ -72,7 +69,6 @@ const PRODUCT_SUGGESTION_SELECT_WITHOUT_IMAGES = `
   category,
   subcategory,
   price_per_unit,
-  average_rating,
   vendor_id,
   vendor:profiles(id, first_name, last_name, store_name, email)
 `
@@ -238,18 +234,20 @@ const searchProductsViaSupabase = async (filters) => {
       query = query.lte('price_per_unit', filters.maxPrice)
     }
 
-    if (filters.rating !== null) {
-      query = query.gte('average_rating', filters.rating)
-    }
+    /* TEMPORARILY DISABLED: products.average_rating column does not exist in DB schema — requires migration before re-enabling */
+    // if (filters.rating !== null) {
+    //   query = query.gte('average_rating', filters.rating)
+    // }
 
     if (filters.inStock === true) {
       query = query.or('stock_quantity.gt.0,available_quantity.gt.0')
     }
 
-    if (filters.query) {
-      const textQuery = filters.query.replace(/\s+/g, ' ').trim()
-      query = query.textSearch('search_document', textQuery, { type: 'websearch', config: 'simple' })
-    }
+    /* TEMPORARILY DISABLED: products.search_document column does not exist in DB schema — requires migration or fts index before re-enabling */
+    // if (filters.query) {
+    //   const textQuery = filters.query.replace(/\s+/g, ' ').trim()
+    //   query = query.textSearch('search_document', textQuery, { type: 'websearch', config: 'simple' })
+    // }
 
     switch (filters.sortBy) {
       case 'price_asc':
@@ -258,8 +256,9 @@ const searchProductsViaSupabase = async (filters) => {
       case 'price_desc':
         query = query.order('price_per_unit', { ascending: false })
         break
+      /* TEMPORARILY DISABLED: products.average_rating and products.reviews_count columns do not exist in DB schema — requires migration before re-enabling */
       case 'rating_desc':
-        query = query.order('average_rating', { ascending: false }).order('reviews_count', { ascending: false })
+        query = query.order('created_at', { ascending: false })
         break
       case 'name_asc':
         query = query.order('name', { ascending: true })
