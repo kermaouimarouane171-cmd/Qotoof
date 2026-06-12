@@ -635,7 +635,150 @@
     "payment": "Payment Method",
     "review": "Order Review",
     "placeOrder": "Place Order",
-    "orderSummary": "Order Summary"
+    "orderSummary": "Order Summary",
+    "emptyCart": "Your cart is empty",
+    "addProductsFirst": "Add products to your cart first",
+    "browseProducts": "Browse Products",
+    "steps": {
+      "shipping": "Shipping",
+      "delivery": "Delivery",
+      "payment": "Payment"
+    },
+    "deliveryPayment": {
+      "cash": "Cash on delivery",
+      "bankTransfer": "Bank transfer to driver"
+    },
+    "errors": {
+      "multiVendorDisabled": "Checkout is currently limited to one store per order. Split your cart by vendor and try again.",
+      "paypalNotConfigured": "PayPal is not enabled in environment settings.",
+      "paypalSingleVendorOnly": "PayPal is currently available for single-store orders only.",
+      "paypalUnavailable": "PayPal is currently unavailable.",
+      "shippingOutOfRange": "This address is outside the current delivery range.",
+      "calculatingShipping": "Calculating shipping cost for this address. Please wait before proceeding to payment.",
+      "shippingNotConfirmed": "Shipping cost has not been confirmed. Please set the address and exact location then wait for calculation.",
+      "shippingCalculatingRetry": "Calculating shipping cost. Please wait a moment then try again.",
+      "shippingNotConfirmedWait": "Shipping cost has not been confirmed. Please wait a moment.",
+      "noCommonPaymentMethod": "No shared payment method is currently available for this cart.",
+      "paymentTypeUnavailable": "The selected payment type is no longer available. Choose another option.",
+      "selectPaymentMethod": "Select a payment method for the required amount before confirming the order.",
+      "selectBank": "Select a bank for the transfer before confirming the order.",
+      "acceptTerms": "You must accept the payment terms before confirming the order.",
+      "createOrderFailed": "Could not create order from server.",
+      "paypalInitFailed": "Could not initialize PayPal order.",
+      "paypalInvalidAmount": "The PayPal payment amount is invalid.",
+      "paypalCreateFailed": "Could not create PayPal transaction.",
+      "paypalNoOrderId": "PayPal order ID was not received from server.",
+      "paypalRecordNotFound": "Could not find PayPal payment record to update.",
+      "genericFailed": "Could not complete the order. Please try again.",
+      "paypalIncomplete": "Could not complete payment: PayPal order data is incomplete.",
+      "paypalConfirmFailed": "Could not confirm PayPal payment.",
+      "paypalIncompletePayment": "The PayPal payment was not completed.",
+      "paypalApproveFailed": "Failed to confirm the PayPal payment.",
+      "couponValidationFailed": "Could not verify coupon.",
+      "couponCheckFailed": "Coupon validation failed."
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "phoneRequired": "Phone number is required",
+      "cityRequired": "City is required",
+      "addressRequired": "Address is required",
+      "locationRequired": "Please select your exact location on the map"
+    },
+    "blockers": {
+      "title": "Why can't you proceed to payment now?",
+      "calculatingShipping": "Calculating shipping cost. Please wait a moment before confirming the order.",
+      "shippingNotConfirmed": "Shipping cost has not been confirmed for this address.",
+      "noPaymentMethod": "No shared payment method is currently available for this cart.",
+      "selectPaymentType": "Select an available payment type before completing the order.",
+      "selectPaymentMethod": "Select a payment method first.",
+      "paypalUnavailable": "PayPal is currently unavailable for this order.",
+      "selectBank": "Select a bank for the transfer before confirming the order.",
+      "acceptTerms": "You must accept the payment terms before confirming the order."
+    },
+    "multiVendorDisabled": {
+      "title": "Multi-vendor checkout is temporarily disabled",
+      "backToCart": "Back to Cart"
+    },
+    "delivery": {
+      "title": "Delivery Driver",
+      "activeProducts": "Active products: {{count}}",
+      "multiVendorNotice": "There is more than one store in the cart.",
+      "multiVendorDescription": "The appropriate delivery option will be applied for each store automatically when orders are created, whether self-delivery, finding a driver, or an assigned driver.",
+      "driverBlockedTitle": "This store has not completed linking the assigned driver yet.",
+      "driverBlockedDescription": "This order cannot proceed because the current delivery option requires an assigned driver with an accepted partnership from the vendor.",
+      "deliveryTo": "Delivery to:",
+      "estimatedCost": "Estimated cost:",
+      "calculating": "Calculating...",
+      "unavailable": "Unavailable",
+      "distance": "Distance:",
+      "estTime": "Est. time:",
+      "pricingFrom": "Pricing from:",
+      "scheduling": {
+        "title": "Delivery Scheduling",
+        "description": "Choose a date and time slot if you want to schedule a delivery window in advance.",
+        "dateLabel": "Requested delivery date",
+        "loadingSlots": "Loading available delivery slots...",
+        "noSlots": "No slots available for this date. You can proceed without scheduling and it will be handled at the earliest available time.",
+        "cutoff": "Closes {{hours}}h before",
+        "slotFull": "Full",
+        "slotPastCutoff": "Booking closed",
+        "slotAvailable": "Available",
+        "remainingCapacity": "Remaining {{count}}",
+        "removeScheduling": "Remove scheduling and choose earliest available"
+      },
+      "cargoSize": {
+        "title": "Required cargo size",
+        "small": "Small",
+        "medium": "Medium",
+        "large": "Large",
+        "description": "This size will be used to match the right driver and saved in the legal order record."
+      },
+      "driverPayment": {
+        "title": "Delivery fee payment method",
+        "description": "This value is for the delivery service only. Product value will be paid in the next step according to the store payment policy.",
+        "autoChanged": "Delivery fee payment method was automatically adjusted to {{method}} because the current driver does not support the previous method."
+      },
+      "selfDelivery": {
+        "title": "This store uses self-delivery.",
+        "description": "No driver cycle will be created through the platform for this order; it will be delivered directly by the store."
+      },
+      "preferredDriver": {
+        "title": "This order will be automatically routed to the driver assigned to this store.",
+        "description": "You will not need to manually select a driver for this order."
+      },
+      "findingDriver": {
+        "loading": "Finding available drivers...",
+        "noMatchTitle": "No driver matches this cargo size or delivery payment method.",
+        "noMatchDescription": "You can proceed without selecting a driver now; the order will only appear later to drivers matching the distance, cargo size, and payment method you selected."
+      }
+    },
+    "paypal": {
+      "autoSwitchNotice": "Switched to bank transfer because PayPal is currently unavailable for this order.",
+      "pendingToast": "Order created. Complete payment using the PayPal buttons on this page.",
+      "readyToast": "You have a PayPal order ready. Complete payment from the buttons at the bottom of the page first.",
+      "cancelled": "PayPal payment was cancelled. You can try again.",
+      "buttonError": "An error occurred while loading PayPal buttons"
+    },
+    "success": {
+      "splitBank": "Order submitted! First payment is now required via {{bank}}.",
+      "fullBank": "Order submitted! Please upload the full transfer receipt via {{bank}}.",
+      "paypal": "Order submitted successfully! Payment will be completed via PayPal.",
+      "cod": "Order submitted successfully! Cash on delivery.",
+      "generic": "Order submitted successfully!",
+      "paypalConfirmed": "PayPal payment confirmed successfully."
+    },
+    "summary": {
+      "shippingTo": "Shipping to:",
+      "requestedDelivery": "Requested delivery: {{date}} • {{slot}} ({{start}} - {{end}})",
+      "deliveryFeePayment": "Delivery fee will be paid separately: {{method}}.",
+      "selectedPaymentMethod": "Selected payment method: {{method}}",
+      "placeOrder": "Place Order - {{total}}"
+    },
+    "coupon": {
+      "applied": "Coupon {{code}} applied with {{discount}} discount",
+      "percentage": "{{value}}%",
+      "fixed": "{{value}} MAD"
+    }
   },
   "vendor": {
     "schedules": {

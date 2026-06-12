@@ -633,7 +633,150 @@
     "payment": "طريقة الدفع",
     "review": "مراجعة الطلب",
     "placeOrder": "تقديم الطلب",
-    "orderSummary": "ملخص الطلب"
+    "orderSummary": "ملخص الطلب",
+    "emptyCart": "السلة فارغة",
+    "addProductsFirst": "أضف منتجات إلى السلة أولاً",
+    "browseProducts": "تصفح المنتجات",
+    "steps": {
+      "shipping": "الشحن",
+      "delivery": "التوصيل",
+      "payment": "الدفع"
+    },
+    "deliveryPayment": {
+      "cash": "نقداً عند التسليم",
+      "bankTransfer": "تحويل بنكي للسائق"
+    },
+    "errors": {
+      "multiVendorDisabled": "يمكن إتمام الطلب حالياً من متجر واحد فقط. افصل السلة حسب البائع ثم أعد المحاولة.",
+      "paypalNotConfigured": "PayPal غير مفعّل بعد في إعدادات البيئة.",
+      "paypalSingleVendorOnly": "PayPal متاح حالياً لطلبات متجر واحد فقط.",
+      "paypalUnavailable": "PayPal غير متاح حالياً.",
+      "shippingOutOfRange": "هذا العنوان خارج نطاق التوصيل الحالي.",
+      "calculatingShipping": "جاري حساب رسوم التوصيل لهذا العنوان. انتظر لحظة قبل المتابعة إلى الدفع.",
+      "shippingNotConfirmed": "لم يتم تأكيد رسوم التوصيل بعد. تأكد من تحديد العنوان والموقع الدقيق ثم انتظر اكتمال الحساب.",
+      "shippingCalculatingRetry": "جاري حساب رسوم التوصيل. انتظر لحظة ثم أعد المحاولة.",
+      "shippingNotConfirmedWait": "لم يتم تأكيد رسوم التوصيل بعد. يرجى الانتظار قليلاً.",
+      "noCommonPaymentMethod": "لا توجد طريقة دفع مشتركة متاحة لهذه السلة حالياً.",
+      "paymentTypeUnavailable": "نوع الدفع المحدد لم يعد متاحاً لهذه السلة. اختر خياراً آخر من الخيارات المتاحة.",
+      "selectPaymentMethod": "اختر وسيلة دفع للمبلغ المطلوب الآن قبل تأكيد الطلب.",
+      "selectBank": "اختر بنك التحويل قبل تأكيد الطلب.",
+      "acceptTerms": "يجب الموافقة على شروط الدفع قبل تأكيد الطلب.",
+      "createOrderFailed": "تعذر إنشاء الطلب من الخادم.",
+      "paypalInitFailed": "تعذر تهيئة طلب PayPal: لم يتم العثور على الطلب.",
+      "paypalInvalidAmount": "المبلغ المطلوب للدفع عبر PayPal غير صالح.",
+      "paypalCreateFailed": "تعذر إنشاء عملية PayPal.",
+      "paypalNoOrderId": "لم يتم استلام معرف طلب PayPal من الخادم.",
+      "paypalRecordNotFound": "تعذر العثور على سجل دفع PayPal لتحديثه.",
+      "genericFailed": "تعذر إتمام الطلب حالياً. حاول مرة أخرى.",
+      "paypalIncomplete": "تعذر إكمال الدفع: بيانات طلب PayPal غير مكتملة.",
+      "paypalConfirmFailed": "تعذر تأكيد دفع PayPal.",
+      "paypalIncompletePayment": "لم تكتمل عملية الدفع عبر PayPal.",
+      "paypalApproveFailed": "فشل تأكيد عملية الدفع عبر PayPal.",
+      "couponValidationFailed": "تعذر التحقق من الكوبون.",
+      "couponCheckFailed": "فشل التحقق من الكوبون."
+    },
+    "validation": {
+      "nameRequired": "الاسم مطلوب",
+      "phoneRequired": "رقم الهاتف مطلوب",
+      "cityRequired": "المدينة مطلوبة",
+      "addressRequired": "العنوان مطلوب",
+      "locationRequired": "يرجى تحديد موقعك الدقيق على الخريطة"
+    },
+    "blockers": {
+      "title": "لماذا لا يمكنك المتابعة إلى الدفع الآن؟",
+      "calculatingShipping": "جاري حساب رسوم التوصيل. انتظر لحظة قبل تأكيد الطلب.",
+      "shippingNotConfirmed": "لم يتم تأكيد رسوم التوصيل بعد لهذا العنوان.",
+      "noPaymentMethod": "لا توجد طريقة دفع مشتركة متاحة لهذه السلة حالياً.",
+      "selectPaymentType": "اختر نوع دفع متاح قبل إتمام الطلب.",
+      "selectPaymentMethod": "اختر وسيلة الدفع أولاً.",
+      "paypalUnavailable": "PayPal غير متاح حالياً لهذا الطلب.",
+      "selectBank": "اختر بنك التحويل قبل تأكيد الطلب.",
+      "acceptTerms": "يجب الموافقة على شروط الدفع قبل تأكيد الطلب."
+    },
+    "multiVendorDisabled": {
+      "title": "الطلب المتعدد البائعين متوقف مؤقتاً",
+      "backToCart": "العودة إلى السلة"
+    },
+    "delivery": {
+      "title": "سائق التوصيل",
+      "activeProducts": "عدد المنتجات النشطة: {{count}}",
+      "multiVendorNotice": "يوجد أكثر من متجر داخل السلة.",
+      "multiVendorDescription": "سيتم تطبيق خيار التوصيل المناسب لكل متجر تلقائياً عند إنشاء الطلبات، سواء كان توصيلاً ذاتياً أو بحثاً عن سائق أو سائقاً مرتبطاً.",
+      "driverBlockedTitle": "هذا المتجر لم يكمل ربط السائق المرتبط بعد.",
+      "driverBlockedDescription": "لا يمكن متابعة هذا الطلب حالياً لأن خيار التوصيل الحالي يحتاج سائقاً مرتبطاً ومقبول الشراكة من طرف البائع.",
+      "deliveryTo": "التوصيل إلى:",
+      "estimatedCost": "التكلفة المقدرة:",
+      "calculating": "جاري الحساب...",
+      "unavailable": "غير متاح",
+      "distance": "المسافة:",
+      "estTime": "الوقت المتوقع:",
+      "pricingFrom": "التسعير من:",
+      "scheduling": {
+        "title": "جدولة التسليم",
+        "description": "اختر تاريخاً وفترة مناسبة إذا كنت تريد تحديد نافذة التسليم مسبقاً.",
+        "dateLabel": "تاريخ التسليم المطلوب",
+        "loadingSlots": "جاري تحميل فترات التوصيل المتاحة...",
+        "noSlots": "لا توجد فترات متاحة لهذا التاريخ حالياً. يمكنك متابعة الطلب بدون جدولة وسيتم التعامل معه بأقرب وقت متاح.",
+        "cutoff": "إقفال قبل {{hours}} س",
+        "slotFull": "مكتملة",
+        "slotPastCutoff": "انتهى وقت الحجز",
+        "slotAvailable": "متاحة",
+        "remainingCapacity": "متبقي {{count}}",
+        "removeScheduling": "إزالة الجدولة واختيار أقرب وقت متاح"
+      },
+      "cargoSize": {
+        "title": "حجم الحمولة المطلوب",
+        "small": "صغيرة",
+        "medium": "متوسطة",
+        "large": "كبيرة",
+        "description": "سيتم استخدام هذا الحجم لمطابقة السائق المناسب وحفظه ضمن سجل الطلب القانوني."
+      },
+      "driverPayment": {
+        "title": "طريقة سداد رسم التوصيل",
+        "description": "هذه القيمة تخص خدمة التوصيل فقط. قيمة المنتجات تُدفع في الخطوة التالية وفق سياسة الدفع المعتمدة للمتاجر.",
+        "autoChanged": "تم تعديل طريقة سداد رسم التوصيل تلقائياً إلى {{method}} لأن السائق الحالي لا يدعم الطريقة السابقة."
+      },
+      "selfDelivery": {
+        "title": "هذا المتجر يعتمد التوصيل الذاتي.",
+        "description": "لن يتم إنشاء دورة سائق عبر المنصة لهذا الطلب، وسيتم تسليمه مباشرة من طرف المتجر."
+      },
+      "preferredDriver": {
+        "title": "سيتم توجيه هذا الطلب تلقائياً إلى السائق المرتبط بهذا المتجر.",
+        "description": "لن تحتاج إلى اختيار سائق يدوياً لهذه الطلبية."
+      },
+      "findingDriver": {
+        "loading": "جاري البحث عن سائقين متاحين...",
+        "noMatchTitle": "لا يوجد سائق مطابق لهذه الحمولة أو لطريقة سداد التوصيل حالياً.",
+        "noMatchDescription": "يمكنك المتابعة بدون اختيار سائق الآن، وسيظهر الطلب لاحقاً فقط للسائقين المطابقين للمسافة وحجم الحمولة وطريقة السداد التي اخترتها."
+      }
+    },
+    "paypal": {
+      "autoSwitchNotice": "تم التحويل إلى التحويل البنكي لأن PayPal غير متاح لهذا الطلب حالياً.",
+      "pendingToast": "تم إنشاء الطلب. أكمل الآن الدفع عبر أزرار PayPal في نفس الصفحة.",
+      "readyToast": "لديك طلب PayPal جاهز. أكمل الدفع من الأزرار أسفل الصفحة أولاً.",
+      "cancelled": "تم إلغاء عملية PayPal. يمكنك المحاولة مرة أخرى.",
+      "buttonError": "حدث خطأ أثناء تحميل أزرار PayPal"
+    },
+    "success": {
+      "splitBank": "تم تقديم الطلب! الدفعة الأولى مطلوبة الآن عبر {{bank}}.",
+      "fullBank": "تم تقديم الطلب! يرجى رفع إيصال التحويل الكامل عبر {{bank}}.",
+      "paypal": "تم تقديم الطلب بنجاح! سيتم إكمال الدفع عبر PayPal.",
+      "cod": "تم تقديم الطلب بنجاح! الدفع عند الاستلام.",
+      "generic": "تم تقديم الطلب بنجاح!",
+      "paypalConfirmed": "تم تأكيد الدفع عبر PayPal بنجاح."
+    },
+    "summary": {
+      "shippingTo": "التوصيل إلى:",
+      "requestedDelivery": "موعد التسليم المطلوب: {{date}} • {{slot}} ({{start}} - {{end}})",
+      "deliveryFeePayment": "رسم التوصيل سيُسدد بشكل منفصل: {{method}}.",
+      "selectedPaymentMethod": "وسيلة الدفع المختارة: {{method}}",
+      "placeOrder": "تقديم الطلب - {{total}}"
+    },
+    "coupon": {
+      "applied": "تم تطبيق الكوبون {{code}} بخصم {{discount}}",
+      "percentage": "{{value}}%",
+      "fixed": "{{value}} درهم"
+    }
   },
   "vendor": {
     "schedules": {

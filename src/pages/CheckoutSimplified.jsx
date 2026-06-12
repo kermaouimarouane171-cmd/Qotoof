@@ -30,11 +30,10 @@ import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard'
 
 const toAmount = (value) => Number(Number(value || 0).toFixed(2))
 const todayDateValue = () => new Date().toISOString().slice(0, 10)
-const DELIVERY_PAYMENT_METHOD_LABELS = {
-  cash: 'نقداً عند التسليم',
-  bank_transfer: 'تحويل بنكي للسائق',
+const DELIVERY_PAYMENT_METHOD_KEYS = {
+  cash: 'checkout.deliveryPayment.cash',
+  bank_transfer: 'checkout.deliveryPayment.bankTransfer',
 }
-const MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE = 'يمكن إتمام الطلب حالياً من متجر واحد فقط. افصل السلة حسب البائع ثم أعد المحاولة.'
 
 const CheckoutSimplified = () => {
   const { t } = useTranslation()
@@ -121,10 +120,10 @@ const CheckoutSimplified = () => {
   )
   const paypalUnavailableReason = useMemo(() => {
     if (paypalEnabled) return ''
-    if (!getPayPalClientId()) return 'PayPal غير مفعّل بعد في إعدادات البيئة.'
-    if (!hasSingleVendorCart) return 'PayPal متاح حالياً لطلبات متجر واحد فقط.'
-    return 'PayPal غير متاح حالياً.'
-  }, [hasSingleVendorCart, paypalEnabled])
+    if (!getPayPalClientId()) return t('checkout.errors.paypalNotConfigured')
+    if (!hasSingleVendorCart) return t('checkout.errors.paypalSingleVendorOnly')
+    return t('checkout.errors.paypalUnavailable')
+  }, [hasSingleVendorCart, paypalEnabled, t])
 
   const vendorStoreSetup = useMemo(
     () => storeTypeService.decorateStoreProfile(vendorStoreProfile),
@@ -233,7 +232,7 @@ const CheckoutSimplified = () => {
     [authoritativePricing?.total, hookPricing?.finalTotal, productPaymentTotal, shippingCost],
   )
   const isShippingUnavailable = shippingInfo_data?.available === false
-  const shippingBlockingReason = shippingInfo_data?.blockingReason || 'هذا العنوان خارج نطاق التوصيل الحالي.'
+  const shippingBlockingReason = shippingInfo_data?.blockingReason || t('checkout.errors.shippingOutOfRange')
   const canContinueToPayment = !vendorMinimumStatus.hasViolations && !shippingLoading && !!shippingInfo_data && !isShippingUnavailable
   const stepOneBlockingMessage = useMemo(() => {
     if (!vendorMinimumStatus.hasViolations) return null
@@ -247,9 +246,9 @@ const CheckoutSimplified = () => {
     }
 
     if (shippingLoading) {
-      blockers.push('جاري حساب رسوم التوصيل لهذا العنوان. انتظر لحظة قبل المتابعة إلى الدفع.')
+      blockers.push(t('checkout.errors.calculatingShipping'))
     } else if (!shippingInfo_data) {
-      blockers.push('لم يتم تأكيد رسوم التوصيل بعد. تأكد من تحديد العنوان والموقع الدقيق ثم انتظر اكتمال الحساب.')
+      blockers.push(t('checkout.errors.shippingNotConfirmed'))
     } else if (isShippingUnavailable) {
       blockers.push(shippingBlockingReason)
     }
@@ -271,31 +270,31 @@ const CheckoutSimplified = () => {
     }
 
     if (shippingLoading) {
-      blockers.push('جاري حساب رسوم التوصيل. انتظر لحظة قبل تأكيد الطلب.')
+      blockers.push(t('checkout.blockers.calculatingShipping'))
     } else if (!shippingInfo_data) {
-      blockers.push('لم يتم تأكيد رسوم التوصيل بعد لهذا العنوان.')
+      blockers.push(t('checkout.blockers.shippingNotConfirmed'))
     } else if (isShippingUnavailable) {
       blockers.push(shippingBlockingReason)
     }
 
     if (!availablePaymentTypes.hasAny) {
-      blockers.push('لا توجد طريقة دفع مشتركة متاحة لهذه السلة حالياً.')
+      blockers.push(t('checkout.blockers.noPaymentMethod'))
     } else if (paymentType && !availablePaymentTypes[paymentType]) {
-      blockers.push('نوع الدفع المحدد لم يعد متاحاً لهذه السلة. اختر خياراً آخر من الخيارات المتاحة.')
+      blockers.push(t('checkout.blockers.selectPaymentType'))
     }
 
     if (paymentType && paymentType !== 'cod') {
       if (!selectedPaymentMethod || !['paypal', 'bank'].includes(selectedPaymentMethod)) {
-        blockers.push('اختر وسيلة دفع للمبلغ المطلوب الآن قبل تأكيد الطلب.')
+        blockers.push(t('checkout.blockers.selectPaymentMethod'))
       } else if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
-        blockers.push(paypalUnavailableReason || 'PayPal غير متاح حالياً لهذا الطلب.')
+        blockers.push(paypalUnavailableReason || t('checkout.blockers.paypalUnavailable'))
       } else if (selectedPaymentMethod === 'bank' && !selectedBank) {
-        blockers.push('اختر بنك التحويل قبل تأكيد الطلب.')
+        blockers.push(t('checkout.blockers.selectBank'))
       }
     }
 
     if (!paymentTermsAccepted) {
-      blockers.push('يجب الموافقة على شروط الدفع قبل تأكيد الطلب.')
+      blockers.push(t('checkout.blockers.acceptTerms'))
     }
 
     return Array.from(new Set(blockers))
@@ -484,7 +483,7 @@ const CheckoutSimplified = () => {
           setCartVendorPaymentPolicies([])
           setCodEligibility({
             eligible: false,
-            reason: 'تعذر تحميل أهلية الدفع عند الاستلام حالياً.',
+            reason: t('checkout.errors.couponValidationFailed'),
           })
         }
       }
@@ -554,7 +553,7 @@ const CheckoutSimplified = () => {
     if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
       setCheckoutNotices((prev) => ({
         ...prev,
-        paymentMethod: paypalUnavailableReason || 'تم التحويل إلى التحويل البنكي لأن PayPal غير متاح لهذا الطلب حالياً.',
+        paymentMethod: paypalUnavailableReason || t('checkout.paypal.autoSwitchNotice'),
       }))
       setSelectedPaymentMethod('bank')
     }
@@ -572,7 +571,7 @@ const CheckoutSimplified = () => {
       const nextMethod = activeDriverSupportedPaymentMethods[0]
       setCheckoutNotices((prev) => ({
         ...prev,
-        driverDeliveryPayment: `تم تعديل طريقة سداد رسم التوصيل تلقائياً إلى ${DELIVERY_PAYMENT_METHOD_LABELS[nextMethod] || nextMethod} لأن السائق الحالي لا يدعم الطريقة السابقة.`,
+        driverDeliveryPayment: t('checkout.delivery.driverPayment.autoChanged', { method: t(DELIVERY_PAYMENT_METHOD_KEYS[nextMethod]) || nextMethod }),
       }))
       setDriverDeliveryPaymentMethod(nextMethod)
     }
@@ -644,7 +643,7 @@ const CheckoutSimplified = () => {
     setErrors((prev) => ({
       ...prev,
       shipping: hookPricing.shippingInfoData?.available === false
-        ? (hookPricing.shippingInfoData?.blockingReason || 'هذا العنوان خارج نطاق التوصيل الحالي.')
+        ? (hookPricing.shippingInfoData?.blockingReason || t('checkout.errors.shippingOutOfRange'))
         : null,
     }))
     setEstimatedDeliveryTime(hookPricing.estimatedDeliveryTime || null)
@@ -687,18 +686,21 @@ const CheckoutSimplified = () => {
       )
 
       if (!validation.valid) {
-        toast.error(validation.error || 'تعذر التحقق من الكوبون')
+        toast.error(validation.error || t('checkout.errors.couponValidationFailed'))
         return
       }
 
       const coupon = validation.coupon
       setAppliedCoupon(coupon)
+      const discountText = coupon.discount_type === 'percentage'
+        ? t('checkout.coupon.percentage', { value: coupon.discount_value })
+        : t('checkout.coupon.fixed', { value: Number(coupon.discount_value || 0).toFixed(2) })
       toast.success(
-        `تم تطبيق الكوبون ${coupon.code} بخصم ${coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `${Number(coupon.discount_value || 0).toFixed(2)} درهم`}`
+        t('checkout.coupon.applied', { code: coupon.code, discount: discountText })
       )
     } catch (err) {
       logger.error('Coupon validation error:', err)
-      toast.error('فشل التحقق من الكوبون')
+      toast.error(t('checkout.errors.couponCheckFailed'))
     } finally {
       setCouponLoading(false)
     }
@@ -729,12 +731,12 @@ const CheckoutSimplified = () => {
         <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <TruckIcon className="w-10 h-10 text-amber-600" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">الطلب المتعدد البائعين متوقف مؤقتاً</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">{t('checkout.multiVendorDisabled.title')}</h2>
         <p className="text-gray-600 mb-6 max-w-xl mx-auto leading-7">
-          {MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE}
+          {t('checkout.errors.multiVendorDisabled')}
         </p>
         <button onClick={() => navigate('/cart')} className="btn-primary">
-          العودة إلى السلة
+          {t('checkout.multiVendorDisabled.backToCart')}
         </button>
       </div>
     )
@@ -742,12 +744,12 @@ const CheckoutSimplified = () => {
 
   const validateStep1 = () => {
     const newErrors = {}
-    if (!shippingInfo.fullName.trim()) newErrors.fullName = 'الاسم مطلوب'
-    if (!shippingInfo.phone.trim()) newErrors.phone = 'رقم الهاتف مطلوب'
-    if (!shippingInfo.city.trim()) newErrors.city = 'المدينة مطلوبة'
-    if (!shippingInfo.address.trim()) newErrors.address = 'العنوان مطلوب'
+    if (!shippingInfo.fullName.trim()) newErrors.fullName = t('checkout.validation.nameRequired')
+    if (!shippingInfo.phone.trim()) newErrors.phone = t('checkout.validation.phoneRequired')
+    if (!shippingInfo.city.trim()) newErrors.city = t('checkout.validation.cityRequired')
+    if (!shippingInfo.address.trim()) newErrors.address = t('checkout.validation.addressRequired')
     if (!deliveryLocation.lat || !deliveryLocation.lng) {
-      newErrors.location = 'يرجى تحديد موقعك الدقيق على الخريطة'
+      newErrors.location = t('checkout.validation.locationRequired')
     }
     if (vendorMinimumStatus.hasViolations) {
       newErrors.minimumOrder = buildMinimumOrderMessage(vendorMinimumStatus.firstViolation)
@@ -766,7 +768,7 @@ const CheckoutSimplified = () => {
     if (shippingLoading) {
       setErrors((prev) => ({
         ...prev,
-        shipping: 'جاري حساب رسوم التوصيل. انتظر لحظة ثم أعد المحاولة.',
+        shipping: t('checkout.errors.shippingCalculatingRetry'),
       }))
       return
     }
@@ -774,7 +776,7 @@ const CheckoutSimplified = () => {
     if (!shippingInfo_data) {
       setErrors((prev) => ({
         ...prev,
-        shipping: 'لم يتم تأكيد رسوم التوصيل بعد. يرجى الانتظار قليلاً.',
+        shipping: t('checkout.errors.shippingNotConfirmedWait'),
       }))
       return
     }
@@ -845,31 +847,31 @@ const CheckoutSimplified = () => {
     const paymentErrors = {}
 
     if (shippingLoading) {
-      paymentErrors.shipping = 'جاري حساب رسوم التوصيل. انتظر لحظة قبل تأكيد الطلب.'
+      paymentErrors.shipping = t('checkout.blockers.calculatingShipping')
     } else if (!shippingInfo_data) {
-      paymentErrors.shipping = 'لم يتم تأكيد رسوم التوصيل بعد لهذا العنوان.'
+      paymentErrors.shipping = t('checkout.blockers.shippingNotConfirmed')
     } else if (shippingInfo_data.available === false) {
       paymentErrors.shipping = shippingBlockingReason
     }
 
     if (!availablePaymentTypes.hasAny) {
-      paymentErrors.paymentType = 'لا توجد طريقة دفع مشتركة متاحة لهذه السلة حالياً.'
+      paymentErrors.paymentType = t('checkout.blockers.noPaymentMethod')
     } else if (!paymentType || !availablePaymentTypes[paymentType]) {
-      paymentErrors.paymentType = 'اختر نوع دفع متاح قبل إتمام الطلب.'
+      paymentErrors.paymentType = t('checkout.blockers.selectPaymentType')
     }
 
     if (paymentType && paymentType !== 'cod') {
       if (!selectedPaymentMethod || !['paypal', 'bank'].includes(selectedPaymentMethod)) {
-        paymentErrors.paymentMethod = 'اختر وسيلة الدفع أولاً.'
+        paymentErrors.paymentMethod = t('checkout.blockers.selectPaymentMethod')
       } else if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
         paymentErrors.paymentMethod = paypalUnavailableReason
       } else if (selectedPaymentMethod === 'bank' && !selectedBank) {
-        paymentErrors.selectedBank = 'اختر بنك التحويل قبل تأكيد الطلب.'
+        paymentErrors.selectedBank = t('checkout.blockers.selectBank')
       }
     }
 
     if (!paymentTermsAccepted) {
-      paymentErrors.paymentTerms = 'يجب الموافقة على شروط الدفع قبل تأكيد الطلب.'
+      paymentErrors.paymentTerms = t('checkout.blockers.acceptTerms')
     }
 
     setErrors((prev) => ({
@@ -922,7 +924,7 @@ const CheckoutSimplified = () => {
       const orders = checkoutResult.orders || []
       const serverPricing = checkoutResult.pricing || null
       if (!orders.length) {
-        throw new Error('تعذر إنشاء الطلب من الخادم.')
+        throw new Error(t('checkout.errors.createOrderFailed'))
       }
 
       if (serverPricing) {
@@ -937,12 +939,12 @@ const CheckoutSimplified = () => {
       if (selectedPaymentMethod === 'paypal' && paymentType !== 'cod') {
         const primaryOrder = orders[0]
         if (!primaryOrder) {
-          throw new Error('تعذر تهيئة طلب PayPal: لم يتم العثور على الطلب.')
+          throw new Error(t('checkout.errors.paypalInitFailed'))
         }
 
         const paypalAmount = Number(primaryOrder.first_payment_amount || 0)
         if (!paypalAmount || paypalAmount <= 0) {
-          throw new Error('المبلغ المطلوب للدفع عبر PayPal غير صالح.')
+          throw new Error(t('checkout.errors.paypalInvalidAmount'))
         }
 
         const { data: paypalInit, error: paypalError } = await supabase.functions.invoke('create-paypal-order', {
@@ -960,11 +962,11 @@ const CheckoutSimplified = () => {
         })
 
         if (paypalError) {
-          throw new Error(paypalError.message || 'تعذر إنشاء عملية PayPal')
+          throw new Error(paypalError.message || t('checkout.errors.paypalCreateFailed'))
         }
 
         if (!paypalInit?.orderId) {
-          throw new Error('لم يتم استلام معرف طلب PayPal من الخادم.')
+          throw new Error(t('checkout.errors.paypalNoOrderId'))
         }
 
         const paymentRecord = await getLatestOrderPaymentRecord({
@@ -975,7 +977,7 @@ const CheckoutSimplified = () => {
         })
 
         if (!paymentRecord?.id) {
-          throw new Error('تعذر العثور على سجل دفع PayPal لتحديثه.')
+          throw new Error(t('checkout.errors.paypalRecordNotFound'))
         }
 
         await updateOrderPaymentRecord({
@@ -1066,21 +1068,21 @@ const CheckoutSimplified = () => {
       setCouponCode('')
 
       if (paymentType === 'split' && selectedPaymentMethod === 'bank') {
-        toast.success(`🎉 تم تقديم الطلب! الدفعة الأولى مطلوبة الآن عبر ${selectedBank || 'التحويل البنكي'}`)
+        toast.success(t('checkout.success.splitBank', { bank: selectedBank || t('checkout.deliveryPayment.bankTransfer') }))
       } else if (paymentType === 'full' && selectedPaymentMethod === 'bank') {
-        toast.success(`🎉 تم تقديم الطلب! يرجى رفع إيصال التحويل الكامل عبر ${selectedBank || 'البنك المحدد'}`)
+        toast.success(t('checkout.success.fullBank', { bank: selectedBank || t('checkout.deliveryPayment.bankTransfer') }))
       } else if ((paymentType === 'split' || paymentType === 'full') && selectedPaymentMethod === 'paypal') {
-        toast.success('🎉 تم تقديم الطلب بنجاح! سيتم إكمال الدفع عبر PayPal.')
+        toast.success(t('checkout.success.paypal'))
       } else if (paymentType === 'cod') {
-        toast.success('🎉 تم تقديم الطلب بنجاح! الدفع عند الاستلام')
+        toast.success(t('checkout.success.cod'))
       } else {
-        toast.success('🎉 تم تقديم الطلب بنجاح!')
+        toast.success(t('checkout.success.generic'))
       }
 
       if (pendingPaypalOrder) {
         setPendingPayPalCheckout(pendingPaypalOrder)
         checkoutRequestKeyRef.current = null
-        toast.success('تم إنشاء الطلب. أكمل الآن الدفع عبر أزرار PayPal في نفس الصفحة.')
+        toast.success(t('checkout.paypal.pendingToast'))
         setLoading(false)
         return
       }
@@ -1097,7 +1099,7 @@ const CheckoutSimplified = () => {
       })
     } catch (error) {
       logger.error('Checkout error:', error)
-      toast.error(error.message || 'تعذر إتمام الطلب حالياً. حاول مرة أخرى.')
+      toast.error(error.message || t('checkout.errors.genericFailed'))
     } finally {
       setLoading(false)
     }
@@ -1105,7 +1107,7 @@ const CheckoutSimplified = () => {
 
   const handleInlinePayPalApprove = async () => {
     if (!pendingPayPalCheckout?.paypalOrderId || !pendingPayPalCheckout?.internalOrderId) {
-      toast.error('تعذر إكمال الدفع: بيانات طلب PayPal غير مكتملة.')
+      toast.error(t('checkout.errors.paypalIncomplete'))
       return
     }
 
@@ -1116,28 +1118,28 @@ const CheckoutSimplified = () => {
       })
 
       if (captureError) {
-        throw new Error(captureError.message || 'تعذر تأكيد دفع PayPal')
+        throw new Error(captureError.message || t('checkout.errors.paypalConfirmFailed'))
       }
 
       if (!captureResult || captureResult?.status === 'FAILED') {
-        throw new Error('لم تكتمل عملية الدفع عبر PayPal.')
+        throw new Error(t('checkout.errors.paypalIncompletePayment'))
       }
 
       setPendingPayPalCheckout(null)
-      toast.success('تم تأكيد الدفع عبر PayPal بنجاح.')
+      toast.success(t('checkout.success.paypalConfirmed'))
       navigate(`/order-confirmation/${pendingPayPalCheckout.internalOrderId}?paypal=success`)
     } catch (error) {
       logger.error('Inline PayPal approval failed:', error)
-      toast.error(error.message || 'فشل تأكيد عملية الدفع عبر PayPal')
+      toast.error(error.message || t('checkout.errors.paypalApproveFailed'))
     } finally {
       setPaypalInlineProcessing(false)
     }
   }
 
   const steps = [
-    { num: 1, label: 'الشحن' },
-    { num: 2, label: 'التوصيل' },
-    { num: 3, label: 'الدفع' },
+    { num: 1, label: 'shipping' },
+    { num: 2, label: 'delivery' },
+    { num: 3, label: 'payment' },
   ]
 
   return (
@@ -1206,7 +1208,7 @@ const CheckoutSimplified = () => {
               <Card className="p-6" data-testid="checkout-step-delivery">
                 <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                   <TruckIcon className="w-5 h-5" />
-                  Delivery Driver
+                  {t('checkout.delivery.title')}
                 </h2>
 
                 {hasSingleVendorCart && vendorStoreSetup && (
@@ -1220,16 +1222,16 @@ const CheckoutSimplified = () => {
                       </span>
                     </div>
                     <p className="text-sm text-gray-700 leading-6 mb-2">{vendorStoreSetup.storeTypeDescription}</p>
-                    <p className="text-xs text-gray-500">عدد المنتجات النشطة: {vendorStoreSetup.activeProductsCountLabel}</p>
+                    <p className="text-xs text-gray-500">{t('checkout.delivery.activeProducts', { count: vendorStoreSetup.activeProductsCountLabel })}</p>
                   </div>
                 )}
 
                 {!hasSingleVendorCart ? (
                   <>
                     <div className="p-4 rounded-xl border border-blue-200 bg-blue-50 mb-4">
-                      <p className="text-sm font-medium text-blue-900">يوجد أكثر من متجر داخل السلة.</p>
+                      <p className="text-sm font-medium text-blue-900">{t('checkout.delivery.multiVendorNotice')}</p>
                       <p className="text-xs text-blue-700 mt-1 leading-6">
-                        سيتم تطبيق خيار التوصيل المناسب لكل متجر تلقائياً عند إنشاء الطلبات، سواء كان توصيلاً ذاتياً أو بحثاً عن سائق أو سائقاً مرتبطاً.
+                        {t('checkout.delivery.multiVendorDescription')}
                       </p>
                     </div>
 
@@ -1243,7 +1245,7 @@ const CheckoutSimplified = () => {
                     </div>
                     {!canContinueToPayment && checkoutDeliveryStepBlockers.length > 0 && (
                       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="checkout-payment-blockers">
-                        <p className="text-xs font-medium text-amber-900">لماذا لا يمكنك المتابعة إلى الدفع الآن؟</p>
+                        <p className="text-xs font-medium text-amber-900">{t('checkout.blockers.title')}</p>
                         <ul className="mt-2 space-y-1 text-xs leading-6 text-amber-800">
                           {checkoutDeliveryStepBlockers.map((reason) => (
                             <li key={reason}>• {reason}</li>
@@ -1256,9 +1258,9 @@ const CheckoutSimplified = () => {
                 ) : vendorDeliveryStrategy?.blocked ? (
                   <>
                     <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 mb-4">
-                      <p className="text-sm font-medium text-amber-900">هذا المتجر لم يكمل ربط السائق المرتبط بعد.</p>
+                      <p className="text-sm font-medium text-amber-900">{t('checkout.delivery.driverBlockedTitle')}</p>
                       <p className="text-xs text-amber-700 mt-1 leading-6">
-                        لا يمكن متابعة هذا الطلب حالياً لأن خيار التوصيل الحالي يحتاج سائقاً مرتبطاً ومقبول الشراكة من طرف البائع.
+                        {t('checkout.delivery.driverBlockedDescription')}
                       </p>
                     </div>
 
@@ -1288,7 +1290,7 @@ const CheckoutSimplified = () => {
                                 {shippingLoading ? (
                                   <span className="font-semibold text-gray-500">Calculating...</span>
                                 ) : shippingInfo_data.available === false ? (
-                                  <span className="font-semibold text-red-600">غير متاح</span>
+                                  <span className="font-semibold text-red-600">{t('checkout.delivery.unavailable')}</span>
                                 ) : (
                                   <span className="font-semibold text-green-600">{formatPrice(shippingCost)}</span>
                                 )}
@@ -1327,15 +1329,15 @@ const CheckoutSimplified = () => {
                       <div className="p-4 rounded-xl border border-indigo-200 bg-indigo-50 mb-4">
                         <div className="flex items-center justify-between gap-3 mb-3">
                           <div>
-                            <p className="text-sm font-medium text-indigo-900">جدولة التسليم</p>
-                            <p className="text-xs text-indigo-700 mt-1">اختر تاريخاً وفترة مناسبة إذا كنت تريد تحديد نافذة التسليم مسبقاً.</p>
+                            <p className="text-sm font-medium text-indigo-900">{t('checkout.delivery.scheduling.title')}</p>
+                            <p className="text-xs text-indigo-700 mt-1">{t('checkout.delivery.scheduling.description')}</p>
                           </div>
                           <ClockIcon className="w-5 h-5 text-indigo-600" />
                         </div>
 
                         <div className="mb-3">
                           {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                          <label className="input-label">تاريخ التسليم المطلوب</label>
+                          <label className="input-label">{t('checkout.delivery.scheduling.dateLabel')}</label>
                           <input
                             type="date"
                             min={todayDateValue()}
@@ -1349,11 +1351,11 @@ const CheckoutSimplified = () => {
                         {loadingDeliverySlots ? (
                           <div className="flex items-center gap-3 text-sm text-indigo-700">
                             <LoadingSpinner size="sm" />
-                            جاري تحميل فترات التوصيل المتاحة...
+                            {t('checkout.delivery.scheduling.loadingSlots')}
                           </div>
                         ) : availableDeliverySlots.length === 0 ? (
                           <div className="rounded-xl bg-white/70 px-4 py-3 text-sm text-indigo-700">
-                            لا توجد فترات متاحة لهذا التاريخ حالياً. يمكنك متابعة الطلب بدون جدولة وسيتم التعامل معه بأقرب وقت متاح.
+                            {t('checkout.delivery.scheduling.noSlots')}
                           </div>
                         ) : (
                           <div className="space-y-2">
@@ -1375,19 +1377,19 @@ const CheckoutSimplified = () => {
                                     <p className="text-sm font-medium text-gray-900">{slot.slot_label}</p>
                                     <p className="text-xs text-gray-500 mt-1">
                                       {slot.start_time} - {slot.end_time}
-                                      {slot.cutoff_hours ? ` • إقفال قبل ${slot.cutoff_hours} س` : ''}
+                                      {slot.cutoff_hours ? ` • ${t('checkout.delivery.scheduling.cutoff', { hours: slot.cutoff_hours })}` : ''}
                                     </p>
                                   </div>
                                   <div className="text-right text-xs">
                                     {slot.isFull ? (
-                                      <span className="px-3 py-1 rounded-full bg-red-100 text-red-700 font-medium">مكتملة</span>
+                                      <span className="px-3 py-1 rounded-full bg-red-100 text-red-700 font-medium">{t('checkout.delivery.scheduling.slotFull')}</span>
                                     ) : slot.pastCutoff ? (
-                                      <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">انتهى وقت الحجز</span>
+                                      <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">{t('checkout.delivery.scheduling.slotPastCutoff')}</span>
                                     ) : slot.remainingCapacity === null ? (
-                                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">متاحة</span>
+                                      <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">{t('checkout.delivery.scheduling.slotAvailable')}</span>
                                     ) : (
                                       <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-                                        متبقي {slot.remainingCapacity}
+                                        {t('checkout.delivery.scheduling.remainingCapacity', { count: slot.remainingCapacity })}
                                       </span>
                                     )}
                                   </div>
@@ -1400,7 +1402,7 @@ const CheckoutSimplified = () => {
                                 onClick={() => setSelectedDeliverySlotId(null)}
                                 className="text-xs font-medium text-indigo-700 hover:text-indigo-800"
                               >
-                                إزالة الجدولة واختيار أقرب وقت متاح
+                                {t('checkout.delivery.scheduling.removeScheduling')}
                               </button>
                             )}
                           </div>
@@ -1410,12 +1412,12 @@ const CheckoutSimplified = () => {
 
                     <div className="grid grid-cols-1 gap-4 mb-4 lg:grid-cols-2">
                       <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <p className="text-sm font-medium text-gray-900 mb-3">حجم الحمولة المطلوب</p>
+                        <p className="text-sm font-medium text-gray-900 mb-3">{t('checkout.delivery.cargoSize.title')}</p>
                         <div className="grid grid-cols-3 gap-2">
                           {[
-                            { value: 'small', label: 'صغيرة' },
-                            { value: 'medium', label: 'متوسطة' },
-                            { value: 'large', label: 'كبيرة' },
+                            { value: 'small', label: t('checkout.delivery.cargoSize.small') },
+                            { value: 'medium', label: t('checkout.delivery.cargoSize.medium') },
+                            { value: 'large', label: t('checkout.delivery.cargoSize.large') },
                           ].map((option) => (
                             <button
                               key={option.value}
@@ -1429,20 +1431,20 @@ const CheckoutSimplified = () => {
                             </button>
                           ))}
                         </div>
-                        <p className="text-xs text-gray-500 mt-3 leading-6">سيتم استخدام هذا الحجم لمطابقة السائق المناسب وحفظه ضمن سجل الطلب القانوني.</p>
+                        <p className="text-xs text-gray-500 mt-3 leading-6">{t('checkout.delivery.cargoSize.description')}</p>
                       </div>
 
                       {vendorDeliveryStrategy?.createDeliveryOnAcceptance && (
                         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                          <p className="text-sm font-medium text-amber-900 mb-3">طريقة سداد رسم التوصيل</p>
+                          <p className="text-sm font-medium text-amber-900 mb-3">{t('checkout.delivery.driverPayment.title')}</p>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[{
                               value: 'cash',
-                              label: 'نقداً عند التسليم',
+                              label: t('checkout.deliveryPayment.cash'),
                               icon: BanknotesIcon,
                             }, {
                               value: 'bank_transfer',
-                              label: 'تحويل بنكي للسائق',
+                              label: t('checkout.deliveryPayment.bankTransfer'),
                               icon: BuildingLibraryIcon,
                             }].map((option) => {
                               const Icon = option.icon
@@ -1469,7 +1471,7 @@ const CheckoutSimplified = () => {
                             })}
                           </div>
                           <p className="text-xs text-amber-800 mt-3 leading-6">
-                            هذه القيمة تخص خدمة التوصيل فقط. قيمة المنتجات تُدفع في الخطوة التالية وفق سياسة الدفع المعتمدة للمتاجر.
+                            {t('checkout.delivery.driverPayment.description')}
                           </p>
                           {checkoutNotices.driverDeliveryPayment && (
                             <p className="text-xs text-amber-900 mt-2 leading-6 font-medium" data-testid="checkout-driver-payment-notice">
@@ -1485,17 +1487,17 @@ const CheckoutSimplified = () => {
 
                     {vendorDeliveryStrategy?.deliveryOption === 'self' && (
                       <div className="p-4 rounded-xl border border-green-200 bg-green-50 mb-4">
-                        <p className="text-sm font-medium text-green-900">هذا المتجر يعتمد التوصيل الذاتي.</p>
+                        <p className="text-sm font-medium text-green-900">{t('checkout.delivery.selfDelivery.title')}</p>
                         <p className="text-xs text-green-700 mt-1 leading-6">
-                          لن يتم إنشاء دورة سائق عبر المنصة لهذا الطلب، وسيتم تسليمه مباشرة من طرف المتجر.
+                          {t('checkout.delivery.selfDelivery.description')}
                         </p>
                       </div>
                     )}
 
                     {hasPreferredDriverAutoAssignment && (
                       <div className="p-4 rounded-xl border border-blue-200 bg-blue-50 mb-4">
-                        <p className="text-sm font-medium text-blue-900">سيتم توجيه هذا الطلب تلقائياً إلى السائق المرتبط بهذا المتجر.</p>
-                        <p className="text-xs text-blue-700 mt-1">لن تحتاج إلى اختيار سائق يدوياً لهذه الطلبية.</p>
+                        <p className="text-sm font-medium text-blue-900">{t('checkout.delivery.preferredDriver.title')}</p>
+                        <p className="text-xs text-blue-700 mt-1">{t('checkout.delivery.preferredDriver.description')}</p>
                       </div>
                     )}
 
@@ -1516,9 +1518,9 @@ const CheckoutSimplified = () => {
                                   productName={items[0]?.name}
                                 />
                                 <div className="p-4 rounded-xl border border-amber-200 bg-amber-50 mt-4">
-                                  <p className="text-sm font-medium text-amber-900">لا يوجد سائق مطابق لهذه الحمولة أو لطريقة سداد التوصيل حالياً.</p>
+                                  <p className="text-sm font-medium text-amber-900">{t('checkout.delivery.findingDriver.noMatchTitle')}</p>
                                   <p className="text-xs text-amber-700 mt-1 leading-6">
-                                    يمكنك المتابعة بدون اختيار سائق الآن، وسيظهر الطلب لاحقاً فقط للسائقين المطابقين للمسافة وحجم الحمولة وطريقة السداد التي اخترتها.
+                                    {t('checkout.delivery.findingDriver.noMatchDescription')}
                                   </p>
                                 </div>
                               </>
@@ -1552,7 +1554,7 @@ const CheckoutSimplified = () => {
                     </div>
                     {!canContinueToPayment && checkoutDeliveryStepBlockers.length > 0 && (
                       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3" data-testid="checkout-payment-blockers">
-                        <p className="text-xs font-medium text-amber-900">لماذا لا يمكنك المتابعة إلى الدفع الآن؟</p>
+                        <p className="text-xs font-medium text-amber-900">{t('checkout.blockers.title')}</p>
                         <ul className="mt-2 space-y-1 text-xs leading-6 text-amber-800">
                           {checkoutDeliveryStepBlockers.map((reason) => (
                             <li key={reason}>• {reason}</li>
@@ -1598,17 +1600,30 @@ const CheckoutSimplified = () => {
                       )}
                       {selectedDeliverySlot && (
                         <p className="text-sm text-indigo-700 mt-2">
-                          موعد التسليم المطلوب: {requestedDeliveryDate} • {selectedDeliverySlot.slot_label} ({selectedDeliverySlot.start_time} - {selectedDeliverySlot.end_time})
+                          {t('checkout.summary.requestedDelivery', {
+                            date: requestedDeliveryDate,
+                            slot: selectedDeliverySlot.slot_label,
+                            start: selectedDeliverySlot.start_time,
+                            end: selectedDeliverySlot.end_time,
+                          })}
                         </p>
                       )}
                       {vendorDeliveryStrategy?.createDeliveryOnAcceptance && (
                         <p className="text-sm text-amber-700 mt-2">
-                          رسم التوصيل سيُسدد بشكل منفصل: {driverDeliveryPaymentMethod === 'bank_transfer' ? 'تحويل بنكي للسائق' : 'نقداً عند التسليم'}.
+                          {t('checkout.summary.deliveryFeePayment', {
+                            method: driverDeliveryPaymentMethod === 'bank_transfer'
+                              ? t('checkout.deliveryPayment.bankTransfer')
+                              : t('checkout.deliveryPayment.cash'),
+                          })}
                         </p>
                       )}
                       {paymentType !== 'cod' && (
                         <p className="text-sm text-blue-700 mt-2">
-                          وسيلة الدفع المختارة: {selectedPaymentMethod === 'paypal' ? 'PayPal' : `تحويل بنكي${selectedBank ? ` (${selectedBank})` : ''}`}
+                          {t('checkout.summary.selectedPaymentMethod', {
+                            method: selectedPaymentMethod === 'paypal'
+                              ? 'PayPal'
+                              : t('checkout.deliveryPayment.bankTransfer') + (selectedBank ? ` (${selectedBank})` : ''),
+                          })}
                         </p>
                       )}
                     </div>
@@ -1624,16 +1639,16 @@ const CheckoutSimplified = () => {
                       await handleInlinePayPalApprove()
                     },
                     onCancel: () => {
-                      toast.error('تم إلغاء عملية PayPal. يمكنك المحاولة مرة أخرى.')
+                      toast.error(t('checkout.paypal.cancelled'))
                     },
                     onError: (error) => {
                       logger.error('PayPal inline button error:', error)
-                      toast.error('حدث خطأ أثناء تحميل أزرار PayPal')
+                      toast.error(t('checkout.paypal.buttonError'))
                     },
                   },
                   onPlaceOrder: () => {
                     if (pendingPayPalCheckout?.paypalOrderId) {
-                      toast('لديك طلب PayPal جاهز. أكمل الدفع من الأزرار أسفل الصفحة أولاً.', { icon: 'ℹ️' })
+                      toast(t('checkout.paypal.readyToast'), { icon: 'ℹ️' })
                       return
                     }
 

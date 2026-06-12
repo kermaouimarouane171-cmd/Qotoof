@@ -606,7 +606,150 @@
     "payment": "Mode de paiement",
     "review": "Révision de la commande",
     "placeOrder": "Passer la commande",
-    "orderSummary": "Résumé de la commande"
+    "orderSummary": "Résumé de la commande",
+    "emptyCart": "Votre panier est vide",
+    "addProductsFirst": "Ajoutez d'abord des produits à votre panier",
+    "browseProducts": "Parcourir les produits",
+    "steps": {
+      "shipping": "Livraison",
+      "delivery": "Transport",
+      "payment": "Paiement"
+    },
+    "deliveryPayment": {
+      "cash": "Espèces à la livraison",
+      "bankTransfer": "Virement bancaire au chauffeur"
+    },
+    "errors": {
+      "multiVendorDisabled": "Le paiement est actuellement limité à un magasin par commande. Séparez votre panier par vendeur et réessayez.",
+      "paypalNotConfigured": "PayPal n'est pas encore activé dans les paramètres d'environnement.",
+      "paypalSingleVendorOnly": "PayPal est actuellement disponible uniquement pour les commandes d'un seul magasin.",
+      "paypalUnavailable": "PayPal n'est actuellement pas disponible.",
+      "shippingOutOfRange": "Cette adresse est en dehors de la zone de livraison actuelle.",
+      "calculatingShipping": "Calcul des frais de livraison pour cette adresse. Veuillez patienter avant de passer au paiement.",
+      "shippingNotConfirmed": "Les frais de livraison n'ont pas été confirmés. Veuillez définir l'adresse et l'emplacement exact, puis attendre la fin du calcul.",
+      "shippingCalculatingRetry": "Calcul des frais de livraison. Veuillez patienter un instant puis réessayer.",
+      "shippingNotConfirmedWait": "Les frais de livraison n'ont pas encore été confirmés. Veuillez patienter un instant.",
+      "noCommonPaymentMethod": "Aucun mode de paiement commun n'est actuellement disponible pour ce panier.",
+      "paymentTypeUnavailable": "Le type de paiement sélectionné n'est plus disponible. Choisissez une autre option.",
+      "selectPaymentMethod": "Sélectionnez un mode de paiement pour le montant requis avant de confirmer la commande.",
+      "selectBank": "Sélectionnez une banque pour le virement avant de confirmer la commande.",
+      "acceptTerms": "Vous devez accepter les conditions de paiement avant de confirmer la commande.",
+      "createOrderFailed": "Impossible de créer la commande depuis le serveur.",
+      "paypalInitFailed": "Impossible d'initialiser la commande PayPal : commande introuvable.",
+      "paypalInvalidAmount": "Le montant du paiement PayPal est invalide.",
+      "paypalCreateFailed": "Impossible de créer la transaction PayPal.",
+      "paypalNoOrderId": "L'identifiant de commande PayPal n'a pas été reçu du serveur.",
+      "paypalRecordNotFound": "Impossible de trouver l'enregistrement de paiement PayPal à mettre à jour.",
+      "genericFailed": "Impossible de finaliser la commande. Veuillez réessayer.",
+      "paypalIncomplete": "Impossible de finaliser le paiement : les données de commande PayPal sont incomplètes.",
+      "paypalConfirmFailed": "Impossible de confirmer le paiement PayPal.",
+      "paypalIncompletePayment": "Le paiement PayPal n'a pas été finalisé.",
+      "paypalApproveFailed": "Échec de la confirmation du paiement PayPal.",
+      "couponValidationFailed": "Impossible de vérifier le coupon.",
+      "couponCheckFailed": "La validation du coupon a échoué."
+    },
+    "validation": {
+      "nameRequired": "Le nom est requis",
+      "phoneRequired": "Le numéro de téléphone est requis",
+      "cityRequired": "La ville est requise",
+      "addressRequired": "L'adresse est requise",
+      "locationRequired": "Veuillez sélectionner votre emplacement exact sur la carte"
+    },
+    "blockers": {
+      "title": "Pourquoi ne pouvez-vous pas passer au paiement maintenant ?",
+      "calculatingShipping": "Calcul des frais de livraison. Veuillez patienter un instant avant de confirmer la commande.",
+      "shippingNotConfirmed": "Les frais de livraison n'ont pas encore été confirmés pour cette adresse.",
+      "noPaymentMethod": "Aucun mode de paiement commun n'est actuellement disponible pour ce panier.",
+      "selectPaymentType": "Sélectionnez un type de paiement disponible avant de finaliser la commande.",
+      "selectPaymentMethod": "Sélectionnez d'abord un mode de paiement.",
+      "paypalUnavailable": "PayPal n'est actuellement pas disponible pour cette commande.",
+      "selectBank": "Sélectionnez une banque pour le virement avant de confirmer la commande.",
+      "acceptTerms": "Vous devez accepter les conditions de paiement avant de confirmer la commande."
+    },
+    "multiVendorDisabled": {
+      "title": "Le paiement multi-vendeurs est temporairement désactivé",
+      "backToCart": "Retour au panier"
+    },
+    "delivery": {
+      "title": "Chauffeur de livraison",
+      "activeProducts": "Produits actifs : {{count}}",
+      "multiVendorNotice": "Il y a plus d'un magasin dans le panier.",
+      "multiVendorDescription": "L'option de livraison appropriée sera appliquée automatiquement pour chaque magasin lors de la création des commandes, qu'il s'agisse d'une livraison autonome, de la recherche d'un chauffeur ou d'un chauffeur assigné.",
+      "driverBlockedTitle": "Ce magasin n'a pas encore terminé le lien avec le chauffeur assigné.",
+      "driverBlockedDescription": "Cette commande ne peut pas être poursuivie car l'option de livraison actuelle nécessite un chauffeur assigné avec un partenariat accepté par le vendeur.",
+      "deliveryTo": "Livraison à :",
+      "estimatedCost": "Coût estimé :",
+      "calculating": "Calcul en cours...",
+      "unavailable": "Indisponible",
+      "distance": "Distance :",
+      "estTime": "Temps estimé :",
+      "pricingFrom": "Tarification depuis :",
+      "scheduling": {
+        "title": "Planification de la livraison",
+        "description": "Choisissez une date et un créneau si vous souhaitez planifier une fenêtre de livraison à l'avance.",
+        "dateLabel": "Date de livraison souhaitée",
+        "loadingSlots": "Chargement des créneaux de livraison disponibles...",
+        "noSlots": "Aucun créneau disponible pour cette date. Vous pouvez continuer sans planification et cela sera géré au plus tôt.",
+        "cutoff": "Ferme {{hours}}h avant",
+        "slotFull": "Complet",
+        "slotPastCutoff": "Réservation fermée",
+        "slotAvailable": "Disponible",
+        "remainingCapacity": "Restant {{count}}",
+        "removeScheduling": "Supprimer la planification et choisir le plus tôt disponible"
+      },
+      "cargoSize": {
+        "title": "Taille de chargement requise",
+        "small": "Petit",
+        "medium": "Moyen",
+        "large": "Grand",
+        "description": "Cette taille sera utilisée pour faire correspondre le bon chauffeur et enregistrée dans le dossier de commande légal."
+      },
+      "driverPayment": {
+        "title": "Mode de paiement des frais de livraison",
+        "description": "Cette valeur concerne uniquement le service de livraison. La valeur des produits sera payée à l'étape suivante selon la politique de paiement du magasin.",
+        "autoChanged": "Le mode de paiement des frais de livraison a été automatiquement ajusté à {{method}} car le chauffeur actuel ne prend pas en charge la méthode précédente."
+      },
+      "selfDelivery": {
+        "title": "Ce magasin utilise la livraison autonome.",
+        "description": "Aucun cycle de chauffeur ne sera créé via la plateforme pour cette commande ; elle sera livrée directement par le magasin."
+      },
+      "preferredDriver": {
+        "title": "Cette commande sera automatiquement acheminée vers le chauffeur assigné à ce magasin.",
+        "description": "Vous n'aurez pas besoin de sélectionner manuellement un chauffeur pour cette commande."
+      },
+      "findingDriver": {
+        "loading": "Recherche de chauffeurs disponibles...",
+        "noMatchTitle": "Aucun chauffeur ne correspond à cette taille de chargement ou au mode de paiement de livraison.",
+        "noMatchDescription": "Vous pouvez continuer sans sélectionner de chauffeur pour l'instant ; la commande n'apparaîtra plus tard qu'aux chauffeurs correspondant à la distance, à la taille du chargement et au mode de paiement que vous avez sélectionnés."
+      }
+    },
+    "paypal": {
+      "autoSwitchNotice": "Basculé vers le virement bancaire car PayPal n'est actuellement pas disponible pour cette commande.",
+      "pendingToast": "Commande créée. Finalisez le paiement en utilisant les boutons PayPal sur cette page.",
+      "readyToast": "Vous avez une commande PayPal prête. Finalisez le paiement depuis les boutons en bas de page d'abord.",
+      "cancelled": "Le paiement PayPal a été annulé. Vous pouvez réessayer.",
+      "buttonError": "Une erreur s'est produite lors du chargement des boutons PayPal"
+    },
+    "success": {
+      "splitBank": "Commande passée ! Le premier paiement est maintenant requis via {{bank}}.",
+      "fullBank": "Commande passée ! Veuillez télécharger le reçu de virement complet via {{bank}}.",
+      "paypal": "Commande passée avec succès ! Le paiement sera finalisé via PayPal.",
+      "cod": "Commande passée avec succès ! Paiement à la livraison.",
+      "generic": "Commande passée avec succès !",
+      "paypalConfirmed": "Paiement PayPal confirmé avec succès."
+    },
+    "summary": {
+      "shippingTo": "Livraison à :",
+      "requestedDelivery": "Livraison demandée : {{date}} • {{slot}} ({{start}} - {{end}})",
+      "deliveryFeePayment": "Les frais de livraison seront payés séparément : {{method}}.",
+      "selectedPaymentMethod": "Mode de paiement sélectionné : {{method}}",
+      "placeOrder": "Passer la commande - {{total}}"
+    },
+    "coupon": {
+      "applied": "Coupon {{code}} appliqué avec une remise de {{discount}}",
+      "percentage": "{{value}}%",
+      "fixed": "{{value}} MAD"
+    }
   },
   "vendor": {
     "schedules": {
