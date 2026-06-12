@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { productsApi, vendorsApi } from '@/services/api'
+import productSearchService from '@/services/search/productSearchService'
+import { profilesService } from '@/services/profilesService'
 import { formatPrice } from '@/utils/currency.jsx'
 import { logger } from '@/utils/logger'
 import {
@@ -84,7 +85,6 @@ const HomePage = () => {
   const [vendorsLoading, setVendorsLoading] = useState(true)
 
   const isArabic = (i18n.language || 'ar').toLowerCase().startsWith('ar')
-  const productService = productsApi
 
   useEffect(() => {
     const loadHomeData = async () => {
@@ -93,11 +93,11 @@ const HomePage = () => {
 
       try {
         const [productsResult, vendorsResult] = await Promise.all([
-          productService.getAll({ limit: 16, approvalStatus: 'approved' }),
-          vendorsApi.getAll({ limit: 12 }),
+          productSearchService.getFeaturedProducts(8),
+          profilesService.fetchActiveVerifiedVendors(),
         ])
 
-        const products = Array.isArray(productsResult?.data) ? productsResult.data : []
+        const products = Array.isArray(productsResult) ? productsResult : []
         const vendors = Array.isArray(vendorsResult?.data) ? vendorsResult.data : []
 
         const topProducts = products
@@ -122,7 +122,7 @@ const HomePage = () => {
     }
 
     loadHomeData()
-  }, [productService])
+  }, [])
 
   const primaryCta = useMemo(() => {
     if (!user) {
