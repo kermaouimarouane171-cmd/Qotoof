@@ -304,6 +304,9 @@ serve(async (req) => {
         )
       }
 
+      // TODO: Bank transfer metadata (proofUrl, bankName, transferDate, notes)
+      // needs a dedicated storage table/columns after SQL verification.
+      // Do NOT store it in payments table — payments schema is fixed and limited.
       let paymentUpdateError
       if (existingPayment) {
         ({ error: paymentUpdateError } = await supabase
@@ -312,16 +315,6 @@ serve(async (req) => {
             payment_method: 'bank',
             status: 'processing',
             transaction_id: transactionId || null,
-            payment_proof_url: transferProofUrl || null,
-            bank_name: customerBankName || null,
-            gateway_response: {
-              customer_bank_name: customerBankName,
-              customer_account: customerAccountNumber,
-              transfer_date: transferDate,
-              notes,
-              proof_url: transferProofUrl,
-              confirmed_at: new Date().toISOString(),
-            },
             updated_at: new Date().toISOString(),
           })
           .eq('order_id', orderId))
@@ -330,22 +323,10 @@ serve(async (req) => {
           .from('payments')
           .insert({
             order_id: orderId,
-            user_id: order.buyer_id,
             amount: order.total,
-            currency: 'MAD',
             payment_method: 'bank',
             status: 'processing',
             transaction_id: transactionId || null,
-            payment_proof_url: transferProofUrl || null,
-            bank_name: customerBankName || null,
-            gateway_response: {
-              customer_bank_name: customerBankName,
-              customer_account: customerAccountNumber,
-              transfer_date: transferDate,
-              notes,
-              proof_url: transferProofUrl,
-              confirmed_at: new Date().toISOString(),
-            },
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }))
