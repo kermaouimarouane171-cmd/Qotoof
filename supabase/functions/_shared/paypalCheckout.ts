@@ -248,12 +248,7 @@ export const persistPayPalOrderState = async ({
     const paymentUpdate: Record<string, unknown> = {
       status: paymentStatus,
       transaction_id: paypalOrderId,
-      gateway_response: paypalOrderData,
       updated_at: now,
-    }
-
-    if (paymentStatus === 'completed') {
-      paymentUpdate.confirmed_at = now
     }
 
     const { error: paymentUpdateError } = await client
