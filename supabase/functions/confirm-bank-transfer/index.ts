@@ -217,7 +217,8 @@ serve(async (req) => {
           total,
           buyer_id,
           payment_method,
-          payment_status
+          payment_status,
+          invoice_metadata
         `)
         .eq('id', orderId)
         .single()
@@ -304,9 +305,6 @@ serve(async (req) => {
         )
       }
 
-      // TODO: Bank transfer metadata (proofUrl, bankName, transferDate, notes)
-      // needs a dedicated storage table/columns after SQL verification.
-      // Do NOT store it in payments table — payments schema is fixed and limited.
       let paymentUpdateError
       if (existingPayment) {
         ({ error: paymentUpdateError } = await supabase
@@ -337,11 +335,31 @@ serve(async (req) => {
         throw new Error(`Failed to update payment: ${paymentUpdateError.message}`)
       }
 
-      // Update order payment status to processing (awaiting admin confirmation)
+      // Build invoice_metadata preserving existing data and adding bank transfer info
+      const currentMetadata = order.invoice_metadata && typeof order.invoice_metadata === 'object'
+        ? order.invoice_metadata
+        : {}
+      const nextInvoiceMetadata = {
+        ...currentMetadata,
+        bank_transfer: {
+          ...(currentMetadata.bank_transfer ?? {}),
+          proof_url: transferProofUrl ?? null,
+          bank_name: customerBankName ?? null,
+          account_number_last4: customerAccountNumber ? String(customerAccountNumber).slice(-4) : null,
+          transfer_date: transferDate ?? null,
+          notes: notes ?? null,
+          transaction_id: transactionId ?? null,
+          submitted_at: new Date().toISOString(),
+          submitted_by: user.id,
+        },
+      }
+
+      // Update order payment status and invoice_metadata
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({
           payment_status: 'processing',
+          invoice_metadata: nextInvoiceMetadata,
           updated_at: new Date().toISOString(),
         })
         .eq('id', orderId)
