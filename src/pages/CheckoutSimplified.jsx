@@ -23,7 +23,7 @@ import { logger } from '@/utils/logger'
 import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/services/minimumOrderService'
 import { getPayPalClientId } from '@/lib/config'
 import { emailService } from '@/services/emailService'
-import { getLatestOrderPaymentRecord, updateOrderPaymentRecord } from '@/services/paymentService'
+import { getLatestOrderPaymentRecord } from '@/services/paymentService'
 import { createCheckoutOrder } from '@/services/checkoutService'
 import { useCheckoutPricing } from '@/hooks/useCheckoutPricing'
 import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard'
@@ -968,24 +968,6 @@ const CheckoutSimplified = () => {
         if (!paypalInit?.orderId) {
           throw new Error(t('checkout.errors.paypalNoOrderId'))
         }
-
-        const paymentRecord = await getLatestOrderPaymentRecord({
-          orderId: primaryOrder.id,
-          paymentMethod: 'paypal',
-          select: 'id',
-          allowMissing: false,
-        })
-
-        if (!paymentRecord?.id) {
-          throw new Error(t('checkout.errors.paypalRecordNotFound'))
-        }
-
-        await updateOrderPaymentRecord({
-          paymentId: paymentRecord.id,
-          values: {
-            transaction_id: paypalInit.orderId,
-          },
-        })
 
         pendingPaypalOrder = {
           internalOrderId: primaryOrder.id,

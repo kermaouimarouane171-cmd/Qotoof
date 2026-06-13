@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const PAYPAL_CLIENT_ID = Deno.env.get('VITE_PAYPAL_CLIENT_ID')
 const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET')
@@ -6,6 +7,10 @@ const PAYPAL_MERCHANT_EMAIL = (Deno.env.get('PAYPAL_MERCHANT_EMAIL') || '').trim
 const PAYPAL_API_BASE = Deno.env.get('PAYPAL_API_BASE') || (Deno.env.get('VITE_PAYMENT_MODE') === 'production' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com')
 const PAYPAL_SETTLEMENT_CURRENCY = (Deno.env.get('PAYPAL_SETTLEMENT_CURRENCY') || Deno.env.get('VITE_PAYPAL_SETTLEMENT_CURRENCY') || 'EUR').toUpperCase()
 const PAYPAL_MAD_EXCHANGE_RATE = Number(Deno.env.get('PAYPAL_MAD_EXCHANGE_RATE') || '0.092')
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+
+const buildAdminClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 const PAYPAL_SUPPORTED_CURRENCIES = new Set([
   'AUD', 'BRL', 'CAD', 'CZK', 'DKK', 'EUR', 'HKD', 'HUF', 'ILS', 'JPY',
@@ -151,6 +156,32 @@ serve(async (req) => {
     }
 
     const approvalUrl = paypalOrder?.links?.find((link: { rel?: string; href?: string }) => link?.rel === 'approve')?.href || null
+
+    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && orderId) {
+      try {
+        const adminClient = buildAdminClient()
+        const { data: paymentRecord } = await adminClient
+          .from('payments')
+          .select('id')
+          .eq('order_id', orderId)
+          .eq('payment_method', 'paypal')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (paymentRecord?.id) {
+          await adminClient
+            .from('payments')
+            .update({
+              transaction_id: paypalOrder?.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', paymentRecord.id)
+        }
+      } catch (dbError) {
+        console.error('create-paypal-order: failed to persist transaction_id:', dbError)
+      }
+    }
 
     return jsonResponse(
       {
