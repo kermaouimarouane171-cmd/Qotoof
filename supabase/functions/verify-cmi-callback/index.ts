@@ -153,17 +153,29 @@ serve(async (req) => {
     // Update database
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+      const nowIso = new Date().toISOString()
 
-      // Update payment record
+      // 1. Fetch existing invoice_metadata so we can merge safely
+      let existingMeta: Record<string, unknown> = {}
+      try {
+        const { data: currentOrder } = await supabase
+          .from('orders')
+          .select('invoice_metadata')
+          .eq('id', originalOrderId)
+          .maybeSingle()
+        existingMeta = (currentOrder?.invoice_metadata as Record<string, unknown>) || {}
+      } catch {
+        // If select fails, proceed with empty metadata to avoid blocking the webhook
+        existingMeta = {}
+      }
+
+      // 2. Update payment record (safe columns only)
       const { error: paymentError } = await supabase
         .from('payments')
         .update({
           status: paymentStatus,
           transaction_id: TransId || null,
-          auth_code: isApproved ? ProcReturnCode : null,
-          gateway_response: body,
-          paid_at: isApproved ? new Date().toISOString() : null,
-          reference_number: oid || null,
+          updated_at: nowIso,
         })
         .eq('order_id', originalOrderId)
 
@@ -172,12 +184,28 @@ serve(async (req) => {
         throw new Error(`Failed to update payment: ${paymentError.message}`)
       }
 
-      // Update order payment status
+      // 3. Update order payment status with merged CMI metadata
       const { error: orderError } = await supabase
         .from('orders')
         .update({
           payment_status: orderPaymentStatus,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
+          invoice_metadata: {
+            ...existingMeta,
+            cmi: {
+              status: paymentStatus,
+              transaction_id: TransId || null,
+              auth_code: isApproved ? ProcReturnCode : null,
+              reference_number: oid || null,
+              response: Response || null,
+              response_message: ResponseMsg || null,
+              proc_return_code: ProcReturnCode || null,
+              amount: amount || null,
+              currency: currency || null,
+              cmi_order_id: oid || null,
+              verified_at: nowIso,
+            },
+          },
         })
         .eq('id', originalOrderId)
 
@@ -186,7 +214,7 @@ serve(async (req) => {
         throw new Error(`Failed to update order: ${orderError.message}`)
       }
 
-      // Log financial audit if payment failed
+      // 4. Log financial audit if payment failed (non-blocking)
       if (!isApproved) {
         const { error: auditError } = await supabase
           .from('financial_audit_log')
