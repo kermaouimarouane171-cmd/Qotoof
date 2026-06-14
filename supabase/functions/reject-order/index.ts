@@ -86,17 +86,21 @@ serve(async (req) => {
       })
 
     // Outbox: async email notification — non-blocking
-    await adminClient.from('domain_events_outbox').insert({
-      event_type: 'order.rejected',
-      payload: {
-        order_id: orderId,
-        order_number: rejectedOrder.order_number,
-        buyer_id: rejectedOrder.buyer_id,
-        vendor_id: user.id,
-        reason,
-      },
-      source_function: 'reject-order',
-    })
+    try {
+      await adminClient.from('domain_events_outbox').insert({
+        event_type: 'order.rejected',
+        payload: {
+          order_id: orderId,
+          order_number: rejectedOrder.order_number,
+          buyer_id: rejectedOrder.buyer_id,
+          vendor_id: user.id,
+          reason,
+        },
+        source_function: 'reject-order',
+      })
+    } catch (outboxError) {
+      console.warn('[outbox] insert failed; continuing without blocking main operation', outboxError)
+    }
 
     return json({
       success: true,

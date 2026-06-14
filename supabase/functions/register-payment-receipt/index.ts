@@ -193,17 +193,21 @@ serve(async (req) => {
     }
 
     // Outbox: async SMS to vendor notifying of receipt upload — non-blocking
-    await supabase.from('domain_events_outbox').insert({
-      event_type: 'payment.receipt_uploaded',
-      payload: {
-        order_id: orderId,
-        order_number: updatedOrder.order_number ?? null,
-        buyer_id: user.id,
-        vendor_id: updatedOrder.vendor_id ?? null,
-        stage,
-      },
-      source_function: 'register-payment-receipt',
-    })
+    try {
+      await supabase.from('domain_events_outbox').insert({
+        event_type: 'payment.receipt_uploaded',
+        payload: {
+          order_id: orderId,
+          order_number: updatedOrder.order_number ?? null,
+          buyer_id: user.id,
+          vendor_id: updatedOrder.vendor_id ?? null,
+          stage,
+        },
+        source_function: 'register-payment-receipt',
+      })
+    } catch (outboxError) {
+      console.warn('[outbox] insert failed; continuing without blocking main operation', outboxError)
+    }
 
     return new Response(
       JSON.stringify({ success: true, order: updatedOrder }),

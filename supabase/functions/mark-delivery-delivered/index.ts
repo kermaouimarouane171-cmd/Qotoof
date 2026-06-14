@@ -110,15 +110,19 @@ serve(async (req) => {
     }
 
     // Outbox: async SMS to buyer confirming delivery — non-blocking
-    await adminClient.from('domain_events_outbox').insert({
-      event_type: 'delivery.completed',
-      payload: {
-        delivery_id: deliveryId,
-        order_id: delivery.order_id,
-        delivered_at: deliveredAt,
-      },
-      source_function: 'mark-delivery-delivered',
-    })
+    try {
+      await adminClient.from('domain_events_outbox').insert({
+        event_type: 'delivery.completed',
+        payload: {
+          delivery_id: deliveryId,
+          order_id: delivery.order_id,
+          delivered_at: deliveredAt,
+        },
+        source_function: 'mark-delivery-delivered',
+      })
+    } catch (outboxError) {
+      console.warn('[outbox] insert failed; continuing without blocking main operation', outboxError)
+    }
 
     return json({
       success: true,
