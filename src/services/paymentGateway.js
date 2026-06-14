@@ -392,43 +392,88 @@ class PaymentGateway {
    * Refund PayPal payment
    */
   async refundPayPalPayment(payment, amount, reason = '') {
-    return withRetry(
+    // Step 1: PayPal API call (once, no retry around it)
+    const refundReason = reason || 'requested_by_customer'
+    const { data, error } = await supabase.functions.invoke('refund-paypal-payment', {
+      body: {
+        orderId: payment.transaction_id,
+        amount,
+        reason: refundReason,
+      },
+    })
+
+    if (error) throw error
+
+    const nowIso = new Date().toISOString()
+
+    // Step 2: DB persistence with isolated retry (does NOT re-call PayPal API)
+    await withRetry(
       async () => {
-        const refundReason = reason || 'requested_by_customer'
-        const { data, error } = await supabase.functions.invoke('refund-paypal-payment', {
-          body: {
-            orderId: payment.transaction_id,
-            amount,
-            reason: refundReason,
-          },
-        })
-
-        if (error) throw error
-
+        // 2a: Safe payments update (schema-compliant columns only)
         await updatePaymentRecordById({
           paymentId: payment.id,
           values: {
             status: 'refunded',
-            refund_amount: amount,
-            refund_reason: refundReason,
-            refunded_at: new Date().toISOString(),
-            gateway_response: data,
+            updated_at: nowIso,
           },
           select: 'id',
         })
 
-        await this.recordRefund({
-          payment,
-          amount,
-          reason: refundReason,
-          status: 'refunded',
-          gatewayResponse: data,
-        })
+        // 2b: Merge refund metadata into orders.invoice_metadata
+        const { data: orderData, error: orderFetchError } = await supabase
+          .from('orders')
+          .select('invoice_metadata')
+          .eq('id', payment.order_id)
+          .single()
 
-        return { success: true, status: 'refunded' }
+        if (orderFetchError) throw orderFetchError
+
+        const existingMeta = orderData?.invoice_metadata || {}
+        const { error: orderUpdateError } = await supabase
+          .from('orders')
+          .update({
+            invoice_metadata: {
+              ...existingMeta,
+              paypal_refund: {
+                refund_id: data?.id || null,
+                status: data?.status || null,
+                amount,
+                reason: refundReason || null,
+                refunded_at: nowIso,
+                gateway_summary: {
+                  id: data?.id || null,
+                  status: data?.status || null,
+                  create_time: data?.create_time || null,
+                  update_time: data?.update_time || null,
+                },
+              },
+            },
+            updated_at: nowIso,
+          })
+          .eq('id', payment.order_id)
+
+        if (orderUpdateError) throw orderUpdateError
       },
       { maxRetries: 2, baseDelay: 1000 }
     )
+
+    // Step 3: Non-blocking recordRefund (refunds table may not exist)
+    try {
+      await this.recordRefund({
+        payment,
+        amount,
+        reason: refundReason,
+        status: 'refunded',
+        gatewayResponse: {
+          id: data?.id || null,
+          status: data?.status || null,
+        },
+      })
+    } catch (recordErr) {
+      console.warn('PayPal refund succeeded but recordRefund skipped (refunds table unavailable):', recordErr.message)
+    }
+
+    return { success: true, status: 'refunded' }
   }
 
   /**
