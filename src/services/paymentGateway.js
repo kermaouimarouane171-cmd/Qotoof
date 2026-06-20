@@ -134,19 +134,50 @@ class PaymentGateway {
   async processCodPayment({ orderId, amount, customer }) {
     return withRetry(
       async () => {
-        // Save payment record
+        const nowIso = new Date().toISOString()
+        const customerName = customer?.name || null
+        const customerPhone = customer?.phone || null
+
+        // Save payment record (schema-safe columns only)
         const { data: payment, error } = await insertPaymentRecord({
           payload: {
             order_id: orderId,
             amount,
             payment_method: PAYMENT_METHOD.CASH,
             status: 'pending',
-            customer_name: customer.name,
-            customer_phone: customer.phone,
           },
         })
 
         if (error) throw error
+
+        // Store COD metadata in orders.invoice_metadata
+        const { data: orderData, error: orderFetchError } = await supabase
+          .from('orders')
+          .select('invoice_metadata')
+          .eq('id', orderId)
+          .single()
+
+        if (orderFetchError) throw orderFetchError
+
+        const existingMeta = orderData?.invoice_metadata || {}
+        const { error: orderUpdateError } = await supabase
+          .from('orders')
+          .update({
+            invoice_metadata: {
+              ...existingMeta,
+              cod: {
+                customer_name: customerName,
+                customer_phone: customerPhone,
+                amount,
+                status: 'pending',
+                created_at: nowIso,
+              },
+            },
+            updated_at: nowIso,
+          })
+          .eq('id', orderId)
+
+        if (orderUpdateError) throw orderUpdateError
 
         return {
           payment_method: PAYMENT_METHOD.CASH,
@@ -179,21 +210,48 @@ class PaymentGateway {
   async processBankTransfer({ orderId, amount, customer }) {
     return withRetry(
       async () => {
-        // Generate reference number
+        const nowIso = new Date().toISOString()
         const referenceNumber = `BANK-${orderId}-${Date.now()}`
+        const customerName = customer?.name || null
 
-        // Save payment record
+        // Save payment record (schema-safe columns only)
         const { data: payment, error } = await insertPaymentRecord({
           payload: {
             order_id: orderId,
             amount,
             payment_method: PAYMENT_METHOD.BANK_TRANSFER,
             status: 'awaiting_transfer',
-            reference_number: referenceNumber,
-            customer_name: customer.name,
           },
         })
         if (error) throw error
+
+        // Store bank transfer metadata in orders.invoice_metadata
+        const { data: orderData, error: orderFetchError } = await supabase
+          .from('orders')
+          .select('invoice_metadata')
+          .eq('id', orderId)
+          .single()
+
+        if (orderFetchError) throw orderFetchError
+
+        const existingMeta = orderData?.invoice_metadata || {}
+        const { error: orderUpdateError } = await supabase
+          .from('orders')
+          .update({
+            invoice_metadata: {
+              ...existingMeta,
+              bank_transfer: {
+                ...(existingMeta.bank_transfer || {}),
+                reference_number: referenceNumber,
+                customer_name: customerName,
+                initiated_at: nowIso,
+              },
+            },
+            updated_at: nowIso,
+          })
+          .eq('id', orderId)
+
+        if (orderUpdateError) throw orderUpdateError
 
         // SECURITY: Bank details (IBAN, BIC) must NOT be hardcoded in frontend.
         // Fetch them from a server-side config so they can be rotated without a code deploy.
