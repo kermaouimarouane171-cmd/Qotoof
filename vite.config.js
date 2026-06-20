@@ -211,6 +211,26 @@ export default defineConfig({
             return 'vendor-payments'
           }
 
+          // ── 5c. Node.js polyfills shared across packages ──────────────────────
+          // These CJS packages (events, inherits, etc.) are depended upon by
+          // packages in both vendor-misc and vendor-misc-2. Splitting them
+          // across the alphabetical boundary creates circular chunk imports
+          // that cause "Cannot set properties of undefined (setting 'exports')"
+          // at runtime. Grouping them together breaks the cycle.
+          if (
+            matchesPackage(packageName, [
+              'events', 'inherits', 'queue', 'pako',
+              'iobuffer', 'restructure', 'unicode-trie',
+              'tiny-inflate', 'fast-png', 'fflate',
+              'brotli', 'media-engine', 'hyphen',
+              'dingbat-to-unicode', 'lop', 'jay-peg',
+              'fast-equals', 'fast-deep-equal',
+              'hsl-to-hex', 'hsl-to-rgb-for-reals',
+              'color-name', 'color-string',
+              'base64-js', 'crypto-js',
+            ])
+          ) return 'vendor-polyfills'
+
           // ── 6. Split remainder to avoid a single oversized vendor-misc chunk ──
           // Packages are split alphabetically so shared deps tend to stay together
           // while the total chunk size is reduced for better caching.

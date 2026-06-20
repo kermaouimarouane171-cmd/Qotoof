@@ -1,5 +1,3 @@
-import { Capacitor } from '@capacitor/core'
-
 const canUseLocalStorage = () => {
   try {
     return typeof localStorage !== 'undefined'
@@ -23,10 +21,20 @@ const removeLocal = (key) => {
   localStorage.removeItem(key)
 }
 
+let capacitorPromise = null
+
+const getCapacitor = async () => {
+  if (!capacitorPromise) {
+    capacitorPromise = import('@capacitor/core').then((m) => m.Capacitor).catch(() => null)
+  }
+  return capacitorPromise
+}
+
 let preferencesModulePromise = null
 
 const getPreferences = async () => {
-  if (!Capacitor.isNativePlatform()) return null
+  const Capacitor = await getCapacitor()
+  if (!Capacitor || !Capacitor.isNativePlatform()) return null
 
   if (!preferencesModulePromise) {
     preferencesModulePromise = import('@capacitor/preferences').catch(() => null)
