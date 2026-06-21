@@ -327,7 +327,7 @@ describe('Vendor settings integration', () => {
 
     await screen.findByText('إعدادات المتجر')
 
-    const storeNameInput = screen.getByLabelText('Store Name')
+    const storeNameInput = screen.getByLabelText('اسم المتجر')
     fireEvent.change(storeNameInput, { target: { value: '' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
@@ -337,40 +337,25 @@ describe('Vendor settings integration', () => {
     expect(mockToast.error).toHaveBeenCalled()
   })
 
-  it('saves profile + policy settings and logs audit action', async () => {
+  it('saves only changed profile fields and policies', async () => {
     renderPage()
 
     await screen.findByText('إعدادات المتجر')
 
-    fireEvent.change(screen.getByLabelText('Store Name'), { target: { value: 'Green Atlas Updated' } })
+    fireEvent.change(screen.getByLabelText('اسم المتجر'), { target: { value: 'Green Atlas Updated' } })
     fireEvent.click(screen.getByText('Change Payment Policies'))
     fireEvent.click(screen.getByText('Change Cancellation Policy'))
     fireEvent.click(screen.getByText('Change Refund Policy'))
-    fireEvent.click(screen.getByText('Set Location'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     await waitFor(() => {
-      expect(mockProfilesService.updateProfile).toHaveBeenCalledWith(
-        'vendor-1',
-        expect.objectContaining({
-          store_name: 'Green Atlas Updated',
-          payment_policy_cod: true,
-          latitude: 33.57,
-          longitude: -7.59,
-          paypal_email: 'vendor@greenatlas.ma',
-          payout_method: 'paypal',
-        }),
-      )
+      expect(mockProfilesService.updateProfile).toHaveBeenCalledWith('vendor-1', {
+        store_name: 'Green Atlas Updated',
+        payment_policy_split: false,
+        payment_policy_cod: true,
+      })
     })
-
-    const updateCall = mockProfilesService.updateProfile.mock.calls[0][1]
-    expect(Number.isNaN(updateCall.min_order_amount)).toBe(false)
-    expect(Number.isNaN(updateCall.low_stock_threshold)).toBe(false)
-    expect(typeof updateCall.min_order_amount).toBe('number')
-    expect(typeof updateCall.low_stock_threshold).toBe('number')
-    expect(updateCall.min_order_amount).toBeGreaterThanOrEqual(0)
-    expect(updateCall.low_stock_threshold).toBeGreaterThanOrEqual(0)
 
     expect(mockCancellationService.upsertVendorCancellationPolicy).toHaveBeenCalled()
     expect(mockRefundPolicyService.upsertVendorRefundPolicy).toHaveBeenCalled()
@@ -380,6 +365,56 @@ describe('Vendor settings integration', () => {
       expect.any(Object),
     )
     expect(mockToast.success).toHaveBeenCalled()
+  })
+
+  it('sends only store_name when only store name changes', async () => {
+    renderPage()
+
+    await screen.findByText('إعدادات المتجر')
+
+    fireEvent.change(screen.getByLabelText('اسم المتجر'), { target: { value: 'Green Atlas Updated' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    await waitFor(() => {
+      expect(mockProfilesService.updateProfile).toHaveBeenCalledWith('vendor-1', {
+        store_name: 'Green Atlas Updated',
+      })
+    })
+
+    expect(mockCancellationService.upsertVendorCancellationPolicy).not.toHaveBeenCalled()
+    expect(mockRefundPolicyService.upsertVendorRefundPolicy).not.toHaveBeenCalled()
+    expect(mockToast.success).toHaveBeenCalled()
+  })
+
+  it('shows no changes message when values are reverted to initial', async () => {
+    renderPage()
+
+    await screen.findByText('إعدادات المتجر')
+
+    const storeNameInput = screen.getByLabelText('اسم المتجر')
+    fireEvent.change(storeNameInput, { target: { value: 'Green Atlas Changed' } })
+    fireEvent.change(storeNameInput, { target: { value: 'Green Atlas' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
+
+    await waitFor(() => {
+      expect(mockProfilesService.updateProfile).not.toHaveBeenCalled()
+    })
+
+    expect(mockToast.success).toHaveBeenCalledWith('لا توجد تغييرات للحفظ')
+  })
+
+  it('renders PayPal section with static help box and no tooltip', async () => {
+    renderPage()
+
+    await screen.findByText('إعدادات المتجر')
+    expect(screen.getByText('بريد PayPal الإلكتروني')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /PayPal خدمة دفع إلكتروني آمنة تُستخدم لاستلام المدفوعات/,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'ما هو PayPal؟' })).not.toBeInTheDocument()
   })
 
   it('can pause and resume store emergency mode', async () => {

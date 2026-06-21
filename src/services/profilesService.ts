@@ -103,20 +103,46 @@ export const profilesService = {
   },
 
   updateProfile: async (userId: string, updates: ProfileUpdate): Promise<ProfileResult> => {
-    const { id: _ignored, ...safeUpdates } = updates || {}
+    const allowedFields = new Set([
+      'store_name',
+      'min_order_amount',
+      'low_stock_threshold',
+      'payment_policy_full',
+      'payment_policy_split',
+      'payment_policy_cod',
+      'notify_order_updates',
+      'notify_customer_messages',
+      'notify_low_stock',
+      'latitude',
+      'longitude',
+      'store_address',
+      'paypal_email',
+      'payout_method',
+    ])
 
-    const { data, error } = await supabase
+    const { id: _ignored, ...rest } = updates || {}
+    const safeUpdates: Record<string, unknown> = {}
+
+    Object.entries(rest).forEach(([key, value]) => {
+      if (allowedFields.has(key) && value !== undefined) {
+        safeUpdates[key] = value
+      }
+    })
+
+    if (Object.keys(safeUpdates).length === 0) {
+      return { data: null, error: null }
+    }
+
+    const { error } = await supabase
       .from('profiles')
       .update(safeUpdates)
       .eq('id', userId)
-      .select()
-      .single()
 
     if (error) {
       return { data: null, error }
     }
 
-    return { data, error: null }
+    return { data: null, error: null }
   },
 
   fetchVendorProfile: async (vendorId: string): Promise<ProfileResult> => {
