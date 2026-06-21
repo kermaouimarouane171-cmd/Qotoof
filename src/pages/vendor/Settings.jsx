@@ -17,6 +17,7 @@ import refundPolicyService, { DEFAULT_REFUND_POLICY } from '@/services/refundPol
 import {
   Cog6ToothIcon,
   BellIcon,
+  BanknotesIcon,
   CheckCircleIcon,
   MapPinIcon,
   TruckIcon,
@@ -215,10 +216,13 @@ const VendorSettings = () => {
       const oldCancellationPolicy = await cancellationService.getVendorCancellationPolicy(user.id)
       const oldRefundPolicy = await refundPolicyService.getVendorRefundPolicy(user.id)
 
+      const minOrderAmountValue = safeNumber(minOrderAmount, 0)
+      const lowStockThresholdValue = safeNumber(lowStockThreshold, 10)
+
       const { error } = await profilesService.updateProfile(user.id, {
         store_name: storeName,
-        min_order_amount: parseFloat(minOrderAmount),
-        low_stock_threshold: parseInt(lowStockThreshold),
+        min_order_amount: minOrderAmountValue,
+        low_stock_threshold: lowStockThresholdValue,
         payment_policy_full: paymentPolicies.full,
         payment_policy_split: paymentPolicies.split,
         payment_policy_cod: paymentPolicies.cod,
@@ -250,8 +254,8 @@ const VendorSettings = () => {
         profile: {
           ...profile,
           store_name: storeName,
-          min_order_amount: parseFloat(minOrderAmount),
-          low_stock_threshold: parseInt(lowStockThreshold),
+          min_order_amount: minOrderAmountValue,
+          low_stock_threshold: lowStockThresholdValue,
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
           payment_policy_cod: paymentPolicies.cod,
@@ -287,11 +291,28 @@ const VendorSettings = () => {
       toast.success(t('vendor.settings.saved', 'Settings saved successfully!'))
       setHasChanges(false)
     } catch (error) {
-      logger.error('Error saving settings:', error)
+      const safeError = {
+        message: error?.message || String(error),
+        code: error?.code || null,
+        hint: error?.hint || null,
+        details: error?.details || null,
+      }
+      logger.error('Error saving settings:', safeError)
       toast.error(t('vendor.settings.errors.saveFailed', 'Failed to save settings'))
     } finally {
       setSaving(false)
     }
+  }
+
+  const safeNumber = (value, fallback) => {
+    const parsed = Number(value)
+    if (Number.isNaN(parsed) || parsed < 0) return fallback
+    return parsed
+  }
+
+  const safeJsonNumber = (value, fallback) => {
+    const parsed = safeNumber(value, fallback)
+    return parsed
   }
 
   const handleFieldChange = (setter, value) => {
@@ -410,7 +431,7 @@ const VendorSettings = () => {
 
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
-          {t('vendor.settings.title', 'Vendor Settings')}
+          {t('vendor.settings.title', 'إعدادات المتجر')}
         </h1>
         {hasChanges && !saving && (
           <p className="text-sm text-amber-600 flex items-center gap-1">
@@ -421,97 +442,11 @@ const VendorSettings = () => {
       </div>
 
       <div className="space-y-6">
-        <Card className={`p-6 border-2 ${storePaused ? 'border-red-200 bg-red-50/60' : 'border-amber-200 bg-amber-50/40'}`}>
-          <h2 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-            <ExclamationTriangleIcon className={`w-5 h-5 ${storePaused ? 'text-red-600' : 'text-amber-600'}`} />
-            وضع الطوارئ للمتجر
-          </h2>
-          <p className="text-sm text-gray-600 mb-4 leading-6">
-            عند التفعيل يتم إخفاء المنتجات النشطة مؤقتًا من السوق لتجنب استقبال طلبات جديدة أثناء الانقطاع أو الطوارئ.
-          </p>
-
-          <div className="space-y-3">
-            <textarea
-              value={storePauseReason}
-              onChange={(event) => {
-                setStorePauseReason(event.target.value)
-                setHasChanges(true)
-              }}
-              className="input min-h-[96px]"
-              placeholder="سبب الإيقاف (مثال: توقف التوريد المؤقت / صيانة مفاجئة)"
-              disabled={storePaused || pausingStore}
-            />
-
-            <div className="flex flex-wrap items-center gap-3">
-              {storePaused ? (
-                <button
-                  type="button"
-                  className="btn-primary inline-flex items-center gap-2"
-                  disabled={pausingStore}
-                  onClick={handleResumeStore}
-                >
-                  <PlayIcon className="w-4 h-4" />
-                  {pausingStore ? 'جاري إعادة التشغيل...' : 'إلغاء وضع الطوارئ'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-outline text-red-700 border-red-300 hover:bg-red-50 inline-flex items-center gap-2"
-                  disabled={pausingStore}
-                  onClick={handlePauseStore}
-                >
-                  <PauseIcon className="w-4 h-4" />
-                  {pausingStore ? 'جاري التفعيل...' : 'تفعيل وضع الطوارئ'}
-                </button>
-              )}
-
-              <span className={`text-xs font-medium px-3 py-1 rounded-full ${storePaused ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                {storePaused ? 'المتجر متوقف مؤقتًا' : 'المتجر يعمل بشكل طبيعي'}
-              </span>
-            </div>
-          </div>
-        </Card>
-
         {/* Store Settings */}
-        <Card className="p-6">
+        <Card className="p-6 border border-gray-200 bg-white">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            PayPal Setup
-            <Tooltip
-              title="ما هو PayPal؟"
-              content={(
-                <>
-                  <p>PayPal خدمة دفع إلكتروني آمنة لاستلام مستحقاتك من المبيعات.</p>
-                  <p>نحتاجه لتحويل أرباحك من المنصة بسرعة وبشكل موثوق.</p>
-                  <p>يجب إدخال بريد مرتبط بحساب PayPal نشط.</p>
-                  <a className="text-blue-600 underline" href="https://www.paypal.com/ma/webapps/mpp/account-selection" target="_blank" rel="noreferrer">إنشاء حساب PayPal مجاني</a>
-                </>
-              )}
-            />
-          </h2>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="PayPal Email"
-              type="email"
-              value={paypalEmail}
-              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
-              error={errors.paypalEmail}
-              required
-              placeholder="name@example.com"
-            />
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
-              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
-                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Cog6ToothIcon className="w-5 h-5 text-gray-600" />
-            {t('vendor.settings.storeSettings', 'Store Settings')}
+            <Cog6ToothIcon className="w-5 h-5 text-gray-500" />
+            {t('vendor.settings.storeSettings', 'بيانات المتجر')}
           </h2>
           <div className="space-y-4">
             <Input
@@ -557,10 +492,46 @@ const VendorSettings = () => {
           </div>
         </Card>
 
+        <Card className="p-6 border border-gray-200 bg-white">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <BanknotesIcon className="w-5 h-5 text-gray-500" />
+            {'الإعدادات المالية'}
+            <Tooltip
+              title="ما هو PayPal؟"
+              content={(
+                <>
+                  <p>PayPal خدمة دفع إلكتروني آمنة لاستلام مستحقاتك من المبيعات.</p>
+                  <p>نحتاجه لتحويل أرباحك من المنصة بسرعة وبشكل موثوق.</p>
+                  <p>يجب إدخال بريد مرتبط بحساب PayPal نشط.</p>
+                  <a className="text-blue-600 underline" href="https://www.paypal.com/ma/webapps/mpp/account-selection" target="_blank" rel="noreferrer">إنشاء حساب PayPal مجاني</a>
+                </>
+              )}
+            />
+          </h2>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="PayPal Email"
+              type="email"
+              value={paypalEmail}
+              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
+              error={errors.paypalEmail}
+              required
+              placeholder="name@example.com"
+            />
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
+              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
+                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
+              </p>
+            </div>
+          </div>
+        </Card>
+
         {/* Store Location */}
-        <Card className="p-6">
+        <Card className="p-6 border border-gray-200 bg-white">
           <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
-            <MapPinIcon className="w-5 h-5 text-gray-600" />
+            <MapPinIcon className="w-5 h-5 text-gray-500" />
             {t('vendor.settings.storeLocation', 'موقع المتجر')}
           </h2>
           <p className="text-xs text-gray-500 mb-4">
@@ -573,7 +544,8 @@ const VendorSettings = () => {
           />
         </Card>
 
-        <Card className="p-6">
+        {/* Delivery options */}
+        <Card className="p-6 border border-gray-200 bg-white">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
@@ -633,10 +605,10 @@ const VendorSettings = () => {
         />
 
         {/* Notification Settings */}
-        <Card className="p-6">
+        <Card className="p-6 border border-gray-200 bg-white">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <BellIcon className="w-5 h-5 text-gray-600" />
-            {t('vendor.settings.notifications', 'Notifications')}
+            <BellIcon className="w-5 h-5 text-gray-500" />
+            {t('vendor.settings.notifications', 'الإشعارات')}
           </h2>
           <div className="space-y-3">
             <div className="flex items-center gap-3">
@@ -707,8 +679,60 @@ const VendorSettings = () => {
           </div>
         </Card>
 
+        {/* Emergency mode */}
+        <Card className={`p-6 border ${storePaused ? 'border-red-200 bg-red-50/40' : 'border-gray-200 bg-white'}`}>
+          <h2 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <ExclamationTriangleIcon className={`w-5 h-5 ${storePaused ? 'text-red-600' : 'text-gray-500'}`} />
+            وضع الطوارئ للمتجر
+          </h2>
+          <p className="text-sm text-gray-600 mb-4 leading-6">
+            عند التفعيل يتم إخفاء المنتجات النشطة مؤقتًا من السوق لتجنب استقبال طلبات جديدة أثناء الانقطاع أو الطوارئ.
+          </p>
+
+          <div className="space-y-3">
+            <textarea
+              value={storePauseReason}
+              onChange={(event) => {
+                setStorePauseReason(event.target.value)
+                setHasChanges(true)
+              }}
+              className="input min-h-[96px]"
+              placeholder="سبب الإيقاف (مثال: توقف التوريد المؤقت / صيانة مفاجئة)"
+              disabled={storePaused || pausingStore}
+            />
+
+            <div className="flex flex-wrap items-center gap-3">
+              {storePaused ? (
+                <button
+                  type="button"
+                  className="btn-primary inline-flex items-center gap-2"
+                  disabled={pausingStore}
+                  onClick={handleResumeStore}
+                >
+                  <PlayIcon className="w-4 h-4" />
+                  {pausingStore ? 'جاري إعادة التشغيل...' : 'إلغاء وضع الطوارئ'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-outline text-red-700 border-red-300 hover:bg-red-50 inline-flex items-center gap-2"
+                  disabled={pausingStore}
+                  onClick={handlePauseStore}
+                >
+                  <PauseIcon className="w-4 h-4" />
+                  {pausingStore ? 'جاري التفعيل...' : 'تفعيل وضع الطوارئ'}
+                </button>
+              )}
+
+              <span className={`text-xs font-medium px-3 py-1 rounded-full ${storePaused ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                {storePaused ? 'المتجر متوقف مؤقتًا' : 'المتجر يعمل بشكل طبيعي'}
+              </span>
+            </div>
+          </div>
+        </Card>
+
         {/* Save Button */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 sticky bottom-0 bg-white py-4 border-t border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6">
           <button
             onClick={handleSave}
             className="btn-primary inline-flex items-center gap-2"

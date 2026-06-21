@@ -62,6 +62,7 @@ const LocationPicker = ({
   city,
   className = '',
   required = true,
+  autoDetect = false,
 }) => {
   const [detecting, setDetecting] = useState(false)
   const [detectError, setDetectError] = useState(null)
@@ -212,7 +213,9 @@ const LocationPicker = ({
   }, [city, locationSelected, onChange])
 
   // Auto-detect GPS on first mount if no location already set and no city provided
+  // Only when explicitly enabled via autoDetect prop to avoid browser permission policy warnings
   useEffect(() => {
+    if (!autoDetect) return
     if (autoDetectCalledRef.current) return
     if (locationSelected) return
     if (city) return
@@ -222,7 +225,7 @@ const LocationPicker = ({
     const timer = setTimeout(() => detectMyLocation(), 600)
     return () => clearTimeout(timer)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city, locationSelected])
+  }, [autoDetect, city, locationSelected])
 
   return (
     <div className={`space-y-4 ${className}`} data-testid="location-picker">

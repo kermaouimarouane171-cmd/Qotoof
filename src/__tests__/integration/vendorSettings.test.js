@@ -311,7 +311,7 @@ describe('Vendor settings integration', () => {
   it('loads initial settings from services', async () => {
     renderPage()
 
-    expect(await screen.findByText('Vendor Settings')).toBeInTheDocument()
+    expect(await screen.findByText('إعدادات المتجر')).toBeInTheDocument()
 
     await waitFor(() => {
       expect(mockProfilesService.fetchVendorProfile).toHaveBeenCalledWith('vendor-1')
@@ -325,7 +325,7 @@ describe('Vendor settings integration', () => {
   it('shows validation error and does not save when store name is empty', async () => {
     renderPage()
 
-    await screen.findByText('Vendor Settings')
+    await screen.findByText('إعدادات المتجر')
 
     const storeNameInput = screen.getByLabelText('Store Name')
     fireEvent.change(storeNameInput, { target: { value: '' } })
@@ -340,7 +340,7 @@ describe('Vendor settings integration', () => {
   it('saves profile + policy settings and logs audit action', async () => {
     renderPage()
 
-    await screen.findByText('Vendor Settings')
+    await screen.findByText('إعدادات المتجر')
 
     fireEvent.change(screen.getByLabelText('Store Name'), { target: { value: 'Green Atlas Updated' } })
     fireEvent.click(screen.getByText('Change Payment Policies'))
@@ -364,6 +364,14 @@ describe('Vendor settings integration', () => {
       )
     })
 
+    const updateCall = mockProfilesService.updateProfile.mock.calls[0][1]
+    expect(Number.isNaN(updateCall.min_order_amount)).toBe(false)
+    expect(Number.isNaN(updateCall.low_stock_threshold)).toBe(false)
+    expect(typeof updateCall.min_order_amount).toBe('number')
+    expect(typeof updateCall.low_stock_threshold).toBe('number')
+    expect(updateCall.min_order_amount).toBeGreaterThanOrEqual(0)
+    expect(updateCall.low_stock_threshold).toBeGreaterThanOrEqual(0)
+
     expect(mockCancellationService.upsertVendorCancellationPolicy).toHaveBeenCalled()
     expect(mockRefundPolicyService.upsertVendorRefundPolicy).toHaveBeenCalled()
     expect(mockAuditLogger.logProfileAction).toHaveBeenCalledWith(
@@ -377,7 +385,7 @@ describe('Vendor settings integration', () => {
   it('can pause and resume store emergency mode', async () => {
     renderPage()
 
-    await screen.findByText('Vendor Settings')
+    await screen.findByText('إعدادات المتجر')
 
     fireEvent.change(
       screen.getByPlaceholderText('سبب الإيقاف (مثال: توقف التوريد المؤقت / صيانة مفاجئة)'),
