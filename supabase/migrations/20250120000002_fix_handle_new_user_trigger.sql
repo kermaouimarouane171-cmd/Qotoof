@@ -14,6 +14,7 @@ BEGIN
     last_name, 
     role, 
     phone, 
+    cin,
     cin_number
   )
   VALUES (
@@ -23,10 +24,12 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
     COALESCE(NEW.raw_user_meta_data->>'role', 'buyer')::user_role,
     NEW.raw_user_meta_data->>'phone',
+    NEW.raw_user_meta_data->>'cin',
     NEW.raw_user_meta_data->>'cin'
   )
   ON CONFLICT (id) DO UPDATE SET
     phone = COALESCE(EXCLUDED.phone, profiles.phone),
+    cin = COALESCE(EXCLUDED.cin, profiles.cin),
     cin_number = COALESCE(EXCLUDED.cin_number, profiles.cin_number),
     first_name = COALESCE(NULLIF(EXCLUDED.first_name, ''), profiles.first_name),
     last_name = COALESCE(NULLIF(EXCLUDED.last_name, ''), profiles.last_name);

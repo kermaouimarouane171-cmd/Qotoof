@@ -20,6 +20,7 @@ import {
 import { formatSupabaseError } from '@/utils/errorFormatter'
 import { validateCIN as validateMoroccanCIN } from '@/utils/cinValidation'
 import { logger } from '@/utils/logger'
+import AuthCard from '@/components/auth/AuthCard'
 
 const TOTAL_STEPS = 4
 
@@ -39,10 +40,8 @@ const emptyErrors = {
   password: '',
   confirmPassword: '',
   deliveryAddress: '',
-  preferredPaymentMethod: '',
-  storeName: '',
-  storeType: '',
   city: '',
+  storeName: '',
   cin: '',
   vehicleType: '',
   vehiclePlate: '',
@@ -77,9 +76,7 @@ function RegisterPage() {
     password: '',
     confirmPassword: '',
     deliveryAddress: '',
-    preferredPaymentMethod: 'cash',
     storeName: '',
-    storeType: '',
     city: '',
     cin: '',
     vehicleType: 'motorcycle',
@@ -166,7 +163,7 @@ function RegisterPage() {
   const validateBuyerStep = () => {
     const result = registerBuyerProfileSchema.safeParse({
       deliveryAddress: formData.deliveryAddress,
-      preferredPaymentMethod: formData.preferredPaymentMethod,
+      city: formData.city,
     })
     const nextErrors = { ...emptyErrors }
 
@@ -179,6 +176,11 @@ function RegisterPage() {
       })
     }
 
+    const cinValidation = validateCIN(formData.cin)
+    if (!cinValidation.valid) {
+      nextErrors.cin = cinValidation.error
+    }
+
     setErrors((prev) => ({ ...prev, ...nextErrors }))
     return Object.values(nextErrors).every((value) => !value)
   }
@@ -187,7 +189,6 @@ function RegisterPage() {
     const result = registerVendorProfileSchema.safeParse({
       storeName: formData.storeName,
       city: formData.city,
-      storeType: formData.storeType,
       cin: formData.cin,
     })
 
@@ -285,7 +286,7 @@ function RegisterPage() {
     setLoading(true)
 
     try {
-      const cleanedCin = formData.role === 'buyer' ? null : validateCIN(formData.cin).cleaned
+      const cleanedCin = validateCIN(formData.cin).cleaned
 
       const signupPayload = {
         firstName: formData.firstName,
@@ -294,10 +295,8 @@ function RegisterPage() {
         phone: formData.phone,
         cin: cleanedCin,
         storeName: formData.role === 'vendor' ? formData.storeName : null,
-        storeType: formData.role === 'vendor' ? formData.storeType : null,
-        city: formData.role === 'vendor' ? formData.city : null,
+        city: formData.role === 'vendor' || formData.role === 'buyer' ? formData.city : null,
         deliveryAddress: formData.role === 'buyer' ? formData.deliveryAddress : null,
-        preferredPaymentMethod: formData.role === 'buyer' ? formData.preferredPaymentMethod : null,
         vehicleType: formData.role === 'driver' ? formData.vehicleType : null,
         vehiclePlate: formData.role === 'driver' ? formData.vehiclePlate : null,
       }
@@ -309,11 +308,13 @@ function RegisterPage() {
       }
 
       if (result.needsEmailVerification) {
-        setPostVerifyRedirect(getRedirectPath(formData.role))
+        const redirectPath = getRedirectPath(formData.role)
+        setPostVerifyRedirect(redirectPath)
         navigate('/verify-email', {
           state: {
             email: formData.email,
             role: formData.role,
+            redirectPath,
             message: t('auth.register.verifyEmail.notice', 'تم إنشاء الحساب، يرجى تأكيد بريدك الإلكتروني للمتابعة'),
           },
         })
@@ -353,19 +354,19 @@ function RegisterPage() {
   const progressPercent = Math.round((step / TOTAL_STEPS) * 100)
 
   return (
-    <div className="max-w-3xl mx-auto p-4 sm:p-6" dir="rtl" data-testid="register-page">
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-5 sm:p-8">
-        <div className="mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+    <AuthCard maxWidth="max-w-3xl" className="p-6 sm:p-8">
+      <div dir="rtl" data-testid="register-page">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             {t('auth.register.title', 'إنشاء حساب جديد')}
           </h1>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-500">
             {t('auth.register.subtitle', 'أكمل الخطوات التالية للانضمام إلى منصة قطوف')}
           </p>
         </div>
 
         <div className="mb-8">
-          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-600 mb-2">
+          <div className="flex items-center justify-between text-xs sm:text-sm text-gray-500 mb-2">
             <span>{t('auth.register.progress.label', 'التقدم')}</span>
             <span>
               {t('auth.register.progress.step', 'الخطوة')} {step} / {TOTAL_STEPS}
@@ -373,7 +374,7 @@ function RegisterPage() {
           </div>
           <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
             <div
-              className="h-full bg-green-600 transition-all duration-300"
+              className="h-full bg-gradient-to-r from-green-500 to-emerald-600 transition-all duration-300 rounded-full"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -386,12 +387,12 @@ function RegisterPage() {
               return (
                 <div
                   key={label}
-                  className={`text-center rounded-lg px-2 py-1.5 text-xs border ${
+                  className={`text-center rounded-xl px-2 py-2 text-xs font-medium border transition-all ${
                     isDone
                       ? 'bg-green-50 border-green-200 text-green-700'
                       : isActive
-                        ? 'bg-blue-50 border-blue-200 text-blue-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-500'
+                        ? 'bg-green-50 border-green-300 text-green-800 shadow-sm'
+                        : 'bg-gray-50 border-gray-200 text-gray-400'
                   }`}
                 >
                   {t(label, `خطوة ${current}`)}
@@ -403,13 +404,13 @@ function RegisterPage() {
 
         <form className="space-y-5" onSubmit={handleSubmit} data-testid="register-form">
           {errors.general && (
-            <div className="rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm p-3">
+            <div className="rounded-2xl border border-red-200 bg-red-50/80 text-red-700 text-sm p-4">
               {errors.general}
             </div>
           )}
 
           {step === 1 && (
-            <section className="space-y-4" data-testid="register-step-1">
+            <section className="space-y-4 auth-fade-in" data-testid="register-step-1">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step1.title', 'اختر نوع حسابك')}
               </h2>
@@ -419,45 +420,60 @@ function RegisterPage() {
                   type="button"
                   onClick={() => handleRoleChange('buyer')}
                   data-testid="register-role-buyer"
-                  className={`rounded-xl border-2 p-4 text-right transition ${
+                  className={`rounded-2xl border-2 p-5 text-right transition-all duration-200 ${
                     formData.role === 'buyer'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-green-500 bg-green-50 shadow-md shadow-green-500/10'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
                 >
                   <div className="text-2xl mb-2">🛒</div>
                   <div className="font-semibold text-gray-900">{t('auth.register.role.buyer', 'مشتري')}</div>
                   <div className="text-xs text-gray-500">{t('auth.register.role.buyerDesc', 'شراء المنتجات بالجملة')}</div>
+                  <ul className="mt-2 space-y-1 text-[10px] text-gray-400">
+                    <li>✓ {t('auth.register.role.buyerFeature1', 'شراء بالجملة وتتبع الطلبات')}</li>
+                    <li>✓ {t('auth.register.role.buyerFeature2', 'نقاط ولاء ومكافآت')}</li>
+                    <li>✓ {t('auth.register.role.buyerFeature3', 'طلب عروض أسعار')}</li>
+                  </ul>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleRoleChange('vendor')}
                   data-testid="register-role-vendor"
-                  className={`rounded-xl border-2 p-4 text-right transition ${
+                  className={`rounded-2xl border-2 p-5 text-right transition-all duration-200 ${
                     formData.role === 'vendor'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-green-500 bg-green-50 shadow-md shadow-green-500/10'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
                 >
                   <div className="text-2xl mb-2">🏪</div>
                   <div className="font-semibold text-gray-900">{t('auth.register.role.vendor', 'بائع')}</div>
                   <div className="text-xs text-gray-500">{t('auth.register.role.vendorDesc', 'عرض منتجاتك وإدارة متجرك')}</div>
+                  <ul className="mt-2 space-y-1 text-[10px] text-gray-400">
+                    <li>✓ {t('auth.register.role.vendorFeature1', 'إدارة المتجر والمنتجات')}</li>
+                    <li>✓ {t('auth.register.role.vendorFeature2', 'تحليلات المبيعات')}</li>
+                    <li>✓ {t('auth.register.role.vendorFeature3', 'تواصل مباشر وشحن متكامل')}</li>
+                  </ul>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleRoleChange('driver')}
                   data-testid="register-role-driver"
-                  className={`rounded-xl border-2 p-4 text-right transition ${
+                  className={`rounded-2xl border-2 p-5 text-right transition-all duration-200 ${
                     formData.role === 'driver'
-                      ? 'border-green-500 bg-green-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-green-500 bg-green-50 shadow-md shadow-green-500/10'
+                      : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                   }`}
                 >
                   <div className="text-2xl mb-2">🚚</div>
                   <div className="font-semibold text-gray-900">{t('auth.register.role.driver', 'سائق')}</div>
                   <div className="text-xs text-gray-500">{t('auth.register.role.driverDesc', 'توصيل الطلبات للعملاء')}</div>
+                  <ul className="mt-2 space-y-1 text-[10px] text-gray-400">
+                    <li>✓ {t('auth.register.role.driverFeature1', 'مرونة في الجدول والعمل')}</li>
+                    <li>✓ {t('auth.register.role.driverFeature2', 'أرباح تنافسية')}</li>
+                    <li>✓ {t('auth.register.role.driverFeature3', 'تتبع التوصيلات والتقييمات')}</li>
+                  </ul>
                 </button>
               </div>
 
@@ -466,7 +482,7 @@ function RegisterPage() {
           )}
 
           {step === 2 && (
-            <section className="space-y-4" data-testid="register-step-2">
+            <section className="space-y-4 auth-fade-in" data-testid="register-step-2">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step2.title', 'المعلومات الأساسية')}
               </h2>
@@ -542,7 +558,7 @@ function RegisterPage() {
           )}
 
           {step === 3 && (
-            <section className="space-y-4" data-testid="register-step-3">
+            <section className="space-y-4 auth-fade-in" data-testid="register-step-3">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step3.title', 'معلومات الملف الشخصي')}
               </h2>
@@ -560,24 +576,35 @@ function RegisterPage() {
                   />
 
                   <div>
-                    <label className="input-label">
-                      {t('auth.register.preferredPaymentMethod', 'طريقة الدفع المفضلة')}
-                    </label>
-                    <select
-                      name="preferredPaymentMethod"
-                      value={formData.preferredPaymentMethod}
-                      onChange={handleChange}
-                      className="input"
-                      data-testid="register-payment-method-select"
-                    >
-                      <option value="cash">{t('auth.register.payment.cash', 'الدفع عند الاستلام')}</option>
-                      <option value="bank_transfer">{t('auth.register.payment.bankTransfer', 'تحويل بنكي')}</option>
-                      <option value="paypal">{t('auth.register.payment.paypal', 'بايبال')}</option>
-                    </select>
-                    {errors.preferredPaymentMethod && (
-                      <p className="mt-1 text-sm text-red-600">{errors.preferredPaymentMethod}</p>
-                    )}
+                    <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
+                    <CityAutocomplete
+                      value={formData.city}
+                      onChange={(cityValue) => {
+                        setFormData((prev) => ({ ...prev, city: cityValue }))
+                        clearFieldError('city')
+                      }}
+                      cities={MOROCCAN_CITIES_221}
+                      name="city"
+                      required
+                      dataTestId="register-buyer-city-input"
+                      placeholder={t('auth.register.city.placeholder', 'ابحث عن المدينة أو اخترها')}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t('auth.register.city.totalCitiesHint', 'تضم القائمة 221 مدينة مغربية مع بحث سريع.')}
+                    </p>
+                    {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
                   </div>
+
+                  <CINInput
+                    value={formData.cin}
+                    onChange={(cinValue) => {
+                      setFormData((prev) => ({ ...prev, cin: cinValue }))
+                      clearFieldError('cin')
+                    }}
+                    error={errors.cin}
+                    required
+                    inputTestId="register-cin-input"
+                  />
                 </>
               )}
 
@@ -593,38 +620,24 @@ function RegisterPage() {
                     data-testid="register-store-name-input"
                   />
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <label className="input-label">{t('auth.register.storeType', 'نوع المتجر')}</label>
-                      <select name="storeType" value={formData.storeType} onChange={handleChange} className="input" data-testid="register-store-type-select">
-                        <option value="">{t('auth.register.storeType.placeholder', 'اختر نوع المتجر')}</option>
-                        <option value="farm">{t('auth.register.storeType.farm', 'مزرعة')}</option>
-                        <option value="cooperative">{t('auth.register.storeType.cooperative', 'تعاونية')}</option>
-                        <option value="wholesale">{t('auth.register.storeType.wholesale', 'جملة')}</option>
-                        <option value="retail">{t('auth.register.storeType.retail', 'تجزئة')}</option>
-                      </select>
-                      {errors.storeType && <p className="mt-1 text-sm text-red-600">{errors.storeType}</p>}
-                    </div>
-
-                    <div>
-                      <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
-                      <CityAutocomplete
-                        value={formData.city}
-                        onChange={(cityValue) => {
-                          setFormData((prev) => ({ ...prev, city: cityValue }))
-                          clearFieldError('city')
-                        }}
-                        cities={MOROCCAN_CITIES_221}
-                        name="city"
-                        required
-                        dataTestId="register-city-input"
-                        placeholder={t('auth.register.city.placeholder', 'ابحث عن المدينة أو اخترها')}
-                      />
-                      <p className="mt-1 text-xs text-gray-500">
-                        {t('auth.register.city.totalCitiesHint', 'تضم القائمة 221 مدينة مغربية مع بحث سريع.')}
-                      </p>
-                      {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
-                    </div>
+                  <div>
+                    <label className="input-label">{t('auth.register.city', 'المدينة')}</label>
+                    <CityAutocomplete
+                      value={formData.city}
+                      onChange={(cityValue) => {
+                        setFormData((prev) => ({ ...prev, city: cityValue }))
+                        clearFieldError('city')
+                      }}
+                      cities={MOROCCAN_CITIES_221}
+                      name="city"
+                      required
+                      dataTestId="register-city-input"
+                      placeholder={t('auth.register.city.placeholder', 'ابحث عن المدينة أو اخترها')}
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      {t('auth.register.city.totalCitiesHint', 'تضم القائمة 221 مدينة مغربية مع بحث سريع.')}
+                    </p>
+                    {errors.city && <p className="mt-1 text-sm text-red-600">{errors.city}</p>}
                   </div>
 
                   <CINInput
@@ -679,12 +692,12 @@ function RegisterPage() {
           )}
 
           {step === 4 && (
-            <section className="space-y-4" data-testid="register-step-4">
+            <section className="space-y-4 auth-fade-in" data-testid="register-step-4">
               <h2 className="text-lg font-semibold text-gray-900">
                 {t('auth.register.step4.title', 'تأكيد البيانات')}
               </h2>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 space-y-2">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50/80 p-5 text-sm text-gray-700 space-y-2">
                 <p>
                   <span className="font-semibold">{t('auth.register.summary.role', 'نوع الحساب')}:</span> {roleLabel}
                 </p>
@@ -700,14 +713,14 @@ function RegisterPage() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+              <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-4 text-sm text-blue-800">
                 {t(
                   'auth.register.verifyEmail.notice',
                   'بعد إنشاء الحساب ستتلقى رسالة تأكيد عبر البريد الإلكتروني. يرجى تأكيد البريد لتفعيل الحساب.'
                 )}
               </div>
 
-              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl">
                 {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
@@ -775,7 +788,7 @@ function RegisterPage() {
           </div>
         </form>
       </div>
-    </div>
+    </AuthCard>
   )
 }
 

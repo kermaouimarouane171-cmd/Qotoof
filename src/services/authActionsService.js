@@ -1,10 +1,10 @@
 import { supabase } from '@/services/supabase'
 import toast from 'react-hot-toast'
-import { mfaService, sessionService, autoLogoutService } from '@/services/authServices'
+import { sessionService, autoLogoutService } from '@/modules/auth'
 import { auditLogger } from '@/services/auditLogger'
 import { emailService } from '@/services/emailService'
-import { useCartStore } from '@/store/cartStore'
-import { useFavoritesStore } from '@/store/favoritesStore'
+import { useCartStore } from '@/modules/cart'
+import { useFavoritesStore } from '@/modules/cart'
 import { generateDeviceFingerprint, secureStorage, clearSupabaseLocalStorage } from '@/utils/encryption'
 import {
   DEFAULT_AUTH_REDIRECT,
@@ -13,10 +13,11 @@ import {
   resolveSafeAuthRedirect,
   setPendingAuthRedirect,
 } from '@/utils/authRedirects'
-import { checkLoginRate, checkPasswordResetRate, enforceRateLimit } from '@/utils/rateLimiter'
+import { checkLoginRate, checkPasswordResetRate, checkSignupRate, enforceRateLimit, rateLimiter } from '@/utils/rateLimiter'
 import { signInWithServerRateLimit } from '@/services/authGateway'
 import { APP_CONFIG } from '@/config/appConfig'
 import { logger } from '../utils/logger.js'
+import { requireUser, unauthenticatedResponse } from '@/utils/authHelpers'
 
 const OAUTH_STATE_PREFIX = 'oauth_'
 const OAUTH_STATE_STORAGE_KEY = 'oauth_state'
@@ -31,12 +32,16 @@ const createOAuthState = () => {
 }
 
 const resolvePublicAppOrigin = () => {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin
-  }
-
+  // Prefer VITE_APP_URL for email-based redirect links (password reset, etc.)
+  // because the link must be publicly accessible (opened from an email client,
+  // possibly on a different device or after the dev server has stopped).
   if (typeof import.meta.env.VITE_APP_URL === 'string' && import.meta.env.VITE_APP_URL.trim()) {
     return import.meta.env.VITE_APP_URL.trim().replace(/\/$/, '')
+  }
+
+  // Fall back to window.location.origin for same-session redirects
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
   }
 
   return String(APP_CONFIG.siteUrl || '').replace(/\/$/, '')
@@ -58,6 +63,13 @@ export function createAuthActions(set, get) {
     // ENHANCED SIGN IN WITH RATE LIMITING & MFA
     // ============================================
     signIn: async (email, password, captchaToken = null, preferredRedirect = null) => {
+      const signInTimeout = setTimeout(() => {
+        if (get().isSigningIn) {
+          logger.warn('Sign-in timed out after 15s, forcing loading: false')
+          set({ loading: false, isSigningIn: false })
+        }
+      }, 15000)
+
       try {
         set({ loading: true, isSigningIn: true, profileError: false })
         const _safeRedirect = setPendingAuthRedirect(preferredRedirect)
@@ -72,27 +84,29 @@ export function createAuthActions(set, get) {
         })
 
         if (!user || !session) {
-          // SECURITY: Log failed login WITHOUT exposing user-provided data
-          auditLogger.logAuthAction('LOGIN_FAILED', null, {
-            timestamp: new Date().toISOString(),
-            errorType: 'ServerLoginError',
-            errorMessage: 'Missing authenticated session'
-          }).catch(() => {})
-
-          // SECURITY: Never expose specific error details to the client
+          // SECURITY: Failed login is logged server-side by the secure-login Edge Function.
+          // Never expose specific error details to the client.
           throw new Error('Invalid login credentials')
         }
 
-        // Run profile fetch and MFA check in parallel to save time
-        const [profile, mfaSettings] = await Promise.all([
-          get().fetchProfile(user.id),
-          mfaService?.getSettings ? mfaService.getSettings() : Promise.resolve(null),
-        ])
+        // Run profile fetch in parallel to save time
+        const profile = await get().fetchProfile(user.id)
 
         const deviceFingerprint = await generateDeviceFingerprint()
         set({ deviceFingerprint })
 
-        if (mfaSettings?.is_enabled) {
+        // Check if MFA is required using Supabase AAL
+        let mfaRequired = false
+        try {
+          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+          if (aalData && aalData.currentLevel !== aalData.nextLevel) {
+            mfaRequired = true
+          }
+        } catch (aalErr) {
+          logger.warn('AAL check failed during signIn:', aalErr?.message || aalErr)
+        }
+
+        if (mfaRequired) {
           set({
             user,
             session,
@@ -106,6 +120,7 @@ export function createAuthActions(set, get) {
 
           auditLogger.logAuthAction('MFA_REQUIRED', user.id).catch(() => {})
 
+          clearTimeout(signInTimeout)
           return {
             success: true,
             mfaRequired: true,
@@ -125,25 +140,39 @@ export function createAuthActions(set, get) {
           passwordRecoveryMode: false,
         })
 
-        if (sessionService?.registerSession) {
+        // Clear previous failed login attempts for this email
+        rateLimiter.reset(email, 'login')
+
+        // Register session only if profile exists (active_sessions has FK to profiles)
+        if (profile && sessionService?.registerSession) {
           await sessionService.registerSession()
+        } else if (!profile) {
+          logger.warn('Skipping session registration in signIn — profile creation failed')
+        }
+
+        // Sync locally saved guest favorites to the server after login
+        if (user?.id) {
+          try {
+            await useFavoritesStore.getState().syncFavoritesToServer(user.id)
+          } catch (syncError) {
+            logger.error('Failed to sync guest favorites after login:', syncError)
+          }
         }
 
         // Start auto logout (non-blocking)
         get().startAutoLogout()
 
-        // Log successful login (non-blocking - don't await)
-        auditLogger.logAuthAction('SIGNED_IN', user.id, {
-          role: profile?.role
-        }).catch(() => {})
+        // Successful login is logged server-side by the secure-login Edge Function.
 
         const redirect = consumePendingAuthRedirect(
           get().getRedirectPath(profile?.role)
         )
 
         toast.success('Welcome back!')
+        clearTimeout(signInTimeout)
         return { success: true, redirect }
       } catch (error) {
+        clearTimeout(signInTimeout)
         set({ loading: false, isSigningIn: false })
 
         if (!preferredRedirect) {
@@ -157,37 +186,54 @@ export function createAuthActions(set, get) {
           error?.message?.toLowerCase?.().includes('too many') ||
           error?.message?.toLowerCase?.().includes('rate limit')
 
+        const displayError = isRateLimited ? error.message : genericError
+
         if (isRateLimited) {
           toast.error(error.message) // Rate limit message is OK to show
         } else {
           toast.error(genericError)
         }
 
-        return { success: false, error: genericError }
+        return { success: false, error: displayError }
       }
     },
 
     // ============================================
-    // VERIFY MFA CODE
+    // VERIFY MFA CODE (Supabase MFA API)
     // ============================================
     verifyMFA: async (code) => {
       try {
         const { user } = get()
-        if (!user) {
-          return { success: false, error: 'No user logged in' }
+        if (!user) return unauthenticatedResponse()
+
+        // List TOTP factors to find the one to verify
+        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors()
+        if (factorsError) throw factorsError
+
+        const totpFactors = factorsData?.totp || []
+        if (totpFactors.length === 0) {
+          return { success: false, error: 'No TOTP factors found' }
         }
 
-        const result = mfaService?.verifyCode ? await mfaService.verifyCode(code) : { success: true }
+        const factor = totpFactors[0]
+        const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
+          factorId: factor.id,
+          code,
+        })
 
-        if (!result.success) {
-          return result
+        if (verifyError) {
+          return { success: false, error: verifyError.message || 'Invalid code' }
         }
 
-        if (sessionService?.registerSession) {
+        // Register session only if profile exists (active_sessions has FK to profiles)
+        const currentProfile = get().profile
+        if (currentProfile && sessionService?.registerSession) {
           await sessionService.registerSession()
+        } else if (!currentProfile) {
+          logger.warn('Skipping session registration in verifyMFA — profile missing')
         }
 
-        // MFA verified - complete login
+        // MFA verified - complete login (session is now aal2)
         set({
           mfaRequired: false,
           mfaPending: false,
@@ -197,17 +243,14 @@ export function createAuthActions(set, get) {
         // Start auto logout
         get().startAutoLogout()
 
-        // Log MFA success
-        await auditLogger.logAuthAction('MFA_VERIFIED', user.id)
-
         const profile = get().profile
         const redirect = consumePendingAuthRedirect(
           get().getRedirectPath(profile?.role)
         )
         toast.success('Authentication verified!')
-        
-        return { 
-          success: true, 
+
+        return {
+          success: true,
           redirect
         }
       } catch (error) {
@@ -221,19 +264,20 @@ export function createAuthActions(set, get) {
     // ============================================
     signOut: async () => {
       try {
-        const { user } = get()
-        
         // Stop auto logout
         autoLogoutService.stop()
-
-        // Log sign out before revoking the active auth session.
-        if (user) {
-          await auditLogger.logAuthAction('SIGNED_OUT', user.id)
-        }
 
         // Mark only the current tracked browser session as inactive.
         if (sessionService?.revokeCurrentSession) {
           await sessionService.revokeCurrentSession()
+        }
+
+        // SIGNED_OUT is logged server-side by the sign-out Edge Function.
+        // Falls back to direct signOut if the Edge Function call fails.
+        try {
+          await supabase.functions.invoke('sign-out', {})
+        } catch (edgeFnErr) {
+          logger.error('sign-out Edge Function call failed, falling back to direct signOut:', edgeFnErr)
         }
 
         const { error } = await supabase.auth.signOut()
@@ -274,17 +318,22 @@ export function createAuthActions(set, get) {
     },
 
     // ============================================
-    // SIGN UP (unchanged)
+    // SIGN UP (OTP-based email verification)
     // ============================================
     signUp: async (email, password, userData, captchaToken = null) => {
       try {
         set({ loading: true, isSigningIn: true, profileError: false })
         const normalizedEmail = String(email || '').trim().toLowerCase()
+
+        enforceRateLimit(checkSignupRate, normalizedEmail)
+
         const signUpOptions = {
           data: {
             first_name: userData.firstName,
             last_name: userData.lastName,
             role: userData.role,
+            phone: userData.phone || null,
+            cin: userData.cin || null,
             referral_code_used: userData.referralCode || null,
           },
         }
@@ -311,6 +360,20 @@ export function createAuthActions(set, get) {
             role: userData.role,
             phone: userData.phone || null,
             cin: userData.cin || null,
+          }
+
+          // Add vendor-specific fields
+          // store_type is intentionally omitted; the DB trigger apply_vendor_store_defaults
+          // defaults new vendors to 'small' and derives the correct delivery_option.
+          if (userData.role === 'vendor') {
+            profileData.store_name = userData.storeName || null
+            profileData.city = userData.city || null
+          }
+
+          // Add buyer-specific fields
+          if (userData.role === 'buyer') {
+            profileData.address = userData.deliveryAddress || null
+            profileData.city = userData.city || null
           }
 
           // Add driver-specific fields
@@ -348,8 +411,11 @@ export function createAuthActions(set, get) {
               passwordRecoveryMode: false,
             })
 
-            if (sessionService?.registerSession) {
+            // Register session only if profile exists (active_sessions has FK to profiles)
+            if (profile && sessionService?.registerSession) {
               await sessionService.registerSession()
+            } else if (!profile) {
+              logger.warn('Skipping session registration in signUp — profile creation failed')
             }
 
             get().startAutoLogout()
@@ -510,30 +576,37 @@ export function createAuthActions(set, get) {
     // ============================================
     // UPDATE PASSWORD (with session revocation)
     // ============================================
-    updatePassword: async (newPassword) => {
+    updatePassword: async (newPassword, currentPassword = null) => {
       try {
-        const { error } = await supabase.auth.updateUser({
-          password: newPassword
+        const isRecoveryMode = get().passwordRecoveryMode
+        const payload = { password: newPassword }
+
+        // In recovery mode (forgot password flow), currentPassword is not required
+        // because the user already proved identity via the email reset link.
+        if (!isRecoveryMode) {
+          if (!currentPassword) {
+            throw new Error('Current password is required')
+          }
+          payload.currentPassword = currentPassword
+        }
+
+        // PASSWORD_UPDATED is logged server-side by the change-password Edge Function.
+        const { data, error } = await supabase.functions.invoke('change-password', {
+          body: { ...payload, recoveryMode: isRecoveryMode },
         })
 
         if (error) throw error
+        if (!data?.success) {
+          throw new Error(data?.error || 'Failed to update password')
+        }
 
-        // Log password update
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          await auditLogger.logAuthAction('PASSWORD_UPDATED', user.id)
-
-          // SECURITY: Revoke all other sessions after password change
-          // This ensures that any compromised sessions are invalidated
-          try {
-            if (sessionService?.revokeAllOtherSessions) {
-              await sessionService.revokeAllOtherSessions()
-            }
-            logger.info('All sessions revoked after password change for user:', user.id)
-          } catch (sessionErr) {
-            // Don't fail password update if session revocation fails
-            logger.error('Failed to revoke sessions after password change:', sessionErr)
+        // SECURITY: Revoke all other sessions after password change
+        try {
+          if (sessionService?.revokeAllOtherSessions) {
+            await sessionService.revokeAllOtherSessions()
           }
+        } catch (sessionErr) {
+          logger.error('Failed to revoke sessions after password change:', sessionErr)
         }
 
         toast.success('Password updated successfully! All other sessions have been signed out.')
@@ -551,7 +624,7 @@ export function createAuthActions(set, get) {
     updateProfile: async (updates) => {
       try {
         const { user, profile: oldProfile } = get()
-        if (!user) throw new Error('No user logged in')
+        requireUser(user)
 
         const { data, error } = await supabase
           .from('profiles')
@@ -579,7 +652,7 @@ export function createAuthActions(set, get) {
     acceptVendorGuidelines: async () => {
       try {
         const { user } = get()
-        if (!user) throw new Error('No user logged in')
+        requireUser(user)
 
         const { data, error } = await supabase
           .from('profiles')
@@ -608,7 +681,7 @@ export function createAuthActions(set, get) {
     setDriverAvailability: async (isAvailable) => {
       try {
         const { user } = get()
-        if (!user) throw new Error('No user logged in')
+        requireUser(user)
 
         const { error: profileError } = await supabase
           .from('profiles')
@@ -639,8 +712,20 @@ export function createAuthActions(set, get) {
     // SECURITY WRAPPERS FOR UI HOOKS
     // ============================================
     getMFASettings: async () => {
-      if (!mfaService?.getSettings) return null
-      return await mfaService.getSettings()
+      try {
+        const { data: factorsData, error } = await supabase.auth.mfa.listFactors()
+        if (error) throw error
+        const totpFactors = factorsData?.totp || []
+        if (totpFactors.length === 0) return null
+        return {
+          is_enabled: true,
+          method: 'totp',
+          factors: totpFactors,
+        }
+      } catch (err) {
+        logger.error('getMFASettings error:', err)
+        return null
+      }
     },
 
     getActiveSessions: async () => {
@@ -649,17 +734,29 @@ export function createAuthActions(set, get) {
     },
 
     disableMFA: async () => {
-      if (!mfaService?.disable) {
-        return { success: false, error: 'MFA disable is not available' }
+      try {
+        const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors()
+        if (listError) throw listError
+
+        const totpFactors = factorsData?.totp || []
+        if (totpFactors.length === 0) {
+          return { success: false, error: 'No MFA factors found' }
+        }
+
+        for (const factor of totpFactors) {
+          const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id })
+          if (unenrollError) throw unenrollError
+        }
+
+        return { success: true }
+      } catch (err) {
+        logger.error('Disable MFA error:', err)
+        return { success: false, error: err.message }
       }
-      return await mfaService.disable()
     },
 
     enableMFA: async () => {
-      if (!mfaService?.enableWithEmail) {
-        return { success: false, error: 'MFA enable is not available' }
-      }
-      return await mfaService.enableWithEmail()
+      return { success: true }
     },
 
     revokeAllOtherSessions: async () => {
@@ -675,7 +772,7 @@ export function createAuthActions(set, get) {
     deleteAccount: async (confirmationText) => {
       try {
         const { user, profile } = get()
-        if (!user) throw new Error('No user logged in')
+        requireUser(user)
 
         // Validate confirmation text
         if (confirmationText !== 'DELETE') {
