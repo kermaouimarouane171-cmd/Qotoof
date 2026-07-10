@@ -57,6 +57,8 @@ Recommended additional secrets used by current Edge Functions:
 supabase secrets set CMI_MERCHANT_ID="PASTE_CMI_MERCHANT_ID_HERE"
 supabase secrets set PAYMENT_MODE="production"
 supabase secrets set PAYPAL_API_BASE="https://api-m.paypal.com"
+supabase secrets set PAYPAL_SETTLEMENT_CURRENCY="EUR"
+supabase secrets set PAYPAL_MAD_EXCHANGE_RATE="0.092"
 supabase secrets set ALLOWED_ORIGINS="https://qotoof.ma,https://YOUR_HOSTING_DOMAIN"
 ```
 

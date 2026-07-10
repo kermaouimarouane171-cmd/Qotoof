@@ -26,7 +26,7 @@ services. Each domain owns a slice of business capability.
 |--------|---------------|-----------------|
 | `ordering` | Create, cancel, update orders; query order list and detail | `src/services/api.js` → ordersApi; `useOrderView` hook |
 | `delivery` | Accept/reject/update deliveries; driver assignment | `src/services/deliveries.js` → deliveriesApi |
-| `payments` | Confirm payment, upload receipt, check status | `src/services/paymentService.js` |
+| `payments` | Confirm payment, upload receipt, check status | `src/modules/payments` (moved from `src/services/paymentService.js` in Phase 7.8) |
 | `catalog` | Create/update/delete products; list/search products | `src/services/api.js` → productsApi |
 | `identity` | Sign in/out, phone OTP, fetch profile | `src/store/authStore.js`; `phoneOtpService.js`; `profilesService.ts` |
 
