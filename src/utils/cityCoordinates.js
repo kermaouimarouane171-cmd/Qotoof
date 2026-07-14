@@ -138,8 +138,7 @@ const CITY_COORDINATES = {
   'تاوريرت': { lat: 34.4167, lng: -2.8833, label: 'تاوريرت' },
 
   // Jerada
-  'jerada': { lat: 34.3050, lng: -2.1667, label: 'جرسيف' },
-  'جرسيف': { lat: 34.3050, lng: -2.1667, label: 'جرسيف' },
+  'jerada': { lat: 34.3050, lng: -2.1667, label: 'جرادة' },
 
   // Figuig
   'figuig': { lat: 32.1076, lng: -1.2244, label: 'فكيك' },
@@ -162,7 +161,6 @@ const CITY_COORDINATES = {
   'المحمدية': { lat: 33.6833, lng: -7.3833, label: 'المحمدية' },
 
   // Tanger-Tetouan region
-  'larache': { lat: 35.1833, lng: -6.1500, label: 'العرائش' },
 
   // Guelmim
   'guelmim': { lat: 28.9870, lng: -10.0570, label: 'كلميم' },

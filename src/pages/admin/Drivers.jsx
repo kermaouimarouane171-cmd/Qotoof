@@ -183,14 +183,6 @@ const AdminDrivers = () => {
     return { label: t('admin.drivers.verificationStatus.unverified', 'Unverified'), color: 'bg-red-100 text-red-700', icon: XCircleIcon }
   }
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <LoadingSpinner size="lg" />
-      </div>
-    )
-  }
-
   // Map markers for active drivers
   const mapMarkers = activeDrivers.map(driver => ({
     lat: parseFloat(driver.latitude),
@@ -208,6 +200,14 @@ const AdminDrivers = () => {
     lat: selectedDriver?.location?.latitude,
     lng: selectedDriver?.location?.longitude,
   })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
