@@ -4,6 +4,7 @@
  */
 
 import { HTTP_STATUS, ERROR_MESSAGES } from '../constants/apiEndpoints';
+import { logger } from './logger';
 
 /**
  * Custom API Error class
@@ -23,7 +24,7 @@ export class ApiError extends Error {
  * Normalize error response
  */
 export const normalizeError = (error) => {
-  console.error('[Error]', error);
+  logger.error('Error:', error);
 
   // Handle API error response
   if (error.response) {
@@ -189,7 +190,7 @@ export const logErrorToService = async (error, context = {}) => {
       }).catch(() => {});
     }
   } catch (err) {
-    console.error('[Error Logging] Failed to log error', err);
+    logger.error('[Error Logging] Failed to log error', err);
   }
 };
 

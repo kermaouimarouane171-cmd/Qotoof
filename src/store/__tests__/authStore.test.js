@@ -70,7 +70,7 @@ jest.mock('@/services/authServices', () => ({
     getSettings: jest.fn().mockResolvedValue({ is_enabled: false }),
     verifyCode: jest.fn(),
     disable: jest.fn(),
-    enableWithEmail: jest.fn(),
+    initiateEmailMFA: jest.fn(),
   },
   sessionService: {
     registerSession: (...args) => mockRegisterSession(...args),
@@ -99,14 +99,11 @@ jest.mock('@/services/emailService', () => ({
   },
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: {
     getState: () => ({ clearCart: (...args) => mockClearCart(...args) }),
     setState: (...args) => mockSetCartState(...args),
   },
-}))
-
-jest.mock('@/store/favoritesStore', () => ({
   useFavoritesStore: {
     getState: () => ({ clearFavorites: (...args) => mockClearFavorites(...args) }),
     setState: (...args) => mockSetFavoritesState(...args),
@@ -133,6 +130,9 @@ jest.mock('@/utils/rateLimiter', () => ({
   enforceRateLimit: (...args) => mockEnforceRateLimit(...args),
   checkLoginRate: (...args) => mockCheckLoginRate(...args),
   checkPasswordResetRate: (...args) => mockCheckPasswordResetRate(...args),
+  rateLimiter: {
+    reset: jest.fn(),
+  },
 }))
 
 jest.mock('@/utils/logger.js', () => ({
@@ -409,6 +409,30 @@ describe('useAuthStore (real implementation)', () => {
       expect(selectors.isVendor()).toBe(false)
       expect(selectors.isBuyer()).toBe(false)
       expect(selectors.isDriver()).toBe(true)
+    })
+  })
+
+  describe('Reset password action (resetPassword)', () => {
+    it('should use VITE_APP_URL for redirectTo, not window.location.origin', async () => {
+      const originalAppUrl = process.env.VITE_APP_URL
+      process.env.VITE_APP_URL = 'https://qotoof.ma'
+
+      const mockReset = jest.fn().mockResolvedValue({ error: null })
+      const { supabase } = require('@/services/supabase')
+      supabase.auth.resetPasswordForEmail = mockReset
+
+      mockEnforceRateLimit.mockReturnValue(undefined)
+
+      await act(async () => {
+        await useAuthStore.getState().resetPassword('user@example.com')
+      })
+
+      expect(mockReset).toHaveBeenCalledTimes(1)
+      const redirectTo = mockReset.mock.calls[0][1].redirectTo
+      expect(redirectTo).toBe('https://qotoof.ma/reset-password')
+      expect(redirectTo).not.toContain('localhost')
+
+      process.env.VITE_APP_URL = originalAppUrl
     })
   })
 

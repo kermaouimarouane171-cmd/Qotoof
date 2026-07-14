@@ -361,3 +361,69 @@ export default function NewFeatureList() {
 
 **آخر تحديث:** أبريل 2024
 **الحالة:** جاهز للإنتاج ✅
+
+---
+
+## ⚠️ TODO — تحديث وثيقة المعمارية (Modular Migration)
+
+**ما هو قديم:** هيكل `src/features/` الموصوف في هذه الوثيقة يتم استبداله تدريجياً بـ `src/modules/` وفق `MODULAR_DEVELOPMENT_PLAN.md`.
+
+**لماذا هو قديم:** المشروع بدأ ترحيل المعمارية من Feature-based إلى Modular (Feature + Domain Hybrid) في يونيو 2026.
+
+**ما تم إنجازه حتى الآن:**
+- Phase 0.5: التحقق من السلامة + تثبيت `madge` + قاعدة ESLint للحدود الموديولية ✅
+- Phase 1.1: إنشاء `src/modules/shared/` كطبقة re-export ✅
+- Phase 1.2: إنشاء `src/app/` كطبقة composition مع re-exports ✅
+- Phase 1.3: إنشاء `src/modules/auth/` كطبقة re-export للمصادقة ✅
+- Phase 1.4: إنشاء `src/modules/users/` كطبقة re-export للمستخدمين/الملفات الشخصية ✅
+- **المرحلة 1 مكتملة بالكامل** ✅
+- Phase 2.1: إنشاء `src/modules/catalog/` كطبقة re-export للمنتجات/الفئات ✅
+- Phase 2.2: إنشاء `src/modules/marketplace/` كطبقة re-export لتصفح السوق ✅
+- Phase 2.3: إنشاء `src/modules/cart/` كطبقة re-export للسلة والمفضلة ✅
+- Phase 2.4: إنشاء `src/modules/orders/` كطبقة re-export للطلبات ✅
+- Phase 2.5: إنشاء `src/modules/delivery/` كطبقة re-export للتوصيل والسائقين ✅
+- Phase 2.6: تحضير التدفقات الحرجة (H1: ordersApi naming conflict، H2: split useMarketplaceQueries، H3: isolate order functions in deliveries.js) ✅
+- **المرحلة 2 مكتملة بالكامل** ✅
+- Phase 3.1: إنشاء `src/modules/checkout/` كطبقة re-export للـ checkout flow ✅
+- Phase 3.2: إنشاء `src/modules/payments/` كطبقة re-export للـ payments ✅
+- Phase 3.3: إنشاء `src/modules/notifications/` كطبقة re-export للإشعارات ✅
+- Phase 3.4: استخراج تفضيلات الإشعارات إلى `notificationPreferences.js` وتذاكر الدعم إلى `useSupportTicketQueries.js` وتوثيق ترحيل `commissionNotifications.js` ✅
+- Phase 4.1: إنشاء `src/modules/coupons/` كطبقة re-export للكوبونات ✅
+- Phase 4.2: إنشاء `src/modules/reviews/` كطبقة re-export للتقييمات ✅
+- Phase 4.3: إنشاء `src/modules/chat/` كطبقة re-export للدردشة/الرسائل ✅
+- Phase 4.4: إنشاء `src/modules/commissions/` كطبقة re-export للعمولات/المدفوعات ✅
+- Phase 4.5: إنشاء `src/modules/analytics/` كطبقة re-export للتحليلات/التقارير ✅
+- Phase 4.6: إنشاء `src/modules/admin/` كطبقة re-export للإدارة/لوحة التحكم ✅
+- Phase 6.5: إنشاء `src/modules/loyalty/` كطبقة re-export للولاء/النقاط/الإحالات ✅
+- Phase 6.13: إزالة `export * from './ui'` من root barrel لـ `cart` — الـ root barrel يصدّر فقط lightweight public API ✅
+- Phase 6.15: إزالة `export * from './ui'` من root barrel لـ `orders` ✅
+- Phase 6.17: إزالة UI exports من root barrels لـ `delivery` و `checkout` ✅
+- Phase 6.18: إزالة UI exports من root barrels لـ `notifications` و `admin` ✅
+- Phase 6.19: إزالة `export * from './ui'` من root barrels لـ `catalog` و `marketplace` ✅
+- Phase 6.21: إزالة UI exports من root barrels لـ `auth` و `users` و `payments` ✅
+- Phase 6.22: تحديث وثائق READMEs لجميع الموديولات لتعكس سياسة الـ lightweight root barrels ✅
+- Phase 6.23: تدقيق شامل للاستيرادات القديمة (Legacy Import Audit) — 12 مسار قديم مصنف ✅
+- Phase 6.24: ترحيل `@/utils/cartQuantity` → `@/modules/cart` ✅
+- Phase 6.25: ترحيل `@/services/reviewService` → `@/modules/reviews` ✅
+- Phase 6.26: تدقيق جاهزية حذف Class D stubs ✅
+- Phase 6.27: ترحيل `@/store/favoritesStore` → `@/modules/cart` ✅
+- Phase 6.28: ترحيل `@/services/coupons` → `@/modules/coupons` ✅
+- Phase 6.29: ترحيل `@/services/minimumOrderService` → `@/modules/cart` ✅
+- Phase 6.30: ترحيل `@/hooks/useCheckoutPricing` → `@/modules/checkout` ✅
+- Phase 6.31: ترحيل `@/store/cartStore` → `@/modules/cart` (آخر مسار Class C) ✅
+- Phase 6.32: تدقيق نهائي شامل + تنظيف `reviewsApi` re-export في `src/services/api.js` ✅
+- Phase 6.33: حذف 5 Class D stubs (`favorites.js`، `loyalty.js`، `reviewsApi.js`، `checkoutCleanup.js`، `useReviewQueries.js`) ✅
+- Phase 6.34: إغلاق Phase 6 — تقرير نهائي + تأكيد حالة المعمارية ✅
+
+**سياسة الـ Root Barrels (Phase 6.13–6.22):**
+- الـ root barrels (`src/modules/*/index.js`) تصدّر فقط lightweight public APIs (stores, API services, domain constants, hooks, utils).
+- UI/page-level exports لا تُصدّر من الـ root barrel لمعظم الموديولات.
+- UI يبقى متاحاً عبر المسارات الأصلية للمكونات/الصفحات أو عبر module UI barrels (`src/modules/*/ui/index.js`) للاستخدام الداخلي.
+- `shared` هو الاستثناء: يصدّر عن قصد lightweight UI primitives (Button, Card, Modal, LoadingSpinner, إلخ) من الـ root barrel.
+
+**ما يجب تحديثه (وفي أي مرحلة):**
+- هيكل `src/features/` → استبداله بـ `src/modules/` — **المرحلة 2-5**
+- قسم "إضافة Feature جديدة" → تحديثه لاستخدام هيكل الموديولات — **المرحلة 2**
+- أي إشارة إلى `axiosInstance.js` → Supabase هو الـ backend الأساسي — **المرحلة 2**
+
+**المرحلة المسؤولة عن التحديث:** المرحلة 2 (عند بدء نقل موديولات البيانات الأساسية)

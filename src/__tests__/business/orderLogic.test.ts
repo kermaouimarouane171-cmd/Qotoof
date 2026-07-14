@@ -1,7 +1,7 @@
 import {
   buildOrderStatusUpdatePayload,
   isAllowedOrderStatusTransition,
-} from '@/business/orderLogic'
+} from '@/modules/orders'
 import { describe, expect, it } from '@jest/globals'
 
 describe('orderLogic', () => {

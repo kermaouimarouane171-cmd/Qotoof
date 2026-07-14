@@ -53,29 +53,29 @@ export {
 } from './useMarketplaceQueries'
 
 // Cart & Payments
+// FG-008: DB-backed cart hooks (useCart, useCartCount, useAddToCart, useUpdateCartItem,
+// useRemoveFromCart, useClearCart) are intentionally NOT re-exported here. They are
+// deprecated and must not be used in the buyer checkout flow. The Zustand/localStorage
+// cart store is the single source of truth for Beta.
 export {
-  cartKeys,
   paymentKeys,
-  useCart,
-  useCartCount,
-  useAddToCart,
-  useUpdateCartItem,
-  useRemoveFromCart,
-  useClearCart,
   usePaymentHistory,
   usePaymentDetail,
   useCreatePayment,
   useConfirmPayment,
 } from './useCartPaymentQueries'
 
-// Vendor & Admin
+// Vendor & Admin (Phase 4.7: split into useVendorQueries + useAdminQueries)
 export {
   vendorKeys,
-  adminKeys,
   useVendors,
   useVendor,
   useVendorStats,
   useUpdateVendor,
+} from './useVendorQueries'
+
+export {
+  adminKeys,
   useAdminUsers,
   useAdminUser,
   useDeletedUsers,
@@ -83,7 +83,7 @@ export {
   useUpdateUser,
   useDeleteUser,
   useRestoreUser,
-} from './useVendorAdminQueries'
+} from './useAdminQueries'
 
 // Driver
 export {
@@ -101,18 +101,22 @@ export {
   useToggleDriverAvailability,
 } from './useDriverQueries'
 
-// Notifications & Support
+// Notifications
 export {
   notificationKeys,
-  supportKeys,
   useNotifications,
   useUnreadCount,
   useMarkAsRead,
   useMarkAllAsRead,
   useNotificationPreferences,
   useSaveNotificationPreferences,
+} from './useNotificationQueries'
+
+// Support (extracted from useNotificationQueries.js in Phase 3.4)
+export {
+  supportKeys,
   useSupportTickets,
   useSupportTicket,
   useCreateTicket,
   useReplyToTicket,
-} from './useNotificationQueries'
+} from './useSupportTicketQueries'

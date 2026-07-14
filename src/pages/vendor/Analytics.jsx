@@ -25,6 +25,7 @@ import {
   ArrowDownTrayIcon,
   CalendarIcon,
   DocumentArrowDownIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import {
   DATE_RANGES,
@@ -40,7 +41,7 @@ import {
   buildTopProductsChartData,
   calculateVendorAnalyticsMetrics,
   resolveVendorAnalyticsRange,
-} from '@/services/vendorAnalytics'
+} from '@/modules/analytics'
 
 ChartJS.register(
   CategoryScale,
@@ -164,6 +165,150 @@ const doughnutOptions = {
       },
     },
   },
+}
+
+// ─── Sales Forecasting ──────────────────────────────────────────────────────
+// Simple linear regression + moving average forecast for next period
+
+/**
+ * Calculate sales forecast based on historical orders.
+ * Uses linear regression on revenue trend + moving average for order count.
+ * @param {Array} orders - Historical orders
+ * @param {number} currentRevenue - Current period total revenue
+ * @returns {Object} Forecast data: expectedRevenue, expectedOrders, growthRate, confidence, insight
+ */
+const calculateForecast = (orders, currentRevenue) => {
+  if (!orders || orders.length < 3) {
+    return { expectedRevenue: 0, expectedOrders: 0, growthRate: 0, confidence: 0, insight: '' }
+  }
+
+  // Sort orders by date
+  const sorted = [...orders].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+
+  // Group revenue by day
+  const dailyRevenue = {}
+  for (const order of sorted) {
+    const date = new Date(order.created_at).toISOString().split('T')[0]
+    dailyRevenue[date] = (dailyRevenue[date] || 0) + (order.vendor_amount || order.total || 0)
+  }
+
+  const dates = Object.keys(dailyRevenue).sort()
+  const values = dates.map((d) => dailyRevenue[d])
+
+  // Linear regression: y = mx + b
+  const n = values.length
+  const xMean = (n - 1) / 2
+  const yMean = values.reduce((sum, v) => sum + v, 0) / n
+  let numSum = 0
+  let denSum = 0
+  for (let i = 0; i < n; i++) {
+    numSum += (i - xMean) * (values[i] - yMean)
+    denSum += (i - xMean) ** 2
+  }
+  const slope = denSum !== 0 ? numSum / denSum : 0
+  const intercept = yMean - slope * xMean
+
+  // Forecast next period: project forward by same number of days
+  const daysInPeriod = dates.length
+  const forecastRevenue = Math.max(0, intercept + slope * (n + daysInPeriod - 1))
+  const expectedRevenue = Math.round(forecastRevenue)
+
+  // Order count forecast: moving average
+  const avgOrdersPerDay = sorted.length / daysInPeriod
+  const expectedOrders = Math.round(avgOrdersPerDay * daysInPeriod)
+
+  // Growth rate
+  const growthRate = currentRevenue > 0
+    ? Math.round(((expectedRevenue - currentRevenue) / currentRevenue) * 100)
+    : 0
+
+  // Confidence: based on data consistency (R² approximation)
+  let ssRes = 0
+  let ssTot = 0
+  for (let i = 0; i < n; i++) {
+    const predicted = intercept + slope * i
+    ssRes += (values[i] - predicted) ** 2
+    ssTot += (values[i] - yMean) ** 2
+  }
+  const rSquared = ssTot !== 0 ? Math.max(0, 1 - ssRes / ssTot) : 0
+  const confidence = Math.round(Math.min(95, Math.max(30, rSquared * 100)))
+
+  // Insight message
+  let insight = ''
+  if (growthRate > 10) {
+    insight = `نمو متوقع ${growthRate}% — أداء متصاعد. ننصح بزيادة المخزون والاستعداد لطلب أعلى.`
+  } else if (growthRate > 0) {
+    insight = `نمو طفيف متوقع ${growthRate}% — أداء مستقر. حافظ على وتيرة العمل الحالية.`
+  } else if (growthRate === 0) {
+    insight = `أداء مستقر — لا يوجد نمو أو تراجع متوقع. ركّز على تحسين التسويق لزيادة المبيعات.`
+  } else {
+    insight = `تراجع متوقع ${Math.abs(growthRate)}% — راجع استراتيجية التسعير والتسويق. قد تحتاج إلى عروض ترويجية لتحفيز المبيعات.`
+  }
+
+  return { expectedRevenue, expectedOrders, growthRate, confidence, insight }
+}
+
+/**
+ * Build forecast chart data: historical revenue + projected revenue line.
+ */
+const buildForecastChartData = (revenueData, orders, t) => {
+  if (!revenueData || !revenueData.labels || revenueData.labels.length === 0) {
+    return { labels: [], datasets: [] }
+  }
+
+  const labels = revenueData.labels
+  const historicalValues = revenueData.datasets[0]?.data || []
+
+  // Calculate forecast projection for next N periods
+  const forecastPeriods = Math.max(3, Math.ceil(labels.length / 3))
+  const forecastLabels = []
+  const lastDate = labels[labels.length - 1]
+
+  // Generate future labels
+  for (let i = 1; i <= forecastPeriods; i++) {
+    const d = new Date(lastDate)
+    d.setDate(d.getDate() + i)
+    forecastLabels.push(d.toISOString().split('T')[0])
+  }
+
+  // Simple projection: average of last 3 values + trend
+  const recentValues = historicalValues.slice(-3).filter((v) => v != null)
+  const avgRecent = recentValues.length > 0
+    ? recentValues.reduce((s, v) => s + v, 0) / recentValues.length
+    : 0
+
+  const projectionData = []
+  for (let i = 0; i < forecastPeriods; i++) {
+    projectionData.push(Math.round(avgRecent * (1 + (i * 0.05))))
+  }
+
+  // Build combined dataset
+  const combinedLabels = [...labels, ...forecastLabels]
+  const historicalExtended = [...historicalValues, ...new Array(forecastPeriods).fill(null)]
+  const projectionExtended = [...new Array(labels.length - 1).fill(null), historicalValues[labels.length - 1], ...projectionData]
+
+  return {
+    labels: combinedLabels,
+    datasets: [
+      {
+        label: t('vendor.analytics.revenue', 'الإيرادات'),
+        data: historicalExtended,
+        borderColor: 'rgb(34, 197, 94)',
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+        fill: true,
+        tension: 0.3,
+      },
+      {
+        label: t('vendor.analytics.forecast.projected', 'التوقعات'),
+        data: projectionExtended,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderDash: [5, 5],
+        fill: true,
+        tension: 0.3,
+      },
+    ],
+  }
 }
 
 const VendorAnalytics = () => {
@@ -355,7 +500,7 @@ const VendorAnalytics = () => {
       })
     } catch (error) {
       logger.error('Error loading analytics:', error)
-      toast.error('تعذر تحميل التحليلات حالياً')
+      toast.error(t('vendor.analytics.errors.loadFailed', 'تعذر تحميل التحليلات حالياً'))
     } finally {
       setLoading(false)
     }
@@ -367,12 +512,12 @@ const VendorAnalytics = () => {
 
   const handleApplyCustomRange = () => {
     if (!customDateFrom || !customDateTo) {
-      toast.error('يرجى اختيار تاريخ البداية والنهاية')
+      toast.error(t('vendor.analytics.errors.dateRangeRequired', 'يرجى اختيار تاريخ البداية والنهاية'))
       return
     }
 
     if (new Date(customDateFrom) > new Date(customDateTo)) {
-      toast.error('تاريخ البداية يجب أن يكون قبل تاريخ النهاية')
+      toast.error(t('vendor.analytics.errors.dateRangeInvalid', 'تاريخ البداية يجب أن يكون قبل تاريخ النهاية'))
       return
     }
 
@@ -384,7 +529,7 @@ const VendorAnalytics = () => {
     try {
       const rows = buildAnalyticsCsvRows({ orders: analytics.rawOrders })
       if (rows.length === 0) {
-        toast.error('لا توجد بيانات للتصدير')
+        toast.error(t('vendor.analytics.errors.noExportData', 'لا توجد بيانات للتصدير'))
         return
       }
 
@@ -411,10 +556,10 @@ const VendorAnalytics = () => {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      toast.success('تم تصدير التحليلات بصيغة CSV')
+      toast.success(t('vendor.analytics.success.csvExported', 'تم تصدير التحليلات بصيغة CSV'))
     } catch (error) {
       logger.error('Export CSV error:', error)
-      toast.error('فشل تصدير CSV')
+      toast.error(t('vendor.analytics.errors.csvExportFailed', 'فشل تصدير CSV'))
     } finally {
       setExportingCsv(false)
     }
@@ -424,7 +569,7 @@ const VendorAnalytics = () => {
     setExportingPdf(true)
     try {
       if (analytics.rawOrders.length === 0 && analytics.rawReviews.length === 0) {
-        toast.error('لا توجد بيانات كافية لتوليد PDF')
+        toast.error(t('vendor.analytics.errors.pdfNoData', 'لا توجد بيانات كافية لتوليد PDF'))
         return
       }
 
@@ -450,10 +595,10 @@ const VendorAnalytics = () => {
       })
 
       doc.save(`vendor-analytics-${new Date().toISOString().split('T')[0]}.pdf`)
-      toast.success('تم إنشاء ملف PDF بنجاح')
+      toast.success(t('vendor.analytics.success.pdfGenerated', 'تم إنشاء ملف PDF بنجاح'))
     } catch (error) {
       logger.error('Export PDF error:', error)
-      toast.error('فشل تصدير PDF')
+      toast.error(t('vendor.analytics.errors.pdfExportFailed', 'فشل تصدير PDF'))
     } finally {
       setExportingPdf(false)
     }
@@ -544,7 +689,7 @@ const VendorAnalytics = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
         <Card className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
           <p className="text-sm text-green-600 mb-1">إجمالي الإيرادات</p>
           <p className="text-2xl font-bold text-green-900">{formatPrice(analytics.keyMetrics.totalRevenue)}</p>
@@ -704,6 +849,87 @@ const VendorAnalytics = () => {
           </div>
         </Card>
       </div>
+
+      {/* Sales Forecast Section */}
+      <Card className="p-6 mt-6 border-2 border-blue-100 bg-gradient-to-br from-blue-50/30 to-indigo-50/20">
+        <div className="flex items-center gap-3 mb-4">
+          <ChartBarIcon className="w-6 h-6 text-blue-600" />
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {t('vendor.analytics.forecast.title', 'توقعات المبيعات')}
+            </h3>
+            <p className="text-xs text-gray-500">
+              {t('vendor.analytics.forecast.subtitle', 'تنبؤ بالإيرادات والطلبات المتوقعة للفترة القادمة بناءً على الأداء الحالي')}
+            </p>
+          </div>
+        </div>
+
+        {analytics.rawOrders.length >= 3 ? (
+          <>
+            {/* Forecast summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-white border border-blue-100">
+                <p className="text-xs text-blue-600 mb-1">{t('vendor.analytics.forecast.expectedRevenue', 'الإيراد المتوقع')}</p>
+                <p className="text-xl font-bold text-blue-900">
+                  {formatPrice(calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).expectedRevenue)}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {t('vendor.analytics.forecast.nextPeriod', 'الفترة القادمة')}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-white border border-green-100">
+                <p className="text-xs text-green-600 mb-1">{t('vendor.analytics.forecast.expectedOrders', 'الطلبات المتوقعة')}</p>
+                <p className="text-xl font-bold text-green-900">
+                  {calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).expectedOrders}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {t('vendor.analytics.forecast.basedOn', 'بناءً على')} {analytics.keyMetrics.totalOrders} {t('vendor.analytics.forecast.pastOrders', 'طلب سابق')}
+                </p>
+              </div>
+              <div className="p-4 rounded-xl bg-white border border-amber-100">
+                <p className="text-xs text-amber-600 mb-1">{t('vendor.analytics.forecast.growthRate', 'معدل النمو المتوقع')}</p>
+                <p className="text-xl font-bold text-amber-900">
+                  {calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).growthRate > 0 ? '+' : ''}
+                  {calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).growthRate}%
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {t('vendor.analytics.forecast.confidence', 'الثقة')}: {calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).confidence}%
+                </p>
+              </div>
+            </div>
+
+            {/* Forecast chart */}
+            <div className="bg-white rounded-xl p-4 border border-gray-100">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">
+                {t('vendor.analytics.forecast.chartTitle', 'مقارنة الأداء الحالي مع التوقعات')}
+              </h4>
+              <div style={{ height: '250px' }}>
+                <Line
+                  data={buildForecastChartData(analytics.revenueData, analytics.rawOrders, t)}
+                  options={buildMoneyChartOptions()}
+                />
+              </div>
+            </div>
+
+            {/* Forecast insights */}
+            <div className="mt-4 p-4 rounded-xl bg-blue-50 border border-blue-100">
+              <p className="text-sm text-blue-800">
+                {calculateForecast(analytics.rawOrders, analytics.keyMetrics.totalRevenue).insight}
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-8">
+            <ChartBarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-sm text-gray-500">
+              {t('vendor.analytics.forecast.insufficientData', 'تحتاج إلى 3 طلبات على الأقل لإنشاء توقعات دقيقة')}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {t('vendor.analytics.forecast.currentOrders', 'الطلبات الحالية')}: {analytics.rawOrders.length}
+            </p>
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

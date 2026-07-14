@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, LoadingSpinner, Map } from '@/components/ui'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import {
   TruckIcon,
   DocumentCheckIcon,
@@ -18,6 +19,8 @@ import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
 
+const DRIVER_PAGE_SIZE = 20
+
 const AdminDrivers = () => {
   const { t } = useTranslation()
   const channelRef = useRef(null)
@@ -31,7 +34,9 @@ const AdminDrivers = () => {
     onlineDrivers: 0,
     pendingDocuments: 0,
   })
-  const [filter, setFilter] = useState('all') // all, online, verified, unverified
+  const [filter, setFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [selectedDriver, setSelectedDriver] = useState(null)
 
   useEffect(() => {
@@ -149,12 +154,24 @@ const AdminDrivers = () => {
     }
   }
 
-  const filteredDrivers = drivers.filter(driver => {
-    if (filter === 'online') return driver.location?.is_online
-    if (filter === 'verified') return !!driver.license_verified && !!driver.insurance_verified
-    if (filter === 'unverified') return !driver.license_verified || !driver.insurance_verified
-    return true
+  const filteredDrivers = drivers.filter((driver) => {
+    const matchesFilter =
+      filter === 'all' ||
+      (filter === 'online' && driver.location?.is_online) ||
+      (filter === 'verified' && !!driver.license_verified && !!driver.insurance_verified) ||
+      (filter === 'unverified' && (!driver.license_verified || !driver.insurance_verified))
+    const q = search.trim().toLowerCase()
+    const fullName = `${driver.first_name || ''} ${driver.last_name || ''}`.toLowerCase()
+    const matchesSearch = !q ||
+      fullName.includes(q) ||
+      driver.email?.toLowerCase().includes(q) ||
+      driver.phone?.toLowerCase().includes(q) ||
+      driver.city?.toLowerCase().includes(q)
+    return matchesFilter && matchesSearch
   })
+
+  const driverTotalPages = Math.max(1, Math.ceil(filteredDrivers.length / DRIVER_PAGE_SIZE))
+  const pagedDrivers = filteredDrivers.slice((page - 1) * DRIVER_PAGE_SIZE, page * DRIVER_PAGE_SIZE)
 
   const getVerificationStatus = (driver) => {
     if (driver.license_verified && driver.insurance_verified) {
@@ -181,6 +198,16 @@ const AdminDrivers = () => {
     popup: `Driver ${driver.driver_id?.substring(0, 8) || 'Unknown'}`,
     icon: '🚚',
   }))
+  // Center on first active driver, fallback to Casablanca
+  const driversMapCenter = useMapCenter({
+    lat: mapMarkers[0]?.lat,
+    lng: mapMarkers[0]?.lng,
+  })
+  // Center on selected driver in detail modal
+  const selectedDriverMapCenter = useMapCenter({
+    lat: selectedDriver?.location?.latitude,
+    lng: selectedDriver?.location?.longitude,
+  })
 
   return (
     <div className="space-y-6">
@@ -264,7 +291,7 @@ const AdminDrivers = () => {
             </span>
           </div>
           <Map
-            center={[33.5731, -7.5898]}
+            center={driversMapCenter}
             zoom={12}
             markers={mapMarkers}
             height="400px"
@@ -278,6 +305,17 @@ const AdminDrivers = () => {
         </Card>
       )}
 
+      {/* Search */}
+      <div className="mb-2">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+          placeholder={t('admin.drivers.searchPlaceholder', 'Search by name, email, phone, or city…')}
+          className="input w-full max-w-sm"
+        />
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-gray-200">
         {[
@@ -288,7 +326,7 @@ const AdminDrivers = () => {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setFilter(tab.key)}
+            onClick={() => { setFilter(tab.key); setPage(1) }}
             className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
               filter === tab.key
                 ? 'border-green-600 text-green-600'
@@ -309,7 +347,7 @@ const AdminDrivers = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {filteredDrivers.map(driver => {
+          {pagedDrivers.map(driver => {
             const status = getVerificationStatus(driver)
             const StatusIcon = status.icon
             return (
@@ -410,6 +448,31 @@ const AdminDrivers = () => {
         </div>
       )}
 
+      {/* Drivers Pagination */}
+      {driverTotalPages > 1 && (
+        <div className="mt-4 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t('common.prev', 'Prev')}
+          </button>
+          <span className="text-sm text-gray-600">
+            {t('common.pageOf', 'Page {{page}} of {{total}}', { page, total: driverTotalPages })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(driverTotalPages, p + 1))}
+            disabled={page === driverTotalPages}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t('common.next', 'Next')}
+          </button>
+        </div>
+      )}
+
       {/* Driver Location Detail Modal */}
       {selectedDriver && selectedDriver.location && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -427,7 +490,7 @@ const AdminDrivers = () => {
             </div>
 
             <Map
-              center={[parseFloat(selectedDriver.location.latitude), parseFloat(selectedDriver.location.longitude)]}
+              center={selectedDriverMapCenter}
               zoom={15}
               markers={[{
                 lat: parseFloat(selectedDriver.location.latitude),

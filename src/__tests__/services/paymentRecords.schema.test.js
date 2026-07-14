@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 describe('paymentRecords.js schema alignment (no method/gateway_response references)', () => {
-  const paymentRecordsPath = path.resolve(__dirname, '../../services/paymentRecords.js')
+  const paymentRecordsPath = path.resolve(__dirname, '../../modules/payments/api/paymentRecords.js')
   const checkoutPath = path.resolve(__dirname, '../../pages/CheckoutSimplified.jsx')
   const paymentRecordsSource = fs.readFileSync(paymentRecordsPath, 'utf-8')
   const checkoutSource = fs.readFileSync(checkoutPath, 'utf-8')
@@ -48,7 +48,7 @@ describe('paymentRecords.js schema alignment (no method/gateway_response referen
     }
   })
 
-  test('CheckoutSimplified.jsx still updates transaction_id on payments', () => {
-    expect(checkoutSource).toContain('transaction_id: paypalInit.orderId')
+  test('CheckoutSimplified.jsx still captures PayPal order ID from paypalInit', () => {
+    expect(checkoutSource).toContain('paypalOrderId: paypalInit.orderId')
   })
 })

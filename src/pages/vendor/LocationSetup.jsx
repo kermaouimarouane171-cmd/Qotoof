@@ -38,16 +38,47 @@ const VendorLocationSetup = ({ onComplete }) => {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState(null)
-  const [address, setAddress] = useState(profile?.address || '')
+  const [address, setAddress] = useState(profile?.address || profile?.store_address || '')
   const [city, setCity] = useState(profile?.city || '')
   const [isOutsideMorocco, setIsOutsideMorocco] = useState(false)
   const [reverseGeocoding, setReverseGeocoding] = useState(false)
+  // Map center derived from the vendor's city (forward-geocoded) so the map
+  // opens on the registration city instead of always defaulting to Casablanca.
+  const [cityCenter, setCityCenter] = useState(null)
 
   useEffect(() => {
-    // If vendor already has location, skip this
+    // If vendor already has location, use it directly
     if (profile?.latitude && profile?.longitude) {
       setSelectedLocation({ lat: profile.latitude, lng: profile.longitude })
+      return
     }
+
+    // No coordinates yet — try to forward-geocode the city from registration
+    // so the map opens centered on the vendor's city instead of Casablanca.
+    const cityName = (profile?.city || '').trim()
+    if (!cityName) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const resp = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName + ', Morocco')}&format=json&limit=1&accept-language=ar`,
+          { headers: { 'User-Agent': 'Qotoof/1.0' } }
+        )
+        const data = await resp.json()
+        if (!cancelled && data?.[0]) {
+          const lat = parseFloat(data[0].lat)
+          const lng = parseFloat(data[0].lon)
+          if (isValidMoroccoLocation(lat, lng)) {
+            setCityCenter({ lat: roundCoordinate(lat), lng: roundCoordinate(lng) })
+          }
+        }
+      } catch (err) {
+        logger.error('Forward geocoding city failed:', err)
+      }
+    })()
+
+    return () => { cancelled = true }
   }, [profile])
 
   const handleLocationSelect = async (latlng) => {
@@ -58,7 +89,7 @@ const VendorLocationSetup = ({ onComplete }) => {
     setIsOutsideMorocco(!isMorocco)
 
     if (!isMorocco) {
-      toast.error('يرجى اختيار موقع داخل حدود المغرب')
+      toast.error(t('vendor.locationSetup.moroccoBoundsError', 'يرجى اختيار موقع داخل حدود المغرب'))
       return
     }
 
@@ -111,7 +142,7 @@ const VendorLocationSetup = ({ onComplete }) => {
     }
 
     if (isOutsideMorocco) {
-      toast.error('يرجى اختيار موقع داخل حدود المغرب')
+      toast.error(t('vendor.locationSetup.moroccoBoundsError', 'يرجى اختيار موقع داخل حدود المغرب'))
       return
     }
 
@@ -127,7 +158,7 @@ const VendorLocationSetup = ({ onComplete }) => {
         .update({
           latitude: roundCoordinate(selectedLocation.lat),
           longitude: roundCoordinate(selectedLocation.lng),
-          address: address.trim() || null,
+          store_address: address.trim() || null,
           city: city.trim(),
         })
         .eq('id', profile.id)
@@ -150,8 +181,14 @@ const VendorLocationSetup = ({ onComplete }) => {
     }
   }
   
-  const defaultCenter = selectedLocation || [33.5731, -7.5898] // Casablanca
-  const defaultZoom = selectedLocation ? 15 : 6
+  // Priority: selectedLocation > cityCenter (from registration city) > Casablanca fallback
+  // Map component expects [lat, lng] array, so convert from {lat, lng} objects.
+  const defaultCenter = selectedLocation
+    ? [selectedLocation.lat, selectedLocation.lng]
+    : cityCenter
+      ? [cityCenter.lat, cityCenter.lng]
+      : [33.5731, -7.5898] // Casablanca
+  const defaultZoom = selectedLocation ? 15 : cityCenter ? 12 : 6
   
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -186,34 +223,22 @@ const VendorLocationSetup = ({ onComplete }) => {
         </div>
       </div>
       
-      {/* Address Fields */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="input-label">{t('vendor.locationSetup.cityLabel', 'City *')}</label>
-          <input
-            type="text"
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
-            placeholder={t('vendor.locationSetup.cityPlaceholder', 'e.g., Casablanca')}
-            className="input"
-            required
-          />
-          {reverseGeocoding && (
-            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-              <LoadingSpinner size="sm" /> {t('vendor.locationSetup.detectingCity', 'Detecting city from map...')}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className="input-label">{t('vendor.locationSetup.addressLabel', 'Address (optional)')}</label>
-          <input
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder={t('vendor.locationSetup.addressPlaceholder', 'Street address')}
-            className="input"
-          />
-        </div>
+      {/* City Field (imported from registration, editable) */}
+      <div className="mb-6">
+        <label className="input-label">{t('vendor.locationSetup.cityLabel', 'City *')}</label>
+        <input
+          type="text"
+          value={city}
+          onChange={(e) => setCity(e.target.value)}
+          placeholder={t('vendor.locationSetup.cityPlaceholder', 'e.g., Casablanca')}
+          className="input"
+          required
+        />
+        {reverseGeocoding && (
+          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+            <LoadingSpinner size="sm" /> {t('vendor.locationSetup.detectingCity', 'Detecting city from map...')}
+          </p>
+        )}
       </div>
 
       {/* Morocco Bounds Warning */}
@@ -228,16 +253,28 @@ const VendorLocationSetup = ({ onComplete }) => {
           </div>
         </div>
       )}
-      
+
+      {/* Prominent instruction to click on the map */}
+      {!selectedLocation && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-4 flex items-center gap-3">
+          <MapPinIcon className="w-6 h-6 text-amber-600 flex-shrink-0 animate-bounce" />
+          <div>
+            <p className="text-sm font-bold text-amber-900">
+              {t('vendor.locationSetup.clickInstruction', 'انقر على الخريطة لتحديد موقع متجرك بدقة')}
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              {t('vendor.locationSetup.clickInstructionHint', 'اضغط على المكان الذي يوجد فيه متجرك داخل المدينة. سيتم استخراج العنوان تلقائياً.')}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Map */}
       <div className="mb-6">
-        <label className="input-label">
+        <label className="input-label flex items-center gap-2">
           {t('vendor.locationSetup.storeLocationLabel', 'Store Location *')}
-          {!selectedLocation && (
-            <span className="text-red-500 ml-1">({t('vendor.locationSetup.clickToSelect', 'Click on the map to select')})</span>
-          )}
           {selectedLocation && (
-            <span className="text-green-600 ml-1 flex items-center gap-1 inline-flex">
+            <span className="text-green-600 flex items-center gap-1 inline-flex">
               <CheckCircleIcon className="w-4 h-4" />
               {t('vendor.locationSetup.locationSelected', 'Location selected')}
             </span>
@@ -250,16 +287,39 @@ const VendorLocationSetup = ({ onComplete }) => {
           height="400px"
         />
       </div>
-      
-      {/* Coordinates Display */}
+
+      {/* Extracted address card — shows after clicking on the map */}
       {selectedLocation && (
-        <div className="bg-gray-50 rounded-xl p-4 mb-6">
-          <p className="text-sm text-gray-600">
-            {t('vendor.locationSetup.selectedCoordinates', 'Selected coordinates:')}
-            <span className="font-mono ml-2">
-              {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
-            </span>
-          </p>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+          <div className="flex items-start gap-3">
+            <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-green-900 mb-1">
+                {t('vendor.locationSetup.detectedAddress', 'العنوان المحدد')}
+              </p>
+              {reverseGeocoding ? (
+                <p className="text-sm text-green-700 flex items-center gap-1">
+                  <LoadingSpinner size="sm" /> {t('vendor.locationSetup.detectingAddress', 'جاري استخراج العنوان...')}
+                </p>
+              ) : address ? (
+                <p className="text-sm text-green-800">{address}</p>
+              ) : (
+                <p className="text-sm text-green-600">
+                  {t('vendor.locationSetup.noAddressDetected', 'تم تحديد الموقع. يمكنك حفظ الموقع الآن.')}
+                </p>
+              )}
+              <p className="text-xs text-green-500 mt-2 font-mono">
+                {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+              </p>
+              <button
+                type="button"
+                onClick={() => { setSelectedLocation(null); setAddress('') }}
+                className="mt-2 text-xs text-amber-700 underline hover:text-amber-900"
+              >
+                {t('vendor.locationSetup.reselectLocation', 'إعادة التحديد')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

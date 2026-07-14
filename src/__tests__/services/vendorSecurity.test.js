@@ -11,7 +11,8 @@ describe('mfaService', () => {
       // So we test the expected interface
       const expectedMethods = [
         'getSettings',
-        'enableWithEmail',
+        'initiateEmailMFA',
+        'verifyEmailMFA',
         'generateTOTPSecret',
         'enableWithTOTP',
         'verifyCode',

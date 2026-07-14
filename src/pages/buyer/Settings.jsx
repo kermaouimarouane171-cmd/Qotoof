@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import { supabase } from '@/services/supabase'
-import { fetchProfile, profilesService } from '@/services/profilesService'
+import { fetchProfile, profilesService } from '@/modules/users'
 import { fetchBuyerOrdersAll } from '@/services/ordersService'
 import {
   ArrowLeftIcon,
@@ -74,21 +74,13 @@ const BuyerSettings = () => {
     try {
       const { data } = await supabase
         .from('user_settings')
-        .select('*')
+        .select('setting_value')
         .eq('user_id', user.id)
-        .single()
+        .eq('setting_key', 'notification_settings')
+        .maybeSingle()
 
-      if (data) {
-        setSettings({
-          email_notifications: data.email_notifications ?? true,
-          sms_notifications: data.sms_notifications ?? false,
-          push_notifications: data.push_notifications ?? true,
-          order_updates: data.order_updates ?? true,
-          promotional_emails: data.promotional_emails ?? false,
-          delivery_updates: data.delivery_updates ?? true,
-          show_phone_to_vendors: data.show_phone_to_vendors ?? true,
-          show_email_to_vendors: data.show_email_to_vendors ?? false,
-        })
+      if (data?.setting_value && typeof data.setting_value === 'object') {
+        setSettings(prev => ({ ...prev, ...data.setting_value }))
       }
     } catch {
       // Use defaults
@@ -127,9 +119,20 @@ const BuyerSettings = () => {
   const handleSave = async () => {
     setSaving(true)
     try {
+      // Delete existing notification_settings row, then insert fresh
+      await supabase
+        .from('user_settings')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('setting_key', 'notification_settings')
+
       const { error } = await supabase
         .from('user_settings')
-        .upsert({ user_id: user.id, ...settings }, { onConflict: 'user_id' })
+        .insert({
+          user_id: user.id,
+          setting_key: 'notification_settings',
+          setting_value: settings,
+        })
 
       if (error) throw error
       toast.success(t('buyerSettings.notifications.saved', 'Settings saved successfully'))
@@ -253,7 +256,7 @@ const BuyerSettings = () => {
 
   const handleConfirmDelete = async () => {
     if (!profile?.phone) {
-      setDeleteError('أضف رقم هاتف إلى الحساب قبل طلب حذفه')
+      setDeleteError(t('privacySettings.addPhoneFirst', 'Add a phone number to your account before requesting deletion'))
       return
     }
 
@@ -292,9 +295,9 @@ const BuyerSettings = () => {
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <button
-          onClick={() => navigate('/buyer/dashboard')}
+          onClick={() => navigate('/marketplace')}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          aria-label={t('buyerSettings.backToDashboard', 'Back to dashboard')}
+          aria-label={t('buyerSettings.backToMarketplace', 'Back to marketplace')}
         >
           <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
         </button>
@@ -502,7 +505,7 @@ const BuyerSettings = () => {
             ))}
           </ul>
           <p className="text-xs text-blue-700 mt-4">
-            {t('privacySettings.gdprContact', 'To exercise any of these rights, contact us at support@qotoof.ma')}
+            {t('privacySettings.gdprContact', 'To exercise any of these rights, contact us at support@greenmarket-marketplace.web.app')}
           </p>
         </Card>
 
@@ -687,8 +690,8 @@ const BuyerSettings = () => {
         userId={user?.id}
         phone={profile?.phone}
         purpose="sensitive_action"
-        title="📱 تأكيد حذف الحساب"
-        description="حذف الحساب إجراء نهائي، لذلك نحتاج رمز تحقق SMS قبل تنفيذ الطلب."
+        title={t('buyerSettings.deletePhoneVerify.title', 'Confirm Account Deletion')}
+        description={t('buyerSettings.deletePhoneVerify.desc', 'Account deletion is permanent, so we need an SMS verification code before proceeding.')}
         onVerified={async () => {
           setShowDeletePhoneVerification(false)
           await executeDeleteAccount()

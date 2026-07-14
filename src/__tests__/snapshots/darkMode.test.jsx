@@ -7,7 +7,7 @@ import Button from '@/components/ui/Button'
 import ProductCard from '@/components/ui/ProductCard'
 import OrderCard from '@/components/buyer/OrderCard'
 import Navbar from '@/components/Navbar'
-import { ORDER_STATUS_COLORS } from '@/constants/orderStatuses'
+import { ORDER_STATUS_COLORS } from '@/modules/orders'
 
 jest.mock('leaflet', () => ({
   __esModule: true,
@@ -90,10 +90,14 @@ jest.mock('@/store/authStore', () => ({
   })),
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: jest.fn((selector) => {
     const state = { items: [] }
     return typeof selector === 'function' ? selector(state) : state
+  }),
+  useFavoritesStore: () => ({
+    toggleProduct: jest.fn(),
+    isFavorited: jest.fn(() => false),
   }),
 }))
 
@@ -131,12 +135,6 @@ jest.mock('@/components/notifications/NotificationLink', () => {
   }
 })
 
-jest.mock('@/store/favoritesStore', () => ({
-  useFavoritesStore: () => ({
-    toggleProduct: jest.fn(),
-    isFavorited: jest.fn(() => false),
-  }),
-}))
 
 jest.mock('@/components/ReportAbuseModal', () => {
   const MockReportAbuseModal = () => null

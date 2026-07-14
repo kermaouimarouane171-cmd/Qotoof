@@ -11,7 +11,7 @@ const defaultPublicConfig = {
     siteKey: 'recaptcha-site-key-placeholder',
   },
   email: {
-    from: 'Qotoof273@gmail.com',
+    from: 'qotoof273@gmail.com',
   },
   app: {
     name: 'Qotoof',

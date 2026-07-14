@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
-import { Card, LoadingSpinner, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
+import { useCartStore } from '@/modules/cart'
+import { Card, LoadingSpinner, EmptyState, StateSkeleton as Skeleton, Breadcrumbs } from '@/components/ui'
 import { useTranslation } from 'react-i18next'
-import { ordersApi, deliveriesApi } from '@/services/deliveries'
+import { ordersApi } from '@/modules/orders'
+import { deliveriesApi } from '@/modules/delivery'
 import { fetchBuyerOrders } from '@/services/ordersService'
 import { supabase } from '@/services/supabase'
 import {
   XMarkIcon,
   CheckCircleIcon,
+  CheckIcon,
   ShoppingBagIcon,
   TruckIcon,
   MapPinIcon,
@@ -18,9 +20,9 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-import reviewService from '@/services/reviewService'
+import { reviewService } from '@/modules/reviews'
 import invoiceService from '@/services/invoiceService'
-import loyaltyApi from '@/services/loyalty'
+import loyaltyApi from '@/modules/loyalty'
 // STATUS_CONFIG migrated -> constants/orderStatuses.js
 import OrderCard from '@/components/buyer/OrderCard'
 import ReviewModal from '@/components/buyer/ReviewModal'
@@ -31,11 +33,11 @@ import OrderFilters from '@/components/buyer/OrderFilters'
 // Constants & Helpers
 // ============================================
 
-const FILTER_TABS = [
-  { id: 'all', label: 'All Orders' },
-  { id: 'active', label: 'In Progress' },
-  { id: 'delivered', label: 'Completed' },
-  { id: 'cancelled', label: 'Cancelled' },
+const getFilterTabs = (t) => [
+  { id: 'all', label: t('buyer.orders.filters.all', 'All Orders') },
+  { id: 'active', label: t('buyer.orders.filters.active', 'In Progress') },
+  { id: 'delivered', label: t('buyer.orders.filters.delivered', 'Completed') },
+  { id: 'cancelled', label: t('buyer.orders.filters.cancelled', 'Cancelled') },
 ]
 
 // ============================================
@@ -142,7 +144,7 @@ const OrdersPage = () => {
         setLoadingMore(false)
       }
     }
-  }, [advancedFilters.dateFrom, advancedFilters.dateTo, buyerId, filter])
+  }, [advancedFilters.dateFrom, advancedFilters.dateTo, buyerId, filter, t])
 
   // Load orders with server-side pagination
   useEffect(() => {
@@ -397,6 +399,8 @@ const OrdersPage = () => {
         .insert({
           order_id: returnOrder.id,
           buyer_id: user.id,
+          user_id: user.id,
+          vendor_id: returnOrder.vendor_id,
           reason: returnReason,
           status: 'pending',
         })
@@ -426,7 +430,7 @@ const OrdersPage = () => {
     setDownloadingInvoice(order.id)
     try {
       const invoice = await invoiceService.downloadOrderInvoice(order)
-      toast.success(`تم تحميل الفاتورة الرسمية ${invoice.invoice_number || ''}`.trim())
+      toast.success(t('buyer.orders.notifications.invoiceDownloaded', 'Official invoice {{number}} downloaded', { number: invoice.invoice_number || '' }))
     } catch (error) {
       logger.error('Error generating invoice PDF:', error)
       toast.error(t('buyer.orders.notifications.invoiceFailed', 'Failed to download invoice'))
@@ -504,6 +508,7 @@ const OrdersPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Breadcrumbs />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{t('buyer.orders.title', 'My Orders')}</h1>
@@ -625,7 +630,7 @@ const OrdersPage = () => {
         onSuggestionClick={handleSuggestionClick}
         filter={filter}
         onFilterChange={setFilter}
-        filterTabs={FILTER_TABS}
+        filterTabs={getFilterTabs(t)}
         advancedFilters={advancedFilters}
         onAdvancedFilterChange={handleAdvancedFilterChange}
         onClearAdvancedFilters={handleClearAdvancedFilters}

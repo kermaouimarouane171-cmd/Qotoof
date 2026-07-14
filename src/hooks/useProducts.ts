@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { fetchAvailableRegions, fetchProductById, fetchProducts } from '@/api/productsApi'
+import { fetchAvailableRegions, fetchProductById, fetchProducts } from '@/modules/catalog'
 
 export const productsQueryKey = (filters) => ['products', filters]
 export const productQueryKey = (id) => ['product', id]

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getSettingsAuditLog } from '@/services/platformSettings'
+import { getSettingsAuditLog } from '@/modules/admin'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
   ClockIcon,

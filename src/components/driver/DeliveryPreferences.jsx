@@ -1,6 +1,6 @@
 import { TruckIcon } from '@heroicons/react/24/outline'
 import { Card, Input } from '@/components/ui'
-import { CARGO_SIZE_OPTIONS, getCargoSizeLabel } from '@/services/deliveryMatchingService'
+import { CARGO_SIZE_OPTIONS, getCargoSizeLabel } from '@/modules/delivery'
 
 const DeliveryPreferences = ({
   minDeliveryDistanceKm,

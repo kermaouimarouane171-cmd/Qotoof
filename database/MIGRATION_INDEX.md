@@ -19,6 +19,21 @@ Use one migration track only. The canonical track is:
 
 > Do **not** run `database/migrations/000-026*` and `migrations/SUPABASE_*.sql` on top of the canonical supabase track; they overlap heavily and cause duplicate-object conflicts.
 
+## Unified Migration Track (Data Stabilization)
+
+For fresh environments or full schema consolidation, use the unified migration set instead of the scattered tracks:
+
+1. `database/migrations/030-unified-schema.sql` — canonical schema with 81 tables
+2. `database/migrations/031-unified-rls-policies.sql` — consolidated RLS policies
+3. `database/migrations/032-order-state-machine.sql` — order/delivery state machine
+4. `database/migrations/033-verify-schema.sql` — post-migration verification
+
+Tables consolidated into `030-unified-schema.sql` from scattered migrations include: `carts`, `cart_items`, `checkout_requests`, `regions`, `city_distances`, `vendor_cancellation_policies`, `vendor_delivery_slots`, `vendor_wait_responses`, `vendor_contracts`, `product_waitlists`, `notification_preferences`, `loyalty_rewards`, `referrals`, `invoices`, `payment_methods`, `user_payment_methods`, `platform_commissions`, `vendor_monthly_sales`, `confirmed_transactions`, `commission_notifications`, `cancellation_log`, `payment_disputes`, `payment_terms_acceptance`, `driver_broadcast_events`.
+
+Tables dropped during cleanup: `active_sessions`, `payouts`, `driver_location_history`, `user_violations`, `user_creation_audit`, `request_rate_limits`.
+
+Tables kept for future use (not added to unified schema): `mfa_settings`, `otp_codes`, `digital_signatures`, `offline_sync_queue`, `rfqs`, `rfq_offers`, `subscription_plans`, `subscription_history`, `partnership_requests`.
+
 ## How To Run Migrations
 
 ### Prerequisites
@@ -80,7 +95,7 @@ These files have no leading sequence/timestamp and should be treated as manual/l
 - `database/seed.sql`
 - `migrations/add_audit_logs.sql`
 - `migrations/add_outbox_pattern.sql`
-- `migrations/create_driver_tables.sql`
+- `migrations/create_driver_tables.sql` ⚠️ REMOVED — replaced by `database/migrations/030-unified-schema.sql`
 - `migrations/SUPABASE_APPROVE_PRODUCTS.sql`
 - `migrations/SUPABASE_CLEAN_FAKE_DATA.sql`
 - `migrations/SUPABASE_COMMISSION_MIGRATION.sql`
@@ -165,6 +180,10 @@ Potential interpretation:
 | `20260519_fix_driver_schema.sql` | `database/migrations/20260519_fix_driver_schema.sql` | deliveries, driver_earnings, driver_ratings, driver_reviews, drivers | deliveries | caution-re-runnable |
 | `20260519_fix_product_images_fk.sql` | `database/migrations/20260519_fix_product_images_fk.sql` | product_images | (none) | caution-re-runnable |
 | `20260519_rls_hardening_audit.sql` | `database/migrations/20260519_rls_hardening_audit.sql` | deliveries | deliveries | caution-re-runnable |
+| `030-unified-schema.sql` | `database/migrations/030-unified-schema.sql` | consolidated canonical schema (81 tables) | auth.users, profiles | idempotent |
+| `031-unified-rls-policies.sql` | `database/migrations/031-unified-rls-policies.sql` | RLS enablement + policies for all tables | all tables | idempotent |
+| `032-order-state-machine.sql` | `database/migrations/032-order-state-machine.sql` | order/delivery state transition tables and triggers | orders, deliveries | idempotent |
+| `033-verify-schema.sql` | `database/migrations/033-verify-schema.sql` | post-migration verification checks | all tables | idempotent |
 | `security-enhancements.sql` | `database/security-enhancements.sql` | audit_logs, deliveries, orders, products, profiles, rate_limits | profiles, orders, deliveries, products | caution-re-runnable |
 | `seed.sql` | `database/seed.sql` | product_images, products | products | run-once |
 
@@ -295,3 +314,6 @@ Potential interpretation:
    - `database/migrations/20260519_rls_hardening_audit.sql`
    - `database/migrations/027-add-driver-assignment-functions.sql`
    - `database/migrations/028-delivery-zone-dedup-and-uniqueness.sql`
+
+- Additional tables consolidated into `030-unified-schema.sql` (carts, checkout_requests, regions, vendor contracts, financial tables, etc.)
+- Tables dropped: `active_sessions`, `payouts`, `driver_location_history`, `user_violations`, `user_creation_audit`, `request_rate_limits`

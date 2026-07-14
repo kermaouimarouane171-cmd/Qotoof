@@ -1,6 +1,6 @@
 import { algoliasearch } from 'algoliasearch'
 import { supabase } from '@/services/supabase'
-import { hydrateProductsWithImages, isProductImagesRelationError } from '@/services/productImages'
+import { hydrateProductsWithImages, isProductImagesRelationError } from '@/modules/catalog'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization'
 import { logger } from '@/utils/logger'
 import { filterPublicProducts, filterPublicVendors } from '@/utils/publicVisibility'
@@ -38,7 +38,7 @@ const PRODUCT_CORE_SELECT = `
 `
 
 const PRODUCT_VENDOR_SELECT = `
-  vendor:profiles(id, first_name, last_name, store_name, city, is_verified)
+  vendor:public_vendor_profiles!vendor_id(id, first_name, last_name, store_name, city, is_verified)
 `
 
 const PRODUCT_SELECT = `
@@ -60,7 +60,7 @@ const _PRODUCT_SUGGESTION_SELECT = `
   price_per_unit,
   vendor_id,
   product_images(url, is_primary),
-  vendor:profiles(id, first_name, last_name, store_name, email)
+  vendor:public_vendor_profiles!vendor_id(id, first_name, last_name, store_name)
 `
 
 const PRODUCT_SUGGESTION_SELECT_WITHOUT_IMAGES = `
@@ -70,7 +70,7 @@ const PRODUCT_SUGGESTION_SELECT_WITHOUT_IMAGES = `
   subcategory,
   price_per_unit,
   vendor_id,
-  vendor:profiles(id, first_name, last_name, store_name, email)
+  vendor:public_vendor_profiles!vendor_id(id, first_name, last_name, store_name)
 `
 
 let algoliaClient = null
@@ -105,8 +105,8 @@ const shouldUseAlgolia = (filters) => {
 
 const fetchPublicVendors = async ({ region = null } = {}) => {
   let query = supabase
-    .from('profiles')
-    .select('id, first_name, last_name, store_name, store_description, city, email')
+    .from('public_vendor_profiles')
+    .select('id, first_name, last_name, store_name, store_description, city')
     .eq('role', 'vendor')
 
   if (region) {
@@ -210,7 +210,7 @@ const searchProductsViaSupabase = async (filters) => {
     let query = supabase
       .from('products')
       .select(selectClause, { count: 'exact' })
-      .eq('approval_status', 'approved')
+      .eq('approval_status', 'published')
       .eq('is_available', true)
       .in('vendor_id', publicVendorIds)
 
@@ -300,7 +300,7 @@ const getSearchSuggestionsViaSupabase = async (query, { hitsPerPage = 6, categor
     let searchQuery = supabase
       .from('products')
       .select(selectClause)
-      .eq('approval_status', 'approved')
+      .eq('approval_status', 'published')
       .eq('is_available', true)
       .in('vendor_id', publicVendorIds)
       .range(0, hitsPerPage - 1)

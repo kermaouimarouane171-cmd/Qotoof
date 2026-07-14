@@ -11,7 +11,10 @@ import { DEFAULT_AUTH_REDIRECT, resolveSafeAuthRedirect } from '@/utils/authRedi
 import { loginSchema } from '@/lib/validationSchemas'
 import { useFormValidation } from '@/hooks/useFormValidation'
 import { formatSupabaseError } from '@/utils/errorFormatter'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon, LockClosedIcon } from '@heroicons/react/24/outline'
+import AuthCard from '@/components/auth/AuthCard'
+import AuthHeader from '@/components/auth/AuthHeader'
+import AuthFooter from '@/components/auth/AuthFooter'
 
 const LoginPage = () => {
   const { t } = useTranslation()
@@ -37,6 +40,11 @@ const LoginPage = () => {
     ? import.meta.env.VITE_RECAPTCHA_SITE_KEY.trim()
     : ''
   const captchaRequired = isRecaptchaSiteKeyConfigured(recaptchaSiteKey)
+
+  useEffect(() => {
+    const emailInput = document.querySelector('[data-testid="login-email-input"]')
+    if (emailInput) emailInput.focus()
+  }, [])
 
   const rawRedirect = new URLSearchParams(window.location.search).get('redirect_to')
   const from = resolveSafeAuthRedirect(
@@ -113,31 +121,33 @@ const LoginPage = () => {
   }
 
   return (
-    <div>
-      {/* Header */}
-      <div className="text-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('auth.login.welcomeBack', 'Welcome back')}</h2>
-        <p className="text-gray-500">
-          {t('auth.login.signUpLink', "Don't have an account?")}{' '}
-          <Link to="/register" className="text-green-600 font-semibold hover:underline">
-            {t('auth.login.signUp', 'Sign up')}
-          </Link>
-        </p>
-      </div>
+    <AuthCard>
+      <AuthHeader
+        icon={
+          <LockClosedIcon className="w-8 h-8 text-green-600" />
+        }
+        title={t('auth.login.welcomeBack', 'Welcome back')}
+        subtitle={t('auth.login.subtitle', 'Sign in to your Qotoof account to continue')}
+      />
 
       {/* Morocco Availability Notice */}
       <div className="mb-6">
         <MoroccoNotice variant="compact" />
       </div>
-      
+
       {errors.root?.message && (
-        <div className="alert-error mb-6" data-cy="login-error" role="alert" aria-live="assertive">
+        <div
+          className="mb-6 rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700"
+          data-cy="login-error"
+          role="alert"
+          aria-live="assertive"
+        >
           {errors.root.message}
         </div>
       )}
-      
+
       {/* Email Form */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" data-testid="login-form">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" data-testid="login-form">
         <FormInput
           form={form}
           name="email"
@@ -145,7 +155,6 @@ const LoginPage = () => {
           type="email"
           placeholder={t('auth.login.emailPlaceholder', 'Enter your email address')}
           autoComplete="email"
-          autoFocus
           data-cy="email-input"
           data-testid="login-email-input"
         />
@@ -163,7 +172,7 @@ const LoginPage = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
                 aria-label={showPassword ? t('auth.login.hidePassword', 'Hide password') : t('auth.login.showPassword', 'Show password')}
               >
                 {showPassword ? (
@@ -175,7 +184,11 @@ const LoginPage = () => {
             }
           />
           <div className="flex justify-end mt-2">
-            <Link to="/forgot-password" className="text-sm text-green-600 font-medium hover:underline" data-testid="forgot-password-link">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-green-600 font-medium hover:text-green-700 hover:underline transition-colors"
+              data-testid="forgot-password-link"
+            >
               {t('auth.login.forgotPassword', 'Forgot password?')}
             </Link>
           </div>
@@ -191,11 +204,24 @@ const LoginPage = () => {
           </div>
         )}
 
-        <FormSubmitButton form={form} variant="primary" className="w-full py-3" isLoading={loading} data-cy="login-button" data-testid="login-submit-button">
+        <FormSubmitButton
+          form={form}
+          variant="primary"
+          className="w-full py-3"
+          isLoading={loading}
+          data-cy="login-button"
+          data-testid="login-submit-button"
+        >
           {t('auth.login.signIn', 'Sign In')}
         </FormSubmitButton>
       </form>
-    </div>
+
+      <AuthFooter
+        question={t('auth.login.signUpLink', "Don't have an account?")}
+        linkTo="/register"
+        linkText={t('auth.login.signUp', 'Sign up')}
+      />
+    </AuthCard>
   )
 }
 

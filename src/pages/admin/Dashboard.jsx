@@ -29,11 +29,13 @@ const AdminDashboard = () => {
     totalVendors: 0,
     totalProducts: 0,
     totalRevenue: 0,
+    commissionEarned: 0,
     activeUsers: 0,
     ordersPerMinute: 0,
   })
   const [pendingVendors, setPendingVendors] = useState([])
   const [recentOrders, setRecentOrders] = useState([])
+  const [rejectConfirm, setRejectConfirm] = useState(null)
 
   useEffect(() => {
     loadDashboard()
@@ -82,6 +84,7 @@ const AdminDashboard = () => {
       ])
 
       const totalRevenue = ordersResult.data?.reduce((sum, o) => sum + (o.total || 0), 0) || 0
+      const commissionEarned = ordersResult.data?.reduce((sum, o) => sum + (o.commission_amount || 0), 0) || 0
 
       // Calculate orders per minute (last 10 minutes average)
       const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
@@ -106,6 +109,7 @@ const AdminDashboard = () => {
         totalVendors: vendorsResult.count || 0,
         totalProducts: productsResult.count || 0,
         totalRevenue,
+        commissionEarned,
         activeUsers: activeUsersResult.count || 0,
         ordersPerMinute: parseFloat(ordersPerMinute),
       })
@@ -170,23 +174,18 @@ const AdminDashboard = () => {
 
       if (error) throw error
 
-      toast.success('تمت الموافقة على البائع بنجاح')
-      
-      // Remove from pending list
+      toast.success(t('admin.dashboard.approveSuccess', 'Vendor approved successfully'))
       setPendingVendors(prev => prev.filter(v => v.id !== vendorId))
-      
-      // Reload stats
+      setStats(prev => ({ ...prev, totalVendors: prev.totalVendors }))
       await loadDashboard()
     } catch (error) {
       logger.error('Error approving vendor:', error)
-      toast.error('حدث خطأ أثناء الموافقة')
+      toast.error(t('admin.dashboard.approveError', 'Error approving vendor'))
     }
   }
 
   const handleRejectVendor = async (vendorId) => {
     try {
-      // Soft-delete the vendor's products to prevent orphaned records
-      // (products with a vendor_id pointing to a buyer would break listings)
       const { error: productsError } = await supabase
         .from('products')
         .update({ is_available: false, deleted_at: new Date().toISOString() })
@@ -194,10 +193,8 @@ const AdminDashboard = () => {
 
       if (productsError) {
         logger.error('Error deactivating vendor products:', productsError)
-        // Non-fatal: continue with role downgrade even if product update fails
       }
 
-      // Downgrade role from vendor back to buyer
       const { error } = await supabase
         .from('profiles')
         .update({ role: 'buyer', is_verified: false, store_name: null })
@@ -205,16 +202,13 @@ const AdminDashboard = () => {
 
       if (error) throw error
 
-      toast.success('تم رفض طلب البائع وتعطيل منتجاته')
-
-      // Remove from pending list
+      toast.success(t('admin.dashboard.rejectSuccess', 'Vendor rejected and products deactivated'))
       setPendingVendors(prev => prev.filter(v => v.id !== vendorId))
-
-      // Reload stats
+      setRejectConfirm(null)
       await loadDashboard()
     } catch (error) {
       logger.error('Error rejecting vendor:', error)
-      toast.error('حدث خطأ أثناء الرفض')
+      toast.error(t('admin.dashboard.rejectError', 'Error rejecting vendor'))
     }
   }
 
@@ -223,12 +217,13 @@ const AdminDashboard = () => {
   }
 
   const statsCards = [
-    { title: t('admin.dashboard.totalUsers'), value: stats.totalUsers.toLocaleString(), icon: UserGroupIcon, color: 'bg-blue-100 text-blue-600' },
-    { title: t('admin.dashboard.totalVendors'), value: stats.totalVendors.toLocaleString(), icon: BuildingStorefrontIcon, color: 'bg-green-100 text-green-600' },
-    { title: t('admin.dashboard.totalProducts'), value: stats.totalProducts.toLocaleString(), icon: CubeIcon, color: 'bg-purple-100 text-purple-600' },
-    { title: t('admin.dashboard.totalRevenue'), value: formatPrice(stats.totalRevenue), icon: CurrencyDollarIcon, color: 'bg-yellow-100 text-yellow-600' },
-    { title: 'Active Users (5m)', value: stats.activeUsers.toLocaleString(), icon: CursorArrowRaysIcon, color: 'bg-cyan-100 text-cyan-600' },
-    { title: 'Orders/Min', value: stats.ordersPerMinute, icon: BoltIcon, color: 'bg-orange-100 text-orange-600' },
+    { title: t('admin.dashboard.totalUsers', 'Total Users'), value: stats.totalUsers.toLocaleString(), icon: UserGroupIcon, color: 'bg-blue-100 text-blue-600' },
+    { title: t('admin.dashboard.totalVendors', 'Total Vendors'), value: stats.totalVendors.toLocaleString(), icon: BuildingStorefrontIcon, color: 'bg-green-100 text-green-600' },
+    { title: t('admin.dashboard.totalProducts', 'Total Products'), value: stats.totalProducts.toLocaleString(), icon: CubeIcon, color: 'bg-purple-100 text-purple-600' },
+    { title: t('admin.dashboard.totalGMV', 'Total GMV'), value: formatPrice(stats.totalRevenue), icon: CurrencyDollarIcon, color: 'bg-yellow-100 text-yellow-600' },
+    { title: t('admin.dashboard.commissionEarned', 'Commission Earned'), value: formatPrice(stats.commissionEarned), icon: ArrowTrendingUpIcon, color: 'bg-emerald-100 text-emerald-600' },
+    { title: t('admin.dashboard.activeUsers', 'Active Users (5m)'), value: stats.activeUsers.toLocaleString(), icon: CursorArrowRaysIcon, color: 'bg-cyan-100 text-cyan-600' },
+    { title: t('admin.dashboard.ordersPerMinute', 'Orders / Min'), value: stats.ordersPerMinute, icon: BoltIcon, color: 'bg-orange-100 text-orange-600' },
   ]
   
   return (
@@ -236,7 +231,7 @@ const AdminDashboard = () => {
       <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('admin.dashboard.title')}</h1>
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
         {statsCards.map((stat, index) => (
           <Card key={index} className="p-6">
             <div className={`w-12 h-12 ${stat.color} rounded-xl flex items-center justify-center mb-4`}>
@@ -259,18 +254,18 @@ const AdminDashboard = () => {
 
         {pendingVendors.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No pending vendor approvals</p>
+            <p className="text-gray-500">{t('admin.dashboard.noPendingApprovals', 'No pending vendor approvals')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Store Name</th>
-                  <th>Email</th>
-                  <th>Location</th>
-                  <th>Applied Date</th>
-                  <th>Actions</th>
+                  <th>{t('admin.dashboard.table.storeName', 'Store Name')}</th>
+                  <th>{t('admin.dashboard.table.email', 'Email')}</th>
+                  <th>{t('admin.dashboard.table.location', 'Location')}</th>
+                  <th>{t('admin.dashboard.table.appliedDate', 'Applied Date')}</th>
+                  <th>{t('admin.dashboard.table.actions', 'Actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -278,7 +273,7 @@ const AdminDashboard = () => {
                   <tr key={vendor.id}>
                     <td className="font-medium">{vendor.store_name || `${vendor.first_name} ${vendor.last_name}`}</td>
                     <td>{vendor.email}</td>
-                    <td>{vendor.city || 'N/A'}</td>
+                    <td>{vendor.city || t('common.na', 'N/A')}</td>
                     <td className="text-gray-500">{new Date(vendor.created_at).toLocaleDateString()}</td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -287,14 +282,14 @@ const AdminDashboard = () => {
                           className="btn-sm btn-primary flex items-center gap-1"
                         >
                           <CheckIcon className="w-4 h-4" />
-                          موافقة
+                          {t('admin.dashboard.approve', 'Approve')}
                         </button>
                         <button
-                          onClick={() => handleRejectVendor(vendor.id)}
-                          className="btn-sm btn-outline flex items-center gap-1"
+                          onClick={() => setRejectConfirm(vendor)}
+                          className="btn-sm btn-outline text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1"
                         >
                           <XMarkIcon className="w-4 h-4" />
-                          رفض
+                          {t('admin.dashboard.reject', 'Reject')}
                         </button>
                       </div>
                     </td>
@@ -306,32 +301,74 @@ const AdminDashboard = () => {
         )}
       </Card>
 
+      {/* Reject Confirmation Modal */}
+      {rejectConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <XMarkIcon className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">
+                {t('admin.dashboard.rejectModal.title', 'Reject Vendor Application')}
+              </h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">
+              {t('admin.dashboard.rejectModal.warning', 'This will permanently reject the application for:')}
+            </p>
+            <p className="font-semibold text-gray-900 mb-1">
+              {rejectConfirm.store_name || `${rejectConfirm.first_name} ${rejectConfirm.last_name}`}
+            </p>
+            <p className="text-sm text-gray-500 mb-4">{rejectConfirm.email}</p>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+              <p className="text-xs text-red-700">
+                {t('admin.dashboard.rejectModal.consequence', 'The account will be downgraded to buyer and all products will be deactivated. This action cannot be undone.')}
+              </p>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setRejectConfirm(null)}
+                className="btn-outline text-sm"
+              >
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button
+                onClick={() => handleRejectVendor(rejectConfirm.id)}
+                className="btn-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                {t('admin.dashboard.rejectModal.confirm', 'Yes, Reject Application')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Recent Orders (Real-Time) */}
       <Card className="p-6">
         <div className="flex items-center gap-2 mb-4">
           <ArrowTrendingUpIcon className="w-5 h-5 text-blue-600" />
           <h3 className="text-lg font-semibold text-gray-900">
-            Recent Orders (Live)
+            {t('admin.dashboard.recentOrders', 'Recent Orders (Live)')}
           </h3>
           <span className="ml-auto flex items-center gap-1 text-sm text-green-600">
             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            Live
+            {t('admin.dashboard.live', 'Live')}
           </span>
         </div>
 
         {recentOrders.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No orders yet</p>
+            <p className="text-gray-500">{t('admin.dashboard.noOrders', 'No orders yet')}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="table">
               <thead>
                 <tr>
-                  <th>Order #</th>
-                  <th>Status</th>
-                  <th>Total</th>
-                  <th>Date</th>
+                  <th>{t('admin.dashboard.table.orderNum', 'Order #')}</th>
+                  <th>{t('admin.dashboard.table.status', 'Status')}</th>
+                  <th>{t('admin.dashboard.table.total', 'Total')}</th>
+                  <th>{t('admin.dashboard.table.date', 'Date')}</th>
                 </tr>
               </thead>
               <tbody>

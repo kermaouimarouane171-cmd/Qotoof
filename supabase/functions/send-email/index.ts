@@ -2,6 +2,7 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { enforceServerRateLimit, getClientIp } from '../_shared/serverRateLimit.ts'
 import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
+import { requireAuth } from '../_shared/auth.ts'
 import { sendWithResend } from './providers/resend.ts'
 import { sendWithSendGrid } from './providers/sendgrid.ts'
 import { buildEmailContent } from './templates/index.ts'
@@ -20,7 +21,7 @@ const EMAIL_REQUEST_LIMIT = {
 }
 
 const PROVIDER_TIMEOUT_MS = 10000
-const DEFAULT_FROM_EMAIL = 'noreply@qotoof.ma'
+const DEFAULT_FROM_EMAIL = 'noreply@greenmarket-marketplace.web.app'
 const DEFAULT_FROM_NAME = 'Qotoof'
 
 function jsonResponse(req: Request, body: unknown, status = 200, extraHeaders: Record<string, string> = {}) {
@@ -77,6 +78,14 @@ serve(async (req: Request) => {
       )
     }
 
+    // Require authenticated user to prevent open email relay abuse
+    try {
+      await requireAuth(req)
+    } catch (error) {
+      if (error instanceof Response) return error
+      return jsonResponse(req, { success: false, error: 'Authentication required' }, 401)
+    }
+
     let rawBody: EmailRequestBody
     try {
       rawBody = await req.json()
@@ -120,7 +129,37 @@ serve(async (req: Request) => {
           messageId: resendResult.messageId,
         }, 200)
       } catch (error) {
-        providerErrors.push(error instanceof Error ? error.message : 'Resend failed')
+        const errMsg = error instanceof Error ? error.message : 'Resend failed'
+        providerErrors.push(errMsg)
+
+        // Fallback: if the domain is not verified (403), retry with
+        // Resend's sandbox sender onboarding@resend.dev which works
+        // without domain verification. Remove once greenmarket-marketplace.web.app is verified.
+        if (errMsg.includes('403') && errMsg.includes('not verified')) {
+          try {
+            const fallbackResult = await sendWithResend({
+              apiKey: RESEND_API_KEY,
+              to,
+              toName,
+              from: 'onboarding@resend.dev',
+              fromName: resolvedFromName,
+              content,
+              timeoutMs: PROVIDER_TIMEOUT_MS,
+            })
+
+            return jsonResponse(req, {
+              success: true,
+              provider: fallbackResult.provider,
+              messageId: fallbackResult.messageId,
+              fallback: true,
+              fallbackFrom: 'onboarding@resend.dev',
+            }, 200)
+          } catch (fallbackError) {
+            providerErrors.push(
+              `Fallback (onboarding@resend.dev) failed: ${fallbackError instanceof Error ? fallbackError.message : 'unknown error'}`
+            )
+          }
+        }
       }
     }
 
@@ -160,7 +199,7 @@ serve(async (req: Request) => {
       success: false,
       error: 'All configured email providers failed',
       providerErrors,
-    }, 502)
+    }, 400)
   } catch (error) {
     return jsonResponse(req, {
       success: false,

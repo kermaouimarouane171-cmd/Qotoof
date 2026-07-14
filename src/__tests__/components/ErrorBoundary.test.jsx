@@ -7,11 +7,16 @@ import ErrorBoundary, {
 } from '@/components/ErrorBoundary'
 import i18n from '@/i18n'
 import { logger } from '@/utils/logger'
+import { logError } from '@/services/sentry'
 
 jest.mock('@/utils/logger', () => ({
   logger: {
     error: jest.fn(),
   },
+}))
+
+jest.mock('@/services/sentry', () => ({
+  logError: jest.fn(),
 }))
 
 const CHUNK_RELOAD_STORAGE_KEY = 'qotoof_chunk_reload_attempted'
@@ -98,5 +103,28 @@ describe('ErrorBoundary Component', () => {
     render(<WrappedComponent label="Wrapped content" />)
 
     expect(screen.getByText('Wrapped content')).toBeInTheDocument()
+  })
+
+  it('catches child render error and sends to Sentry via logError', () => {
+    const ThrowOnRender = () => {
+      throw new Error('Render crash test')
+    }
+
+    render(
+      <ErrorBoundary>
+        <ThrowOnRender />
+      </ErrorBoundary>
+    )
+
+    expect(screen.getByText(i18n.t('errorBoundary.title', 'Something went wrong'))).toBeInTheDocument()
+    expect(logError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { source: 'error-boundary' },
+        extra: expect.objectContaining({
+          componentStack: expect.any(String),
+        }),
+      })
+    )
   })
 })

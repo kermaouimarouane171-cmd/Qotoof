@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '@/services/supabase'
 import { withRetry } from '@/utils/withRetry'
 import { logger } from '@/utils/logger'
+import { sanitizeText } from '@/utils/sanitization'
+import { enforceRateLimit, checkChatMessageSendRate, checkChatConversationCreateRate, checkChatFileUploadRate } from '@/utils/rateLimiter'
 import toast from 'react-hot-toast'
 
 /**
@@ -16,33 +18,61 @@ class ChatService {
   /**
    * Get or create conversation between two users
    */
-  async getOrCreateConversation(userId1, userId2, context = {}) {
+  async getOrCreateConversation(userId1, userId2, _context = {}) {
+    // Rate limit: 10 conversations per hour per user
+    enforceRateLimit(checkChatConversationCreateRate, userId1)
+
     return withRetry(async () => {
-      // Check if conversation exists
+      // Check if a direct conversation already exists between these two users
+      // via conversation_participants join table
       const { data: existing } = await supabase
         .from('conversations')
-        .select('id, participant_1_id, participant_2_id, context_type, context_id')
-        .or(`participant_1_id.eq.${userId1},participant_1_id.eq.${userId2}`)
-        .or(`participant_2_id.eq.${userId1},participant_2_id.eq.${userId2}`)
+        .select('id, type, title, created_by')
+        .eq('type', 'direct')
+        .in('id', (
+          supabase
+            .from('conversation_participants')
+            .select('conversation_id')
+            .eq('user_id', userId1)
+        ))
         .maybeSingle()
 
+      // Verify the other user is also a participant
       if (existing) {
-        return existing
+        const { data: participantCheck } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id')
+          .eq('conversation_id', existing.id)
+          .eq('user_id', userId2)
+          .maybeSingle()
+
+        if (participantCheck) {
+          return existing
+        }
       }
 
       // Create new conversation
-      const { data: conversation, error } = await supabase
+      const { data: conversation, error: convError } = await supabase
         .from('conversations')
         .insert({
-          participant_1_id: userId1,
-          participant_2_id: userId2,
-          context_type: context.type || 'order',
-          context_id: context.id,
+          type: 'direct',
+          created_by: userId1,
         })
-        .select('id, participant_1_id, participant_2_id, context_type, context_id')
+        .select('id, type, title, created_by')
         .single()
 
-      if (error) throw error
+      if (convError) throw convError
+
+      // Add both users as participants
+      const { error: participantError } = await supabase
+        .from('conversation_participants')
+        .insert([
+          { conversation_id: conversation.id, user_id: userId1 },
+          { conversation_id: conversation.id, user_id: userId2 },
+        ])
+
+      if (participantError) throw participantError
+
       return conversation
     }, { maxRetries: 2, baseDelay: 500 })
   }
@@ -74,13 +104,19 @@ class ChatService {
       attachments = [],
     } = payload
 
+    // Sanitize content to prevent XSS
+    const sanitizedContent = sanitizeText(String(content || ''), { maxLength: 5000, allowNewlines: true, collapseWhitespace: false }).trim()
+
+    // Rate limit: 30 messages per 10 minutes per sender
+    enforceRateLimit(checkChatMessageSendRate, senderId)
+
     return withRetry(async () => {
       const { data: message, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
           sender_id: senderId,
-          content: content.trim(),
+          content: sanitizedContent,
           attachments,
           is_read: false,
         })
@@ -93,7 +129,7 @@ class ChatService {
       supabase
         .from('conversations')
         .update({
-          last_message: content.substring(0, 100),
+          last_message: sanitizedContent.substring(0, 100),
           last_message_at: new Date().toISOString(),
         })
         .eq('id', conversationId)
@@ -204,7 +240,7 @@ class ChatService {
   /**
    * Upload message attachment - with validation and retry
    */
-  static MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+  static MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB (unified with ChatWindow.jsx)
 
   static ALLOWED_MIME_TYPES = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -254,6 +290,9 @@ class ChatService {
   async uploadAttachment(file, conversationId) {
     // Validate file before upload
     this.validateFile(file)
+
+    // Rate limit: 20 uploads per hour per conversation
+    enforceRateLimit(checkChatFileUploadRate, conversationId)
 
     return withRetry(async () => {
       const fileExt = file.name.split('.').pop()

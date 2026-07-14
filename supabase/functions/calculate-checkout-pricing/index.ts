@@ -58,10 +58,20 @@ serve(async (req) => {
       couponError: checkout.couponError,
     })
   } catch (error) {
-    console.error('calculate-checkout-pricing error:', error)
+    const errorMessage = error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error !== null
+      ? JSON.stringify(error)
+      : String(error || 'Failed to calculate checkout pricing')
+    const errorStack = error instanceof Error ? error.stack : undefined
+    console.error('calculate-checkout-pricing error:', {
+      message: errorMessage,
+      stack: errorStack,
+      raw: error,
+    })
     return json({
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to calculate checkout pricing',
+      error: errorMessage,
     }, 500)
   }
 })

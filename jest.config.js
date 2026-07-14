@@ -9,7 +9,7 @@ export default {
     '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(react-leaflet|@react-leaflet|leaflet|@supabase|jest-axe)/)',
+    '/node_modules/(?!(react-leaflet|@react-leaflet|leaflet|@supabase|jest-axe|jspdf|html2canvas|iobuffer|fast-png)/)',
   ],
   testPathIgnorePatterns: [
     '/node_modules/',

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import {
   CheckCircleIcon,
   CreditCardIcon,
   ArrowPathIcon,
   BoltIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
@@ -31,13 +33,14 @@ const formatDate = (value) => {
 }
 
 const statusMeta = {
-  active: { label: 'Active', classes: 'bg-green-100 text-green-700' },
-  past_due: { label: 'Past Due', classes: 'bg-amber-100 text-amber-700' },
-  grace_period: { label: 'Grace Period', classes: 'bg-orange-100 text-orange-700' },
-  canceled: { label: 'Canceled', classes: 'bg-gray-200 text-gray-700' },
+  active: { labelKey: 'vendor.subscription.status.active', classes: 'bg-green-100 text-green-700' },
+  past_due: { labelKey: 'vendor.subscription.status.past_due', classes: 'bg-amber-100 text-amber-700' },
+  grace_period: { labelKey: 'vendor.subscription.status.grace_period', classes: 'bg-orange-100 text-orange-700' },
+  canceled: { labelKey: 'vendor.subscription.status.canceled', classes: 'bg-gray-200 text-gray-700' },
 }
 
 const Subscription = () => {
+  const { t } = useTranslation()
   const { user, profile } = useAuthStore()
   const [searchParams, setSearchParams] = useSearchParams()
   const [loading, setLoading] = useState(true)
@@ -58,9 +61,9 @@ const Subscription = () => {
     if (!checkoutState) return
 
     if (checkoutState === 'success') {
-      toast.success('Payment completed. We are refreshing your subscription status...')
+      toast.success(t('vendor.subscription.paymentCompleted', 'Payment completed. We are refreshing your subscription status...'))
     } else if (checkoutState === 'cancel') {
-      toast('Payment canceled. You can choose another plan anytime.', { icon: 'ℹ️' })
+      toast(t('vendor.subscription.paymentCanceled', 'Payment canceled. You can choose another plan anytime.'), { icon: 'ℹ️' })
     }
 
     const nextParams = new URLSearchParams(searchParams)
@@ -99,7 +102,7 @@ const Subscription = () => {
       }))
     } catch (error) {
       logger.error('[Subscription] loadData error:', error)
-      toast.error('Unable to load subscription data right now')
+      toast.error(t('vendor.subscription.loadFailed', 'Unable to load subscription data right now'))
     } finally {
       setLoading(false)
     }
@@ -123,7 +126,7 @@ const Subscription = () => {
       window.location.assign(url)
     } catch (error) {
       logger.error('[Subscription] handleUpgrade error:', error)
-      toast.error(error?.message || 'Unable to start checkout session')
+      toast.error(error?.message || t('vendor.subscription.checkoutFailed', 'Unable to start checkout session'))
     } finally {
       setSubmittingPlan('')
     }
@@ -135,8 +138,8 @@ const Subscription = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Vendor Premium</h1>
-          <p className="text-sm text-gray-600">Upgrade your store, unlock advanced growth tools, and reduce commission.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('vendor.subscription.title', 'Vendor Premium')}</h1>
+          <p className="text-sm text-gray-600">{t('vendor.subscription.subtitle', 'Upgrade your store, unlock advanced growth tools, and reduce commission.')}</p>
         </div>
         <button
           type="button"
@@ -145,27 +148,34 @@ const Subscription = () => {
           disabled={loading}
         >
           <ArrowPathIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          {t('vendor.subscription.refresh', 'Refresh')}
         </button>
       </div>
 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-sm text-gray-500">Current Plan</p>
+            <p className="text-sm text-gray-500">{t('vendor.subscription.currentPlan', 'Current Plan')}</p>
             <div className="flex items-center gap-3 mt-1">
               <h2 className="text-xl font-semibold capitalize text-gray-900">{currentPlanId}</h2>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusInfo.classes}`}>
-                {statusInfo.label}
+                {t(statusInfo.labelKey)}
               </span>
             </div>
             <p className="text-sm text-gray-600 mt-2">
-              Subscription ends: <span className="font-medium">{formatDate(subscription?.subscription_end)}</span>
+              {t('vendor.subscription.subscriptionEnds', 'Subscription ends:')} <span className="font-medium">{formatDate(subscription?.subscription_end)}</span>
             </p>
             {currentStatus === 'grace_period' && (
               <p className="text-sm text-orange-700 mt-1">
-                Grace period until: <span className="font-medium">{formatDate(subscription?.grace_period_ends)}</span>
+                {t('vendor.subscription.gracePeriodUntil', 'Grace period until:')} <span className="font-medium">{formatDate(subscription?.grace_period_ends)}</span>
               </p>
+            )}
+            {/* Free trial banner */}
+            {subscription?.trial_ends_at && new Date(subscription.trial_ends_at) > new Date() && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 text-green-700 text-xs font-medium">
+                <SparklesIcon className="w-4 h-4" />
+                {t('vendor.subscription.trialActive', 'تجربة مجانية نشطة حتى:')} <span className="font-bold">{formatDate(subscription.trial_ends_at)}</span>
+              </div>
             )}
           </div>
 
@@ -177,7 +187,7 @@ const Subscription = () => {
                 billingCycle === 'monthly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
               }`}
             >
-              Monthly
+              {t('vendor.subscription.monthly', 'Monthly')}
             </button>
             <button
               type="button"
@@ -186,7 +196,7 @@ const Subscription = () => {
                 billingCycle === 'yearly' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
               }`}
             >
-              Yearly
+              {t('vendor.subscription.yearly', 'Yearly')}
             </button>
           </div>
         </div>
@@ -220,7 +230,7 @@ const Subscription = () => {
                   {isCurrent && (
                     <span className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-green-100 text-green-700 font-semibold">
                       <CheckCircleIcon className="w-3.5 h-3.5" />
-                      Current
+                      {t('vendor.subscription.currentBadge', 'Current')}
                     </span>
                   )}
                 </div>
@@ -228,14 +238,14 @@ const Subscription = () => {
                 <div className="mt-4">
                   <p className="text-2xl font-extrabold text-gray-900">{formatPrice(price)}</p>
                   <p className="text-xs text-gray-500">
-                    per {billingCycle === 'yearly' ? 'year' : 'month'}
-                    {monthlyEquivalent ? ` • ~${formatPrice(monthlyEquivalent)}/month` : ''}
+                    {t(billingCycle === 'yearly' ? 'vendor.subscription.perYear' : 'vendor.subscription.perMonth', billingCycle === 'yearly' ? 'per year' : 'per month')}
+                    {monthlyEquivalent ? ` • ${t('vendor.subscription.monthlyEquivalent', '~{{price}}/month', { price: formatPrice(monthlyEquivalent) })}` : ''}
                   </p>
                 </div>
 
                 <div className="mt-4 space-y-1 text-sm text-gray-700">
-                  <p className="font-medium">Max products: {plan.max_products || 'Unlimited'}</p>
-                  <p className="font-medium">Commission: {plan.commission_rate}%</p>
+                  <p className="font-medium">{t('vendor.subscription.maxProducts', 'Max products:')} {plan.max_products || t('vendor.subscription.unlimited', 'Unlimited')}</p>
+                  <p className="font-medium">{t('vendor.subscription.commission', 'Commission:')} {plan.commission_rate}%</p>
                 </div>
 
                 <ul className="mt-4 space-y-2 text-sm text-gray-600">
@@ -258,7 +268,7 @@ const Subscription = () => {
                   ) : (
                     <CreditCardIcon className="w-4 h-4" />
                   )}
-                  {isCurrent ? 'Current Plan' : plan.id === 'free' ? 'Included' : 'Upgrade'}
+                  {isCurrent ? t('vendor.subscription.currentPlanButton', 'Current Plan') : plan.id === 'free' ? t('vendor.subscription.includedButton', 'Included') : t('vendor.subscription.upgradeButton', 'Upgrade')}
                 </button>
               </Card>
             )
@@ -268,9 +278,9 @@ const Subscription = () => {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card className="p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Billing</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vendor.subscription.recentBilling', 'Recent Billing')}</h3>
           {invoices.length === 0 ? (
-            <p className="text-sm text-gray-500">No invoices yet.</p>
+            <p className="text-sm text-gray-500">{t('vendor.subscription.noInvoices', 'No invoices yet.')}</p>
           ) : (
             <div className="space-y-2">
               {invoices.map((invoice) => (
@@ -290,9 +300,9 @@ const Subscription = () => {
         </Card>
 
         <Card className="p-5">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Plan Activity</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('vendor.subscription.planActivity', 'Plan Activity')}</h3>
           {history.length === 0 ? (
-            <p className="text-sm text-gray-500">No subscription activity yet.</p>
+            <p className="text-sm text-gray-500">{t('vendor.subscription.noActivity', 'No subscription activity yet.')}</p>
           ) : (
             <div className="space-y-2">
               {history.map((item) => (

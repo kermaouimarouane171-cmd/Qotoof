@@ -25,17 +25,32 @@ let mockUserSettingsRow = {
   show_email_to_vendors: false,
 }
 
-const mockUserSettingsUpsert = jest.fn(async () => ({ error: null }))
+// Settings.jsx now uses delete+insert pattern instead of upsert
+const mockUserSettingsInsert = jest.fn(async () => ({ error: null }))
+const mockUserSettingsDelete = jest.fn(() => ({
+  eq: jest.fn(() => ({
+    eq: jest.fn(async () => ({ error: null })),
+  })),
+}))
 
 const makeSupabaseBuilder = (tableName) => {
   if (tableName === 'user_settings') {
     return {
       select: jest.fn(() => ({
         eq: jest.fn(() => ({
+          eq: jest.fn(() => ({
+            maybeSingle: jest.fn(async () => ({
+              data: { setting_value: mockUserSettingsRow },
+              error: null,
+            })),
+          })),
           single: jest.fn(async () => ({ data: mockUserSettingsRow, error: null })),
         })),
       })),
-      upsert: (...args) => mockUserSettingsUpsert(...args),
+      delete: (...args) => mockUserSettingsDelete(...args),
+      insert: (...args) => mockUserSettingsInsert(...args),
+      // Keep upsert mock for backward compat with other tests
+      upsert: jest.fn(async () => ({ error: null })),
     }
   }
 
@@ -141,7 +156,8 @@ describe('Buyer Settings integration', () => {
     mockProfilesService.updateProfile.mockResolvedValue({ data: {}, error: null })
     mockFetchProfileFn.mockResolvedValue({ id: 'buyer-1', email: 'buyer@greenmarket.test' })
     mockFetchOrders.mockResolvedValue([{ id: 'order-1' }])
-    mockUserSettingsUpsert.mockClear()
+    mockUserSettingsInsert.mockClear()
+    mockUserSettingsDelete.mockClear()
 
     global.URL.createObjectURL = jest.fn(() => 'blob:url')
     global.URL.revokeObjectURL = jest.fn()
@@ -162,7 +178,7 @@ describe('Buyer Settings integration', () => {
     expect(screen.getByText('Push Notifications')).toBeInTheDocument()
   })
 
-  it('updates notification toggles and persists using user_settings upsert', async () => {
+  it('updates notification toggles and persists using user_settings delete+insert', async () => {
     renderPage()
 
     await screen.findByText('Save Settings')
@@ -173,7 +189,8 @@ describe('Buyer Settings integration', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save Settings' }))
 
     await waitFor(() => {
-      expect(mockUserSettingsUpsert).toHaveBeenCalled()
+      // Settings.jsx now uses delete+insert pattern (not upsert)
+      expect(mockUserSettingsInsert).toHaveBeenCalled()
     })
 
     expect(mockToast.success).toHaveBeenCalled()

@@ -4,8 +4,6 @@
  * This replaces direct usage of import.meta.env.* for security.
  */
 
-import { createClient } from '@supabase/supabase-js'
-
 declare global {
   interface Window {
     __QOTOOF_CONFIG__?: {
@@ -24,6 +22,9 @@ export interface PublicConfig {
   paypal: {
     clientId: string
     settlementCurrency: string
+  }
+  stripe: {
+    publishableKey: string
   }
   recaptcha: {
     siteKey: string
@@ -47,11 +48,14 @@ const DEFAULT_CONFIG: PublicConfig = {
     clientId: 'paypal-client-id-placeholder',
     settlementCurrency: 'EUR',
   },
+  stripe: {
+    publishableKey: '',
+  },
   recaptcha: {
     siteKey: 'recaptcha-site-key-placeholder',
   },
   email: {
-    from: 'Qotoof273@gmail.com',
+    from: 'qotoof273@gmail.com',
   },
   app: {
     name: 'Qotoof',
@@ -163,8 +167,7 @@ export const getSupabaseUrl = () => getConfig()?.supabase.url || ''
 export const getSupabaseAnonKey = () => getConfig()?.supabase.anonKey || ''
 export const getPayPalClientId = () => getConfig()?.paypal.clientId || ''
 export const getPayPalSettlementCurrency = () => getConfig()?.paypal.settlementCurrency || 'EUR'
-// Stripe marketplace checkout is retired; keep the export but never alias it to PayPal.
-export const getStripePublishableKey = () => ''
+export const getStripePublishableKey = () => getConfig()?.stripe.publishableKey || ''
 export const getRecaptchaSiteKey = () => getConfig()?.recaptcha.siteKey || ''
 export const getAppName = () => getConfig()?.app.name || 'Qotoof'
 

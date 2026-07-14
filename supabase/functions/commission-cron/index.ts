@@ -7,8 +7,38 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const COMMISSION_RATE = 0.03
+const DEFAULT_COMMISSION_RATE = 0.03
 const PAYMENT_DEADLINE_DAYS = 7
+
+/**
+ * Get the commission rate for a vendor based on their subscription plan.
+ * Falls back to DEFAULT_COMMISSION_RATE (3%) if the plan can't be determined.
+ */
+const getVendorCommissionRate = async (supabase: ReturnType<typeof createClient>, vendorId: string): Promise<number> => {
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_plan')
+      .eq('id', vendorId)
+      .single()
+
+    if (!profileError && profile?.subscription_plan) {
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('commission_rate')
+        .eq('id', profile.subscription_plan)
+        .eq('is_active', true)
+        .single()
+
+      if (!planError && plan?.commission_rate != null) {
+        return Number(plan.commission_rate) / 100
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  return DEFAULT_COMMISSION_RATE
+}
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
@@ -21,7 +51,10 @@ const json = (body: unknown, status = 200) =>
   })
 
 const isAuthorized = (req: Request) => {
-  if (!CRON_SECRET) return true
+  // FAIL-CLOSED: if no secret is configured, reject all requests.
+  // This prevents the function from being openly accessible if the
+  // secret is accidentally unset or deleted.
+  if (!CRON_SECRET) return false
   const auth = req.headers.get('authorization') || ''
   return auth === `Bearer ${CRON_SECRET}`
 }
@@ -72,7 +105,8 @@ serve(async (req) => {
       if (monthlyError) throw monthlyError
 
       for (const row of monthlyRows || []) {
-        const commissionDue = Number((Number(row.total_sales || 0) * COMMISSION_RATE).toFixed(2))
+        const vendorRate = await getVendorCommissionRate(supabase, row.vendor_id)
+        const commissionDue = Number((Number(row.total_sales || 0) * vendorRate).toFixed(2))
         const isPaid = Number(row.commission_paid || 0) >= commissionDue
 
         const { error: updateError } = await supabase
@@ -101,7 +135,7 @@ serve(async (req) => {
             month: currentMonth,
             year: currentYear,
             total_sales: 0,
-            commission_rate: COMMISSION_RATE,
+            commission_rate: vendorRate,
             commission_due: 0,
             commission_paid: 0,
             status: 'active',

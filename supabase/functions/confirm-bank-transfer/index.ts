@@ -4,6 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireRole } from '../_shared/auth.ts'
 
 // ============================================
 // Environment Configuration
@@ -178,36 +179,27 @@ serve(async (req) => {
         )
       }
 
-      // Authenticate request
-      const authHeader = req.headers.get('Authorization')
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // Authenticate and verify buyer role (API-002)
+      let authUser: { id: string }
+      try {
+        const auth = await requireRole(req, ['buyer'])
+        authUser = { id: auth.userId }
+      } catch (error) {
+        if (error instanceof Response) {
+          const status = error.status
+          const message = status === 401 ? 'Authentication required' : 'Access restricted to buyers only'
+          return new Response(
+            JSON.stringify({ error: message }),
+            { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+          )
+        }
         return new Response(
           JSON.stringify({ error: 'Authentication required' }),
-          {
-            status: 401,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            }
-          }
+          { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
         )
       }
 
-      const token = authHeader.split(' ')[1]
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-      if (authError || !user) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid or expired token' }),
-          {
-            status: 401,
-            headers: {
-              'Content-Type': 'application/json',
-              'Access-Control-Allow-Origin': '*',
-            }
-          }
-        )
-      }
+      const user = authUser
 
       // Get the order
       const { data: order, error: orderError } = await supabase

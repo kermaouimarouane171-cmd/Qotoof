@@ -6,9 +6,6 @@ import { Card, LoadingSpinner } from '@/components/ui'
 import {
   StarIcon,
   EyeIcon,
-  CheckCircleIcon,
-  TrashIcon,
-  FlagIcon,
   ChatBubbleLeftIcon,
   UserIcon,
   ShieldCheckIcon
@@ -27,8 +24,8 @@ const AdminReviews = () => {
   const [totalCount, setTotalCount] = useState(0)
   const [filter, setFilter] = useState('all')
   const [selectedReview, setSelectedReview] = useState(null)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [adminNotes, setAdminNotes] = useState('')
+  const [_actionLoading, setActionLoading] = useState(false)
+  const [_adminNotes, setAdminNotes] = useState('')
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
 
@@ -114,21 +111,21 @@ const AdminReviews = () => {
   /**
    * Flag a review (mark for review)
    */
-  const handleFlagReview = async (reviewId) => {
+  const _handleFlagReview = async (_reviewId) => {
     toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 
   /**
    * Approve a review (remove flag, confirm it's valid)
    */
-  const handleApproveReview = async (reviewId) => {
+  const _handleApproveReview = async (_reviewId) => {
     toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 
   /**
    * Delete a review and notify the user
    */
-  const handleDeleteReview = async (reviewId) => {
+  const _handleDeleteReview = async (_reviewId) => {
     if (!selectedReview) return
 
     try {
@@ -146,7 +143,7 @@ const AdminReviews = () => {
         .from('reviews')
         .update({
           deleted_at: new Date().toISOString()})
-        .eq('id', reviewId)
+        .eq('id', _reviewId)
 
       if (error) throw error
 
@@ -172,7 +169,7 @@ const AdminReviews = () => {
   /**
    * Unflag a review
    */
-  const handleUnflagReview = async (reviewId) => {
+  const _handleUnflagReview = async (_reviewId) => {
     toast(t('admin.reviews.moderationDisabled', 'Moderation actions are temporarily disabled'))
   }
 

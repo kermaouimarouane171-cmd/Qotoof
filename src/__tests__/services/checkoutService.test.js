@@ -7,7 +7,7 @@ jest.mock('@/services/supabase', () => ({
   },
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: {
     getState: jest.fn(),
   },
@@ -19,7 +19,7 @@ jest.mock('@/store/authStore', () => ({
   },
 }))
 
-jest.mock('@/services/paymentService', () => ({
+jest.mock('@/modules/payments', () => ({
   createOrderPaymentRecord: jest.fn(),
 }))
 
@@ -31,15 +31,15 @@ jest.mock('@/services/emailService', () => ({
 }))
 
 import { supabase } from '@/services/supabase'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/modules/cart'
 import { useAuthStore } from '@/store/authStore'
-import * as paymentService from '@/services/paymentService'
+import * as paymentService from '@/modules/payments'
 import emailService from '@/services/emailService'
 import {
   createCheckoutOrder,
   calculateCheckoutPricing,
   calculateOrderTotals,
-} from '@/services/checkoutService'
+} from '@/modules/checkout'
 
 const makeDbChain = ({ order = null, error = null } = {}) => {
   const single = jest.fn().mockResolvedValue({ data: order, error })

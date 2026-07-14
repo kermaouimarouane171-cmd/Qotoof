@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { supabase } from '@/services/supabase'
-import { chatService } from '@/services/chatService'
+import { chatService } from '@/modules/chat'
 import toast from 'react-hot-toast'
 import {
   ArrowLeftIcon,
@@ -85,7 +85,7 @@ const MessagesInbox = () => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="input pl-12 pr-4 py-3"
-          aria-label="Search messages"
+          aria-label={t('messages.aria.search', 'بحث في الرسائل')}
         />
       </div>
 
@@ -278,7 +278,7 @@ const ConversationView = () => {
           <button
             onClick={() => navigate('/messages')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Back to messages"
+            aria-label={t('messages.aria.back', 'العودة إلى الرسائل')}
           >
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
@@ -304,7 +304,7 @@ const ConversationView = () => {
                 <a
                   href={`tel:${otherUser.phone}`}
                   className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                  aria-label="Call vendor"
+                  aria-label={t('messages.aria.callVendor', 'اتصل بالبائع')}
                 >
                   <PhoneIcon className="w-5 h-5" />
                 </a>
@@ -363,13 +363,13 @@ const ConversationView = () => {
           onChange={(e) => setNewMessage(e.target.value)}
           placeholder={t('messages.conversation.typeMessage', 'Type a message...')}
           className="input flex-1 py-3"
-          aria-label="Message input"
+          aria-label={t('messages.aria.input', 'إدخال الرسالة')}
         />
         <button
           type="submit"
           disabled={!newMessage.trim() || sending}
           className="w-12 h-12 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl flex items-center justify-center transition-colors"
-          aria-label="Send message"
+          aria-label={t('messages.aria.send', 'إرسال الرسالة')}
         >
           {sending ? (
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

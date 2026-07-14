@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { ShoppingBagIcon, TruckIcon, CheckCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline'
@@ -86,6 +87,7 @@ const StatCard = ({ label, value, suffix, loading }) => {
 // ============================================================
 const About = () => {
   const { t } = useTranslation()
+  const { user } = useAuthStore()
   const [stats, setStats] = useState({
     vendors: 0,
     products: 0,
@@ -141,15 +143,21 @@ const About = () => {
   // ============================================================
   const loadStats = useCallback(async () => {
     try {
-      const [{ count: vendorsCount }, { count: productsCount }, { count: ordersCount }] = await Promise.all([
-        supabase.from('public_profiles').select('*', { count: 'exact', head: true }).eq('role', 'vendor'),
-        supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_available', true).eq('approval_status', 'approved'),
-        supabase.from('orders').select('*', { count: 'exact', head: true }),
-      ])
+      const requests = [
+        supabase.from('public_vendor_profiles').select('*', { count: 'exact', head: true }).eq('role', 'vendor'),
+        supabase.from('products').select('*', { count: 'exact', head: true }).eq('is_available', true).eq('approval_status', 'published'),
+      ]
 
-      // Get unique cities count
+      // Orders are restricted to authenticated participants; skip the count for guests.
+      if (user) {
+        requests.push(supabase.from('orders').select('*', { count: 'exact', head: true }))
+      }
+
+      const [vendorsResult, productsResult, ordersResult] = await Promise.all(requests)
+
+      // Get unique cities count from the public-safe vendor view
       const { data: citiesData } = await supabase
-        .from('public_profiles')
+        .from('public_vendor_profiles')
         .select('city')
         .eq('role', 'vendor')
         .not('city', 'is', null)
@@ -157,17 +165,17 @@ const About = () => {
       const uniqueCities = new Set(citiesData?.map(c => c.city).filter(Boolean) || [])
 
       setStats({
-        vendors: vendorsCount || 0,
-        products: productsCount || 0,
+        vendors: vendorsResult.count || 0,
+        products: productsResult.count || 0,
         cities: uniqueCities.size || 0,
-        orders: ordersCount || 0,
+        orders: ordersResult?.count || 0,
       })
     } catch (error) {
       logger.error('Error loading about stats:', error)
     } finally {
       setStatsLoading(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     loadStats()

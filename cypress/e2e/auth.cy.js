@@ -255,7 +255,6 @@ const goToRegisterStep4 = ({ role = 'buyer', email, phone, password = 'StrongPas
 
   if (role === 'vendor') {
     cy.get('[data-testid="register-store-name-input"]').clear().type('Atlas Fresh Store')
-    cy.get('[data-testid="register-store-type-select"]').select('farm')
     cy.get('[data-testid="register-city-select"]').select('الدار البيضاء')
     cy.get('[data-testid="register-cin-input"]').clear().type('AB123456')
   }

@@ -15,8 +15,8 @@ import {
   getProductsInMonth,
   getPeakProducts,
   getAvailabilityStatus,
-} from '@/constants/seasonalCalendar'
-import { PRODUCT_CATEGORIES } from '@/constants/categories'
+} from '@/modules/marketplace'
+import { PRODUCT_CATEGORIES } from '@/modules/catalog'
 import {
   CalendarIcon,
   MapPinIcon,

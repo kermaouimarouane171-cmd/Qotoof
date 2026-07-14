@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { fetchProfile, updateProfile } from '@/services/profilesService'
+import { fetchProfile, updateProfile } from '@/modules/users'
 import { Card, Input, LoadingSpinner } from '@/components/ui'
 import { PhoneVerificationDialog } from '@/components/auth/PhoneVerification'
 import ErrorBoundary from '@/components/ErrorBoundary'
@@ -31,11 +31,11 @@ import PreferencesTab from './Settings'
 // Tab definitions
 // ============================================
 const TABS = [
-  { id: 'store-info', label: 'Store Info', icon: BuildingStorefrontIcon },
-  { id: 'location', label: 'Location', icon: MapPinIcon },
-  { id: 'hours', label: 'Hours', icon: ClockIcon },
-  { id: 'security', label: 'Security', icon: ShieldCheckIcon },
-  { id: 'preferences', label: 'Preferences', icon: Cog6ToothIcon },
+  { id: 'store-info', labelKey: 'vendor.profile.tabs.storeInfo', fallback: 'Store Info', icon: BuildingStorefrontIcon },
+  { id: 'location', labelKey: 'vendor.profile.tabs.location', fallback: 'Location', icon: MapPinIcon },
+  { id: 'hours', labelKey: 'vendor.profile.tabs.hours', fallback: 'Hours', icon: ClockIcon },
+  { id: 'security', labelKey: 'vendor.profile.tabs.security', fallback: 'Security', icon: ShieldCheckIcon },
+  { id: 'preferences', labelKey: 'vendor.profile.tabs.preferences', fallback: 'Preferences', icon: Cog6ToothIcon },
 ]
 
 // ============================================
@@ -186,7 +186,7 @@ const StoreInfoTab = () => {
       {/* Store Banner */}
       <div className="relative w-full h-48 bg-gray-100 rounded-xl overflow-hidden mb-6">
         {storeBanner ? (
-          <img src={storeBanner} alt="Store banner" className="w-full h-full object-cover" />
+          <img src={storeBanner} alt={t('vendor.profile.bannerAlt', 'بانر المتجر')} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-r from-green-500 to-emerald-600">
             <BuildingStorefrontIcon className="w-16 h-16 text-white/50" />
@@ -203,7 +203,7 @@ const StoreInfoTab = () => {
       {/* Store Logo */}
       <div className="relative -mt-16 ml-6 w-24 h-24 bg-white rounded-xl overflow-hidden shadow-lg border-4 border-white">
         {storeLogo ? (
-          <img src={storeLogo} alt="Store logo" className="w-full h-full object-cover" />
+          <img src={storeLogo} alt={t('vendor.profile.logoAlt', 'شعار المتجر')} className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <BuildingStorefrontIcon className="w-10 h-10 text-gray-400" />
@@ -309,7 +309,7 @@ const VendorProfile = () => {
                 activeTab === tab.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
               }`}>
               <Icon className="w-4 h-4 flex-shrink-0" />
-              {tab.label}
+              {t(tab.labelKey, tab.fallback)}
             </button>
           )
         })}

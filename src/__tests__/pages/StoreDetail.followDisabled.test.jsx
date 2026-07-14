@@ -36,7 +36,7 @@ describe('StoreDetail.jsx — follow/unfollow temporarily disabled', () => {
 
   test('checkFollowStatus is a no-op (returns early)', () => {
     // After the function definition, the first active statement should be `return`
-    const funcMatch = storeDetailSource.match(/const checkFollowStatus = useCallback\(async \(\) => \{([\s\S]*?)\}, \[user, id\]\)/)
+    const funcMatch = storeDetailSource.match(/const _checkFollowStatus = useCallback\(async \(\) => \{([\s\S]*?)\}, \[\]\)/)
     expect(funcMatch).toBeTruthy()
     const funcBody = funcMatch[1]
     const activeLines = funcBody
@@ -47,7 +47,7 @@ describe('StoreDetail.jsx — follow/unfollow temporarily disabled', () => {
   })
 
   test('handleFollowStore is a no-op (returns early)', () => {
-    const funcMatch = storeDetailSource.match(/const handleFollowStore = async \(\) => \{([\s\S]*?)\n  \}/)
+    const funcMatch = storeDetailSource.match(/const _handleFollowStore = async \(\) => \{([\s\S]*?)\n  \}/)
     expect(funcMatch).toBeTruthy()
     const funcBody = funcMatch[1]
     const activeLines = funcBody
@@ -67,8 +67,9 @@ describe('StoreDetail.jsx — follow/unfollow temporarily disabled', () => {
     expect(buttonArea).toContain('*/}')
   })
 
-  test('store profile loading via /stores/:id still uses profiles table', () => {
-    expect(storeDetailSource).toMatch(/\.from\(['"]profiles['"]\)/)
+  test('store profile loading via /stores/:id uses public_vendor_profiles view for guest access', () => {
+    expect(storeDetailSource).toMatch(/\.from\(['"]public_vendor_profiles['"]\)/)
+    expect(storeDetailSource).not.toMatch(/\.from\(['"]profiles['"]\)/)
   })
 
   test('products still load by vendor_id', () => {

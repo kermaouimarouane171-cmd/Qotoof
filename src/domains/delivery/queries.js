@@ -3,7 +3,7 @@
  * @auth-required true
  */
 
-import { deliveriesApi } from '@/services/deliveries';
+import { deliveriesApi } from '@/modules/delivery';
 
 /** Fetch a single delivery record by ID. */
 export const getDeliveryById     = (deliveryId) => deliveriesApi.getById(deliveryId);

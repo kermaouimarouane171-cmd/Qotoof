@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Card, LoadingSpinner, Input } from '@/components/ui'
+import { Card, LoadingSpinner, Input, formatPrice } from '@/modules/shared'
 import { useTranslation } from 'react-i18next'
-import loyaltyApi, { LOYALTY_TIERS, calculateRewardDiscountAmount } from '@/services/loyalty'
-import { formatPrice } from '@/utils/currency'
+import loyaltyApi, { LOYALTY_TIERS, calculateRewardDiscountAmount } from '@/modules/loyalty'
 import {
   TrophyIcon,
   ArrowTrendingUpIcon,
@@ -16,43 +16,34 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
-const reasonLabelMap = {
-  order_completed: 'نقاط مكتسبة من طلب مكتمل',
-  referral_bonus: 'مكافأة إحالة',
-  reward_redeemed: 'استبدال نقاط مقابل مكافأة',
-}
+const reasonLabelMap = (t) => ({
+  order_completed: t('buyer.loyalty.reasons.orderCompleted', 'Points earned from completed order'),
+  referral_bonus: t('buyer.loyalty.reasons.referralBonus', 'Referral bonus'),
+  reward_redeemed: t('buyer.loyalty.reasons.rewardRedeemed', 'Points redeemed for reward'),
+})
+
+const LOYALTY_QUERY_KEY = (userId) => ['buyer-loyalty', userId]
 
 const BuyerLoyalty = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [dashboard, setDashboard] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [redeemingRewardId, setRedeemingRewardId] = useState(null)
   const [referralCodeInput, setReferralCodeInput] = useState('')
   const [applyingReferralCode, setApplyingReferralCode] = useState(false)
 
-  useEffect(() => {
-    if (user?.id) {
-      loadLoyalty()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
-
-  const loadLoyalty = async () => {
-    if (!user?.id) return
-
-    setLoading(true)
-    try {
+  const { data: dashboard = null, isLoading: loading } = useQuery({
+    queryKey: LOYALTY_QUERY_KEY(user?.id),
+    queryFn: async () => {
       const data = await loyaltyApi.getLoyaltyDashboard(user.id)
-      setDashboard(data)
-    } catch (error) {
-      logger.error('Error loading loyalty dashboard:', error)
-      toast.error('تعذر تحميل بيانات برنامج الولاء')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return data
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 60 * 1000,
+  })
+
+  const invalidateLoyalty = () => queryClient.invalidateQueries({ queryKey: LOYALTY_QUERY_KEY(user?.id) })
 
   const stats = dashboard?.stats || {
     points: 0,
@@ -80,7 +71,7 @@ const BuyerLoyalty = () => {
       await navigator.clipboard.writeText(value)
       toast.success(successMessage)
     } catch {
-      toast.error('تعذر نسخ القيمة')
+      toast.error(t('buyer.loyalty.errors.copyFailed', 'Failed to copy'))
     }
   }
 
@@ -90,11 +81,11 @@ const BuyerLoyalty = () => {
     setRedeemingRewardId(reward.id)
     try {
       const result = await loyaltyApi.redeemReward(user.id, reward.id)
-      toast.success(`تم إنشاء كوبونك الشخصي: ${result.coupon.code}`)
-      await loadLoyalty()
+      toast.success(t('buyer.loyalty.success.couponCreated', 'Your personal coupon has been created: {{code}}', { code: result.coupon.code }))
+      invalidateLoyalty()
     } catch (error) {
       logger.error('Reward redemption failed:', error)
-      toast.error(error.message || 'تعذر استبدال المكافأة')
+      toast.error(error.message || t('buyer.loyalty.errors.redeemFailed', 'Failed to redeem reward'))
     } finally {
       setRedeemingRewardId(null)
     }
@@ -111,16 +102,16 @@ const BuyerLoyalty = () => {
       })
 
       if (result?.alreadyLinked) {
-        toast.success('تم ربط حسابك بإحالة مسبقاً')
+        toast.success(t('buyer.loyalty.success.referralAlreadyLinked', 'Your account is already linked to a referral'))
       } else {
-        toast.success('تم ربط رمز الإحالة بنجاح')
+        toast.success(t('buyer.loyalty.success.referralLinked', 'Referral code linked successfully'))
       }
 
       setReferralCodeInput('')
-      await loadLoyalty()
+      invalidateLoyalty()
     } catch (error) {
       logger.error('Failed to apply referral code:', error)
-      toast.error(error.message || 'تعذر تطبيق رمز الإحالة')
+      toast.error(error.message || t('buyer.loyalty.errors.referralFailed', 'Failed to apply referral code'))
     } finally {
       setApplyingReferralCode(false)
     }
@@ -128,10 +119,10 @@ const BuyerLoyalty = () => {
 
   const getRewardValueLabel = (reward) => {
     const rewardValue = calculateRewardDiscountAmount({ reward, subtotal: reward.reward_value })
-    return `${Number(rewardValue || 0).toFixed(2)} درهم`
+    return `${Number(rewardValue || 0).toFixed(2)} ${t('buyer.loyalty.currency', 'MAD')}`
   }
 
-  const formatHistoryReason = (entry) => reasonLabelMap[entry.reason] || entry.reason || 'معاملة نقاط'
+  const formatHistoryReason = (entry) => (reasonLabelMap(t)[entry.reason] || entry.reason || t('buyer.loyalty.reasons.default', 'Points transaction'))
 
   if (loading) {
     return (
@@ -144,7 +135,7 @@ const BuyerLoyalty = () => {
   return (
     <div>
       <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate('/buyer/dashboard')} className="p-2 hover:bg-gray-100 rounded-lg">
+        <button onClick={() => navigate('/marketplace')} className="p-2 hover:bg-gray-100 rounded-lg" aria-label={t('buyer.loyalty.backToMarketplace', 'Back to marketplace')}>
           <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
         </button>
         <div>
@@ -195,19 +186,19 @@ const BuyerLoyalty = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-5">
-          <p className="text-sm text-gray-500 mb-1">إجمالي النقاط المكتسبة</p>
+          <p className="text-sm text-gray-500 mb-1">{t('buyer.loyalty.lifetimePoints', 'Lifetime Points')}</p>
           <p className="text-2xl font-bold text-gray-900">{Number(stats.lifetimePoints || 0).toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-sm text-gray-500 mb-1">مكافآت الإحالة</p>
+          <p className="text-sm text-gray-500 mb-1">{t('buyer.loyalty.referralBonus', 'Referral Bonus')}</p>
           <p className="text-2xl font-bold text-gray-900">{Number(stats.referralBonusEarned || 0).toLocaleString()}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-sm text-gray-500 mb-1">الدعوات المسجلة</p>
+          <p className="text-sm text-gray-500 mb-1">{t('buyer.loyalty.registeredReferrals', 'Registered Referrals')}</p>
           <p className="text-2xl font-bold text-gray-900">{referralData?.summary?.total || 0}</p>
         </Card>
         <Card className="p-5">
-          <p className="text-sm text-gray-500 mb-1">المكافآت النشطة</p>
+          <p className="text-sm text-gray-500 mb-1">{t('buyer.loyalty.activeRewards', 'Active Rewards')}</p>
           <p className="text-2xl font-bold text-gray-900">{rewards.length}</p>
         </Card>
       </div>
@@ -235,21 +226,21 @@ const BuyerLoyalty = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900">برنامج الإحالات</h2>
-              <p className="text-sm text-gray-500 mt-1">شارك رابطك أو اربط حسابك برمز دعوة صالح</p>
+              <h2 className="font-semibold text-gray-900">{t('buyer.loyalty.referralProgram', 'Referral Program')}</h2>
+              <p className="text-sm text-gray-500 mt-1">{t('buyer.loyalty.referralDesc', 'Share your link or link your account with a valid referral code')}</p>
             </div>
             <TagIcon className="w-6 h-6 text-green-600" />
           </div>
 
           <div className="rounded-2xl border border-dashed border-green-300 bg-green-50 px-4 py-4 mb-4">
-            <p className="text-xs text-green-700 mb-1">رمز الدعوة الخاص بك</p>
+            <p className="text-xs text-green-700 mb-1">{t('buyer.loyalty.yourReferralCode', 'Your Referral Code')}</p>
             <div className="flex items-center gap-2">
               <div className="flex-1 rounded-xl bg-white px-4 py-3 text-lg font-bold tracking-[0.25em] text-green-700 text-center">
                 {referralData?.referralCode || '--------'}
               </div>
               <button
                 type="button"
-                onClick={() => handleCopy(referralData?.referralCode, 'تم نسخ رمز الإحالة')}
+                onClick={() => handleCopy(referralData?.referralCode, t('buyer.loyalty.success.codeCopied', 'Referral code copied'))}
                 className="p-3 rounded-xl bg-green-600 text-white hover:bg-green-700 transition-colors"
               >
                 <ClipboardDocumentIcon className="w-5 h-5" />
@@ -258,30 +249,30 @@ const BuyerLoyalty = () => {
             {referralData?.referralLink && (
               <button
                 type="button"
-                onClick={() => handleCopy(referralData.referralLink, 'تم نسخ رابط الإحالة')}
+                onClick={() => handleCopy(referralData.referralLink, t('buyer.loyalty.success.linkCopied', 'Referral link copied'))}
                 className="mt-3 text-sm font-medium text-green-700 hover:text-green-800"
               >
-                نسخ رابط التسجيل بالإحالة
+                {t('buyer.loyalty.copyReferralLink', 'Copy referral registration link')}
               </button>
             )}
           </div>
 
           {referralData?.referredBy ? (
             <div className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700 mb-4">
-              تم تسجيل حسابك عبر دعوة من
+              {t('buyer.loyalty.referredBy', 'Your account was referred by')}
               {' '}
               <span className="font-semibold">{`${referralData.referredBy.first_name || ''} ${referralData.referredBy.last_name || ''}`.trim()}</span>
               {referralData.profile?.referral_completed_at && (
-                <span className="block text-xs text-green-700 mt-1">اكتمل أول طلب مرتبط بهذه الإحالة وتم احتساب المكافأة.</span>
+                <span className="block text-xs text-green-700 mt-1">{t('buyer.loyalty.firstOrderCompleted', 'First order linked to this referral has been completed and the bonus has been awarded.')}</span>
               )}
             </div>
           ) : (
             <div className="space-y-3 mb-4">
               <Input
-                label="لديك رمز دعوة؟"
+                label={t('buyer.loyalty.haveReferralCode', 'Have a referral code?')}
                 value={referralCodeInput}
                 onChange={(event) => setReferralCodeInput(event.target.value.toUpperCase())}
-                placeholder="أدخل رمز الإحالة"
+                placeholder={t('buyer.loyalty.enterReferralCode', 'Enter referral code')}
               />
               <button
                 type="button"
@@ -289,7 +280,7 @@ const BuyerLoyalty = () => {
                 disabled={applyingReferralCode || !referralCodeInput.trim()}
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {applyingReferralCode ? 'جاري الربط...' : 'ربط رمز الإحالة'}
+                {applyingReferralCode ? t('buyer.loyalty.linking', 'Linking...') : t('buyer.loyalty.linkCode', 'Link Referral Code')}
               </button>
             </div>
           )}
@@ -297,23 +288,23 @@ const BuyerLoyalty = () => {
           <div className="space-y-3">
             {(referralData?.referrals || []).length === 0 ? (
               <div className="rounded-xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                لا توجد إحالات مسجلة بعد. شارك الرمز مع المشترين الجدد.
+                {t('buyer.loyalty.noReferralsYet', 'No referrals yet. Share your code with new buyers.')}
               </div>
             ) : (
               referralData.referrals.map((entry) => (
                 <div key={entry.id} className="rounded-xl border border-gray-100 px-4 py-3 flex items-center justify-between gap-4">
                   <div>
                     <p className="font-medium text-gray-900">
-                      {entry.referred_user?.first_name || 'مستخدم جديد'} {entry.referred_user?.last_name || ''}
+                      {entry.referred_user?.first_name || t('buyer.loyalty.newUser', 'New User')} {entry.referred_user?.last_name || ''}
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {entry.reward_status === 'earned' ? 'اكتمل أول طلب وتم تجهيز مكافأة الإحالة' : 'بانتظار أول طلب مكتمل'}
+                      {entry.reward_status === 'earned' ? t('buyer.loyalty.referralEarned', 'First order completed and referral bonus prepared') : t('buyer.loyalty.referralPending', 'Awaiting first completed order')}
                     </p>
                   </div>
                   <span className={`text-xs px-3 py-1 rounded-full font-medium ${
                     entry.reward_status === 'earned' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                   }`}>
-                    {entry.reward_status === 'earned' ? 'مكتسبة' : 'قيد الانتظار'}
+                    {entry.reward_status === 'earned' ? t('buyer.loyalty.statusEarned', 'Earned') : t('buyer.loyalty.statusPending', 'Pending')}
                   </span>
                 </div>
               ))
@@ -324,8 +315,8 @@ const BuyerLoyalty = () => {
         <Card className="p-6">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <h2 className="font-semibold text-gray-900">مكافآت النقاط</h2>
-              <p className="text-sm text-gray-500 mt-1">حوّل نقاطك إلى كوبونات شخصية قابلة للاستخدام في الشراء</p>
+              <h2 className="font-semibold text-gray-900">{t('buyer.loyalty.rewardsTitle', 'Points Rewards')}</h2>
+              <p className="text-sm text-gray-500 mt-1">{t('buyer.loyalty.rewardsDesc', 'Convert your points into personal coupons usable for purchases')}</p>
             </div>
             <GiftIcon className="w-6 h-6 text-amber-500" />
           </div>
@@ -333,7 +324,7 @@ const BuyerLoyalty = () => {
           <div className="space-y-3">
             {rewards.length === 0 ? (
               <div className="rounded-xl bg-gray-50 px-4 py-6 text-center text-sm text-gray-500">
-                لا توجد مكافآت متاحة حالياً.
+                {t('buyer.loyalty.noRewardsAvailable', 'No rewards available currently.')}
               </div>
             ) : (
               rewards.map((reward) => {
@@ -347,12 +338,12 @@ const BuyerLoyalty = () => {
                         {reward.description && <p className="text-sm text-gray-500 mt-1">{reward.description}</p>}
                       </div>
                       <span className="text-xs font-medium px-3 py-1 rounded-full bg-amber-100 text-amber-700">
-                        {Number(reward.points_cost || 0)} نقطة
+                        {Number(reward.points_cost || 0)} {t('buyer.loyalty.points', 'points')}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
-                      <span>قيمة المكافأة</span>
+                      <span>{t('buyer.loyalty.rewardValue', 'Reward Value')}</span>
                       <span className="font-medium text-gray-900">{getRewardValueLabel(reward)}</span>
                     </div>
 
@@ -362,7 +353,7 @@ const BuyerLoyalty = () => {
                       disabled={!canRedeem || redeemingRewardId === reward.id}
                       className="w-full rounded-xl bg-gray-900 text-white py-2.5 font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {redeemingRewardId === reward.id ? 'جاري إنشاء الكوبون...' : canRedeem ? 'تحويلها إلى كوبون شخصي' : 'نقاطك الحالية غير كافية'}
+                      {redeemingRewardId === reward.id ? t('buyer.loyalty.creatingCoupon', 'Creating coupon...') : canRedeem ? t('buyer.loyalty.convertToCoupon', 'Convert to personal coupon') : t('buyer.loyalty.insufficientPoints', 'Insufficient points')}
                     </button>
                   </div>
                 )
@@ -392,8 +383,8 @@ const BuyerLoyalty = () => {
                   <p className="text-sm font-medium text-gray-900">{formatHistoryReason(tx)}</p>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400 mt-1">
                     <span>{new Date(tx.created_at).toLocaleDateString()}</span>
-                    {tx.order?.order_number && <span>طلب #{tx.order.order_number}</span>}
-                    {tx.metadata?.coupon_code && <span>كوبون {tx.metadata.coupon_code}</span>}
+                    {tx.order?.order_number && <span>{t('buyer.loyalty.order', 'Order')} #{tx.order.order_number}</span>}
+                    {tx.metadata?.coupon_code && <span>{t('buyer.loyalty.coupon', 'Coupon')} {tx.metadata.coupon_code}</span>}
                   </div>
                 </div>
                 <span className={`font-semibold ${tx.points_change > 0 ? 'text-green-600' : 'text-red-600'}`}>

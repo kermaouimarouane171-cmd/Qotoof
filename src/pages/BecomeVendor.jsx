@@ -9,6 +9,20 @@ import { supabase } from '@/services/supabase'
 import { emailService } from '@/services/emailService'
 import { logger } from '@/utils/logger'
 
+/**
+ * Calls the upgrade-role Edge Function instead of writing to profiles directly.
+ * This ensures role changes go through server-side validation and cannot be
+ * forged by a malicious client (SEC-007 fix).
+ */
+const upgradeToVendorViaEdgeFunction = async (payload) => {
+  const { data, error } = await supabase.functions.invoke('upgrade-role', {
+    body: payload,
+  })
+  if (error) throw error
+  if (!data?.success) throw new Error(data?.error || 'Upgrade failed')
+  return data
+}
+
 // Moroccan phone validation
 const MOROCCAN_PHONE_REGEX = /^(\+212|0)([5-7]\d{8})$/
 
@@ -119,52 +133,41 @@ const BecomeVendor = () => {
     setErrors({})
     setLoading(true)
     try {
-      // Check if store name is already taken
-      const { data: existingStore } = await supabase
-        .from('public_profiles')
-        .select('id, store_name')
-        .eq('store_name', formData.storeName.trim())
-        .neq('id', user.id)
-        .maybeSingle()
+      // Upgrade via Edge Function (server-side role change — SEC-007 fix)
+      await upgradeToVendorViaEdgeFunction({
+        target_role:      'vendor',
+        store_name:       formData.storeName.trim(),
+        description:      formData.description?.trim() || null,
+        business_type:    formData.businessType || null,
+        experience_years: formData.experience ? parseInt(formData.experience, 10) : null,
+        city:             formData.city.trim(),
+        phone:            formData.phone.trim(),
+      })
 
-      if (existingStore) {
-        toast.error(t('becomeVendor.errors.storeNameTaken', 'Store name is already taken. Please choose a different name.'))
-        setErrors({ storeName: t('becomeVendor.errors.storeNameTakenShort', 'This store name is already in use') })
-        setLoading(false)
-        return
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          role: 'vendor',
-          store_name: formData.storeName.trim(),
-          description: formData.description?.trim() || null,
-          business_type: formData.businessType || null,
-          experience_years: formData.experience ? parseInt(formData.experience) : null,
-          city: formData.city.trim(),
-          phone: formData.phone.trim(),
-        })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      // Send welcome email to new vendor
-      try {
-        await emailService.sendWelcomeEmail({
-          name: `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Vendor',
-          email: profile?.email || user.email,
-        })
-      } catch (emailErr) {
-        // Don't fail the upgrade if email fails
+      // Send welcome email (non-blocking)
+      emailService.sendWelcomeEmail({
+        name:  `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim() || 'Vendor',
+        email: profile?.email || user.email,
+      }).catch((emailErr) => {
         logger.error('Vendor welcome email failed:', emailErr)
-      }
+      })
 
-      toast.success(t('becomeVendor.success', "Welcome! Your account has been upgraded to vendor"))
+      // Refresh local profile so the store reflects the new role immediately
+      await useAuthStore.getState().refreshProfile?.()
+
+      toast.success(t('becomeVendor.success', 'Welcome! Your account has been upgraded to vendor'))
       navigate('/vendor/dashboard')
     } catch (error) {
       logger.error('Error upgrading to vendor:', error)
-      toast.error(error.message || t('becomeVendor.errors.upgradeFailed', 'Failed to upgrade account'))
+      // Map known server-side errors to user-friendly messages
+      if (error?.message?.includes('store_name is already taken')) {
+        setErrors({ storeName: t('becomeVendor.errors.storeNameTakenShort', 'This store name is already in use') })
+        toast.error(t('becomeVendor.errors.storeNameTaken', 'Store name is already taken. Please choose a different name.'))
+      } else if (error?.message?.includes("Only users with role 'buyer'")) {
+        toast.error(t('becomeVendor.errors.notBuyer', 'Only buyer accounts can apply to become a vendor'))
+      } else {
+        toast.error(error.message || t('becomeVendor.errors.upgradeFailed', 'Failed to upgrade account'))
+      }
     } finally {
       setLoading(false)
     }

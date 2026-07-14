@@ -40,7 +40,7 @@ async function loadBlockedIPs() {
       .or('expires_at.is.null,expires_at.gt.' + new Date().toISOString())
 
     if (error) {
-      logger.error('Failed to load blocked IPs:', error)
+      logger.error('Failed to load blocked IPs:', JSON.stringify(error, null, 2))
       return blockedIPsCache
     }
 
@@ -63,7 +63,7 @@ async function loadBlockedIPs() {
 
     return blockedIPsCache
   } catch (error) {
-    logger.error('Error loading blocked IPs:', error)
+    logger.error('Error loading blocked IPs:', JSON.stringify(error, null, 2))
     return blockedIPsCache
   }
 }
@@ -158,7 +158,7 @@ export async function blockIP({ ip, reason, blockType = 'manual', expiresAt, blo
 
     return { success: true, data }
   } catch (error) {
-    logger.error('Error blocking IP:', error)
+    logger.error('Error blocking IP:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message }
   }
 }
@@ -188,7 +188,7 @@ export async function unblockIP(ipBlockId, unblockedBy) {
 
     return { success: true, data }
   } catch (error) {
-    logger.error('Error unblocking IP:', error)
+    logger.error('Error unblocking IP:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message }
   }
 }
@@ -208,7 +208,7 @@ async function logIPBlockAlert(ip, reason, blockType, blockedBy) {
       p_metadata: JSON.stringify({ block_type: blockType }),
     })
   } catch (error) {
-    logger.error('Failed to log IP block alert:', error)
+    logger.error('Failed to log IP block alert:', JSON.stringify(error, null, 2))
   }
 }
 
@@ -226,7 +226,7 @@ async function logIPUnblockAlert(ipBlockId, unblockedBy) {
       p_metadata: JSON.stringify({ ip_block_id: ipBlockId }),
     })
   } catch (error) {
-    logger.error('Failed to log IP unblock alert:', error)
+    logger.error('Failed to log IP unblock alert:', JSON.stringify(error, null, 2))
   }
 }
 
@@ -244,7 +244,7 @@ export async function getBlockedIPs() {
 
     return { success: true, data: data || [] }
   } catch (error) {
-    logger.error('Error fetching blocked IPs:', error)
+    logger.error('Error fetching blocked IPs:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message, data: [] }
   }
 }
@@ -258,10 +258,7 @@ export async function getSecurityAlerts(options = {}) {
   try {
     let query = supabase
       .from('security_alerts')
-      .select(`
-        *,
-        resolver:resolved_by(id, first_name, last_name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(limit)
 
@@ -279,7 +276,7 @@ export async function getSecurityAlerts(options = {}) {
 
     return { success: true, data: data || [] }
   } catch (error) {
-    logger.error('Error fetching security alerts:', error)
+    logger.error('Error fetching security alerts:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message, data: [] }
   }
 }
@@ -305,7 +302,7 @@ export async function resolveSecurityAlert(alertId, resolvedBy, notes = '') {
 
     return { success: true, data }
   } catch (error) {
-    logger.error('Error resolving alert:', error)
+    logger.error('Error resolving alert:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message }
   }
 }
@@ -335,7 +332,7 @@ export async function getSecurityAlertsStats() {
       }
     }
   } catch (error) {
-    logger.error('Error fetching security stats:', error)
+    logger.error('Error fetching security stats:', JSON.stringify(error, null, 2))
     return { success: false, error: error.message, data: null }
   }
 }

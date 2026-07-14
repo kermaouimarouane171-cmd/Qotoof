@@ -15,11 +15,28 @@ jest.mock('react-hot-toast', () => jest.fn())
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (_key, fallback) => fallback || _key,
+    i18n: { language: 'ar' },
   }),
 }))
 
 jest.mock('@/store/authStore', () => ({
   useAuthStore: jest.fn(),
+}))
+
+jest.mock('@/modules/cart', () => ({
+  useCartStore: jest.fn(() => ({ items: [] })),
+}))
+
+jest.mock('@/store/languageStore', () => ({
+  useLanguageStore: jest.fn(() => ({ language: 'ar', setLanguage: jest.fn() })),
+}))
+
+jest.mock('@/hooks/useDarkMode', () => ({
+  useDarkMode: jest.fn(() => ({ isDark: false, toggle: jest.fn() })),
+}))
+
+jest.mock('@/hooks/useMobileKeyboardGuard', () => ({
+  useMobileKeyboardGuard: jest.fn(),
 }))
 
 jest.mock('@/orchestrators/OnboardingOrchestrator', () => ({
@@ -77,7 +94,9 @@ describe('ProtectedRoute (real component)', () => {
   beforeEach(() => {
     jest.clearAllMocks()
 
-    useAuthStore.mockReturnValue(baseAuth)
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector(baseAuth) : baseAuth,
+    )
     useOnboardingGate.mockReturnValue({ isBlocking: false })
     usePaymentGuard.mockReturnValue({
       shouldRedirect: false,
@@ -92,7 +111,9 @@ describe('ProtectedRoute (real component)', () => {
   })
 
   it('redirects unauthenticated users to login and preserves from-state', () => {
-    useAuthStore.mockReturnValue({ ...baseAuth, user: null })
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector({ ...baseAuth, user: null }) : { ...baseAuth, user: null },
+    )
 
     renderRoute()
 
@@ -101,7 +122,9 @@ describe('ProtectedRoute (real component)', () => {
   })
 
   it('redirects to MFA verify when MFA is required and pending', () => {
-    useAuthStore.mockReturnValue({ ...baseAuth, mfaRequired: true, mfaPending: true })
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector({ ...baseAuth, mfaRequired: true, mfaPending: true }) : { ...baseAuth, mfaRequired: true, mfaPending: true },
+    )
 
     renderRoute()
 
@@ -109,7 +132,9 @@ describe('ProtectedRoute (real component)', () => {
   })
 
   it('does not redirect for missing role until profile.role exists', () => {
-    useAuthStore.mockReturnValue({ ...baseAuth, profile: { id: 'profile-1' } })
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector({ ...baseAuth, profile: { id: 'profile-1' } }) : { ...baseAuth, profile: { id: 'profile-1' } },
+    )
 
     renderRoute({ allowedRoles: ['admin'] })
 
@@ -117,7 +142,9 @@ describe('ProtectedRoute (real component)', () => {
   })
 
   it('redirects to unauthorized when role is not allowed', () => {
-    useAuthStore.mockReturnValue({ ...baseAuth, profile: { id: 'profile-1', role: 'buyer' } })
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector({ ...baseAuth, profile: { id: 'profile-1', role: 'buyer' } }) : { ...baseAuth, profile: { id: 'profile-1', role: 'buyer' } },
+    )
 
     renderRoute({ allowedRoles: ['vendor'] })
 
@@ -140,7 +167,9 @@ describe('ProtectedRoute (real component)', () => {
 
   it('shows timeout fallback when auth loading exceeds threshold', () => {
     jest.useFakeTimers()
-    useAuthStore.mockReturnValue({ ...baseAuth, loading: true })
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector({ ...baseAuth, loading: true }) : { ...baseAuth, loading: true },
+    )
 
     renderRoute()
 
@@ -157,35 +186,42 @@ describe('ProtectedRoute (real component)', () => {
     jest.useRealTimers()
   })
 
-  it('does NOT block forever when user exists but profile fetch failed (profileError=true)', () => {
-    useAuthStore.mockReturnValue({
+  it('shows ProfileErrorFallback with retry and logout when user exists but profile fetch failed (profileError=true)', () => {
+    const signOut = jest.fn().mockResolvedValue(undefined)
+    const errorAuth = {
       ...baseAuth,
       profile: null,
       profileError: true,
       loading: false,
       profileLoading: false,
-    })
+    }
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector(errorAuth) : errorAuth,
+    )
+    useAuthStore.getState = () => ({ refreshProfile: jest.fn().mockResolvedValue(null), signOut })
 
     renderRoute()
 
-    // With profileError=true, profileNotYetLoaded should be false,
-    // so the route proceeds to auth checks. Since user exists but profile
-    // is null and allowedRoles requires 'buyer', it falls back to
-    // LoadingFallback because profile?.role is missing.
-    // This is acceptable — it is no longer an *infinite* spinner.
-    expect(screen.getByText('Loading...')).toBeInTheDocument()
+    // With profileError=true, ProtectedRoute should show ProfileErrorFallback
+    // with retry and logout buttons instead of infinite LoadingFallback.
+    expect(screen.getByText('Profile could not be loaded')).toBeInTheDocument()
+    expect(screen.getByText('Retry')).toBeInTheDocument()
+    expect(screen.getByText('Log out')).toBeInTheDocument()
   })
 
   it('passes onRetry to AuthTimeoutFallback and retry button is present', () => {
     jest.useFakeTimers()
     const refreshProfile = jest.fn().mockResolvedValue(null)
-    useAuthStore.mockReturnValue({
+    const loadingAuth = {
       ...baseAuth,
       profile: null,
       profileError: false,
       loading: true,
       profileLoading: false,
-    })
+    }
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector(loadingAuth) : loadingAuth,
+    )
     useAuthStore.getState = () => ({ refreshProfile })
 
     renderRoute()
@@ -216,7 +252,9 @@ describe('VendorLayout digital-contract gate', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    useAuthStore.mockReturnValue(vendorAuth)
+    useAuthStore.mockImplementation((selector) =>
+      typeof selector === 'function' ? selector(vendorAuth) : vendorAuth,
+    )
     useOnboardingGate.mockReturnValue({ isBlocking: false })
     usePaymentGuard.mockReturnValue({ shouldRedirect: false, redirectTo: null, message: null })
   })

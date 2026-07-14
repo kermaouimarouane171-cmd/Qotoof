@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
-import storeTypeService, { DELIVERY_OPTION_META } from '@/services/storeTypeService'
+import { storeTypeService, DELIVERY_OPTION_META } from '@/modules/marketplace'
 import toast from 'react-hot-toast'
 import {
   CheckCircleIcon,
@@ -21,6 +22,7 @@ const OPTION_ICONS = {
 
 const DeliveryOptionSetup = () => {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -37,7 +39,7 @@ const DeliveryOptionSetup = () => {
         setStoreSetup(setup)
         setSelectedOption(setup.deliveryOption)
       } catch (error) {
-        toast.error(error.message || 'تعذر تحميل إعدادات التوصيل')
+        toast.error(error.message || t('vendor.deliveryOptionSetup.loadFailed', 'تعذر تحميل إعدادات التوصيل'))
       } finally {
         setLoading(false)
       }
@@ -48,7 +50,7 @@ const DeliveryOptionSetup = () => {
 
   const handleSave = async () => {
     if (!profile?.id || !selectedOption) {
-      toast.error('يرجى اختيار خيار التوصيل أولاً')
+      toast.error(t('vendor.deliveryOptionSetup.selectFirst', 'يرجى اختيار خيار التوصيل أولاً'))
       return
     }
 
@@ -72,22 +74,22 @@ const DeliveryOptionSetup = () => {
       }))
 
       if (selectedOption === 'own_driver' && !updatedSetup.hasLinkedOwnDriver) {
-        toast.success('تم حفظ الخيار. أكمل الآن ربط السائق قبل قبول الطلبات الجديدة.')
+        toast.success(t('vendor.deliveryOptionSetup.ownDriverSaved', 'تم حفظ الخيار. أكمل الآن ربط السائق قبل قبول الطلبات الجديدة.'))
         navigate('/vendor/find-driver')
         return
       }
 
       if (selectedOption === 'find_driver') {
-        toast.success('تم تفعيل خيار البحث عن سائق للطلبات الجديدة.')
+        toast.success(t('vendor.deliveryOptionSetup.findDriverActivated', 'تم تفعيل خيار البحث عن سائق للطلبات الجديدة.'))
       } else if (selectedOption === 'self') {
-        toast.success('تم تفعيل التوصيل الذاتي للطلبات الجديدة.')
+        toast.success(t('vendor.deliveryOptionSetup.selfActivated', 'تم تفعيل التوصيل الذاتي للطلبات الجديدة.'))
       } else {
-        toast.success('تم حفظ إعداد التوصيل بنجاح.')
+        toast.success(t('vendor.deliveryOptionSetup.saved', 'تم حفظ إعداد التوصيل بنجاح.'))
       }
 
       navigate('/vendor/dashboard')
     } catch (error) {
-      toast.error(error.message || 'تعذر حفظ خيار التوصيل')
+      toast.error(error.message || t('vendor.deliveryOptionSetup.saveFailed', 'تعذر حفظ خيار التوصيل'))
     } finally {
       setSaving(false)
     }

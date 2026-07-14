@@ -13,7 +13,7 @@ import Modal from '@/components/ui/Modal'
 import Navbar from '@/components/Navbar'
 import ProductCard from '@/components/ui/ProductCard'
 import BuyerOrderCard from '@/components/orders/BuyerOrderCard'
-import { ORDER_STATUS_COLORS, getOrderStatusColors } from '@/constants/orderStatuses'
+import { ORDER_STATUS_COLORS, getOrderStatusColors } from '@/modules/orders'
 
 const mockAuthState = {
   user: null,
@@ -39,16 +39,13 @@ jest.mock('@/store/authStore', () => ({
   useAuthStore: jest.fn(() => mockAuthState),
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: jest.fn((selector) => {
     if (typeof selector === 'function') {
       return selector({ ...mockCartState })
     }
     return mockCartState
   }),
-}))
-
-jest.mock('@/store/favoritesStore', () => ({
   useFavoritesStore: jest.fn(() => mockFavoritesState),
 }))
 
@@ -101,6 +98,8 @@ jest.mock('@/utils/logger', () => ({
   },
 }))
 
+import arTranslations from '@/i18n/locales/ar.json'
+
 const i18n = createInstance()
 const createQueryClient = () => new QueryClient({
   defaultOptions: {
@@ -113,7 +112,7 @@ beforeAll(async () => {
   await i18n.init({
     lng: 'ar',
     fallbackLng: 'ar',
-    resources: { ar: { translation: {} }, en: { translation: {} } },
+    resources: { ar: { translation: arTranslations }, en: { translation: {} } },
     interpolation: { escapeValue: false },
   })
 })
@@ -310,14 +309,14 @@ describe('Modal — Accessibility', () => {
   it('focus moves to modal when opened', async () => {
     renderWithProviders(<ModalHarness initialOpen />)
 
-    await waitFor(() => expect(screen.getByLabelText('إغلاق النافذة')).toHaveFocus())
+    await waitFor(() => expect(screen.getByLabelText('إغلاق')).toHaveFocus())
   })
 
   it('focus trapped inside modal (Tab cycles within)', async () => {
     const user = userEvent.setup()
     renderWithProviders(<ModalHarness initialOpen />)
 
-    const closeButton = await screen.findByLabelText('إغلاق النافذة')
+    const closeButton = await screen.findByLabelText('إغلاق')
     const innerButton = screen.getByRole('button', { name: 'إجراء داخلي' })
 
     expect(closeButton).toHaveFocus()
@@ -397,7 +396,7 @@ describe('ProductCard — Accessibility', () => {
 
   it('price is readable by screen readers', () => {
     renderWithProviders(<ProductCard product={makeProduct()} />, { route: '/marketplace', lang: 'ar' })
-    expect(screen.getByLabelText('السعر: 25 درهم')).toBeInTheDocument()
+    expect(screen.getByLabelText('السعر: MAD 25,00')).toBeInTheDocument()
   })
 
   it('add to cart button is keyboard accessible', async () => {

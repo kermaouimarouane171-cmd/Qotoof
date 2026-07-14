@@ -19,24 +19,21 @@ export const queryClient = new QueryClient({
 
       // المدة التي يبقى الـ Query في الـ cache بعد فقدان اهتمام المراجع الدوري (useQuery hooks)
       // 10 دقائق = 10 * 60 * 1000
-      cacheTime: 10 * 60 * 1000,
+      // ملاحظة: في TanStack Query v5 تم استبدال cacheTime بـ gcTime.
+      gcTime: 10 * 60 * 1000,
 
       // عدد محاولات إعادة المحاولة عند الفشل
-      retry: 2,
+      // دالة: لا تعيد محاولة للأخطاء 4xx (ما عدا 429 Too Many Requests)
+      // ملاحظة: shouldRetryOnError ليس خياراً معترفاً به في TanStack Query v5 —
+      //         يجب استخدام retry كدالة بدلاً منه.
+      retry: (failureCount, error) => {
+        const status = error?.status ?? error?.statusCode ?? error?.response?.status
+        if (status >= 400 && status < 500 && status !== 429) return false
+        return failureCount < 2
+      },
 
       // التأخير بين محاولات إعادة المحاولة (milliseconds)
-      // الخاصية retryDelay يمكنها أن تكون دالة أو قيمة
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-
-      // تجاهل الأخطاء المعينة ولا تحاول إعادة محاولة
-      // مثل: 401 Unauthorized, 403 Forbidden, 404 Not Found
-      shouldRetryOnError: (error) => {
-        // لا تعيد محاولة للأخطاء 4xx (ما عدا 429 Too Many Requests)
-        if (error.status >= 400 && error.status < 500 && error.status !== 429) {
-          return false;
-        }
-        return true;
-      },
 
       // السماح بتحديث الـ Query في الخلفية حتى لو كان user يستخدم التطبيق
       refetchOnWindowFocus: true,

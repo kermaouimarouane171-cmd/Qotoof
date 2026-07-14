@@ -1,7 +1,7 @@
 import React from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { render, screen } from '@testing-library/react'
-import { AdminLayout, BuyerLayout, DriverLayout, VendorLayout } from '@/components/ProtectedRoute'
+import { render, screen, within } from '@testing-library/react'
+import { AdminLayout, DriverLayout, VendorLayout } from '@/components/ProtectedRoute'
 import { useAuthStore } from '@/store/authStore'
 
 jest.mock('@/components/Navbar', () => () => null)
@@ -15,6 +15,22 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('@/store/authStore', () => ({
   useAuthStore: jest.fn(),
+}))
+
+jest.mock('@/modules/cart', () => ({
+  useCartStore: jest.fn(() => ({ items: [] })),
+}))
+
+jest.mock('@/store/languageStore', () => ({
+  useLanguageStore: jest.fn(() => ({ language: 'ar', setLanguage: jest.fn() })),
+}))
+
+jest.mock('@/hooks/useDarkMode', () => ({
+  useDarkMode: jest.fn(() => ({ isDark: false, toggle: jest.fn() })),
+}))
+
+jest.mock('@/hooks/useMobileKeyboardGuard', () => ({
+  useMobileKeyboardGuard: jest.fn(),
 }))
 
 jest.mock('@/orchestrators/OnboardingOrchestrator', () => ({
@@ -38,12 +54,6 @@ const renderRoleLayout = ({ initialPath, layoutType, profile }) => {
   let element = null
   let routePath = '/'
   let childPath = ''
-
-  if (layoutType === 'buyer') {
-    element = <BuyerLayout />
-    routePath = '/buyer'
-    childPath = 'dashboard'
-  }
 
   if (layoutType === 'vendor') {
     element = <VendorLayout />
@@ -88,23 +98,6 @@ describe('Role mobile bottom navigation', () => {
     jest.clearAllMocks()
   })
 
-  it('renders buyer bottom navigation with buyer role only', () => {
-    renderRoleLayout({
-      initialPath: '/buyer/dashboard',
-      layoutType: 'buyer',
-      profile: { role: 'buyer', agreement_accepted: true },
-    })
-
-    const nav = screen.getByTestId('role-mobile-bottom-nav')
-    expect(nav).toHaveAttribute('data-role', 'buyer')
-    expect(nav).toBeInTheDocument()
-    expect(nav.querySelectorAll('a').length).toBe(4)
-    expect(nav.querySelector('[data-route="/vendor/orders"]')).toBeNull()
-    expect(nav.querySelector('[aria-current="page"]')).toHaveAttribute('data-route', '/buyer/dashboard')
-    expect(screen.getByTestId('role-layout-main')).toHaveClass('mobile-safe-bottom-offset')
-    expect(screen.getByTestId('role-layout-main').closest('.overflow-x-hidden')).not.toBeNull()
-  })
-
   it('renders vendor bottom navigation and marks active tab correctly', () => {
     renderRoleLayout({
       initialPath: '/vendor/orders',
@@ -114,7 +107,7 @@ describe('Role mobile bottom navigation', () => {
 
     const nav = screen.getByTestId('role-mobile-bottom-nav')
     expect(nav).toHaveAttribute('data-role', 'vendor')
-    expect(nav.querySelector('[data-route="/buyer/dashboard"]')).toBeNull()
+    expect(nav.querySelector('[data-route="/marketplace"]')).toBeNull()
     expect(nav.querySelector('[aria-current="page"]')).toHaveAttribute('data-route', '/vendor/orders')
   })
 

@@ -3,12 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
-import { deliveriesApi } from '@/services/deliveries'
-import deliveryMatchingService, {
-  getCargoSizeLabel,
-  getDriverDeliveryPaymentMethodLabel,
-  normalizeDriverPreferences,
-} from '@/services/deliveryMatchingService'
+import { deliveriesApi } from '@/modules/delivery'
+import { deliveryMatchingService, getCargoSizeLabel, getDriverDeliveryPaymentMethodLabel, normalizeDriverPreferences } from '@/modules/delivery'
 import {
   TruckIcon,
   CurrencyDollarIcon,
@@ -43,7 +39,7 @@ const DriverAvailable = () => {
       setDeliveries(data)
     } catch (error) {
       logger.error('Error loading matching deliveries:', error)
-      toast.error('تعذر تحميل الطلبات المطابقة حالياً')
+      toast.error(t('driver.available.loadFailed', 'Failed to load matching deliveries'))
     } finally {
       setLoading(false)
     }
@@ -55,11 +51,11 @@ const DriverAvailable = () => {
     try {
       setAcceptingId(deliveryId)
       await deliveriesApi.acceptDelivery(deliveryId, user.id)
-      toast.success('تم قبول مهمة التوصيل بنجاح')
+      toast.success(t('driver.available.acceptSuccess', 'Delivery accepted successfully'))
       navigate(`/driver/delivery/${deliveryId}/pickup`)
     } catch (error) {
       logger.error('Error accepting delivery:', error)
-      toast.error(error.message || 'تعذر قبول مهمة التوصيل')
+      toast.error(error.message || t('driver.available.acceptFailed', 'Failed to accept delivery'))
     } finally {
       setAcceptingId(null)
     }
@@ -81,11 +77,11 @@ const DriverAvailable = () => {
         <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('driver.available.title', 'Available Deliveries')}</h1>
-            <p className="text-gray-500 mt-1">الطلبات المطابقة لتفضيلاتك القانونية ستظهر هنا فقط.</p>
+            <p className="text-gray-500 mt-1">{t('driver.available.matchedOnly', 'Only deliveries matching your preferences appear here.')}</p>
           </div>
           <button onClick={() => navigate('/driver/settings')} className="btn-outline inline-flex items-center gap-2">
             <AdjustmentsHorizontalIcon className="w-4 h-4" />
-            تعديل التفضيلات
+            {t('driver.available.editPreferences', 'Edit Preferences')}
           </button>
         </div>
 
@@ -93,17 +89,21 @@ const DriverAvailable = () => {
           <div className="flex items-start gap-3">
             <TruckIcon className="w-6 h-6 text-gray-400 mt-0.5" />
             <div>
-              <h2 className="font-semibold text-gray-900">لا توجد طلبات مطابقة حالياً</h2>
+              <h2 className="font-semibold text-gray-900">{t('driver.available.noMatches', 'No matching deliveries right now')}</h2>
               <p className="text-sm text-gray-600 mt-2 leading-6">
-                النطاق الحالي من {preferences.minDeliveryDistanceKm} كم إلى {preferences.maxDeliveryDistanceKm} كم، والأحجام المقبولة: {preferences.acceptedCargoSizes.map((cargoSize) => getCargoSizeLabel(cargoSize)).join('، ')}.
+                {t('driver.available.currentRange', 'Current range: {{min}}–{{max}} km. Accepted sizes: {{sizes}}.', {
+                  min: preferences.minDeliveryDistanceKm,
+                  max: preferences.maxDeliveryDistanceKm,
+                  sizes: preferences.acceptedCargoSizes.map((s) => getCargoSizeLabel(s)).join(', '),
+                })}
               </p>
               <div className="flex gap-3 mt-4">
                 <button onClick={loadAvailableDeliveries} className="btn-primary inline-flex items-center gap-2">
                   <ArrowPathIcon className="w-4 h-4" />
-                  تحديث القائمة
+                  {t('driver.available.refresh', 'Refresh')}
                 </button>
                 <button onClick={() => navigate('/driver/settings')} className="btn-outline">
-                  فتح الإعدادات
+                  {t('driver.available.openSettings', 'Open Settings')}
                 </button>
               </div>
             </div>
@@ -118,16 +118,16 @@ const DriverAvailable = () => {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{t('driver.available.title', 'Available Deliveries')}</h1>
-          <p className="text-gray-500 mt-1">{deliveries.length} مهمة مطابقة لتفضيلاتك الحالية.</p>
+          <p className="text-gray-500 mt-1">{t('driver.available.matchCount', '{{count}} deliveries matching your preferences', { count: deliveries.length })}</p>
         </div>
         <div className="flex gap-3">
           <button onClick={loadAvailableDeliveries} className="btn-outline inline-flex items-center gap-2">
             <ArrowPathIcon className="w-4 h-4" />
-            تحديث
+            {t('driver.available.refresh', 'Refresh')}
           </button>
           <button onClick={() => navigate('/driver/settings')} className="btn-outline inline-flex items-center gap-2">
             <AdjustmentsHorizontalIcon className="w-4 h-4" />
-            تفضيلات التوصيل
+            {t('driver.available.preferences', 'Delivery Preferences')}
           </button>
         </div>
       </div>
@@ -140,7 +140,7 @@ const DriverAvailable = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{deliveries.length}</p>
-              <p className="text-xs text-gray-500">مطابقة الآن</p>
+              <p className="text-xs text-gray-500">{t('driver.available.stats.matchingNow', 'Matching Now')}</p>
             </div>
           </div>
         </Card>
@@ -151,7 +151,7 @@ const DriverAvailable = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{preferences.maxDeliveryDistanceKm}</p>
-              <p className="text-xs text-gray-500">أقصى مسافة</p>
+              <p className="text-xs text-gray-500">{t('driver.available.stats.maxDistance', 'Max Distance (km)')}</p>
             </div>
           </div>
         </Card>
@@ -161,8 +161,8 @@ const DriverAvailable = () => {
               <ClockIcon className="w-5 h-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-sm font-bold text-gray-900">{preferences.acceptedCargoSizes.map((cargoSize) => getCargoSizeLabel(cargoSize)).join('، ')}</p>
-              <p className="text-xs text-gray-500">الأحجام المقبولة</p>
+              <p className="text-sm font-bold text-gray-900">{preferences.acceptedCargoSizes.map((cargoSize) => getCargoSizeLabel(cargoSize)).join(', ')}</p>
+              <p className="text-xs text-gray-500">{t('driver.available.stats.acceptedSizes', 'Accepted Sizes')}</p>
             </div>
           </div>
         </Card>
@@ -173,9 +173,9 @@ const DriverAvailable = () => {
             </div>
             <div>
               <p className="text-sm font-bold text-gray-900">
-                {[preferences.driverDeliveryPaymentCash ? 'نقداً' : null, preferences.driverDeliveryPaymentTransfer ? 'تحويل' : null].filter(Boolean).join(' / ')}
+                {[preferences.driverDeliveryPaymentCash ? t('driver.available.cash', 'Cash') : null, preferences.driverDeliveryPaymentTransfer ? t('driver.available.transfer', 'Transfer') : null].filter(Boolean).join(' / ')}
               </p>
-              <p className="text-xs text-gray-500">تحصيل رسم التوصيل</p>
+              <p className="text-xs text-gray-500">{t('driver.available.stats.paymentMethod', 'Payment Collection')}</p>
             </div>
           </div>
         </Card>
@@ -188,7 +188,7 @@ const DriverAvailable = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-3">
                   <span className={`rounded-full px-3 py-1 text-xs font-medium ${delivery.assigned_to_current_driver ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                    {delivery.assigned_to_current_driver ? 'مُسندة إليك' : 'متاحة لك'}
+                    {delivery.assigned_to_current_driver ? t('driver.available.assignedToYou', 'Assigned to you') : t('driver.available.availableForYou', 'Available for you')}
                   </span>
                   <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">
                     {getCargoSizeLabel(delivery.cargo_size || delivery.order?.cargo_size)}
@@ -200,25 +200,25 @@ const DriverAvailable = () => {
 
                 <h2 className="text-lg font-semibold text-gray-900">#{delivery.order?.order_number || delivery.order_id?.slice(0, 8)}</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  {delivery.order?.vendor?.store_name || 'متجر'} → {delivery.order?.buyer?.first_name || 'عميل'} {delivery.order?.buyer?.last_name || ''}
+                  {delivery.order?.vendor?.store_name || t('driver.available.vendor', 'Vendor')} → {delivery.order?.buyer?.first_name || t('driver.available.customer', 'Customer')} {delivery.order?.buyer?.last_name || ''}
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-sm text-gray-600">
                   <div className="rounded-2xl bg-gray-50 px-4 py-3">
-                    <p className="text-xs text-gray-500 mb-1">عنوان الاستلام</p>
-                    <p className="font-medium text-gray-900">{delivery.pickup_address || delivery.order?.vendor?.city || 'غير محدد'}</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('driver.available.pickupAddress', 'Pickup Address')}</p>
+                    <p className="font-medium text-gray-900">{delivery.pickup_address || delivery.order?.vendor?.city || t('driver.available.notSpecified', 'Not specified')}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 px-4 py-3">
-                    <p className="text-xs text-gray-500 mb-1">عنوان التسليم</p>
-                    <p className="font-medium text-gray-900">{delivery.delivery_address || delivery.order?.shipping_address || 'غير محدد'}</p>
+                    <p className="text-xs text-gray-500 mb-1">{t('driver.available.deliveryAddress', 'Delivery Address')}</p>
+                    <p className="font-medium text-gray-900">{delivery.delivery_address || delivery.order?.shipping_address || t('driver.available.notSpecified', 'Not specified')}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3 mt-4 text-xs text-gray-500">
-                  <span className="rounded-full bg-gray-100 px-3 py-1">مسافة الطلب {delivery.route_distance_km != null ? `${delivery.route_distance_km.toFixed(1)} كم` : 'غير متاحة'}</span>
-                  <span className="rounded-full bg-gray-100 px-3 py-1">من المتجر {delivery.pickup_distance_km != null ? `${delivery.pickup_distance_km.toFixed(1)} كم` : 'غير متاحة'}</span>
-                  <span className="rounded-full bg-gray-100 px-3 py-1">قيمة المنتجات {formatPrice(delivery.order?.vendor_product_total || delivery.order?.total || 0)}</span>
-                  <span className="rounded-full bg-gray-100 px-3 py-1">رسم التوصيل {formatPrice(delivery.order?.delivery_fee_total || delivery.order?.shipping_cost || 0)}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1">{t('driver.available.routeDistance', 'Route')} {delivery.route_distance_km != null ? `${delivery.route_distance_km.toFixed(1)} km` : t('driver.available.na', 'N/A')}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1">{t('driver.available.fromVendor', 'From vendor')} {delivery.pickup_distance_km != null ? `${delivery.pickup_distance_km.toFixed(1)} km` : t('driver.available.na', 'N/A')}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1">{t('driver.available.orderValue', 'Order value')} {formatPrice(delivery.order?.vendor_product_total || delivery.order?.total || 0)}</span>
+                  <span className="rounded-full bg-gray-100 px-3 py-1">{t('driver.available.deliveryFee', 'Delivery fee')} {formatPrice(delivery.order?.delivery_fee_total || delivery.order?.shipping_cost || 0)}</span>
                 </div>
               </div>
 
@@ -228,13 +228,13 @@ const DriverAvailable = () => {
                   disabled={acceptingId === delivery.id}
                   className="btn-primary w-full"
                 >
-                  {acceptingId === delivery.id ? 'جاري القبول...' : 'قبول المهمة'}
+                  {acceptingId === delivery.id ? t('driver.available.accepting', 'Accepting...') : t('driver.available.accept', 'Accept Delivery')}
                 </button>
                 <button
                   onClick={() => navigate(`/orders/${delivery.order_id}`)}
                   className="btn-outline w-full"
                 >
-                  تفاصيل الطلب
+                  {t('driver.available.orderDetails', 'Order Details')}
                 </button>
               </div>
             </div>

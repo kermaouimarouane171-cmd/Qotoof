@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, LoadingSpinner, Modal } from '@/components/ui'
 import { supabase } from '@/services/supabase'
-import { commissionService } from '@/services/commissionService'
-import { csvExport } from '@/services/reports/csvExport'
-import { platformSettings } from '@/services/platformSettings'
+import { commissionService } from '@/modules/commissions'
+import { csvExport } from '@/modules/analytics'
+import { platformSettings } from '@/modules/admin'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowDownTrayIcon,
@@ -14,6 +14,7 @@ import {
   LockOpenIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
+import { logger } from '@/utils/logger'
 
 const getLocale = (language) => (language === 'ar' ? 'ar-MA' : language === 'fr' ? 'fr-MA' : 'en-US')
 
@@ -70,7 +71,7 @@ const CommissionManagementPage = () => {
     setLoading(true)
     try {
       const settings = await platformSettings.getSettings()
-      const commissionRate = (settings?.commission_rate ?? 10) / 100
+      const commissionRate = (settings?.commission_rate ?? 3) / 100
 
       const twelveMonthsAgo = new Date()
       twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12)

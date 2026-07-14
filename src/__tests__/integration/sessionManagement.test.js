@@ -82,13 +82,10 @@ jest.mock('@/utils/encryption', () => ({
   generateDeviceFingerprint: jest.fn(),
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: {
     setState: (...args) => mockSetCartState(...args),
   },
-}))
-
-jest.mock('@/store/favoritesStore', () => ({
   useFavoritesStore: {
     setState: (...args) => mockSetFavoritesState(...args),
   },

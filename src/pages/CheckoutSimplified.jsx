@@ -1,31 +1,33 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { useCartStore } from '@/store/cartStore'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { useCartStore } from '@/modules/cart'
 import { useAuthStore } from '@/store/authStore'
-import { Card, LoadingSpinner, NoDriverAvailable } from '@/components/ui'
+import { Card, LoadingSpinner, NoDriverAvailable, Breadcrumbs } from '@/components/ui'
 import PaymentStep from '@/components/checkout/PaymentStep'
 import CheckoutSummary from '@/components/checkout/CheckoutSummary'
 import CheckoutAddressStep from '@/components/checkout/CheckoutAddressStep'
 import AddressStep from '@/components/checkout/AddressStep'
 import DriverSelectionStep from '@/components/checkout/DriverSelectionStep'
-import { TruckIcon, ChevronRightIcon, MapPinIcon, ClockIcon, BanknotesIcon, BuildingLibraryIcon, CheckIcon } from '@heroicons/react/24/outline'
+import CheckoutStepIndicator from '@/components/checkout/CheckoutStepIndicator'
+import CheckoutTrustBadges from '@/components/checkout/CheckoutTrustBadges'
+import { TruckIcon, MapPinIcon, ClockIcon, BanknotesIcon, BuildingLibraryIcon, ShoppingCartIcon } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/utils/currency'
 import toast from 'react-hot-toast'
 import { supabase } from '@/services/supabase'
-import { couponsApi } from '@/services/coupons'
-import deliveryScheduleService, { } from '@/services/deliveryScheduleService'
+import { couponsApi } from '@/modules/coupons'
+import { deliveryScheduleService } from '@/services/deliveryScheduleService'
 import { platformSettings } from '@/services/platformSettings'
-import deliveryMatchingService, { DRIVER_SELECT, getDriverSupportedPaymentMethods } from '@/services/deliveryMatchingService'
-import storeTypeService from '@/services/storeTypeService'
+import { deliveryMatchingService, DRIVER_SELECT, getDriverSupportedPaymentMethods } from '@/modules/delivery'
+import { storeTypeService } from '@/modules/marketplace'
 import trustScoreService from '@/services/trustScoreService'
 import { logger } from '@/utils/logger'
-import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/services/minimumOrderService'
-import { getPayPalClientId } from '@/lib/config'
+import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/modules/cart'
+import { getPayPalClientId, getStripePublishableKey } from '@/lib/config'
 import { emailService } from '@/services/emailService'
-import { getLatestOrderPaymentRecord } from '@/services/paymentService'
-import { createCheckoutOrder } from '@/services/checkoutService'
-import { useCheckoutPricing } from '@/hooks/useCheckoutPricing'
+import { getLatestOrderPaymentRecord } from '@/modules/payments'
+import { createCheckoutOrder, useCheckoutPricing } from '@/modules/checkout'
 import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard'
 
 const toAmount = (value) => Number(Number(value || 0).toFixed(2))
@@ -65,7 +67,11 @@ const CheckoutSimplified = () => {
   const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState(null)
   const [loadingDeliverySlots, setLoadingDeliverySlots] = useState(false)
   const [paymentType, setPaymentType] = useState('full')
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(getPayPalClientId() ? 'paypal' : 'bank')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(() => {
+    const stripeKey = getStripePublishableKey()
+    if (stripeKey) return 'stripe'
+    return getPayPalClientId() ? 'paypal' : 'bank'
+  })
   const [selectedBank, setSelectedBank] = useState(null)
   const [paymentTermsAccepted, setPaymentTermsAccepted] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState(null)
@@ -76,7 +82,7 @@ const CheckoutSimplified = () => {
   const [vendorLocation, setVendorLocation] = useState(null)
   const [vendorStoreProfile, setVendorStoreProfile] = useState(null)
   const [cartVendorMinimumProfiles, setCartVendorMinimumProfiles] = useState([])
-  const [platformCommissionRate, setPlatformCommissionRate] = useState(2.0)
+  const [platformCommissionRate, setPlatformCommissionRate] = useState(3)
   const [cartVendorPaymentPolicies, setCartVendorPaymentPolicies] = useState([])
   const [codEligibility, setCodEligibility] = useState({ eligible: false, reason: '' })
   const [cargoSize, setCargoSize] = useState('medium')
@@ -100,18 +106,39 @@ const CheckoutSimplified = () => {
   const [pendingPayPalCheckout, setPendingPayPalCheckout] = useState(null)
   const [paypalInlineProcessing, setPaypalInlineProcessing] = useState(false)
 
-  const savedAddresses = useMemo(() => {
-    const candidates = [
-      profile?.address,
-      shippingInfo?.address,
-    ].filter(Boolean)
+  const { data: savedAddressesData = [] } = useQuery({
+    queryKey: ['buyer-addresses', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return []
+      const { data, error } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_default', { ascending: false })
+      if (error) {
+        logger.error('Checkout: failed to load saved addresses', error)
+        return []
+      }
+      return data || []
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 2 * 60 * 1000,
+  })
 
-    return [...new Set(candidates)].map((value, index) => ({
-      id: `addr-${index}`,
-      value,
-      label: value,
+  const savedAddresses = useMemo(() => {
+    return savedAddressesData.map((addr) => ({
+      id: addr.id,
+      value: addr.address,
+      label: addr.label || addr.address,
+      type: addr.type,
+      city: addr.city,
+      region: addr.region,
+      latitude: addr.latitude,
+      longitude: addr.longitude,
+      is_default: addr.is_default,
+      delivery_instructions: addr.delivery_instructions,
     }))
-  }, [profile?.address, shippingInfo?.address])
+  }, [savedAddressesData])
 
   const hasSingleVendorCart = useMemo(() => new Set(items.map((item) => item.vendor_id)).size === 1, [items])
   const paypalEnabled = useMemo(
@@ -254,7 +281,7 @@ const CheckoutSimplified = () => {
     }
 
     return blockers
-  }, [isShippingUnavailable, shippingBlockingReason, shippingInfo_data, shippingLoading, vendorMinimumStatus])
+  }, [isShippingUnavailable, shippingBlockingReason, shippingInfo_data, shippingLoading, t, vendorMinimumStatus])
   const availablePaymentTypes = useMemo(
     () => trustScoreService.resolveAvailablePaymentTypes({
       vendorPolicies: cartVendorPaymentPolicies,
@@ -284,7 +311,7 @@ const CheckoutSimplified = () => {
     }
 
     if (paymentType && paymentType !== 'cod') {
-      if (!selectedPaymentMethod || !['paypal', 'bank'].includes(selectedPaymentMethod)) {
+      if (!selectedPaymentMethod || !['paypal', 'bank', 'stripe'].includes(selectedPaymentMethod)) {
         blockers.push(t('checkout.blockers.selectPaymentMethod'))
       } else if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
         blockers.push(paypalUnavailableReason || t('checkout.blockers.paypalUnavailable'))
@@ -310,6 +337,7 @@ const CheckoutSimplified = () => {
     shippingBlockingReason,
     shippingInfo_data,
     shippingLoading,
+    t,
     vendorMinimumStatus,
   ])
   const selectedDriverProfile = useMemo(
@@ -473,7 +501,7 @@ const CheckoutSimplified = () => {
 
         if (!active) return
 
-        setPlatformCommissionRate(settings?.commission_rate ?? 2.0)
+        setPlatformCommissionRate(settings?.commission_rate ?? 3)
         setCartVendorPaymentPolicies(vendorPolicies)
         setCodEligibility(buyerCodEligibility)
       } catch (error) {
@@ -494,7 +522,7 @@ const CheckoutSimplified = () => {
     return () => {
       active = false
     }
-  }, [cartVendorIds, user?.id])
+  }, [cartVendorIds, t, user?.id])
 
   useEffect(() => {
     let active = true
@@ -507,7 +535,7 @@ const CheckoutSimplified = () => {
 
       try {
         const { data, error } = await supabase
-          .from('public_profiles')
+          .from('public_vendor_profiles')
           .select('id, store_name, min_order_amount')
           .in('id', cartVendorIds)
 
@@ -551,13 +579,14 @@ const CheckoutSimplified = () => {
     }
 
     if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
+      const stripeKey = getStripePublishableKey()
       setCheckoutNotices((prev) => ({
         ...prev,
         paymentMethod: paypalUnavailableReason || t('checkout.paypal.autoSwitchNotice'),
       }))
-      setSelectedPaymentMethod('bank')
+      setSelectedPaymentMethod(stripeKey ? 'stripe' : 'bank')
     }
-  }, [paymentType, paypalEnabled, paypalUnavailableReason, selectedPaymentMethod])
+  }, [paymentType, paypalEnabled, paypalUnavailableReason, selectedPaymentMethod, t])
 
   useEffect(() => {
     if (selectedDriver && !availableDrivers.some((driver) => driver.id === selectedDriver)) {
@@ -575,7 +604,7 @@ const CheckoutSimplified = () => {
       }))
       setDriverDeliveryPaymentMethod(nextMethod)
     }
-  }, [activeDeliveryDriverProfile, activeDriverSupportedPaymentMethods, driverDeliveryPaymentMethod])
+  }, [activeDeliveryDriverProfile, activeDriverSupportedPaymentMethods, driverDeliveryPaymentMethod, t])
 
   const handleDriverDeliveryPaymentMethodChange = (method) => {
     setDriverDeliveryPaymentMethod(method)
@@ -647,7 +676,7 @@ const CheckoutSimplified = () => {
         : null,
     }))
     setEstimatedDeliveryTime(hookPricing.estimatedDeliveryTime || null)
-  }, [hookPricing])
+  }, [hookPricing, t])
 
   const loadAvailableDrivers = async () => {
     setLoadingDrivers(true)
@@ -707,7 +736,42 @@ const CheckoutSimplified = () => {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: '/checkout' }} replace />
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12" data-testid="checkout-guest-gate">
+        <Breadcrumbs />
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 text-center">
+          <div className="w-16 h-16 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ShoppingCartIcon className="w-8 h-8 text-primary-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">{t('checkout.guest.title', 'Almost there!')}</h2>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            {t('checkout.guest.description', 'Sign in or create an account to complete your purchase. Your cart will be preserved.')}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => navigate('/login', { state: { from: '/checkout' } })}
+              className="btn-primary"
+              data-testid="checkout-guest-login"
+            >
+              {t('checkout.guest.signIn', 'Sign In')}
+            </button>
+            <button
+              onClick={() => navigate('/register', { state: { from: '/checkout', role: 'BUYER' } })}
+              className="btn-outline"
+              data-testid="checkout-guest-register"
+            >
+              {t('checkout.guest.createAccount', 'Create Account')}
+            </button>
+          </div>
+          <button
+            onClick={() => navigate('/cart')}
+            className="mt-4 text-sm text-gray-500 hover:text-gray-700"
+          >
+            {t('checkout.guest.backToCart', 'Back to Cart')}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (items.length === 0) {
@@ -732,8 +796,21 @@ const CheckoutSimplified = () => {
           <TruckIcon className="w-10 h-10 text-amber-600" />
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-2">{t('checkout.multiVendorDisabled.title')}</h2>
-        <p className="text-gray-600 mb-6 max-w-xl mx-auto leading-7">
-          {t('checkout.errors.multiVendorDisabled')}
+        <p className="text-gray-600 mb-4 max-w-xl mx-auto leading-7">
+          {t('checkout.multiVendorDisabled.description')}
+        </p>
+        <div className="max-w-md mx-auto mb-4 text-right" dir="rtl">
+          <p className="text-sm font-medium text-gray-700 mb-2">{t('checkout.multiVendorDisabled.vendorsInCart')}</p>
+          <ul className="space-y-1">
+            {cartVendorMinimumProfiles.map((vendor) => (
+              <li key={vendor.id} className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                {vendor.store_name || vendor.id}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="text-sm text-gray-500 mb-6 max-w-xl mx-auto">
+          {t('checkout.multiVendorDisabled.splitHint')}
         </p>
         <button onClick={() => navigate('/cart')} className="btn-primary">
           {t('checkout.multiVendorDisabled.backToCart')}
@@ -813,7 +890,7 @@ const CheckoutSimplified = () => {
 
   const handlePaymentMethodChange = (method) => {
     setSelectedPaymentMethod(method)
-    if (method === 'paypal') {
+    if (method === 'paypal' || method === 'stripe') {
       setSelectedBank(null)
     }
     setCheckoutNotices((prev) => ({
@@ -861,7 +938,7 @@ const CheckoutSimplified = () => {
     }
 
     if (paymentType && paymentType !== 'cod') {
-      if (!selectedPaymentMethod || !['paypal', 'bank'].includes(selectedPaymentMethod)) {
+      if (!selectedPaymentMethod || !['paypal', 'bank', 'stripe'].includes(selectedPaymentMethod)) {
         paymentErrors.paymentMethod = t('checkout.blockers.selectPaymentMethod')
       } else if (selectedPaymentMethod === 'paypal' && !paypalEnabled) {
         paymentErrors.paymentMethod = paypalUnavailableReason
@@ -890,7 +967,7 @@ const CheckoutSimplified = () => {
     e.preventDefault()
 
     if (!hasSingleVendorCart) {
-      toast.error(MULTI_VENDOR_CHECKOUT_DISABLED_MESSAGE)
+      toast.error(t('checkout.errors.multiVendorDisabled'))
       return
     }
 
@@ -936,6 +1013,32 @@ const CheckoutSimplified = () => {
       }
 
       let pendingPaypalOrder = null
+      let stripeRedirectUrl = null
+      if (selectedPaymentMethod === 'stripe' && paymentType !== 'cod') {
+        const primaryOrder = orders[0]
+        if (!primaryOrder) {
+          throw new Error('Failed to create order for Stripe checkout')
+        }
+
+        const { data: stripeInit, error: stripeError } = await supabase.functions.invoke('create-stripe-marketplace-checkout', {
+          body: {
+            orderId: primaryOrder.id,
+            successUrl: `${window.location.origin}/order-confirmation/${primaryOrder.id}?stripe=success&session_id={CHECKOUT_SESSION_ID}`,
+            cancelUrl: `${window.location.origin}/checkout?stripe=cancel`,
+          },
+        })
+
+        if (stripeError) {
+          throw new Error(stripeError.message || 'Failed to create Stripe checkout session')
+        }
+
+        if (!stripeInit?.url) {
+          throw new Error('Stripe checkout URL not returned')
+        }
+
+        stripeRedirectUrl = stripeInit.url
+      }
+
       if (selectedPaymentMethod === 'paypal' && paymentType !== 'cod') {
         const primaryOrder = orders[0]
         if (!primaryOrder) {
@@ -1002,7 +1105,7 @@ const CheckoutSimplified = () => {
 
           // Fetch vendor profile
           const { data: vendorData } = await supabase
-            .from('public_profiles')
+            .from('public_vendor_profiles')
             .select('store_name, city')
             .eq('id', order.vendor_id)
             .maybeSingle()
@@ -1019,8 +1122,8 @@ const CheckoutSimplified = () => {
         })
       )
 
-      // Defer confirmation email for PayPal until payment is actually approved.
-      if (!(selectedPaymentMethod === 'paypal' && paymentType !== 'cod')) {
+      // Defer confirmation email for PayPal and Stripe until payment is actually approved.
+      if (!((selectedPaymentMethod === 'paypal' || selectedPaymentMethod === 'stripe') && paymentType !== 'cod')) {
         try {
           const { data: buyerProfile } = await supabase
             .from('profiles')
@@ -1054,10 +1157,18 @@ const CheckoutSimplified = () => {
         toast.success(t('checkout.success.fullBank', { bank: selectedBank || t('checkout.deliveryPayment.bankTransfer') }))
       } else if ((paymentType === 'split' || paymentType === 'full') && selectedPaymentMethod === 'paypal') {
         toast.success(t('checkout.success.paypal'))
+      } else if ((paymentType === 'split' || paymentType === 'full') && selectedPaymentMethod === 'stripe') {
+        toast.success(t('checkout.success.stripe', 'جاري التحويل إلى صفحة الدفع الآمن...'))
       } else if (paymentType === 'cod') {
         toast.success(t('checkout.success.cod'))
       } else {
         toast.success(t('checkout.success.generic'))
+      }
+
+      if (stripeRedirectUrl) {
+        checkoutRequestKeyRef.current = null
+        window.location.href = stripeRedirectUrl
+        return
       }
 
       if (pendingPaypalOrder) {
@@ -1080,7 +1191,14 @@ const CheckoutSimplified = () => {
       })
     } catch (error) {
       logger.error('Checkout error:', error)
-      toast.error(error.message || t('checkout.errors.genericFailed'))
+      const errorMessage = error.message || error.error?.message || String(error)
+      const isSessionError = /session|unauthorized|not authenticated|token|jwt|expired|auth/i.test(errorMessage)
+      if (isSessionError) {
+        toast.error(t('checkout.errors.sessionExpired'))
+        window.dispatchEvent(new CustomEvent('auth:sessionExpired'))
+        return
+      }
+      toast.error(errorMessage || t('checkout.errors.genericFailed'))
     } finally {
       setLoading(false)
     }
@@ -1124,32 +1242,16 @@ const CheckoutSimplified = () => {
   ]
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label="Checkout page" data-testid="checkout-page">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8" role="main" aria-label={t('checkout.aria.page', 'صفحة الدفع')} data-testid="checkout-page">
+      <Breadcrumbs />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('checkout.title')}</h1>
 
-        {/* Steps Indicator */}
-        <nav aria-label="Checkout steps">
-          <div className="flex items-center gap-2">
-            {steps.map((s, i) => (
-              <div key={s.num} className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                  step >= s.num ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
-                }`} aria-current={step === s.num ? 'step' : undefined}>
-                  {step > s.num ? <CheckIcon className="w-4 h-4" /> : s.num}
-                </div>
-                <span className={`text-sm font-medium ${step >= s.num ? 'text-green-600' : 'text-gray-400'}`}>
-                  {t(`checkout.steps.${s.label.toLowerCase()}`)}
-                </span>
-                {i < steps.length - 1 && <ChevronRightIcon className="w-4 h-4 text-gray-300" aria-hidden="true" />}
-              </div>
-            ))}
-          </div>
-        </nav>
+        <CheckoutStepIndicator step={step} steps={steps} />
       </div>
 
-      <form onSubmit={handleSubmit} aria-label="Checkout form" data-testid="checkout-form">
+      <form onSubmit={handleSubmit} aria-label={t('checkout.aria.form', 'نموذج الدفع')} data-testid="checkout-form">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Shipping & Payment */}
           <div className="lg:col-span-2 space-y-6">
@@ -1160,8 +1262,16 @@ const CheckoutSimplified = () => {
                   selectedAddress={shippingInfo.address}
                   savedAddresses={savedAddresses}
                   onAddressSelect={(address) => {
-                    setShippingInfo((prev) => ({ ...prev, address: address.value }))
-                    setErrors((prev) => ({ ...prev, address: null }))
+                    setShippingInfo((prev) => ({
+                      ...prev,
+                      address: address.value,
+                      city: address.city || prev.city,
+                      notes: address.delivery_instructions || prev.notes,
+                    }))
+                    if (address.latitude != null && address.longitude != null) {
+                      setDeliveryLocation({ lat: address.latitude, lng: address.longitude })
+                    }
+                    setErrors((prev) => ({ ...prev, address: null, city: null, location: null }))
                   }}
                   onNewAddress={(address) => {
                     setShippingInfo((prev) => ({ ...prev, address }))
@@ -1317,7 +1427,6 @@ const CheckoutSimplified = () => {
                         </div>
 
                         <div className="mb-3">
-                          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                           <label className="input-label">{t('checkout.delivery.scheduling.dateLabel')}</label>
                           <input
                             type="date"
@@ -1551,7 +1660,9 @@ const CheckoutSimplified = () => {
 
             {/* Step 3: Payment */}
             {step === 3 && (
-              <PaymentStep
+              <>
+                <CheckoutTrustBadges className="mb-4 p-3 rounded-xl bg-primary-50 border border-primary-100" />
+                <PaymentStep
                 paymentMethod={selectedPaymentMethod}
                 onMethodSelect={handlePaymentMethodChange}
                 totalAmount={productPaymentTotal}
@@ -1603,7 +1714,9 @@ const CheckoutSimplified = () => {
                           {t('checkout.summary.selectedPaymentMethod', {
                             method: selectedPaymentMethod === 'paypal'
                               ? 'PayPal'
-                              : t('checkout.deliveryPayment.bankTransfer') + (selectedBank ? ` (${selectedBank})` : ''),
+                              : selectedPaymentMethod === 'stripe'
+                                ? t('checkout.deliveryPayment.stripeCard', 'بطاقة بنكية (Stripe)')
+                                : t('checkout.deliveryPayment.bankTransfer') + (selectedBank ? ` (${selectedBank})` : ''),
                           })}
                         </p>
                       )}
@@ -1645,6 +1758,7 @@ const CheckoutSimplified = () => {
                 }}
                 t={t}
               />
+              </>
             )}
           </div>
 

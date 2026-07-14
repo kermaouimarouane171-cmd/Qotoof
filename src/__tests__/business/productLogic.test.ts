@@ -4,7 +4,7 @@ import {
   buildRestorePayload,
   buildSoftDeletePayload,
   buildSuspensionPayload,
-} from '@/business/productLogic'
+} from '@/modules/catalog'
 import { describe, expect, it } from '@jest/globals'
 
 describe('productLogic', () => {

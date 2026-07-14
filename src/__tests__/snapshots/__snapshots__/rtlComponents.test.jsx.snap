@@ -212,20 +212,22 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
       class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm"
     >
       <nav
-        aria-label="القائمة الرئيسية"
+        aria-label="Main navigation"
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
       >
         <div
           class="flex items-center justify-between h-16"
         >
           <a
-            class="flex items-center gap-2 flex-shrink-0"
+            class="flex items-center gap-2 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg"
             href="/"
           >
             <div
-              class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center"
+              aria-hidden="true"
+              class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center"
             >
               <span
+                aria-hidden="true"
                 class="text-white font-bold text-sm"
               >
                 ق
@@ -241,20 +243,20 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
             class="hidden md:flex items-center gap-6"
           >
             <a
-              class="text-sm font-medium transition-colors text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
               href="/"
             >
               الرئيسية
             </a>
             <a
               aria-current="page"
-              class="text-sm font-medium transition-colors text-green-600 dark:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-primary-600 dark:text-primary-400"
               href="/marketplace"
             >
               السوق
             </a>
             <a
-              class="text-sm font-medium transition-colors text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
               href="/stores"
             >
               المتاجر
@@ -283,7 +285,7 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
                 />
               </svg>
               <input
-                class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="ابحث عن منتج..."
                 type="search"
                 value=""
@@ -335,12 +337,12 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
             </div>
             <a
               aria-label="السلة"
-              class="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              class="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               href="/cart"
             >
               <svg
                 aria-hidden="true"
-                class="w-5 h-5 text-green-600"
+                class="w-5 h-5 text-primary-600"
                 data-slot="icon"
                 fill="currentColor"
                 viewBox="0 0 24 24"
@@ -351,7 +353,7 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
                 />
               </svg>
               <span
-                class="absolute -top-1 -right-1 w-4 h-4 bg-green-600 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none"
+                class="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none"
               >
                 2
               </span>
@@ -360,13 +362,13 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
               class="hidden sm:flex items-center gap-2"
             >
               <a
-                class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 rounded-lg transition-colors"
+                class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                 href="/login"
               >
                 تسجيل الدخول
               </a>
               <a
-                class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                class="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                 href="/register"
               >
                 إنشاء حساب
@@ -375,8 +377,8 @@ exports[`Navbar - RTL vs LTR Snapshot matches Arabic RTL snapshot 1`] = `
             <button
               aria-controls="mobile-navigation-menu"
               aria-expanded="false"
-              aria-label="فتح القائمة"
-              class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Open menu"
+              class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             >
               <svg
                 aria-hidden="true"
@@ -413,20 +415,22 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
       class="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm"
     >
       <nav
-        aria-label="القائمة الرئيسية"
+        aria-label="Main navigation"
         class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
       >
         <div
           class="flex items-center justify-between h-16"
         >
           <a
-            class="flex items-center gap-2 flex-shrink-0"
+            class="flex items-center gap-2 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-lg"
             href="/"
           >
             <div
-              class="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center"
+              aria-hidden="true"
+              class="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-700 rounded-lg flex items-center justify-center"
             >
               <span
+                aria-hidden="true"
                 class="text-white font-bold text-sm"
               >
                 ق
@@ -442,20 +446,20 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
             class="hidden md:flex items-center gap-6"
           >
             <a
-              class="text-sm font-medium transition-colors text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
               href="/"
             >
               الرئيسية
             </a>
             <a
               aria-current="page"
-              class="text-sm font-medium transition-colors text-green-600 dark:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-primary-600 dark:text-primary-400"
               href="/marketplace"
             >
               السوق
             </a>
             <a
-              class="text-sm font-medium transition-colors text-gray-600 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400"
+              class="text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded text-gray-600 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400"
               href="/stores"
             >
               المتاجر
@@ -484,7 +488,7 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
                 />
               </svg>
               <input
-                class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                class="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="ابحث عن منتج..."
                 type="search"
                 value=""
@@ -536,12 +540,12 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
             </div>
             <a
               aria-label="السلة"
-              class="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              class="relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               href="/cart"
             >
               <svg
                 aria-hidden="true"
-                class="w-5 h-5 text-green-600"
+                class="w-5 h-5 text-primary-600"
                 data-slot="icon"
                 fill="currentColor"
                 viewBox="0 0 24 24"
@@ -552,7 +556,7 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
                 />
               </svg>
               <span
-                class="absolute -top-1 -right-1 w-4 h-4 bg-green-600 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none"
+                class="absolute -top-1 -right-1 w-4 h-4 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center leading-none"
               >
                 2
               </span>
@@ -561,13 +565,13 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
               class="hidden sm:flex items-center gap-2"
             >
               <a
-                class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-green-600 dark:hover:text-green-400 rounded-lg transition-colors"
+                class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                 href="/login"
               >
                 تسجيل الدخول
               </a>
               <a
-                class="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                class="px-3 py-1.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                 href="/register"
               >
                 إنشاء حساب
@@ -576,8 +580,8 @@ exports[`Navbar - RTL vs LTR Snapshot matches French LTR snapshot 1`] = `
             <button
               aria-controls="mobile-navigation-menu"
               aria-expanded="false"
-              aria-label="فتح القائمة"
-              class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Open menu"
+              class="md:hidden p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             >
               <svg
                 aria-hidden="true"
@@ -919,9 +923,9 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
             class="absolute top-3 right-3 flex flex-col gap-2"
           >
             <button
-              aria-label="إضافة إلى المفضلة"
+              aria-label="Add to favorites"
               aria-pressed="false"
-              class="w-11 h-11 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all"
+              class="w-11 h-11 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             >
               <svg
                 aria-hidden="true"
@@ -942,8 +946,8 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
             </button>
           </div>
           <button
-            aria-label="إضافة طماطم طازجة إلى السلة"
-            class="absolute bottom-3 right-3 w-11 h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:scale-110 transition-all"
+            aria-label="product.card.addToCart"
+            class="absolute bottom-3 right-3 w-11 h-11 bg-primary-600 hover:bg-primary-700 text-white rounded-full flex items-center justify-center shadow-lg shadow-primary-500/30 hover:scale-110 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
             data-testid="add-to-cart-btn"
           >
             <svg
@@ -974,7 +978,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
               class="flex items-center gap-2"
             >
               <div
-                class="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center flex-shrink-0"
+                class="w-6 h-6 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0"
               >
                 <span
                   class="text-white text-[10px] font-bold"
@@ -1020,7 +1024,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
                 Casablanca
               </span>
               <span
-                class="text-xs text-emerald-600 font-medium flex items-center gap-1"
+                class="text-xs text-primary-600 font-medium flex items-center gap-1"
               >
                 <svg
                   aria-hidden="true"
@@ -1038,7 +1042,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
                     stroke-linejoin="round"
                   />
                 </svg>
-                مزارع موثّق
+                Verified vendor
               </span>
             </div>
             <div
@@ -1063,18 +1067,18 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
                     stroke-linejoin="round"
                   />
                 </svg>
-                بيانات التواصل تظهر بعد تأكيد الطلب
+                Contact details shown after order confirmation
               </span>
               <a
-                class="text-[11px] text-emerald-700 hover:text-emerald-800 font-medium"
+                class="text-[11px] text-primary-700 hover:text-primary-800 font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded"
                 href="/vendor/public/vendor-1"
               >
-                عرض البائع
+                View vendor
               </a>
             </div>
           </div>
           <h3
-            class="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors"
+            class="font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-primary-600 transition-colors"
           >
             طماطم طازجة
           </h3>
@@ -1159,7 +1163,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
             <span
               class="text-xs text-gray-500 ms-1"
             >
-              بدون تقييم
+              No rating
             </span>
           </div>
           <div
@@ -1170,7 +1174,7 @@ exports[`ProductCard - RTL Snapshot matches ProductCard Arabic RTL snapshot 1`] 
                 class="flex items-baseline gap-1"
               >
                 <span
-                  aria-label="السعر: 12.5 درهم"
+                  aria-label="product.card.price"
                   class="text-xl font-bold text-gray-900"
                 >
                   MAD 12,50

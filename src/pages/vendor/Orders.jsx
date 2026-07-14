@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { fetchVendorOrders, subscribeToVendorOrders } from '@/services/ordersService'
 import { supabase } from '@/services/supabase'
-import { ordersApi, deliveriesApi } from '@/services/deliveries'
-import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline, EmptyState, StateSkeleton as Skeleton, OrderCardSkeleton } from '@/components/ui'
+import { ordersApi } from '@/modules/orders'
+import { deliveriesApi } from '@/modules/delivery'
+import { Card, Badge, Button, Modal, ChatComponent, OrderTimeline, EmptyState, OrderCardSkeleton } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
 import { formatPrice } from '@/utils/currency'
@@ -13,8 +14,6 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   TruckIcon,
-  ChatBubbleLeftRightIcon,
-  ClockIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -35,6 +34,9 @@ const VendorOrders = () => {
   const [chatReceiver, setChatReceiver] = useState(null)
   const [processingOrder, setProcessingOrder] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all')
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [rejectingOrderId, setRejectingOrderId] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const subscriptionRef = useRef(null)
@@ -91,7 +93,9 @@ const VendorOrders = () => {
 
     const handleOrderChange = (payload) => {
       if (payload.eventType === 'INSERT' && payload.new?.status === 'pending') {
-        toast.success(`🛒 New order received: ${payload.new.order_number || 'Order'}!`, {
+        toast.success(t('vendor.orders.notifications.newOrderReceived', {
+          orderNumber: payload.new.order_number || t('vendor.orders.orderLabel', 'Order'),
+        }), {
           duration: 5000,
           icon: '🛒',
         })
@@ -171,15 +175,18 @@ const VendorOrders = () => {
     }
   }
 
-  const handleRejectOrder = async (orderId) => {
-    const confirmed = window.confirm('هل أنت متأكد من رفض هذا الطلب؟')
-    if (!confirmed) {
-      return
-    }
+  const openRejectModal = (orderId) => {
+    setRejectingOrderId(orderId)
+    setRejectReason('')
+    setRejectModalOpen(true)
+  }
 
-    setProcessingOrder(orderId)
+  const handleRejectOrder = async () => {
+    if (!rejectingOrderId) return
+    setProcessingOrder(rejectingOrderId)
+    setRejectModalOpen(false)
     try {
-      await ordersApi.rejectOrder(orderId, 'Not available')
+      await ordersApi.rejectOrder(rejectingOrderId, rejectReason.trim() || t('vendor.orders.rejectReasonDefault', 'Not available'))
       toast.success(t('vendor.orders.notifications.orderRejected', 'Order rejected'))
       loadOrders()
     } catch (error) {
@@ -187,6 +194,8 @@ const VendorOrders = () => {
       toast.error(t('vendor.orders.errors.rejectFailed', 'Failed to reject order'))
     } finally {
       setProcessingOrder(null)
+      setRejectingOrderId(null)
+      setRejectReason('')
     }
   }
   
@@ -213,7 +222,7 @@ const VendorOrders = () => {
     }
   }
 
-  const handleOpenChat = (order, driver) => {
+  const _handleOpenChat = (order, driver) => {
     setSelectedOrder(order)
     setChatReceiver({
       id: driver?.driver_id || driver?.id,
@@ -223,7 +232,7 @@ const VendorOrders = () => {
     setChatModalOpen(true)
   }
 
-  const handleOpenTimeline = (order) => {
+  const _handleOpenTimeline = (order) => {
     setSelectedOrder(order)
     setTimelineModalOpen(true)
   }
@@ -235,15 +244,15 @@ const VendorOrders = () => {
       const delivery = selectedOrder.deliveries?.[0]
       if (delivery) {
         await deliveriesApi.assignDriver(delivery.id, selectedDriver.driver_id)
-        toast.success('Driver assigned successfully!')
+        toast.success(t('vendor.orders.success.driverAssigned', 'Driver assigned successfully!'))
       }
-      
+
       setAssignModalOpen(false)
       setSelectedOrder(null)
       setSelectedDriver(null)
       loadOrders()
     } catch (_error) {
-      toast.error('Failed to assign driver')
+      toast.error(t('vendor.orders.errors.driverAssignFailed', 'Failed to assign driver'))
     }
   }
 
@@ -295,11 +304,11 @@ const VendorOrders = () => {
             variant="outline"
             size="sm"
             leftIcon={<XCircleIcon className="w-4 h-4" />}
-            onClick={() => handleRejectOrder(order.id)}
+            onClick={() => openRejectModal(order.id)}
             disabled={processingOrder === order.id}
             data-cy={`reject-order-${order.id}`}
           >
-            {processingOrder === order.id ? t('vendor.orders.rejecting', 'Rejecting...') : 'رفض'}
+            {processingOrder === order.id ? t('vendor.orders.rejecting', 'Rejecting...') : t('vendor.orders.actions.reject', 'رفض')}
           </Button>
         </div>
       )
@@ -314,7 +323,7 @@ const VendorOrders = () => {
           onClick={() => handleOpenAssignModal(order)}
           data-cy={`order-prepared-${order.id}`}
         >
-          تم التحضير
+          {t('vendor.orders.actions.prepared', 'تم التحضير')}
         </Button>
       )
     }
@@ -328,22 +337,22 @@ const VendorOrders = () => {
           onClick={() => handleTrackOrder(order)}
           data-cy={`track-order-${order.id}`}
         >
-          متابعة التوصيل
+          {t('vendor.orders.actions.trackDelivery', 'متابعة التوصيل')}
         </Button>
       )
     }
 
-    return <span className="text-sm text-gray-500">لا يوجد إجراء رئيسي</span>
+    return <span className="text-sm text-gray-500">{t('vendor.orders.actions.noAction', 'لا يوجد إجراء رئيسي')}</span>
   }
 
   const statusFilters = [
-    { key: 'all', label: 'الكل', statuses: null },
-    { key: 'pending', label: 'جديدة', statuses: ['pending'] },
-    { key: 'vendor_accepted', label: 'قيد التحضير', statuses: ['vendor_accepted'] },
-    { key: 'driver_assigned', label: 'جاهزة للتوصيل', statuses: ['driver_assigned', 'driver_accepted', 'driver_picked_up'] },
-    { key: 'on_the_way', label: 'قيد التوصيل', statuses: ['on_the_way'] },
-    { key: 'delivered', label: 'مكتملة', statuses: ['delivered'] },
-    { key: 'cancelled', label: 'ملغاة', statuses: ['cancelled', 'vendor_rejected'] },
+    { key: 'all', label: t('vendor.orders.filters.all', 'الكل'), statuses: null },
+    { key: 'pending', label: t('vendor.orders.filters.pending', 'جديدة'), statuses: ['pending'] },
+    { key: 'vendor_accepted', label: t('vendor.orders.filters.preparing', 'قيد التحضير'), statuses: ['vendor_accepted'] },
+    { key: 'driver_assigned', label: t('vendor.orders.filters.readyForDelivery', 'جاهزة للتوصيل'), statuses: ['driver_assigned', 'driver_accepted', 'driver_picked_up'] },
+    { key: 'on_the_way', label: t('vendor.orders.filters.onTheWay', 'قيد التوصيل'), statuses: ['on_the_way'] },
+    { key: 'delivered', label: t('vendor.orders.filters.delivered', 'مكتملة'), statuses: ['delivered'] },
+    { key: 'cancelled', label: t('vendor.orders.filters.cancelled', 'ملغاة'), statuses: ['cancelled', 'vendor_rejected'] },
   ]
 
   const filteredOrders = filterStatus === 'all'
@@ -366,23 +375,23 @@ const VendorOrders = () => {
   }
   
   const statusLabels = {
-    pending: 'جديدة',
-    vendor_accepted: 'قيد التحضير',
-    vendor_rejected: 'ملغاة',
-    driver_assigned: 'جاهزة للتوصيل',
-    driver_accepted: 'جاهزة للتوصيل',
-    driver_picked_up: 'قيد التوصيل',
-    on_the_way: 'قيد التوصيل',
-    delivered: 'مكتملة',
-    cancelled: 'ملغاة',
+    pending: t('vendor.orders.status.pending', 'جديدة'),
+    vendor_accepted: t('vendor.orders.status.preparing', 'قيد التحضير'),
+    vendor_rejected: t('vendor.orders.status.rejected', 'ملغاة'),
+    driver_assigned: t('vendor.orders.status.readyForDelivery', 'جاهزة للتوصيل'),
+    driver_accepted: t('vendor.orders.status.readyForDelivery', 'جاهزة للتوصيل'),
+    driver_picked_up: t('vendor.orders.status.onTheWay', 'قيد التوصيل'),
+    on_the_way: t('vendor.orders.status.onTheWay', 'قيد التوصيل'),
+    delivered: t('vendor.orders.status.delivered', 'مكتملة'),
+    cancelled: t('vendor.orders.status.cancelled', 'ملغاة'),
   }
   
   return (
     <div className="overflow-x-hidden pb-20">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">إدارة الطلبات</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('vendor.orders.title', 'إدارة الطلبات')}</h1>
       
       {/* Status Filter */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-2 mb-6">
         {statusFilters.map((status) => (
           <button
             key={status.key}
@@ -426,7 +435,7 @@ const VendorOrders = () => {
               <div className="flex flex-col gap-4 min-w-0">
                 <div className="flex items-start justify-between gap-4 min-w-0">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-500 mb-1">طلب #{order.order_number}</p>
+                    <p className="text-sm text-gray-500 mb-1">{t('vendor.orders.orderLabel', 'طلب')} #{order.order_number}</p>
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-lg font-semibold text-gray-900 truncate">{order.order_number}</h3>
                       <Badge className={statusColors[order.status]}>
@@ -445,25 +454,25 @@ const VendorOrders = () => {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                    <p className="font-medium text-gray-900">عدد المنتجات</p>
+                    <p className="font-medium text-gray-900">{t('vendor.orders.card.itemCount', 'عدد المنتجات')}</p>
                     <p>{getOrderItemCount(order)}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                    <p className="font-medium text-gray-900">طريقة الدفع</p>
+                    <p className="font-medium text-gray-900">{t('vendor.orders.card.paymentMethod', 'طريقة الدفع')}</p>
                     <p>{getPaymentMethodLabel(order.payment_method || order.payment_type)}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                    <p className="font-medium text-gray-900">حالة الدفع</p>
+                    <p className="font-medium text-gray-900">{t('vendor.orders.card.paymentStatus', 'حالة الدفع')}</p>
                     <p>{getPaymentStatusLabel(order.payment_status)}</p>
                   </div>
                   <div className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                    <p className="font-medium text-gray-900">حالة الطلب</p>
+                    <p className="font-medium text-gray-900">{t('vendor.orders.card.orderStatus', 'حالة الطلب')}</p>
                     <p>{statusLabels[order.status] || order.status}</p>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="text-sm text-gray-500">الإجراء التالي</div>
+                  <div className="text-sm text-gray-500">{t('vendor.orders.card.nextAction', 'الإجراء التالي')}</div>
                   <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                     {renderOrderActions(order)}
                   </div>
@@ -482,18 +491,18 @@ const VendorOrders = () => {
           setSelectedOrder(null)
           setSelectedDriver(null)
         }}
-        title="تعيين سائق"
+        title={t('vendor.orders.assignDriver.title', 'تعيين سائق')}
         size="lg"
       >
         <div className="space-y-4">
           <p className="text-sm text-gray-500">
-            اختر سائقاً لتوصيل الطلب {selectedOrder?.order_number}
+            {t('vendor.orders.assignDriver.subtitle', 'اختر سائقاً لتوصيل الطلب')} {selectedOrder?.order_number}
           </p>
           
           {drivers.length === 0 ? (
             <div className="text-center py-8">
               <TruckIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">لا يوجد سائقون متاحون بالقرب منك حالياً</p>
+              <p className="text-gray-500">{t('vendor.orders.assignDriver.noDrivers', 'لا يوجد سائقون متاحون بالقرب منك حالياً')}</p>
             </div>
           ) : (
             <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -538,7 +547,7 @@ const VendorOrders = () => {
                 setSelectedDriver(null)
               }}
             >
-              إلغاء
+              {t('common.cancel', 'إلغاء')}
             </Button>
             <Button
               variant="primary"
@@ -547,7 +556,7 @@ const VendorOrders = () => {
               disabled={!selectedDriver}
               data-cy="assign-driver-confirm"
             >
-              تعيين السائق
+              {t('vendor.orders.assignDriver.confirm', 'تعيين السائق')}
             </Button>
           </div>
         </div>
@@ -560,7 +569,7 @@ const VendorOrders = () => {
           setTrackingModalOpen(false)
           setTrackingData(null)
         }}
-        title="تتبع الطلب"
+        title={t('vendor.orders.tracking.title', 'تتبع الطلب')}
         size="lg"
       >
         {trackingData && (
@@ -574,13 +583,13 @@ const VendorOrders = () => {
                 <p className="font-semibold text-gray-900">
                   {trackingData.driver?.first_name} {trackingData.driver?.last_name}
                 </p>
-                <p className="text-sm text-gray-500">الحالة: {trackingData.status}</p>
+                <p className="text-sm text-gray-500">{t('vendor.orders.tracking.status', 'الحالة')}: {trackingData.status}</p>
               </div>
               <a
                 href={`tel:${trackingData.driver?.phone}`}
                 className="btn-sm btn-primary"
               >
-                الاتصال بالسائق
+                {t('vendor.orders.tracking.callDriver', 'الاتصال بالسائق')}
               </a>
             </div>
             
@@ -618,7 +627,7 @@ const VendorOrders = () => {
           setChatModalOpen(false)
           setChatReceiver(null)
         }}
-        title={`Chat with ${chatReceiver?.name || 'Driver'}`}
+        title={t('vendor.orders.chat.title', 'محادثة مع') + ' ' + (chatReceiver?.name || t('vendor.orders.chat.driver', 'السائق'))}
         size="lg"
       >
         {selectedOrder && chatReceiver && (
@@ -633,6 +642,50 @@ const VendorOrders = () => {
         )}
       </Modal>
 
+      {/* Reject Order Modal */}
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={() => { setRejectModalOpen(false); setRejectingOrderId(null); setRejectReason('') }}
+        title={t('vendor.orders.rejectModal.title', 'رفض الطلب')}
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            {t('vendor.orders.rejectModal.description', 'هل أنت متأكد من رفض هذا الطلب؟ سيتم إشعار العميل.')}
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('vendor.orders.rejectModal.reasonLabel', 'سبب الرفض (اختياري)')}
+            </label>
+            <textarea
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder={t('vendor.orders.rejectModal.reasonPlaceholder', 'مثال: المنتج غير متوفر حالياً')}
+              maxLength={200}
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => { setRejectModalOpen(false); setRejectingOrderId(null); setRejectReason('') }}
+            >
+              {t('common.cancel', 'إلغاء')}
+            </Button>
+            <Button
+              variant="danger"
+              className="flex-1"
+              onClick={handleRejectOrder}
+              leftIcon={<XCircleIcon className="w-4 h-4" />}
+            >
+              {t('vendor.orders.rejectModal.confirm', 'تأكيد الرفض')}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
       {/* Timeline Modal */}
       <Modal
         isOpen={timelineModalOpen}
@@ -640,7 +693,7 @@ const VendorOrders = () => {
           setTimelineModalOpen(false)
           setSelectedOrder(null)
         }}
-        title="سجل الطلب"
+        title={t('vendor.orders.timeline.title', 'سجل الطلب')}
         size="lg"
       >
         {selectedOrder && (

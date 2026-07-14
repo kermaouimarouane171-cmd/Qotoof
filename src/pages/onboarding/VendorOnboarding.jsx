@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 
-const VENDOR_SLIDES = [
+const FALLBACK_SLIDES = [
   {
     icon: '🏪',
     title: 'ابدأ البيع في 4 خطوات',
@@ -50,13 +51,31 @@ const VENDOR_SLIDES = [
 ]
 
 const VendorOnboarding = () => {
+  const { t } = useTranslation()
+
+  const slides = FALLBACK_SLIDES.map((slide, idx) => {
+    const n = idx + 1
+    const titleKey = `onboarding.vendor.slides.s${n}.title`
+    const linesKey = `onboarding.vendor.slides.s${n}.lines`
+    const calloutKey = `onboarding.vendor.slides.s${n}.callout`
+    const translatedTitle = t(titleKey, slide.title)
+    const translatedLines = t(linesKey, { returnObjects: true })
+    const translatedCallout = slide.callout ? t(calloutKey, { returnObjects: true }) : undefined
+    return {
+      ...slide,
+      title: translatedTitle,
+      lines: Array.isArray(translatedLines) ? translatedLines : slide.lines,
+      callout: Array.isArray(translatedCallout) ? translatedCallout : slide.callout,
+    }
+  })
+
   return (
     <OnboardingFlow
       // eslint-disable-next-line jsx-a11y/aria-role
       role="vendor"
-      roleLabel="تهيئة البائع"
-      slides={VENDOR_SLIDES}
-      completeLabel="وقّع العقد وابدأ →"
+      roleLabel={t('onboarding.vendor.roleLabel', 'تهيئة البائع')}
+      slides={slides}
+      completeLabel={t('onboarding.vendor.completeLabel', 'وقّع العقد وابدأ →')}
       completePath="/vendor/digital-contract"
     />
   )

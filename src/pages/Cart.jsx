@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useCartStore } from '@/store/cartStore'
-import { LoadingSpinner } from '@/components/ui'
+import { useQuery } from '@tanstack/react-query'
+import { useCartStore } from '@/modules/cart'
+import { calculateBulkDiscountBreakdown, couponsApi } from '@/modules/coupons'
+import { LoadingSpinner, Breadcrumbs, ProductRecommendations } from '@/components/ui'
+import AuthGate from '@/components/auth/AuthGate'
 import { formatPrice } from '@/utils/currency'
 import {
   TrashIcon,
@@ -15,17 +18,21 @@ import {
   XMarkIcon,
   BoltIcon,
   InformationCircleIcon,
+  ChatBubbleLeftRightIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { supabase } from '@/services/supabase'
-import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/services/minimumOrderService'
+import { useAuthStore } from '@/store/authStore'
+import { buildMinimumOrderMessage, evaluateVendorMinimumOrders } from '@/modules/cart'
+import NegotiationOnboarding, { hasSeenOnboarding } from '@/components/onboarding/NegotiationOnboarding'
 import {
   formatQuantity,
   getQuantityStep,
   isDecimalQuantityUnit,
   normalizeQuantity,
-} from '@/utils/cartQuantity'
+} from '@/modules/cart'
 
 const formatValidationTime = (value) => {
   if (!value) return null
@@ -53,6 +60,7 @@ const parseQuantityInput = (value, item) => {
 const CartPage = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { user } = useAuthStore()
   const {
     items,
     removeItem,
@@ -77,6 +85,14 @@ const CartPage = () => {
   const [vendorProfiles, setVendorProfiles] = useState([])
   const [lastValidatedAt, setLastValidatedAt] = useState(null)
   const [lastValidationSummary, setLastValidationSummary] = useState('')
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  useEffect(() => {
+    if (!hasSeenOnboarding()) {
+      setShowOnboarding(true)
+    }
+  }, [])
 
   // Initialize input quantities from cart items
   useEffect(() => {
@@ -99,7 +115,7 @@ const CartPage = () => {
 
       try {
         const { data, error } = await supabase
-          .from('public_profiles')
+          .from('public_vendor_profiles')
           .select('id, store_name, min_order_amount')
           .in('id', vendorIds)
 
@@ -136,7 +152,10 @@ const CartPage = () => {
       }
 
       existing.items.push(item)
-      existing.subtotal += (item.price_per_unit || 0) * item.quantity
+      const itemPrice = item.is_negotiated && item.locked_price != null
+        ? Number(item.locked_price)
+        : (item.price_per_unit || 0)
+      existing.subtotal += itemPrice * item.quantity
       groups.set(key, existing)
     })
 
@@ -435,6 +454,11 @@ const CartPage = () => {
   const handleCheckout = useCallback(async () => {
     if (items.length === 0) return
 
+    if (!user) {
+      setShowLoginPrompt(true)
+      return
+    }
+
     const vendorIds = [...new Set(items.map((item) => item.vendor_id).filter(Boolean))]
     if (vendorIds.length > 1) {
       toast.error(multiVendorCheckoutDisabledMessage)
@@ -444,7 +468,7 @@ const CartPage = () => {
     setCheckoutLoading(true)
     try {
       const { data: freshVendorProfiles, error: vendorProfilesError } = await supabase
-        .from('public_profiles')
+        .from('public_vendor_profiles')
         .select('id, store_name, min_order_amount')
         .in('id', vendorIds)
 
@@ -483,14 +507,16 @@ const CartPage = () => {
           continue
         }
 
-        // Verify price hasn't changed significantly
-        const priceDiff = Math.abs(fresh.price_per_unit - item.price_per_unit)
-        if (priceDiff > 0.01) {
-          issues.push(t('cart.checkout.priceChanged', {
-            name: item.name,
-            oldPrice: formatPrice(item.price_per_unit),
-            newPrice: formatPrice(fresh.price_per_unit),
-          }))
+        // Skip price check for negotiated items (locked price)
+        if (!item.is_negotiated) {
+          const priceDiff = Math.abs(fresh.price_per_unit - item.price_per_unit)
+          if (priceDiff > 0.01) {
+            issues.push(t('cart.checkout.priceChanged', {
+              name: item.name,
+              oldPrice: formatPrice(item.price_per_unit),
+              newPrice: formatPrice(fresh.price_per_unit),
+            }))
+          }
         }
 
         // Verify stock
@@ -520,7 +546,7 @@ const CartPage = () => {
     } finally {
       setCheckoutLoading(false)
     }
-  }, [clearCheckoutVendor, items, multiVendorCheckoutDisabledMessage, navigate, t, validateCart])
+  }, [clearCheckoutVendor, items, multiVendorCheckoutDisabledMessage, navigate, t, user, validateCart])
 
   const handleCheckoutForVendor = useCallback((vendorId) => {
     const didSelectVendor = setCheckoutVendor(vendorId)
@@ -543,6 +569,38 @@ const CartPage = () => {
   const total = subtotal + tax
   const vendorCount = getVendorCount()
   const multiVendorCheckoutBlocked = vendorCount > 1
+
+  const vendorIds = useMemo(() => [...new Set(items.map((item) => item.vendor_id).filter(Boolean))], [items])
+
+  const { data: bulkCoupons = [] } = useQuery({
+    queryKey: ['bulk-discount-candidates', vendorIds],
+    queryFn: () => couponsApi.getBulkDiscountCandidates(vendorIds),
+    enabled: vendorIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const bulkDiscountPreview = useMemo(() => {
+    if (items.length === 0 || bulkCoupons.length === 0) return 0
+    const breakdown = calculateBulkDiscountBreakdown({ coupons: bulkCoupons, items })
+    return breakdown.reduce((sum, b) => sum + Number(b.discountAmount || 0), 0)
+  }, [items, bulkCoupons])
+
+  const bulkDiscountHint = useMemo(() => {
+    if (items.length === 0 || bulkCoupons.length === 0) return null
+    const next = bulkCoupons
+      .filter((c) => {
+        const vendorItems = items.filter((i) => i.vendor_id === c.vendor_id)
+        const vendorSubtotal = vendorItems.reduce((s, i) => s + (i.is_negotiated && i.locked_price != null ? Number(i.locked_price) : Number(i.price_per_unit || 0)) * i.quantity, 0)
+        return vendorSubtotal < Number(c.min_order_amount || 0)
+      })
+      .sort((a, b) => Number(a.min_order_amount || 0) - Number(b.min_order_amount || 0))[0]
+    if (!next) return null
+    const vendorItems = items.filter((i) => i.vendor_id === next.vendor_id)
+    const vendorSubtotal = vendorItems.reduce((s, i) => s + (i.is_negotiated && i.locked_price != null ? Number(i.locked_price) : Number(i.price_per_unit || 0)) * i.quantity, 0)
+    const remaining = Number(next.min_order_amount || 0) - vendorSubtotal
+    if (remaining <= 0) return null
+    return t('cart.summary.bulkDiscountHint', 'Add {{amount}} more to unlock bulk discount', { amount: formatPrice(remaining) })
+  }, [items, bulkCoupons, t])
 
   // ============================================
   // Empty State
@@ -571,6 +629,7 @@ const CartPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32 lg:pb-8" data-testid="cart-page">
+      <Breadcrumbs />
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -617,6 +676,14 @@ const CartPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* ===== Cart Items ===== */}
           <div className="lg:col-span-2 space-y-4">
+            {!user && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <p className="text-sm text-blue-800">
+                  {t('cart.guestNotice', 'Your cart is saved on this device. Sign in to complete checkout and access it from any device.')}
+                </p>
+              </div>
+            )}
+
             {multiVendorCheckoutBlocked && vendorGroups.length > 1 && (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 space-y-4">
                 <div>
@@ -653,7 +720,10 @@ const CartPage = () => {
             )}
 
             {items.map((item) => {
-              const itemTotal = (item.price_per_unit || 0) * item.quantity
+              const effectivePrice = item.is_negotiated && item.locked_price != null
+                ? Number(item.locked_price)
+                : (item.price_per_unit || 0)
+              const itemTotal = effectivePrice * item.quantity
               const isLowStock = item.available_quantity !== null && item.available_quantity <= item.quantity * 1.25
               const isAtMax = item.available_quantity !== null && item.quantity >= item.available_quantity
               const step = getQuantityStep(item.unit_type, item.min_order_quantity)
@@ -720,13 +790,39 @@ const CartPage = () => {
                           <div className="min-w-0">
                             <Link
                               to={`/product/${item.id}`}
-                              className="font-semibold text-gray-900 hover:text-green-600 transition-colors truncate block"
+                              className="font-semibold text-gray-900 hover:text-primary-600 transition-colors truncate block"
                             >
                               {item.name}
                             </Link>
                             <p className="text-sm text-gray-500 mt-0.5">
-                              {formatPrice(item.price_per_unit || 0)} / {item.unit_type}
+                              {formatPrice(effectivePrice)} / {item.unit_type}
                             </p>
+                            {item.is_negotiated ? (
+                              <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full bg-primary-50 border border-primary-200 text-xs font-medium text-primary-700">
+                                <LockClosedIcon className="w-3 h-3" />
+                                {t('cart.negotiatedPrice', 'Agreed Price')}
+                                {item.negotiation_id && (
+                                  <Link
+                                    to={`/buyer/negotiations/${item.negotiation_id}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-primary-600 hover:text-primary-800 underline"
+                                  >
+                                    {t('cart.viewNegotiation', 'Details')}
+                                  </Link>
+                                )}
+                              </span>
+                            ) : item.is_available !== false && (
+                              <button
+                                onClick={() => {
+                                  removeItem(item.id)
+                                  navigate(`/buyer/negotiations/new?productId=${item.id}`)
+                                }}
+                                className="inline-flex items-center gap-1 mt-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+                              >
+                                <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+                                {t('cart.negotiateInstead', 'Negotiate price instead')}
+                              </button>
+                            )}
                           </div>
 
                           {/* Remove */}
@@ -764,7 +860,7 @@ const CartPage = () => {
                               onClick={() => handleDecrement(item)}
                               data-testid="cart-item-decrement"
                               className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                              aria-label="Decrease quantity"
+                              aria-label={t('cart.aria.decrease', 'إنقاص الكمية')}
                             >
                               <MinusIcon className="w-4 h-4" />
                             </button>
@@ -800,7 +896,7 @@ const CartPage = () => {
                                   ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
                                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                               }`}
-                              aria-label="Increase quantity"
+                              aria-label={t('cart.aria.increase', 'زيادة الكمية')}
                             >
                               <PlusIcon className="w-4 h-4" />
                             </button>
@@ -848,6 +944,17 @@ const CartPage = () => {
                   <span>{t('cart.summary.subtotalWithCount', { count: items.length })}</span>
                   <span>{formatPrice(subtotal)}</span>
                 </div>
+                {bulkDiscountPreview > 0 && (
+                  <div className="flex justify-between text-sm text-emerald-700" data-testid="cart-bulk-discount-preview">
+                    <span>{t('cart.summary.bulkDiscount', 'Bulk discount preview')}</span>
+                    <span>- {formatPrice(bulkDiscountPreview)}</span>
+                  </div>
+                )}
+                {bulkDiscountPreview === 0 && bulkDiscountHint && (
+                  <div className="text-xs text-gray-400 leading-4" data-testid="cart-bulk-discount-hint">
+                    {bulkDiscountHint}
+                  </div>
+                )}
                 {tax > 0 && (
                   <div className="flex justify-between text-gray-600">
                     <span>{t('cart.summary.tax')}</span>
@@ -889,14 +996,14 @@ const CartPage = () => {
                   <div className="flex items-start gap-2">
                     <InformationCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-800 leading-5">
-                      {t('cart.summary.deliveryRulesNotice', 'تعتمد إمكانية التوصيل على المسافة بين موقعك وموقع كل بائع وقيمة الطلب. ستتم مراجعة شروط التوصيل قبل إتمام الطلب.')}
+                      {t('cart.summary.deliveryRulesNotice', 'Delivery availability depends on the distance between your location and each vendor, as well as order value. Delivery terms will be reviewed before completing the order.')}
                     </p>
                   </div>
                 </div>
                 <hr className="border-gray-200" />
                 <div className="flex justify-between text-xl font-bold text-gray-900" data-testid="cart-total">
                   <span>{t('cart.total')}</span>
-                  <span className="text-green-600">{formatPrice(total)}</span>
+                  <span className="text-primary-600">{formatPrice(total)}</span>
                 </div>
               </div>
 
@@ -917,7 +1024,7 @@ const CartPage = () => {
                   t('cart.checkout.minimumNotMetCta')
                 ) : (
                   <>
-                    {t('cart.checkout')}
+                    {t('cart.checkoutLabel')}
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
@@ -930,15 +1037,15 @@ const CartPage = () => {
               {/* Trust Badges */}
               <div className="mt-6 pt-6 border-t border-gray-100 space-y-2 text-xs text-gray-500">
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                  <CheckCircleIcon className="w-4 h-4 text-primary-600" />
                   <span>{t('cart.trust.securePayment')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                  <CheckCircleIcon className="w-4 h-4 text-primary-600" />
                   <span>{t('cart.trust.buyerProtection')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-4 h-4 text-green-600" />
+                  <CheckCircleIcon className="w-4 h-4 text-primary-600" />
                   <span>{t('cart.trust.qualityGuarantee')}</span>
                 </div>
               </div>
@@ -980,7 +1087,7 @@ const CartPage = () => {
                   t('cart.checkout.minimumNotMetShortCta')
                 ) : (
                   <>
-                    {t('cart.checkout')}
+                    {t('cart.checkoutLabel')}
                     <ArrowRightIcon className="w-5 h-5" />
                   </>
                 )}
@@ -1067,6 +1174,31 @@ const CartPage = () => {
           </div>
         </div>
       )}
+
+      {/* Guest Checkout Login Prompt */}
+      {showLoginPrompt && (
+        <AuthGate
+          variant="modal"
+          icon={ShoppingCartIcon}
+          title={t('cart.guestCheckout.title', 'تسجيل الدخول مطلوب')}
+          message={t('cart.guestCheckout.message', 'يجب تسجيل الدخول لإكمال الطلب. سلتك محفوظة.')}
+          from="/checkout"
+          loginTo="/login"
+          registerTo="/register"
+          showRegister
+          onCancel={() => setShowLoginPrompt(false)}
+        />
+      )}
+
+      {/* Onboarding Modal */}
+      <NegotiationOnboarding
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onSkip={() => setShowOnboarding(false)}
+      />
+
+      {/* Cross-sell recommendations */}
+      <ProductRecommendations className="mt-8" />
     </div>
   )
 }

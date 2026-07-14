@@ -3,7 +3,7 @@ const {
   getQuantityStep,
   isDecimalQuantityUnit,
   normalizeQuantity,
-} = require('@/utils/cartQuantity')
+} = require('@/modules/cart')
 
 describe('cartQuantity utilities', () => {
   test('detects decimal-compatible quantity units', () => {

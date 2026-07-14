@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { Card, Input } from '@/components/ui'
+import AuthGate from '@/components/auth/AuthGate'
 import { EnvelopeIcon, PhoneIcon, MapPinIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
@@ -123,52 +124,59 @@ const Contact = () => {
           </Card>
         </div>
 
-        {/* Contact Form */}
+        {/* Contact Form — authenticated users only to match RLS */}
         <Card className="lg:col-span-2 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">{t('contact.formTitle')}</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          {user ? (
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label={t('contact.form.name')}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                />
+                <div>
+                  <Input
+                    label={t('contact.form.email')}
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setEmailError('') }}
+                    required
+                  />
+                  {emailError && (
+                    <p className="mt-1 text-sm text-red-600">{emailError}</p>
+                  )}
+                </div>
+              </div>
               <Input
-                label={t('contact.form.name')}
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                label={t('contact.form.subject')}
+                value={formData.subject}
+                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                 required
               />
               <div>
-                <Input
-                  label={t('contact.form.email')}
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setEmailError('') }}
+                <label className="input-label">{t('contact.form.message')}</label>
+                <textarea
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  className="input h-32 resize-none"
                   required
                 />
-                {emailError && (
-                  <p className="mt-1 text-sm text-red-600">{emailError}</p>
-                )}
               </div>
-            </div>
-            <Input
-              label={t('contact.form.subject')}
-              value={formData.subject}
-              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-              required
+              <button type="submit" className="btn-primary w-full sm:w-auto" disabled={loading}>
+                <span className="flex items-center justify-center gap-2">
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  {loading ? t('contact.form.sending') : t('contact.form.send')}
+                </span>
+              </button>
+            </form>
+          ) : (
+            <AuthGate
+              title={t('contact.authRequired', 'Please sign in to send us a message.')}
+              from="/contact"
             />
-            <div>
-              <label className="input-label">{t('contact.form.message')}</label>
-              <textarea
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="input h-32 resize-none"
-                required
-              />
-            </div>
-            <button type="submit" className="btn-primary w-full sm:w-auto" disabled={loading}>
-              <span className="flex items-center justify-center gap-2">
-                <PaperAirplaneIcon className="w-4 h-4" />
-                {loading ? t('contact.form.sending') : t('contact.form.send')}
-              </span>
-            </button>
-          </form>
+          )}
         </Card>
       </div>
     </div>

@@ -148,4 +148,28 @@ describe('Checkout Page – Logic', () => {
       { id: 'p2', vendor_id: 'vendor-2' },
     ])).toBe(false)
   })
+
+  test('CheckoutSimplified has session-expired error handling and i18n key', () => {
+    const fs = require('fs')
+    const path = require('path')
+    const checkoutSource = fs.readFileSync(
+      path.resolve(__dirname, '../../pages/CheckoutSimplified.jsx'),
+      'utf-8'
+    )
+    expect(checkoutSource).toContain('auth:sessionExpired')
+    expect(checkoutSource).toContain('checkout.errors.sessionExpired')
+  })
+
+  test('CheckoutSimplified improved multi-vendor block uses new i18n keys and vendor list', () => {
+    const fs = require('fs')
+    const path = require('path')
+    const checkoutSource = fs.readFileSync(
+      path.resolve(__dirname, '../../pages/CheckoutSimplified.jsx'),
+      'utf-8'
+    )
+    expect(checkoutSource).toContain('checkout.multiVendorDisabled.description')
+    expect(checkoutSource).toContain('checkout.multiVendorDisabled.vendorsInCart')
+    expect(checkoutSource).toContain('checkout.multiVendorDisabled.splitHint')
+    expect(checkoutSource).toContain('cartVendorMinimumProfiles.map')
+  })
 })

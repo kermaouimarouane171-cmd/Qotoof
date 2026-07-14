@@ -32,16 +32,17 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
 import RouteMap from '@/components/ui/RouteMap'
 import { formatPrice } from '@/utils/currency'
-import { ordersApi, deliveriesApi } from '@/services/deliveries'
+import { ordersApi } from '@/modules/orders'
+import { deliveriesApi } from '@/modules/delivery'
 import { submitReturnRequest } from '@/services/ordersService'
-import { orderTimelineApi } from '@/services/favorites'
-import { confirmOrderPayment } from '@/services/paymentService'
+import { orderTimelineApi } from '@/modules/orders'
+import { confirmOrderPayment } from '@/modules/payments'
 import { driverLocationService } from '@/services/driverLocationService'
 import cancellationService, { DEFAULT_VENDOR_CANCELLATION_POLICY, normalizeCancellationPolicy } from '@/services/cancellationService'
-import reviewService from '@/services/reviewService'
+import { reviewService } from '@/modules/reviews'
 import invoiceService from '@/services/invoiceService'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/modules/cart'
 import { useOrderView } from '@/hooks/useOrderView'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -130,13 +131,6 @@ const OrderDetail = () => {
   const subscriptionRef = useRef(null)
   const timelineSubscriptionRef = useRef(null)
   const selfDeliveryTrackingStopRef = useRef(null)
-
-  // ── Auth redirect ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user) {
-      navigate('/login', { state: { from: `/orders/${id}` } })
-    }
-  }, [user, navigate, id])
 
   // ── Error from RPC ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -682,7 +676,7 @@ const OrderDetail = () => {
   // ============================================================
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-16">
+      <div className="min-h-full bg-gray-50 flex items-center justify-center py-16">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-500 text-sm">{t('orderDetail.loading', 'Loading order details...')}</p>
@@ -696,7 +690,7 @@ const OrderDetail = () => {
   // ============================================================
   if (error === 'forbidden') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-16">
+      <div className="min-h-full bg-gray-50 flex items-center justify-center py-16">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-20 h-20 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center">
             <ExclamationTriangleIcon className="w-10 h-10 text-red-500" />
@@ -720,7 +714,7 @@ const OrderDetail = () => {
 
   if (error === 'not_found') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-16">
+      <div className="min-h-full bg-gray-50 flex items-center justify-center py-16">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-20 h-20 mx-auto mb-6 bg-gray-100 rounded-full flex items-center justify-center">
             <ShoppingBagIcon className="w-10 h-10 text-gray-400" />
@@ -744,7 +738,7 @@ const OrderDetail = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-16">
+      <div className="min-h-full bg-gray-50 flex items-center justify-center py-16">
         <div className="text-center max-w-md mx-auto px-4">
           <div className="w-20 h-20 mx-auto mb-6 bg-red-50 rounded-full flex items-center justify-center">
             <ExclamationTriangleIcon className="w-10 h-10 text-red-500" />
@@ -812,7 +806,7 @@ const OrderDetail = () => {
   // RENDER
   // ============================================================
   return (
-    <div className="min-h-screen bg-gray-50" dir={i18n.dir()}>
+    <div className="min-h-full bg-gray-50" dir={i18n.dir()}>
       {/* Real-time indicator */}
       {realtimeConnected && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full shadow-sm">
@@ -1614,7 +1608,7 @@ const OrderDetail = () => {
                   key={star}
                   onClick={() => setRatingValue(star)}
                   className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center transition-transform hover:scale-110 focus:outline-none"
-                  aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`}
+                  aria-label={t('orderDetail.aria.stars', { count: star, defaultValue: '{{count}} نجمة' })}
                 >
                   <StarSolid
                     className={`w-8 h-8 sm:w-10 sm:h-10 ${

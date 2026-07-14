@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
-import { chatService } from '@/services/chatService'
+import { chatService } from '@/modules/chat'
 
 /**
  * Fetch all conversations for the current user

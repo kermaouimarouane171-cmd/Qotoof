@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ArrowPathIcon,
   CheckCircleIcon,
@@ -40,7 +41,7 @@ const actorName = (actor) => {
 
 const formatDate = (value) => {
   if (!value) return '-'
-  return new Date(value).toLocaleString('ar-MA', {
+  return new Date(value).toLocaleString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -50,6 +51,7 @@ const formatDate = (value) => {
 }
 
 const FraudReports = () => {
+  const { t } = useTranslation()
   const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -69,7 +71,7 @@ const FraudReports = () => {
       const data = await fraudReportService.listFraudReportsForAdmin()
       setReports(data)
     } catch (error) {
-      toast.error(error.message || 'تعذر تحميل بلاغات الاحتيال')
+      toast.error(error.message || t('admin.fraudReports.loadFailed', 'Failed to load fraud reports'))
     } finally {
       setLoading(false)
     }
@@ -145,9 +147,9 @@ const FraudReports = () => {
 
       setSelectedReport(updated)
       setReports((currentReports) => currentReports.map((report) => report.id === updated.id ? updated : report))
-      toast.success('تم تحديث بلاغ الاحتيال بنجاح')
+      toast.success(t('admin.fraudReports.updateSuccess', 'Fraud report updated successfully'))
     } catch (error) {
-      toast.error(error.message || 'تعذر تحديث البلاغ')
+      toast.error(error.message || t('admin.fraudReports.updateFailed', 'Failed to update report'))
     } finally {
       setSaving(false)
     }
@@ -165,20 +167,20 @@ const FraudReports = () => {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">بلاغات الاحتيال</h1>
-          <p className="text-gray-600 mt-2">مراجعة البلاغات القانونية المرتبطة بالتسليم، الحالة، والدفع.</p>
+          <h1 className="text-3xl font-bold text-gray-900">{t('admin.fraudReports.title', 'Fraud Reports')}</h1>
+          <p className="text-gray-600 mt-2">{t('admin.fraudReports.subtitle', 'Review legal reports related to delivery, condition, and payment.')}</p>
         </div>
         <button type="button" onClick={loadReports} className="btn-outline inline-flex items-center gap-2">
           <ArrowPathIcon className="h-4 w-4" />
-          تحديث القائمة
+          {t('common.refresh', 'Refresh')}
         </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.pending}</p><p className="text-xs text-gray-500 mt-1">قيد الانتظار</p></Card>
-        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.reviewing}</p><p className="text-xs text-gray-500 mt-1">قيد المراجعة</p></Card>
-        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.actionRequired}</p><p className="text-xs text-gray-500 mt-1">يتطلب إجراء</p></Card>
-        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.resolved}</p><p className="text-xs text-gray-500 mt-1">تمت المعالجة</p></Card>
+        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.pending}</p><p className="text-xs text-gray-500 mt-1">{t('admin.fraudReports.stat.pending', 'Pending')}</p></Card>
+        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.reviewing}</p><p className="text-xs text-gray-500 mt-1">{t('admin.fraudReports.stat.reviewing', 'Reviewing')}</p></Card>
+        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.actionRequired}</p><p className="text-xs text-gray-500 mt-1">{t('admin.fraudReports.stat.actionRequired', 'Action Required')}</p></Card>
+        <Card className="p-4"><p className="text-2xl font-bold text-gray-900">{summary.resolved}</p><p className="text-xs text-gray-500 mt-1">{t('admin.fraudReports.stat.resolved', 'Resolved')}</p></Card>
       </div>
 
       <Card className="p-5">
@@ -187,10 +189,10 @@ const FraudReports = () => {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             className="input"
-            placeholder="ابحث برقم الطلب، المبلّغ، أو وصف البلاغ"
+            placeholder={t('admin.fraudReports.searchPlaceholder', 'Search by order #, reporter, or description')}
           />
           <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="input">
-            <option value="all">كل الحالات</option>
+            <option value="all">{t('admin.fraudReports.filterAll', 'All Statuses')}</option>
             {FRAUD_STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -203,14 +205,14 @@ const FraudReports = () => {
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">الطلب</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">المبلّغ</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">المبلّغ ضده</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">النوع</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">الأولوية</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">الحالة</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">الإنشاء</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-500">إجراء</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.order', 'Order')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.reporter', 'Reporter')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.reported', 'Reported')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.type', 'Type')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.priority', 'Priority')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.status', 'Status')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.created', 'Created')}</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-500">{t('admin.fraudReports.col.actions', 'Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -226,7 +228,7 @@ const FraudReports = () => {
                   <td className="px-4 py-4">
                     <button type="button" onClick={() => openReport(report)} className="inline-flex items-center gap-2 text-green-700 hover:text-green-800">
                       <EyeIcon className="h-4 w-4" />
-                      عرض
+                      {t('admin.fraudReports.view', 'View')}
                     </button>
                   </td>
                 </tr>
@@ -236,21 +238,21 @@ const FraudReports = () => {
         </div>
       </Card>
 
-      <Modal isOpen={Boolean(selectedReport)} onClose={() => setSelectedReport(null)} title="تفاصيل بلاغ الاحتيال" size="xl">
+      <Modal isOpen={Boolean(selectedReport)} onClose={() => setSelectedReport(null)} title={t('admin.fraudReports.modal.title', 'Fraud Report Details')} size="xl">
         {selectedReport ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <Card className="p-4"><p className="text-xs text-gray-500">الطلب</p><p className="font-semibold text-gray-900 mt-2">#{selectedReport.order?.order_number || selectedReport.order_id?.slice(0, 8)}</p></Card>
-              <Card className="p-4"><p className="text-xs text-gray-500">المبلّغ</p><p className="font-semibold text-gray-900 mt-2">{actorName(selectedReport.reporter)}</p></Card>
-              <Card className="p-4"><p className="text-xs text-gray-500">الطرف المعني</p><p className="font-semibold text-gray-900 mt-2">{actorName(selectedReport.reported_user)}</p></Card>
-              <Card className="p-4"><p className="text-xs text-gray-500">الحالة الحالية</p><p className="font-semibold text-gray-900 mt-2">{statusLabel(selectedReport.status)}</p></Card>
+              <Card className="p-4"><p className="text-xs text-gray-500">{t('admin.fraudReports.col.order', 'Order')}</p><p className="font-semibold text-gray-900 mt-2">#{selectedReport.order?.order_number || selectedReport.order_id?.slice(0, 8)}</p></Card>
+              <Card className="p-4"><p className="text-xs text-gray-500">{t('admin.fraudReports.col.reporter', 'Reporter')}</p><p className="font-semibold text-gray-900 mt-2">{actorName(selectedReport.reporter)}</p></Card>
+              <Card className="p-4"><p className="text-xs text-gray-500">{t('admin.fraudReports.col.reported', 'Reported Party')}</p><p className="font-semibold text-gray-900 mt-2">{actorName(selectedReport.reported_user)}</p></Card>
+              <Card className="p-4"><p className="text-xs text-gray-500">{t('admin.fraudReports.col.status', 'Status')}</p><p className="font-semibold text-gray-900 mt-2">{statusLabel(selectedReport.status)}</p></Card>
             </div>
 
             <Card className="p-5">
               <div className="flex items-start gap-3">
                 <ShieldExclamationIcon className="h-5 w-5 text-red-600 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-gray-900">الوصف</p>
+                  <p className="font-semibold text-gray-900">{t('admin.fraudReports.description', 'Description')}</p>
                   <p className="text-sm text-gray-700 mt-2 leading-7">{selectedReport.description}</p>
                 </div>
               </div>
@@ -259,7 +261,7 @@ const FraudReports = () => {
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div>
                 {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                <label className="input-label">الحالة التالية</label>
+                <label className="input-label">{t('admin.fraudReports.nextStatus', 'Next Status')}</label>
                 <select value={nextStatus} onChange={(event) => setNextStatus(event.target.value)} className="input">
                   {FRAUD_STATUS_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
@@ -268,27 +270,27 @@ const FraudReports = () => {
               </div>
               <div>
                 {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-                <label className="input-label">التوصية القانونية</label>
-                <input value={legalRecommendation} onChange={(event) => setLegalRecommendation(event.target.value)} className="input" placeholder="مثال: مراجعة الصور القانونية وإيقاف التسوية" />
+                <label className="input-label">{t('admin.fraudReports.legalRecommendation', 'Legal Recommendation')}</label>
+                <input value={legalRecommendation} onChange={(event) => setLegalRecommendation(event.target.value)} className="input" placeholder={t('admin.fraudReports.legalRecommendationPlaceholder', 'e.g. Review legal photos and suspend settlement')} />
               </div>
             </div>
 
             <div>
               {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-              <label className="input-label">ملاحظات الإدارة</label>
-              <textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} className="input min-h-24 resize-y" placeholder="دوّن ملخص الفحص والإجراءات المطلوبة." />
+              <label className="input-label">{t('admin.fraudReports.adminNotes', 'Admin Notes')}</label>
+              <textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} className="input min-h-24 resize-y" placeholder={t('admin.fraudReports.adminNotesPlaceholder', 'Write inspection summary and required actions.')} />
             </div>
 
             <div>
               {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-              <label className="input-label">قرار الإغلاق أو المعالجة</label>
-              <textarea value={resolution} onChange={(event) => setResolution(event.target.value)} className="input min-h-24 resize-y" placeholder="يُفضّل تعبئتها عند الحسم أو الإغلاق." />
+              <label className="input-label">{t('admin.fraudReports.resolution', 'Resolution')}</label>
+              <textarea value={resolution} onChange={(event) => setResolution(event.target.value)} className="input min-h-24 resize-y" placeholder={t('admin.fraudReports.resolutionPlaceholder', 'Preferably filled when resolving or closing.')} />
             </div>
 
             <div>
-              <p className="font-semibold text-gray-900 mb-3">الأدلة المرفقة</p>
+              <p className="font-semibold text-gray-900 mb-3">{t('admin.fraudReports.evidence', 'Evidence')}</p>
               {evidenceLinks.length === 0 ? (
-                <p className="text-sm text-gray-500">لا توجد أدلة مرفقة بهذا البلاغ.</p>
+                <p className="text-sm text-gray-500">{t('admin.fraudReports.noEvidence', 'No evidence attachments for this report.')}</p>
               ) : (
                 <div className="space-y-3">
                   {evidenceLinks.map((evidence) => (
@@ -308,10 +310,10 @@ const FraudReports = () => {
             </div>
 
             <div className="flex flex-wrap justify-end gap-3">
-              <button type="button" onClick={() => setSelectedReport(null)} className="btn-outline" disabled={saving}>إغلاق</button>
+              <button type="button" onClick={() => setSelectedReport(null)} className="btn-outline" disabled={saving}>{t('common.close', 'Close')}</button>
               <button type="button" onClick={handleSave} className="btn-primary inline-flex items-center gap-2" disabled={saving}>
                 {saving ? <ArrowPathIcon className="h-4 w-4 animate-spin" /> : <ExclamationTriangleIcon className="h-4 w-4" />}
-                {saving ? 'جاري الحفظ...' : 'حفظ التحديث'}
+                {saving ? t('common.saving', 'Saving...') : t('admin.fraudReports.saveUpdate', 'Save Update')}
               </button>
             </div>
           </div>

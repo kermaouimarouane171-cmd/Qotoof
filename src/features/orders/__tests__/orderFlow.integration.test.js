@@ -20,12 +20,12 @@ jest.mock('react-hot-toast', () => {
   return { __esModule: true, default: mockToast }
 })
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key, fallback) => (typeof fallback === 'string' ? fallback : key),
-    i18n: { language: 'en' },
-  }),
-}))
+jest.mock('react-i18next', () => {
+  const t = (key, fallback) => (typeof fallback === 'string' ? fallback : key)
+  return {
+    useTranslation: () => ({ t, i18n: { language: 'en' } }),
+  }
+})
 
 const mockNavigate = jest.fn()
 jest.mock('react-router-dom', () => ({
@@ -50,7 +50,7 @@ jest.mock('@/store/authStore', () => {
   return { useAuthStore }
 })
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: jest.fn(() => ({ items: [], addItem: jest.fn() })),
 }))
 
@@ -148,9 +148,8 @@ jest.mock('@/components/buyer/OrderFilters', () => ({
   ),
 }))
 
-jest.mock('@/services/reviewService', () => ({
-  __esModule: true,
-  default: { createReview: jest.fn() },
+jest.mock('@/modules/reviews', () => ({
+  reviewService: { createReview: jest.fn() },
 }))
 
 jest.mock('@/services/invoiceService', () => ({
@@ -158,7 +157,7 @@ jest.mock('@/services/invoiceService', () => ({
   default: { downloadOrderInvoice: jest.fn() },
 }))
 
-jest.mock('@/services/loyalty', () => ({
+jest.mock('@/modules/loyalty', () => ({
   __esModule: true,
   default: { syncDeliveredOrderBenefits: jest.fn().mockResolvedValue({ ordersProcessed: 0 }) },
 }))
@@ -408,7 +407,7 @@ describe('VendorOrders', () => {
 describe('BuyerOrders (OrdersPage)', () => {
   let OrdersPage
   const { useAuthStore } = require('@/store/authStore')
-  const { useCartStore } = require('@/store/cartStore')
+  const { useCartStore } = require('@/modules/cart')
   const { fetchBuyerOrders } = require('@/services/ordersService')
   const { ordersApi, deliveriesApi } = require('@/services/deliveries')
 
@@ -491,6 +490,7 @@ describe('BuyerOrders (OrdersPage)', () => {
     renderWithRouter(<OrdersPage />)
 
     await waitFor(() => expect(screen.getByTestId('order-filters')).toBeInTheDocument())
+    await waitFor(() => expect(fetchBuyerOrders).toHaveBeenCalledTimes(1))
 
     const activeFilterBtn = screen.queryByTestId('filter-active')
     if (activeFilterBtn) {

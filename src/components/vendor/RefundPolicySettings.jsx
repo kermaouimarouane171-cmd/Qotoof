@@ -1,13 +1,14 @@
 import { Card, Input } from '@/components/ui'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
-
-const SHIPPING_OPTIONS = [
-  { value: 'buyer', label: 'المشتري يتحمل الشحن' },
-  { value: 'vendor', label: 'البائع يتحمل الشحن' },
-  { value: 'shared', label: 'مشاركة التكاليف بين الطرفين' },
-]
+import { useTranslation } from 'react-i18next'
 
 const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
+  const { t } = useTranslation()
+  const SHIPPING_OPTIONS = [
+    { value: 'buyer', label: t('vendor.refundPolicy.shipping.buyer', 'المشتري يتحمل الشحن') },
+    { value: 'vendor', label: t('vendor.refundPolicy.shipping.vendor', 'البائع يتحمل الشحن') },
+    { value: 'shared', label: t('vendor.refundPolicy.shipping.shared', 'مشاركة التكاليف بين الطرفين') },
+  ]
   const updateField = (field, nextValue) => {
     onChange({
       ...value,
@@ -19,15 +20,15 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
     <Card className="p-6">
       <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
         <ArrowPathIcon className="w-5 h-5 text-gray-600" />
-        سياسة الاسترجاع والاسترداد
+        {t('vendor.refundPolicy.title', 'سياسة الاسترجاع والاسترداد')}
       </h2>
       <p className="text-sm text-gray-500 mb-4">
-        اضبط شروط الإرجاع التي ستظهر للمشتري على صفحة المنتج قبل الشراء.
+        {t('vendor.refundPolicy.description', 'اضبط شروط الإرجاع التي ستظهر للمشتري على صفحة المنتج قبل الشراء.')}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input
-          label="نافذة الإرجاع (أيام)"
+          label={t('vendor.refundPolicy.returnWindowLabel', 'نافذة الإرجاع (أيام)')}
           type="number"
           min="1"
           max="30"
@@ -38,7 +39,7 @@ const RefundPolicySettings = ({ value, onChange, disabled = false, error }) => {
 
         <div>
           {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-          <label className="input-label">تكلفة شحن الإرجاع</label>
+          <label className="input-label">{t('vendor.refundPolicy.shippingCostLabel', 'تكلفة شحن الإرجاع')}</label>
           <select
             value={value.return_shipping_paid_by}
             onChange={(event) => updateField('return_shipping_paid_by', event.target.value)}

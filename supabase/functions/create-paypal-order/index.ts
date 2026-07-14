@@ -1,5 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireRole } from '../_shared/auth.ts'
+import { getCorsHeaders } from '../_shared/cors.ts'
+import { voidPayPalOrder } from '../_shared/paypalCheckout.ts'
 
 const PAYPAL_CLIENT_ID = Deno.env.get('VITE_PAYPAL_CLIENT_ID')
 const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET')
@@ -9,6 +12,7 @@ const PAYPAL_SETTLEMENT_CURRENCY = (Deno.env.get('PAYPAL_SETTLEMENT_CURRENCY') |
 const PAYPAL_MAD_EXCHANGE_RATE = Number(Deno.env.get('PAYPAL_MAD_EXCHANGE_RATE') || '0.092')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || ''
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+const FRONTEND_APP_URL = (Deno.env.get('VITE_APP_URL') || Deno.env.get('FRONTEND_APP_URL') || '').trim().replace(/\/+$/g, '')
 
 const buildAdminClient = () => createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
@@ -52,18 +56,12 @@ const resolveSettlementAmount = (amount: number, currency: string) => {
   throw new Error(`PayPal does not support currency ${normalizedCurrency}`)
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-const jsonResponse = (body: unknown, status = 200) =>
+const jsonResponse = (body: unknown, status = 200, requestOrigin: string | null = null) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...corsHeaders,
+      ...getCorsHeaders(requestOrigin),
     },
   })
 
@@ -93,19 +91,49 @@ const getAccessToken = async () => {
 }
 
 serve(async (req) => {
+  const requestOrigin = req.headers.get('Origin')
   try {
     if (req.method === 'OPTIONS') {
-      return new Response('ok', { headers: corsHeaders })
+      return new Response('ok', { headers: getCorsHeaders(requestOrigin) })
     }
 
     if (req.method !== 'POST') {
-      return jsonResponse({ error: 'Method not allowed' }, 405)
+      return jsonResponse({ error: 'Method not allowed' }, 405, requestOrigin)
     }
 
-    const { orderId, amount, currency = 'MAD', customer, metadata, returnUrl, cancelUrl } = await req.json()
+    // API-002: Verify authenticated user role before proceeding
+    // Allow buyers (for order payments) and vendors (for subscription upgrades)
+    const { orderId, amount, currency = 'MAD', customer: _customer, metadata, returnUrl, cancelUrl } = await req.json()
+
+    const isSubscription = metadata?.type === 'subscription'
+    const allowedRoles = isSubscription ? ['buyer', 'vendor'] : ['buyer']
+
+    let authResult: { userId: string; role: string } | null = null
+    try {
+      authResult = await requireRole(req, allowedRoles)
+    } catch (error) {
+      if (error instanceof Response) {
+        const status = error.status
+        const message = status === 401 ? 'Authentication required' : `Access restricted to ${allowedRoles.join(' or ')} only`
+        return jsonResponse({ error: message }, status, requestOrigin)
+      }
+      return jsonResponse({ error: 'Authentication required' }, 401, requestOrigin)
+    }
 
     if (!orderId || !amount) {
-      return jsonResponse({ error: 'Missing required fields: orderId, amount' }, 400)
+      return jsonResponse({ error: 'Missing required fields: orderId, amount' }, 400, requestOrigin)
+    }
+
+    // Prefer explicit frontend URLs; fall back to the configured frontend app URL.
+    // Never use the Edge Function origin (Supabase URL) because PayPal would
+    // redirect the buyer back to an invalid backend endpoint.
+    const explicitReturnUrl = typeof returnUrl === 'string' && returnUrl.trim() ? returnUrl.trim() : null
+    const explicitCancelUrl = typeof cancelUrl === 'string' && cancelUrl.trim() ? cancelUrl.trim() : null
+    const safeReturnUrl = explicitReturnUrl || (FRONTEND_APP_URL ? `${FRONTEND_APP_URL}/order-confirmation/${orderId}?paypal=success` : null)
+    const safeCancelUrl = explicitCancelUrl || (FRONTEND_APP_URL ? `${FRONTEND_APP_URL}/order-confirmation/${orderId}?paypal=cancel` : null)
+
+    if (!safeReturnUrl || !safeCancelUrl) {
+      return jsonResponse({ error: 'Missing PayPal return/cancel URL configuration. Provide returnUrl/cancelUrl or set VITE_APP_URL/FRONTEND_APP_URL secret.' }, 400, requestOrigin)
     }
 
     const token = await getAccessToken()
@@ -134,8 +162,8 @@ serve(async (req) => {
         ],
         application_context: {
           user_action: 'PAY_NOW',
-          return_url: returnUrl || `${new URL(req.url).origin}/payment/success`,
-          cancel_url: cancelUrl || `${new URL(req.url).origin}/payment/failed`,
+          return_url: safeReturnUrl,
+          cancel_url: safeCancelUrl,
           brand_name: 'Qotoof',
         },
         metadata: {
@@ -149,25 +177,40 @@ serve(async (req) => {
     const paypalOrder = await response.json()
 
     if (!response.ok) {
+      // FG-004: Do not forward raw PayPal details to the buyer.
+      console.error('PayPal create order error:', paypalOrder)
       return jsonResponse(
-        { error: paypalOrder?.message || 'Failed to create PayPal order', details: paypalOrder?.details || null },
-        response.status
+        { error: 'Failed to create PayPal order' },
+        500,
+        requestOrigin
       )
     }
 
     const approvalUrl = paypalOrder?.links?.find((link: { rel?: string; href?: string }) => link?.rel === 'approve')?.href || null
 
-    if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && orderId) {
+    // For subscription payments, skip storing in payments table (order_id is UUID, not string)
+    // The webhook will handle subscription activation via the custom_id field
+    if (!isSubscription && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY && orderId) {
       try {
         const adminClient = buildAdminClient()
         const { data: paymentRecord } = await adminClient
           .from('payments')
-          .select('id')
+          .select('id, transaction_id')
           .eq('order_id', orderId)
           .eq('payment_method', 'paypal')
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle()
+
+        // FG-010: Best-effort void of the previous PayPal order before replacing it.
+        const previousPayPalOrderId = paymentRecord?.transaction_id
+        if (previousPayPalOrderId && previousPayPalOrderId !== paypalOrder?.id) {
+          try {
+            await voidPayPalOrder(token, previousPayPalOrderId)
+          } catch (voidError) {
+            console.error('create-paypal-order: failed to void previous PayPal order:', voidError)
+          }
+        }
 
         if (paymentRecord?.id) {
           await adminClient
@@ -193,9 +236,12 @@ serve(async (req) => {
         originalCurrency: settlement.originalCurrency,
         originalAmount: settlement.originalValue,
       },
-      200
+      200,
+      requestOrigin
     )
   } catch (error) {
-    return jsonResponse({ error: error instanceof Error ? error.message : 'Unknown error' }, 500)
+    // FG-004: Log full error server-side, return generic message to the client.
+    console.error('create-paypal-order error:', error)
+    return jsonResponse({ error: 'Could not create PayPal order' }, 500, requestOrigin)
   }
 })

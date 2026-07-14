@@ -94,7 +94,7 @@ export function checkDeliveryEligibility({
   buyerLocation,
   vendorLocation,
   orderAmount = 0,
-  orderWeightKg = null,
+  _orderWeightKg = null,
   vendorPolicy = null,
 }) {
   const normalizedBuyer = normalizeLocation(buyerLocation)

@@ -31,7 +31,7 @@ jest.mock('@/store/authStore', () => ({
   useAuthStore: jest.fn(() => mockAuthState),
 }))
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: jest.fn(() => ({ addItem: mockAddItem })),
 }))
 
@@ -70,9 +70,8 @@ jest.mock('@/services/deliveries', () => ({
   },
 }))
 
-jest.mock('@/services/reviewService', () => ({
-  __esModule: true,
-  default: {
+jest.mock('@/modules/reviews', () => ({
+  reviewService: {
     canReviewOrder: jest.fn(() => true),
   },
 }))
@@ -84,7 +83,7 @@ jest.mock('@/services/invoiceService', () => ({
   },
 }))
 
-jest.mock('@/services/loyalty', () => ({
+jest.mock('@/modules/loyalty', () => ({
   __esModule: true,
   default: {
     syncDeliveredOrderBenefits: jest.fn().mockResolvedValue({ ordersProcessed: 0 }),

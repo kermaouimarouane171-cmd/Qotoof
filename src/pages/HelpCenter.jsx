@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import useRequireAuth from '@/hooks/useRequireAuth'
 import { Card } from '@/components/ui'
 import { getFaqsForLocale } from '@/data/faqData'
 import {
@@ -13,6 +14,7 @@ import {
   PlusIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import AuthGate from '@/components/auth/AuthGate'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { getDisplayErrorMessage } from '@/utils/errorHandler'
@@ -24,6 +26,7 @@ const HelpCenter = () => {
   const navigate = useNavigate()
   const { hash } = useLocation()
   const { user } = useAuthStore()
+  const { requireAuth } = useRequireAuth()
 
   // Scroll to FAQ section when navigated via /faq redirect or direct anchor link
   useEffect(() => {
@@ -37,11 +40,8 @@ const HelpCenter = () => {
   const [ticketSubject, setTicketSubject] = useState('')
   const [ticketDescription, setTicketDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [showAuthGate, setShowAuthGate] = useState(false)
   const faqs = useMemo(() => getFaqsForLocale(i18n.resolvedLanguage || i18n.language), [i18n.language, i18n.resolvedLanguage])
-
-  const redirectToLogin = useCallback(() => {
-    navigate('/login', { state: { from: '/help' } })
-  }, [navigate])
 
   const handleBack = useCallback(() => {
     if (window.history.length > 1) {
@@ -53,22 +53,16 @@ const HelpCenter = () => {
   }, [navigate])
 
   const handleOpenTicketForm = useCallback(() => {
-    if (!user) {
-      toast.error(t('helpCenter.loginRequired'))
-      redirectToLogin()
-      return
-    }
+    if (!requireAuth({ from: '/help', preventNavigation: true, onUnauthorized: () => setShowAuthGate(true) })) return
 
     setShowTicketForm(true)
-  }, [redirectToLogin, t, user])
+  }, [requireAuth])
 
   const handleSubmitTicket = async (e) => {
     e.preventDefault()
 
-    if (!user?.id) {
-      toast.error(t('helpCenter.loginRequired'))
+    if (!requireAuth({ from: '/help', preventNavigation: true, onUnauthorized: () => setShowAuthGate(true) })) {
       setShowTicketForm(false)
-      redirectToLogin()
       return
     }
 
@@ -223,6 +217,21 @@ const HelpCenter = () => {
           ))}
         </div>
       </div>
+
+      {/* Auth gate for ticket submission */}
+      {showAuthGate && (
+        <AuthGate
+          variant="modal"
+          icon={ChatBubbleLeftRightIcon}
+          title={t('helpCenter.authGate.title', 'Sign in to create a ticket')}
+          message={t('helpCenter.authGate.message', 'You need to be signed in to submit a support ticket.')}
+          from="/help"
+          loginTo="/login"
+          registerTo="/register"
+          showRegister
+          onCancel={() => setShowAuthGate(false)}
+        />
+      )}
     </div>
   )
 }

@@ -86,8 +86,8 @@ const VendorSecurityPage = () => {
       await supabase.from('notifications').insert({
         user_id: user.id,
         type: 'security_alert',
-        title: t('vendor.security.email.title', 'Security Alert: {{action}}', { action }),
-        message: t('vendor.security.email.message', 'A security change was made on your account: {{action}}. {{details}} If this wasn\'t you, please contact support immediately.', { action, details }),
+        title: t('vendor.security.emailAlert.title', 'Security Alert: {{action}}', { action }),
+        message: t('vendor.security.emailAlert.message', 'A security change was made on your account: {{action}}. {{details}} If this wasn\'t you, please contact support immediately.', { action, details }),
         is_read: false,
         created_at: new Date().toISOString(),
       })
@@ -166,7 +166,7 @@ const VendorSecurityPage = () => {
       }
 
       if (!profile?.phone) {
-        setPasswordError('أضف رقم هاتف إلى حسابك قبل تغيير كلمة المرور')
+        setPasswordError(t('vendor.security.errors.phoneRequired', 'Add a phone number to your account before changing password. Go to your Profile page to add one.'))
         return
       }
 
@@ -211,7 +211,7 @@ const VendorSecurityPage = () => {
   // ============================================================
   const handleDisableMFA = async () => {
     if (!user?.email || !user?.id) {
-      toast.error('تعذر تحديد الحساب الحالي')
+      toast.error(t('vendor.security.errors.accountNotFound', 'تعذر تحديد الحساب الحالي'))
       return
     }
 
@@ -253,7 +253,7 @@ const VendorSecurityPage = () => {
   // ============================================================
   const handleRevokeAllSessions = async () => {
     if (!user?.id) {
-      toast.error('تعذر تحديد الحساب الحالي')
+      toast.error(t('vendor.security.errors.accountNotFound', 'تعذر تحديد الحساب الحالي'))
       return
     }
 
@@ -474,6 +474,48 @@ const VendorSecurityPage = () => {
                     {showNewPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                   </button>
                 </div>
+                {newPassword.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            strengthResult.score <= 1 ? 'bg-red-500' :
+                            strengthResult.score === 2 ? 'bg-orange-500' :
+                            strengthResult.score === 3 ? 'bg-yellow-500' :
+                            strengthResult.score === 4 ? 'bg-lime-500' : 'bg-green-500'
+                          }`}
+                          style={{ width: `${(strengthResult.score / 5) * 100}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-medium ${strengthResult.color}`}>
+                        {t(`vendor.security.strength.${strengthResult.label.replace(' ', '')}`, strengthResult.label)}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      <span className={`flex items-center gap-1 ${strengthResult.checks.minLength ? 'text-green-600' : 'text-gray-400'}`}>
+                        {strengthResult.checks.minLength ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <ExclamationTriangleIcon className="w-3.5 h-3.5" />}
+                        {t('vendor.security.strength.minLength', '8+ characters')}
+                      </span>
+                      <span className={`flex items-center gap-1 ${strengthResult.checks.uppercase ? 'text-green-600' : 'text-gray-400'}`}>
+                        {strengthResult.checks.uppercase ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <ExclamationTriangleIcon className="w-3.5 h-3.5" />}
+                        {t('vendor.security.strength.uppercase', 'Uppercase letter')}
+                      </span>
+                      <span className={`flex items-center gap-1 ${strengthResult.checks.lowercase ? 'text-green-600' : 'text-gray-400'}`}>
+                        {strengthResult.checks.lowercase ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <ExclamationTriangleIcon className="w-3.5 h-3.5" />}
+                        {t('vendor.security.strength.lowercase', 'Lowercase letter')}
+                      </span>
+                      <span className={`flex items-center gap-1 ${strengthResult.checks.number ? 'text-green-600' : 'text-gray-400'}`}>
+                        {strengthResult.checks.number ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <ExclamationTriangleIcon className="w-3.5 h-3.5" />}
+                        {t('vendor.security.strength.number', 'Number')}
+                      </span>
+                      <span className={`flex items-center gap-1 ${strengthResult.checks.special ? 'text-green-600' : 'text-gray-400'}`}>
+                        {strengthResult.checks.special ? <CheckCircleIcon className="w-3.5 h-3.5" /> : <ExclamationTriangleIcon className="w-3.5 h-3.5" />}
+                        {t('vendor.security.strength.special', 'Special character')}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -499,6 +541,15 @@ const VendorSecurityPage = () => {
               {passwordError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700" role="alert">
                   {passwordError}
+                  {passwordError.includes('phone number') && (
+                    <button
+                      type="button"
+                      onClick={() => navigate('/vendor/profile')}
+                      className="ml-2 underline font-medium text-red-800 hover:text-red-900"
+                    >
+                      {t('vendor.security.goToProfile', 'Go to Profile →')}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -623,14 +674,12 @@ const VendorSecurityPage = () => {
                   </div>
                   <p className="text-sm text-green-700">
                     {t('vendor.security.usingMethod', 'Using {{method}} verification', {
-                      method: mfaSettings.method === 'email'
-                        ? t('vendor.security.email', 'Email')
-                        : t('vendor.security.authenticatorApp', 'Authenticator App')
+                      method: t('vendor.security.authenticatorApp', 'Authenticator App')
                     })}
                   </p>
-                  {mfaSettings.last_used_at && (
+                  {mfaSettings.factors && mfaSettings.factors.length > 1 && (
                     <p className="text-xs text-green-600 mt-2">
-                      {t('vendor.security.lastUsed', 'Last used')}: {new Date(mfaSettings.last_used_at).toLocaleString()}
+                      {mfaSettings.factors.length} factors enrolled
                     </p>
                   )}
                 </div>
@@ -755,9 +804,12 @@ const VendorSecurityPage = () => {
       {/* Modals */}
       <MFASetup
         isOpen={showMFASetup}
-        onClose={() => {
+        onClose={async () => {
           setShowMFASetup(false)
-          loadSecurityData()
+          await loadSecurityData()
+          if (mfaSettings?.is_enabled) {
+            await sendSecurityEmail('Two-Factor Authentication Enabled')
+          }
         }}
       />
 

@@ -164,15 +164,16 @@ export const useLogout = () => {
 }
 
 /**
- * Send verification email / OTP
+ * Verify email via OTP (signup or recovery). Signup uses type: 'signup'
+ * and the token sent in the Supabase verification email.
  */
 export const useVerifyEmail = () => {
   return useMutation({
-    mutationFn: async ({ email, token }) => {
+    mutationFn: async ({ email, token, type = 'signup' }) => {
       const { data, error } = await supabase.auth.verifyOtp({
         email,
         token,
-        type: 'signup',
+        type,
       })
 
       if (error) throw error

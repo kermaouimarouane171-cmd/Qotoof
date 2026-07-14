@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 describe('PayPal refundPayPalPayment schema compliance', () => {
-  const filePath = path.resolve(__dirname, '../../services/paymentGateway.js')
+  const filePath = path.resolve(__dirname, '../../modules/payments/api/paymentGateway.js')
   const source = fs.readFileSync(filePath, 'utf-8')
 
   // Extract the refundPayPalPayment method body (from signature to start of next method)
@@ -56,7 +56,7 @@ describe('PayPal refundPayPalPayment schema compliance', () => {
   test('recordRefund is wrapped in try/catch (non-blocking)', () => {
     expect(methodBody).toMatch(/try \{\s*await this\.recordRefund/)
     expect(methodBody).toMatch(/catch \(recordErr\)/)
-    expect(methodBody).toMatch(/console\.warn/)
+    expect(methodBody).toMatch(/logger\.warn/)
   })
 
   test('recordRefund does not break the flow', () => {

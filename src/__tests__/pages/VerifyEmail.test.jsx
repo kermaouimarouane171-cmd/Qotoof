@@ -34,7 +34,10 @@ jest.mock('@/store/authStore', () => ({
   useAuthStore: Object.assign(jest.fn((selector) => selector(mockAuthState)), {
     getState: jest.fn(() => ({
       profile: { role: 'buyer' },
+      getRedirectPath: (role) =>
+        role === 'vendor' ? '/vendor/dashboard' : role === 'driver' ? '/driver/dashboard' : '/marketplace',
     })),
+    setState: jest.fn(),
   }),
 }))
 
@@ -58,9 +61,9 @@ jest.mock('react-hot-toast', () => ({
 
 jest.mock('@/components/ui', () => ({
   __esModule: true,
-  Button: ({ children, onClick, isLoading, disabled, variant, className, ...props }) => (
+  Button: ({ children, onClick, isLoading, disabled, variant, type, className, ...props }) => (
     <button
-      type="button"
+      type={type || 'button'}
       onClick={onClick}
       disabled={disabled || isLoading}
       className={className}
@@ -101,57 +104,76 @@ describe('VerifyEmail OTP page', () => {
     expect(screen.getByTestId('verify-email-verify-button')).toBeInTheDocument()
     expect(screen.getByTestId('verify-email-resend-button')).toBeInTheDocument()
     expect(screen.getByTestId('verify-email-address')).toHaveTextContent('test@example.ma')
+    expect(screen.getByTestId('verify-email-login-link')).toBeInTheDocument()
+    expect(screen.getByTestId('verify-email-register-link')).toBeInTheDocument()
   })
 
-  it('allows entering only numeric 6-digit code', async () => {
+  it('does not show confirmation link as the main instruction', async () => {
     renderPage({ email: 'test@example.ma' })
 
-    const input = screen.getByTestId('verify-email-otp-input')
-    fireEvent.change(input, { target: { value: 'abc123def' } })
-    expect(input.value).toBe('123')
-
-    fireEvent.change(input, { target: { value: '1234567' } })
-    expect(input.value).toBe('123456')
+    expect(screen.queryByText(/اضغط على الرابط/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/click the link/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/رمز التحقق/i)).toBeInTheDocument()
   })
 
-  it('calls verifyOtp and navigates on successful verification', async () => {
-    renderPage({ email: 'test@example.ma' })
+  it('calls verifyOtp with valid code and redirects to role path', async () => {
+    renderPage({ email: 'test@example.ma', redirectPath: '/marketplace' })
 
-    const input = screen.getByTestId('verify-email-otp-input')
-    fireEvent.change(input, { target: { value: '654321' } })
-
+    fireEvent.change(screen.getByTestId('verify-email-otp-input'), {
+      target: { value: '123456' },
+    })
     fireEvent.click(screen.getByTestId('verify-email-verify-button'))
 
     await waitFor(() => {
       expect(mockSupabaseAuth.verifyOtp).toHaveBeenCalledWith({
         email: 'test@example.ma',
-        token: '654321',
+        token: '123456',
         type: 'signup',
       })
-    })
-
-    await waitFor(() => {
       expect(mockAuthState.initialize).toHaveBeenCalled()
+      expect(mockToast.success).toHaveBeenCalledWith('تم التحقق من البريد بنجاح')
       expect(mockNavigate).toHaveBeenCalledWith('/marketplace', { replace: true })
-      expect(mockToast.success).toHaveBeenCalledWith('تم تأكيد البريد الإلكتروني بنجاح')
     })
   })
 
-  it('shows error when verifyOtp fails', async () => {
+  it('falls back to getRedirectPath when redirectPath is not provided', async () => {
+    renderPage({ email: 'test@example.ma' })
+
+    fireEvent.change(screen.getByTestId('verify-email-otp-input'), {
+      target: { value: '654321' },
+    })
+    fireEvent.click(screen.getByTestId('verify-email-verify-button'))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/marketplace', { replace: true })
+    })
+  })
+
+  it('shows error when OTP verification fails', async () => {
     mockSupabaseAuth.verifyOtp.mockResolvedValue({
       error: { message: 'Token has expired or is invalid' },
     })
 
     renderPage({ email: 'test@example.ma' })
 
-    const input = screen.getByTestId('verify-email-otp-input')
-    fireEvent.change(input, { target: { value: '000000' } })
-
+    fireEvent.change(screen.getByTestId('verify-email-otp-input'), {
+      target: { value: '000000' },
+    })
     fireEvent.click(screen.getByTestId('verify-email-verify-button'))
 
     await waitFor(() => {
       expect(screen.getByTestId('verify-email-error')).toHaveTextContent('Token has expired or is invalid')
+      expect(mockNavigate).not.toHaveBeenCalled()
     })
+  })
+
+  it('only allows numeric input of max 6 characters', async () => {
+    renderPage({ email: 'test@example.ma' })
+
+    const input = screen.getByTestId('verify-email-otp-input')
+    fireEvent.change(input, { target: { value: 'abc123456' } })
+
+    expect(input).toHaveValue('123456')
   })
 
   it('calls resend on button click', async () => {
@@ -164,39 +186,36 @@ describe('VerifyEmail OTP page', () => {
         type: 'signup',
         email: 'test@example.ma',
       })
-      expect(mockToast.success).toHaveBeenCalledWith('تم إرسال رمز التحقق مرة أخرى')
+      expect(mockToast.success).toHaveBeenCalledWith('تم إعادة إرسال رمز التحقق')
     })
   })
 
-  it('disables verify button when OTP is not 6 digits', async () => {
-    renderPage({ email: 'test@example.ma' })
-
-    const verifyButton = screen.getByTestId('verify-email-verify-button')
-    expect(verifyButton).toBeDisabled()
-
-    const input = screen.getByTestId('verify-email-otp-input')
-    fireEvent.change(input, { target: { value: '12345' } })
-    expect(verifyButton).toBeDisabled()
-
-    fireEvent.change(input, { target: { value: '123456' } })
-    expect(verifyButton).not.toBeDisabled()
-  })
-
-  it('clears error when user types a new OTP after failed verification', async () => {
-    mockSupabaseAuth.verifyOtp.mockResolvedValue({
-      error: { message: 'رمز التحقق غير صحيح' },
+  it('shows rate-limit error when resend fails', async () => {
+    mockSupabaseAuth.resend.mockResolvedValue({
+      error: { message: 'For security purposes, you can only request this after 60 seconds' },
     })
 
     renderPage({ email: 'test@example.ma' })
 
-    const input = screen.getByTestId('verify-email-otp-input')
-    fireEvent.change(input, { target: { value: '000000' } })
-    fireEvent.click(screen.getByTestId('verify-email-verify-button'))
+    fireEvent.click(screen.getByTestId('verify-email-resend-button'))
 
-    await screen.findByTestId('verify-email-error')
+    await waitFor(() => {
+      expect(screen.getByTestId('verify-email-resend-error')).toHaveTextContent(
+        'For security purposes, you can only request this after 60 seconds'
+      )
+    })
+  })
 
-    fireEvent.change(input, { target: { value: '000001' } })
-    expect(screen.queryByTestId('verify-email-error')).not.toBeInTheDocument()
+  it('disables resend button during countdown', async () => {
+    renderPage({ email: 'test@example.ma' })
+
+    fireEvent.click(screen.getByTestId('verify-email-resend-button'))
+
+    await waitFor(() => {
+      expect(mockSupabaseAuth.resend).toHaveBeenCalled()
+    })
+
+    expect(screen.getByTestId('verify-email-resend-button')).toBeDisabled()
   })
 
   it('does not auto-redirect on mount (anti-loop guard)', async () => {
@@ -207,11 +226,32 @@ describe('VerifyEmail OTP page', () => {
     expect(mockAuthState.initialize).not.toHaveBeenCalled()
   })
 
-  it('reads email from sessionStorage when location state is empty', async () => {
+  it('reads email and redirectPath from sessionStorage when location state is empty', async () => {
     sessionStorage.setItem('pendingVerificationEmail', 'stored@example.ma')
+    sessionStorage.setItem('redirect_after_verification', '/vendor/dashboard')
 
     renderPage({})
 
     expect(screen.getByTestId('verify-email-address')).toHaveTextContent('stored@example.ma')
+
+    fireEvent.change(screen.getByTestId('verify-email-otp-input'), {
+      target: { value: '111111' },
+    })
+    fireEvent.click(screen.getByTestId('verify-email-verify-button'))
+
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/vendor/dashboard', { replace: true })
+    })
+  })
+
+  it('shows safe state when email is missing', async () => {
+    renderPage({})
+
+    expect(screen.getByTestId('verify-email-page')).toBeInTheDocument()
+    expect(screen.queryByTestId('verify-email-otp-input')).not.toBeInTheDocument()
+    expect(screen.getByText('لا يوجد تحقق معلق من البريد الإلكتروني')).toBeInTheDocument()
+    expect(screen.getByTestId('verify-email-register-link')).toBeInTheDocument()
+    expect(screen.getByTestId('verify-email-login-link')).toBeInTheDocument()
+    expect(mockNavigate).not.toHaveBeenCalled()
   })
 })

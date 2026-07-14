@@ -123,13 +123,52 @@ jobs:
           retention-days: 1
 
   # ──────────────────────────────────────────────────────────────────────────
-  # 2. Deploy Supabase Edge Functions first
+  # 2a. Deploy Supabase Edge Functions — Tier 1: Critical (payment + auth/security)
+  #     Fail-fast: if any critical function fails, deployment stops.
   # ──────────────────────────────────────────────────────────────────────────
-  deploy-functions:
-    name: Deploy Edge Functions
+  deploy-functions-critical:
+    name: Deploy Critical — ${{ matrix.function }}
     runs-on: ubuntu-latest
     needs: [deployment-readiness, build]
     if: ${{ needs.build.result == 'success' && needs.deployment-readiness.outputs.supabase_ready == 'true' }}
+    strategy:
+      fail-fast: true
+      max-parallel: 5
+      matrix:
+        function:
+          # ── Payment-critical ──
+          - calculate-checkout-pricing
+          - create-checkout-order
+          - create-paypal-order
+          - capture-paypal-order
+          - confirm-order-payment
+          - payment-status-write
+          - register-payment-receipt
+          - get-bank-details
+          - confirm-bank-transfer
+          - paypal-webhook
+          - refund-paypal-payment
+          - refund-payment
+          - process-manual-refund
+          - reconcile-paypal-payments
+          - send-payout
+          - process-vendor-payout
+          - commission-cron
+          - stripe-webhook
+          - stripe-checkout
+          - create-payment-intent
+          # ── CMI payment ──
+          - cmi-payment
+          - create-cmi-session
+          - verify-cmi-callback
+          - refund-cmi-payment
+          # ── Auth/security-critical ──
+          - auth-admin-ops
+          - create-user-with-role
+          - secure-login
+          - sync-role
+          - request-phone-otp
+          - verify-phone-otp
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,9 +177,59 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Deploy auth-admin-ops function
+      - name: Deploy ${{ matrix.function }}
         run: |
-          supabase functions deploy auth-admin-ops \
+          supabase functions deploy ${{ matrix.function }} \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2b. Deploy Supabase Edge Functions — Tier 2: Standard (delivery, communication, infrastructure)
+  #     Fail-fast disabled: non-critical function failures do not block hosting deploy.
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy-functions-standard:
+    name: Deploy Standard — ${{ matrix.function }}
+    runs-on: ubuntu-latest
+    needs: [deployment-readiness, build, deploy-functions-critical]
+    if: ${{ always() && needs.build.result == 'success' && (needs.deploy-functions-critical.result == 'success' || needs.deploy-functions-critical.result == 'skipped') && needs.deployment-readiness.outputs.supabase_ready == 'true' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        function:
+          # ── Delivery ──
+          - accept-delivery
+          - reject-delivery
+          - assign-driver
+          - auto-assign-driver
+          - mark-delivery-picked-up
+          - mark-delivery-on-the-way
+          - mark-delivery-delivered
+          # ── Orders ──
+          - accept-order
+          - reject-order
+          - public-order-tracking
+          - redeem-coupon
+          # ── Communication / Support ──
+          - send-email
+          - send-sms
+          - create-support-ticket
+          - award-loyalty-points
+          # ── Infrastructure / Config ──
+          - get-public-config
+          - process-outbox
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Deploy ${{ matrix.function }}
+        run: |
+          supabase functions deploy ${{ matrix.function }} \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -151,8 +240,8 @@ jobs:
   deploy-hosting:
     name: Deploy to Firebase Hosting
     runs-on: ubuntu-latest
-    needs: [deployment-readiness, build, deploy-functions]
-    if: ${{ always() && needs.build.result == 'success' && (needs.deploy-functions.result == 'success' || needs.deploy-functions.result == 'skipped') && needs.deployment-readiness.outputs.firebase_ready == 'true' }}
+    needs: [deployment-readiness, build, deploy-functions-critical, deploy-functions-standard]
+    if: ${{ always() && needs.build.result == 'success' && (needs.deploy-functions-critical.result == 'success' || needs.deploy-functions-critical.result == 'skipped') && (needs.deploy-functions-standard.result == 'success' || needs.deploy-functions-standard.result == 'skipped' || needs.deploy-functions-standard.result == 'failure') && needs.deployment-readiness.outputs.firebase_ready == 'true' }}
     environment: production
     steps:
       - uses: actions/checkout@v4

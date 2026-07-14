@@ -1,4 +1,4 @@
-import { rollbackCheckoutRecords } from '@/utils/checkoutCleanup'
+import { rollbackCheckoutRecords } from '@/modules/checkout'
 
 describe('rollbackCheckoutRecords', () => {
   test('skips cleanup when there are no order ids', async () => {

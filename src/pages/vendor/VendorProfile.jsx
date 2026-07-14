@@ -8,7 +8,7 @@ import { useParams } from 'react-router-dom'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import storeTypeService from '@/services/storeTypeService'
+import { storeTypeService } from '@/modules/marketplace'
 import { isPublicVendorVisible } from '@/utils/publicVisibility'
 
 const VendorProfilePublic = () => {

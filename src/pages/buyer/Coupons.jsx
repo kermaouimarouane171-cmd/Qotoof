@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { Card, LoadingSpinner } from '@/components/ui'
+import { Card, LoadingSpinner, formatPrice, logger } from '@/modules/shared'
 import { useTranslation } from 'react-i18next'
-import { couponsApi } from '@/services/coupons'
-import { formatPrice } from '@/utils/currency'
+import { couponsApi } from '@/modules/coupons'
 import {
   TagIcon,
   ClipboardDocumentIcon,
@@ -14,37 +13,26 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
-import { logger } from '@/utils/logger'
 
 const BuyerCoupons = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [coupons, setCoupons] = useState([])
-  const [loading, setLoading] = useState(true)
 
-  const loadCoupons = useCallback(async () => {
-    if (!user?.id) {
-      setCoupons([])
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    try {
-      const { data } = await couponsApi.getAvailableCoupons(user.id, { limit: 100 })
-      setCoupons(data || [])
-    } catch (error) {
-      logger.error('Error loading coupons:', error)
-      toast.error(t('buyer.coupons.notifications.loadFailed', 'Failed to load coupons'))
-    } finally {
-      setLoading(false)
-    }
-  }, [t, user?.id])
-
-  useEffect(() => {
-    loadCoupons()
-  }, [loadCoupons])
+  const { data: coupons = [], isLoading: loading } = useQuery({
+    queryKey: ['buyer-coupons', user?.id],
+    queryFn: async () => {
+      const { data, error } = await couponsApi.getAvailableCoupons(user.id, { limit: 100 })
+      if (error) {
+        logger.error('Error loading coupons:', error)
+        toast.error(t('buyer.coupons.loadFailed', 'Failed to load coupons'))
+        throw error
+      }
+      return data || []
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+  })
 
   const handleCopyCode = async (code) => {
     try {
@@ -72,9 +60,9 @@ const BuyerCoupons = () => {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/buyer/dashboard')}
+            onClick={() => navigate('/marketplace')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label={t('common.back', 'Back to dashboard')}
+            aria-label={t('common.backToMarketplace', 'Back to marketplace')}
           >
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>

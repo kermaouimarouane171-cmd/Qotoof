@@ -23,10 +23,10 @@ import { formatPrice } from '@/utils/currency'
 import toast from 'react-hot-toast'
 
 const RANGE_OPTIONS = [
-  { id: '7d', label: 'آخر 7 أيام', days: 7 },
-  { id: '30d', label: 'آخر 30 يومًا', days: 30 },
-  { id: '90d', label: 'آخر 90 يومًا', days: 90 },
-  { id: 'custom', label: 'نطاق مخصص', days: null },
+  { id: '7d',     labelKey: 'admin.analytics.range.7d',     days: 7 },
+  { id: '30d',    labelKey: 'admin.analytics.range.30d',    days: 30 },
+  { id: '90d',    labelKey: 'admin.analytics.range.90d',    days: 90 },
+  { id: 'custom', labelKey: 'admin.analytics.range.custom', days: null },
 ]
 
 const PIE_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#6b7280']
@@ -73,7 +73,7 @@ const AdminAnalyticsPage = () => {
     if (!isAdmin) return
 
     if (rangeId === 'custom' && (!customStart || !customEnd)) {
-      toast.error(t('admin.analytics.customRangeRequired', 'يرجى اختيار تاريخ البداية والنهاية'))
+      toast.error(t('admin.analytics.customRangeRequired', 'Please select a start and end date'))
       return
     }
 
@@ -95,7 +95,7 @@ const AdminAnalyticsPage = () => {
       // Driver performance source.
       const { data: deliveriesRows, error: deliveriesError } = await supabase
         .from('deliveries')
-        .select('id, driver_id, status, created_at, accepted_at, completed_at', { count: 'exact' })
+        .select('id, driver_id, status, created_at, accepted_at, delivered_at', { count: 'exact' })
         .gte('created_at', startIso)
         .lte('created_at', endIso)
 
@@ -121,7 +121,7 @@ const AdminAnalyticsPage = () => {
 
       orders.forEach((order) => {
         const dayKey = formatDateKey(new Date(order.created_at))
-        const revenue = Number(order.total_amount ?? order.total ?? 0) || 0
+        const revenue = Number(order.total ?? 0) || 0
 
         countByDay.set(dayKey, (countByDay.get(dayKey) || 0) + 1)
         revenueByDay.set(dayKey, (revenueByDay.get(dayKey) || 0) + revenue)
@@ -211,7 +211,7 @@ const AdminAnalyticsPage = () => {
             row.completed += 1
 
             const startedAt = delivery.accepted_at || delivery.created_at
-            const finishedAt = delivery.completed_at
+            const finishedAt = delivery.delivered_at
             if (startedAt && finishedAt) {
               const minutes = (new Date(finishedAt).getTime() - new Date(startedAt).getTime()) / (1000 * 60)
               if (minutes > 0) {
@@ -252,7 +252,7 @@ const AdminAnalyticsPage = () => {
       setDriverPerformance(driverRows)
     } catch (error) {
       logger.error('Admin analytics load failed:', error)
-      toast.error(t('admin.analytics.loadFailed', 'تعذر تحميل بيانات التحليلات'))
+      toast.error(t('admin.analytics.loadFailed', 'Failed to load analytics data'))
     } finally {
       setLoading(false)
     }
@@ -266,7 +266,7 @@ const AdminAnalyticsPage = () => {
 
   const applyCustomRange = () => {
     if (!customStart || !customEnd) {
-      toast.error(t('admin.analytics.customRangeRequired', 'يرجى اختيار تاريخ البداية والنهاية'))
+      toast.error(t('admin.analytics.customRangeRequired', 'Please select a start and end date'))
       return
     }
     loadAnalytics()
@@ -282,23 +282,23 @@ const AdminAnalyticsPage = () => {
 
   if (!isAdmin) {
     return (
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4" dir="rtl">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4">
         <h2 className="text-lg font-semibold text-red-800 mb-1">
-          {t('admin.analytics.forbiddenTitle', 'غير مصرح بالوصول')}
+          {t('admin.analytics.forbiddenTitle', 'Access Denied')}
         </h2>
         <p className="text-sm text-red-700">
-          {t('admin.analytics.forbiddenMessage', 'هذه الصفحة مخصصة للمشرفين فقط.')}
+          {t('admin.analytics.forbiddenMessage', 'This page is for admins only.')}
         </p>
       </div>
     )
   }
 
   return (
-    <div dir="rtl" data-cy="admin-analytics-page">
+    <div data-cy="admin-analytics-page">
       <div className="flex flex-col gap-4 mb-6 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('admin.analytics.title', 'لوحة التحليلات')}</h1>
-          <p className="text-sm text-gray-600 mt-1">{t('admin.analytics.subtitle', 'مؤشرات الطلبات، الإيرادات، والأداء')}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('admin.analytics.title', 'Analytics Dashboard')}</h1>
+          <p className="text-sm text-gray-600 mt-1">{t('admin.analytics.subtitle', 'Orders, revenue, and performance indicators')}</p>
         </div>
 
         <div className="flex flex-wrap gap-2" data-cy="admin-analytics-range-selector">
@@ -310,7 +310,7 @@ const AdminAnalyticsPage = () => {
               onClick={() => setRangeId(option.id)}
               data-cy={`admin-analytics-range-${option.id}`}
             >
-              {option.label}
+              {t(option.labelKey, option.id)}
             </Button>
           ))}
         </div>
@@ -321,7 +321,7 @@ const AdminAnalyticsPage = () => {
           <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} data-cy="admin-analytics-custom-start" />
           <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} data-cy="admin-analytics-custom-end" />
           <Button type="button" variant="primary" onClick={applyCustomRange} data-cy="admin-analytics-custom-apply">
-            {t('admin.analytics.applyRange', 'تطبيق النطاق')}
+            {t('admin.analytics.applyRange', 'Apply Range')}
           </Button>
         </div>
       )}
@@ -333,7 +333,7 @@ const AdminAnalyticsPage = () => {
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="orders-over-time-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.ordersOverTime', 'الطلبات عبر الزمن')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.ordersOverTime', 'Orders Over Time')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ordersOverTime}>
@@ -342,14 +342,14 @@ const AdminAnalyticsPage = () => {
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Legend />
-                  <Line type="monotone" dataKey="value" name={t('admin.analytics.orders', 'الطلبات')} stroke="#3b82f6" strokeWidth={2} />
+                  <Line type="monotone" dataKey="value" name={t('admin.analytics.orders', 'Orders')} stroke="#3b82f6" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="revenue-over-time-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.revenueOverTime', 'الإيراد عبر الزمن')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.revenueOverTime', 'Revenue Over Time')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={revenueOverTime}>
@@ -358,14 +358,14 @@ const AdminAnalyticsPage = () => {
                   <YAxis />
                   <Tooltip formatter={(value) => formatPrice(value)} />
                   <Legend />
-                  <Line type="monotone" dataKey="value" name={t('admin.analytics.revenue', 'الإيراد')} stroke="#16a34a" strokeWidth={2} />
+                  <Line type="monotone" dataKey="value" name={t('admin.analytics.revenue', 'Revenue')} stroke="#16a34a" strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="orders-by-status-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.ordersByStatus', 'الطلبات حسب الحالة')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.ordersByStatus', 'Orders by Status')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -382,7 +382,7 @@ const AdminAnalyticsPage = () => {
           </section>
 
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="top-vendors-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.topVendors', 'أفضل 5 باعة حسب الإيراد')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.topVendors', 'Top 5 Vendors by Revenue')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topVendorsByRevenue}>
@@ -391,14 +391,14 @@ const AdminAnalyticsPage = () => {
                   <YAxis />
                   <Tooltip formatter={(value) => formatPrice(value)} />
                   <Legend />
-                  <Bar dataKey="revenue" name={t('admin.analytics.revenue', 'الإيراد')} fill="#0ea5e9" />
+                  <Bar dataKey="revenue" name={t('admin.analytics.revenue', 'Revenue')} fill="#0ea5e9" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="top-buyers-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.topBuyers', 'أفضل 5 مشترين حسب عدد الطلبات')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.topBuyers', 'Top 5 Buyers by Order Count')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topBuyersByOrders}>
@@ -407,14 +407,14 @@ const AdminAnalyticsPage = () => {
                   <YAxis allowDecimals={false} />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="ordersCount" name={t('admin.analytics.orders', 'الطلبات')} fill="#f59e0b" />
+                  <Bar dataKey="ordersCount" name={t('admin.analytics.orders', 'Orders')} fill="#f59e0b" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </section>
 
           <section className="rounded-xl border border-gray-200 bg-white p-4" data-cy="driver-performance-chart">
-            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.driverPerformance', 'مؤشرات أداء السائقين')}</h3>
+            <h3 className="font-semibold text-gray-900 mb-3">{t('admin.analytics.driverPerformance', 'Driver Performance KPIs')}</h3>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={driverPerformance}>
@@ -423,8 +423,8 @@ const AdminAnalyticsPage = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="completed" name={t('admin.analytics.deliveriesCompleted', 'التسليمات المكتملة')} fill="#22c55e" />
-                  <Bar dataKey="avgTimeMinutes" name={t('admin.analytics.avgTime', 'متوسط الوقت بالدقائق')} fill="#8b5cf6" />
+                  <Bar dataKey="completed" name={t('admin.analytics.deliveriesCompleted', 'Deliveries Completed')} fill="#22c55e" />
+                  <Bar dataKey="avgTimeMinutes" name={t('admin.analytics.avgTime', 'Avg Time (min)')} fill="#8b5cf6" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -4,6 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 // ============================================
 // Environment Configuration
@@ -41,15 +42,8 @@ function verifyCMISignature(params: Record<string, string>): boolean {
 serve(async (req) => {
   try {
     // CORS headers
-    if (req.method === 'OPTIONS') {
-      return new Response('ok', {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-      })
-    }
+    const optionsResponse = handleOptions(req)
+    if (optionsResponse) return optionsResponse
 
     // Only allow POST requests
     if (req.method !== 'POST') {
@@ -59,7 +53,7 @@ serve(async (req) => {
           status: 405, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -74,7 +68,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -89,14 +83,14 @@ serve(async (req) => {
       TransId, // Transaction ID from bank
       currency,
       amount,
-      transactionType,
-      installment,
-      hash, // Signature hash
+      _transactionType,
+      _installment,
+      _hash, // Signature hash
       ProcReturnCode, // Processing return code
       // Custom data we passed during creation
       DATA_ORDER_ID,
-      DATA_PLATFORM,
-      ...extraData
+      _DATA_PLATFORM,
+      ..._extraData
     } = body
 
     // Verify signature
@@ -113,7 +107,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -144,7 +138,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -259,7 +253,7 @@ serve(async (req) => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(req.headers.get('Origin')),
         },
       }
     )
@@ -276,7 +270,7 @@ serve(async (req) => {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(req.headers.get('Origin')),
         },
       }
     )

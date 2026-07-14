@@ -71,10 +71,11 @@ export const registerBuyerProfileSchema = z.object({
     .max(500, 'Address must be less than 500 characters')
     .transform(addr => addr.trim()),
 
-  preferredPaymentMethod: z
-    .enum(['cash', 'bank_transfer', 'paypal'], {
-      errorMap: () => ({ message: 'Please select a valid payment method' }),
-    }),
+  city: z
+    .string()
+    .min(2, 'City must be at least 2 characters')
+    .max(100, 'City must be less than 100 characters')
+    .transform(c => c.trim()),
 })
 
 /**
@@ -86,11 +87,6 @@ export const registerVendorProfileSchema = z.object({
     .min(3, 'Store name must be at least 3 characters')
     .max(100, 'Store name must be less than 100 characters')
     .transform(name => name.trim()),
-
-  storeType: z
-    .enum(['farm', 'cooperative', 'wholesale', 'retail'], {
-      errorMap: () => ({ message: 'Please select a valid store type' }),
-    }),
 
   city: z
     .string()

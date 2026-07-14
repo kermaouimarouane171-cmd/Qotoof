@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
@@ -12,6 +13,7 @@ import {
 
 const DriverPreferenceSetup = () => {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { profile } = useAuthStore()
   const [choice, setChoice] = useState(
     typeof profile?.has_own_driver === 'boolean' ? profile.has_own_driver : null
@@ -53,12 +55,12 @@ const DriverPreferenceSetup = () => {
 
   const handleSave = async () => {
     if (choice === null) {
-      toast.error('يرجى اختيار ما إذا كنت تريد سائقاً مفضلاً أم لا')
+      toast.error(t('vendor.driverPreferenceSetup.selectChoice', 'يرجى اختيار ما إذا كنت تريد سائقاً مفضلاً أم لا'))
       return
     }
 
     if (!profile?.id) {
-      toast.error('تعذر تحديد حساب البائع الحالي')
+      toast.error(t('vendor.driverPreferenceSetup.vendorNotFound', 'تعذر تحديد حساب البائع الحالي'))
       return
     }
 
@@ -112,7 +114,7 @@ const DriverPreferenceSetup = () => {
 
       navigate(choice ? '/vendor/find-driver' : '/vendor/dashboard')
     } catch (error) {
-      toast.error(error.message || 'تعذر حفظ تفضيلات السائق')
+      toast.error(error.message || t('vendor.driverPreferenceSetup.saveFailed', 'تعذر حفظ تفضيلات السائق'))
     } finally {
       setSaving(false)
     }

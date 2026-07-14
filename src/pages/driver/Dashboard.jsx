@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
 import { realtimeService } from '@/services/realtime'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import PartnershipRequests from '@/components/shared/PartnershipRequests'
-import { Card, LoadingSpinner, Badge, Button, Map, DriverAvailabilityToggle, DeliveryRequestCard } from '@/components/ui'
+import { Card, LoadingSpinner, Button, Map, DriverAvailabilityToggle, DeliveryRequestCard } from '@/components/ui'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import { formatPrice } from '@/utils/currency'
 import {
   TruckIcon,
@@ -21,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
+import { DELIVERY_STATUS_COLORS, DELIVERY_STATUS_DEFAULT_LABELS, COMPLETED_DELIVERY_STATUSES } from '@/constants/deliveryStatus'
 
 const DriverDashboard = () => {
   const { t } = useTranslation()
@@ -30,11 +32,20 @@ const DriverDashboard = () => {
   const [deliveries, setDeliveries] = useState([])
   const [pendingRequests, setPendingRequests] = useState([])
   const [activeDelivery, setActiveDelivery] = useState(null)
+  const activeDeliveryMapCenter = useMapCenter({
+    lat: activeDelivery?.current_latitude || activeDelivery?.pickup_latitude,
+    lng: activeDelivery?.current_longitude || activeDelivery?.pickup_longitude,
+    city: profile?.city,
+  })
   const [stats, setStats] = useState({
     totalDeliveries: 0,
     pendingDeliveries: 0,
     completedToday: 0,
     earnings: 0,
+    todayEarnings: 0,
+    acceptanceRate: null,
+    onTimePercentage: 100,
+    lateDeliveries: 0,
   })
 
   const loadDeliveries = useCallback(async () => {
@@ -51,21 +62,27 @@ const DriverDashboard = () => {
       const active = deliveriesList.find(d => ['accepted', 'picked_up', 'on_the_way'].includes(d.status))
       setActiveDelivery(active)
 
-      const deliveredDeliveries = deliveriesList.filter(d => d.status === 'delivered')
+      const deliveredDeliveries = deliveriesList.filter(d => COMPLETED_DELIVERY_STATUSES.includes(d.status))
       const nonLateDelivered = deliveredDeliveries.filter(d => !d.is_late)
+      const today = new Date()
+      const todayDelivered = deliveredDeliveries.filter(d => {
+        const dt = new Date(d.delivered_at || d.completed_at)
+        return dt.toDateString() === today.toDateString()
+      })
+      const todayEarnings = todayDelivered.reduce((sum, d) => sum + Number(d.delivery_price || 0), 0)
+      const totalResponded = deliveriesList.filter(d => d.status !== 'assigned').length
+      const totalAssigned = deliveriesList.length
+      const acceptanceRate = totalAssigned > 0
+        ? Math.round((totalResponded / totalAssigned) * 100)
+        : null
 
       setStats({
         totalDeliveries: profile?.total_deliveries || 0,
         pendingDeliveries: pending.length,
-        completedToday: deliveredDeliveries.filter(d => {
-          const delivered = new Date(d.delivered_at)
-          const today = new Date()
-          return delivered.toDateString() === today.toDateString()
-        }).length,
-        earnings: deliveredDeliveries.reduce((sum, d) => {
-          // Use actual delivery price if available, otherwise estimate
-          return sum + (d.delivery_price || 15)
-        }, 0),
+        completedToday: todayDelivered.length,
+        earnings: deliveredDeliveries.reduce((sum, d) => sum + Number(d.delivery_price || 0), 0),
+        todayEarnings,
+        acceptanceRate,
         onTimePercentage: deliveredDeliveries.length > 0
           ? ((nonLateDelivered.length / deliveredDeliveries.length) * 100).toFixed(0)
           : 100,
@@ -117,21 +134,6 @@ const DriverDashboard = () => {
     }
   }, [navigate, profile?.id, profile?.vendor_search_done])
   
-  const statusColors = {
-    assigned: 'badge-warning',
-    accepted: 'badge-primary',
-    picked_up: 'bg-purple-100 text-purple-700 badge',
-    on_the_way: 'bg-blue-100 text-blue-700 badge',
-    delivered: 'badge-gray',
-  }
-  
-  const statusLabels = {
-    assigned: 'New Assignment',
-    accepted: 'Accepted',
-    picked_up: 'Picked Up',
-    on_the_way: 'On the Way',
-    delivered: 'Delivered',
-  }
   
   if (loading) {
     return <LoadingSpinner size="lg" />
@@ -154,102 +156,98 @@ const DriverDashboard = () => {
         <DriverAvailabilityToggle />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <button
-          type="button"
-          onClick={() => navigate('/driver/vendor-preferences')}
-          className="rounded-2xl border border-gray-200 bg-white p-5 text-right hover:border-blue-400 hover:shadow-sm transition-all"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
-              <ShoppingBagIcon className="w-5 h-5 text-blue-600" />
+      {!profile?.has_preferred_vendor && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <button
+            type="button"
+            onClick={() => navigate('/driver/vendor-preferences')}
+            className="rounded-2xl border border-gray-200 bg-white p-5 text-right hover:border-blue-400 hover:shadow-sm transition-all"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center">
+                <ShoppingBagIcon className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">{t('driver.dashboard.vendorSetup', 'Preferred Vendor Setup')}</p>
+                <p className="text-xs text-gray-500">{t('driver.dashboard.vendorSetupDesc', 'Choose whether to work with a fixed vendor.')}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-gray-900">إعداد البائع المفضل</p>
-              <p className="text-xs text-gray-500">حدد هل تريد العمل مع متجر ثابت.</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 leading-6">غيّر تفضيلاتك الحالية أو ابدأ إعداد العلاقة مع بائع مفضل.</p>
-        </button>
+            <p className="text-sm text-gray-600 leading-6">{t('driver.dashboard.vendorSetupHint', 'Change your preferences or start a vendor partnership.')}</p>
+          </button>
 
-        <button
-          type="button"
-          onClick={() => navigate('/driver/find-vendor')}
-          className="rounded-2xl border border-gray-200 bg-white p-5 text-right hover:border-green-400 hover:shadow-sm transition-all"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 bg-green-100 rounded-xl flex items-center justify-center">
-              <UsersIcon className="w-5 h-5 text-green-600" />
+          <button
+            type="button"
+            onClick={() => navigate('/driver/find-vendor')}
+            className="rounded-2xl border border-gray-200 bg-white p-5 text-right hover:border-green-400 hover:shadow-sm transition-all"
+          >
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 bg-green-100 rounded-xl flex items-center justify-center">
+                <UsersIcon className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-gray-900">{t('driver.dashboard.findVendor', 'Find a Vendor')}</p>
+                <p className="text-xs text-gray-500">{t('driver.dashboard.findVendorDesc', 'Browse vendors and send partnership requests.')}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-gray-900">البحث عن بائع</p>
-              <p className="text-xs text-gray-500">استعرض المتاجر وأرسل طلبات الشراكة.</p>
-            </div>
-          </div>
-          <p className="text-sm text-gray-600 leading-6">ستتمكن من تثبيت العلاقة بعد قبول البائع لطلبك.</p>
-        </button>
-      </div>
+            <p className="text-sm text-gray-600 leading-6">{t('driver.dashboard.findVendorHint', 'The link is confirmed once the vendor accepts.')}</p>
+          </button>
+        </div>
+      )}
 
       <PartnershipRequests currentUserId={profile?.id} currentRole="driver" className="mb-6" />
       
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" data-testid="stats-cards">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" data-testid="stats-cards">
         <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-              <CheckCircleIcon className="w-5 h-5 text-green-600" />
-            </div>
+          <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center mb-3">
+            <CheckCircleIcon className="w-5 h-5 text-green-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{stats.totalDeliveries}</p>
-          <p className="text-sm text-gray-500">Total Deliveries</p>
+          <p className="text-sm text-gray-500">{t('driver.dashboard.stats.totalDeliveries', 'Total Deliveries')}</p>
         </Card>
 
         <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
-              <ClockIcon className="w-5 h-5 text-yellow-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{stats.pendingDeliveries}</p>
-          <p className="text-sm text-gray-500">Pending</p>
-        </Card>
-
-        <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-              <TruckIcon className="w-5 h-5 text-blue-600" />
-            </div>
+          <div className="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center mb-3">
+            <ClockIcon className="w-5 h-5 text-yellow-600" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{stats.completedToday}</p>
-          <p className="text-sm text-gray-500">Completed Today</p>
+          <p className="text-sm text-gray-500">{t('driver.dashboard.stats.completedToday', 'Completed Today')}</p>
         </Card>
 
         <Card className="p-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-              <BanknotesIcon className="w-5 h-5 text-purple-600" />
-            </div>
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mb-3">
+            <BanknotesIcon className="w-5 h-5 text-blue-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">{formatPrice(stats.earnings)}</p>
-          <p className="text-sm text-gray-500">Earnings</p>
+          <p className="text-2xl font-bold text-green-600">{formatPrice(stats.todayEarnings)}</p>
+          <p className="text-sm text-gray-500">{t('driver.dashboard.stats.todayEarnings', "Today's Earnings")}</p>
+        </Card>
+
+        <Card className="p-5">
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center mb-3">
+            <TruckIcon className="w-5 h-5 text-purple-600" />
+          </div>
+          <p className="text-2xl font-bold text-gray-900">
+            {stats.acceptanceRate !== null ? `${stats.acceptanceRate}%` : '—'}
+          </p>
+          <p className="text-sm text-gray-500">{t('driver.dashboard.stats.acceptanceRate', 'Acceptance Rate')}</p>
         </Card>
       </div>
 
       {/* Performance Metrics */}
-      <Card className="p-5 mb-8 bg-gradient-to-r from-green-50 to-blue-50">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">📊 Performance Metrics</h3>
+      <Card className="p-5 mb-6 bg-gradient-to-r from-green-50 to-blue-50">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">{t('driver.dashboard.performance', 'Performance')}</h3>
         <div className="grid grid-cols-3 gap-4">
           <div>
             <p className="text-2xl font-bold text-green-600">{stats.onTimePercentage}%</p>
-            <p className="text-xs text-gray-600">On-Time Rate</p>
+            <p className="text-xs text-gray-600">{t('driver.dashboard.stats.onTimeRate', 'On-Time Rate')}</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-red-600">{stats.lateDeliveries}</p>
-            <p className="text-xs text-gray-600">Late Deliveries</p>
+            <p className="text-xs text-gray-600">{t('driver.dashboard.stats.lateDeliveries', 'Late Deliveries')}</p>
           </div>
           <div>
-            <p className="text-2xl font-bold text-blue-600">{profile?.driver_rating || '0.0'}</p>
-            <p className="text-xs text-gray-600">Rating ⭐</p>
+            <p className="text-2xl font-bold text-blue-600">{Number(profile?.driver_rating || 0).toFixed(1)}</p>
+            <p className="text-xs text-gray-600">{t('driver.dashboard.stats.rating', 'Rating')} ⭐</p>
           </div>
         </div>
       </Card>
@@ -295,9 +293,9 @@ const DriverDashboard = () => {
                   Running Late
                 </span>
               )}
-              <Badge className={statusColors[activeDelivery.status]}>
-                {statusLabels[activeDelivery.status]}
-              </Badge>
+              <span className={`px-3 py-1 text-xs font-medium rounded-full ${DELIVERY_STATUS_COLORS[activeDelivery.status] || 'bg-gray-100 text-gray-700'}`}>
+                {DELIVERY_STATUS_DEFAULT_LABELS[activeDelivery.status] || activeDelivery.status}
+              </span>
             </div>
           </div>
 
@@ -342,10 +340,15 @@ const DriverDashboard = () => {
                     <p className="text-sm text-gray-500">Deliver to</p>
                     <p className="font-medium">{activeDelivery.order?.buyer?.first_name} {activeDelivery.order?.buyer?.last_name}</p>
                     <p className="text-sm text-gray-500">{activeDelivery.delivery_address}</p>
-                    <button className="flex items-center gap-1 text-sm text-green-600 mt-1">
-                      <PhoneIcon className="w-4 h-4" />
-                      Call Buyer
-                    </button>
+                    {activeDelivery.order?.buyer?.phone && (
+                      <a
+                        href={`tel:${activeDelivery.order.buyer.phone}`}
+                        className="flex items-center gap-1 text-sm text-green-600 mt-1 hover:text-green-700"
+                      >
+                        <PhoneIcon className="w-4 h-4" />
+                        {t('driver.dashboard.callBuyer', 'Call Buyer')}
+                      </a>
+                    )}
                   </div>
                 </div>
               </div>
@@ -382,10 +385,7 @@ const DriverDashboard = () => {
             </div>
             
             <Map
-              center={[
-                activeDelivery.current_latitude || activeDelivery.pickup_latitude || 33.5731,
-                activeDelivery.current_longitude || activeDelivery.pickup_longitude || -7.5898
-              ]}
+              center={activeDeliveryMapCenter}
               zoom={13}
               markers={[
                 {
@@ -416,7 +416,7 @@ const DriverDashboard = () => {
           Delivery History
         </h3>
 
-        {deliveries.filter(d => d.status === 'delivered').length === 0 ? (
+        {deliveries.filter(d => COMPLETED_DELIVERY_STATUSES.includes(d.status)).length === 0 ? (
           <div className="text-center py-12">
             <TruckIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No completed deliveries yet</p>
@@ -425,7 +425,7 @@ const DriverDashboard = () => {
         ) : (
           <div className="space-y-4">
             {deliveries
-              .filter(d => d.status === 'delivered')
+              .filter(d => COMPLETED_DELIVERY_STATUSES.includes(d.status))
               .slice(0, 10)
               .map((delivery) => {
                 const isOnTime = !delivery.is_late

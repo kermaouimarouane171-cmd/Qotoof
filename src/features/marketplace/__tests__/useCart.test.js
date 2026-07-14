@@ -57,7 +57,7 @@ const loadFreshCartStore = () => {
   let useCartStore
   jest.isolateModules(() => {
     // eslint-disable-next-line global-require
-    useCartStore = require('@/store/cartStore').useCartStore
+    useCartStore = require('@/modules/cart').useCartStore
   })
   return useCartStore
 }

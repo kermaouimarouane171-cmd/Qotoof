@@ -106,13 +106,19 @@ const mockCartStoreState = {
   clearCheckoutVendor: jest.fn(),
 }
 
-jest.mock('@/store/cartStore', () => ({
+jest.mock('@/modules/cart', () => ({
   useCartStore: jest.fn((selector) => {
     if (typeof selector === 'function') {
       return selector(mockCartStoreState)
     }
     return mockCartStoreState
   }),
+  useFavoritesStore: () => ({
+    toggleProduct: jest.fn(),
+    isFavorited: jest.fn(() => false),
+  }),
+  evaluateVendorMinimumOrders: jest.fn(() => ({ hasViolations: false, violations: [] })),
+  buildMinimumOrderMessage: jest.fn(() => ''),
 }))
 
 jest.mock('@/store/languageStore', () => ({
@@ -131,12 +137,6 @@ jest.mock('@/hooks/useDarkMode', () => ({
   }),
 }))
 
-jest.mock('@/store/favoritesStore', () => ({
-  useFavoritesStore: () => ({
-    toggleProduct: jest.fn(),
-    isFavorited: jest.fn(() => false),
-  }),
-}))
 
 jest.mock('@/components/notifications/NotificationLink', () => {
   const MockNotificationLink = (props) => <a href="/notifications" data-testid="notification-link" {...props}>notif</a>
@@ -164,10 +164,7 @@ jest.mock('@/services/supabase', () => ({
   },
 }))
 
-jest.mock('@/services/minimumOrderService', () => ({
-  evaluateVendorMinimumOrders: jest.fn(() => ({ hasViolations: false, violations: [] })),
-  buildMinimumOrderMessage: jest.fn(() => ''),
-}))
+
 
 jest.mock('@/utils/logger', () => ({
   logger: {
@@ -332,7 +329,7 @@ describe('ProductCard - RTL Snapshot', () => {
 
     const productName = screen.getByText('طماطم طازجة')
     expect(productName.className).toContain('font-semibold')
-    expect(productName.className).toMatchInlineSnapshot(`"font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-emerald-600 transition-colors"`)
+    expect(productName.className).toMatchInlineSnapshot(`"font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-primary-600 transition-colors"`)
   })
 
   it('add to cart button text direction context is inherited from RTL root', () => {

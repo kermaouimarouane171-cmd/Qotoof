@@ -8,14 +8,24 @@ import {
   EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline'
 import { useAuthStore } from '@/store/authStore'
-import { chatService } from '@/services/chatService'
+import { chatService } from '@/modules/chat'
 import { logger } from '@/utils/logger'
 import ChatMessage from './ChatMessage'
 import FilePreview from './FilePreview'
 
 const MESSAGES_PER_PAGE = 30
+// Unified with chatService (single source of truth)
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'audio/mpeg', 'application/pdf']
+const ALLOWED_TYPES = [
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+  'video/mp4', 'video/webm',
+  'audio/mpeg', 'audio/wav', 'audio/ogg',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]
 
 const ChatWindow = memo(function ChatWindow({ conversationId, recipient }) {
   const { t } = useTranslation()

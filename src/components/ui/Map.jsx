@@ -44,6 +44,17 @@ const TILE_PROVIDERS = {
     url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
     attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
     name: 'CARTO'
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+    name: 'Esri Satellite'
+  },
+  // Hybrid: satellite + labels overlay (labels on top of satellite imagery)
+  hybrid: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri',
+    name: 'Esri Labels'
   }
 }
 
@@ -276,10 +287,29 @@ const SecureMapUpdater = ({ center, zoom }) => {
 }
 
 /**
- * SecureTileLayer - Tile layer with fallback provider
+ * SecureTileLayer - Tile layer with fallback provider + satellite support
  */
-const SecureTileLayer = () => {
+const SecureTileLayer = ({ satellite = false }) => {
   const [tileError, _setTileError] = useState(false)
+
+  if (satellite) {
+    const satProvider = tileError ? TILE_PROVIDERS.fallback : TILE_PROVIDERS.satellite
+    return (
+      <>
+        <TileLayer
+          attribution={satProvider.attribution}
+          url={satProvider.url}
+          maxZoom={18}
+        />
+        {/* Labels overlay on top of satellite imagery */}
+        <TileLayer
+          url={TILE_PROVIDERS.hybrid.url}
+          attribution={TILE_PROVIDERS.hybrid.attribution}
+          maxZoom={18}
+        />
+      </>
+    )
+  }
 
   const currentProvider = tileError ? TILE_PROVIDERS.fallback : TILE_PROVIDERS.primary
 
@@ -311,10 +341,12 @@ const SecureMapComponent = ({
   requireAuth = true,
   allowedRoles = AUTHORIZED_ROLES,
   accuracyRadius = null,  // metres — draws accuracy circle around GPS marker
+  showSatelliteToggle = true, // show "خريطة / قمر صناعي" toggle button (enabled by default for consistency)
 }) => {
   const { user, profile, loading: authLoading } = useAuthStore()
   const [mapError, setMapError] = useState(false)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [satelliteMode, setSatelliteMode] = useState(false)
   // Use a stable unique ID that doesn't change on re-renders
   const mapIdRef = useRef(`map-${++mapCounter}-${Math.random().toString(36).substr(2, 6)}`)
 
@@ -453,7 +485,7 @@ const SecureMapComponent = ({
   }
 
   return (
-    <div className={`rounded-xl overflow-hidden border border-gray-200 ${className}`} style={{ height }}>
+    <div className={`relative rounded-xl overflow-hidden border border-gray-200 ${className}`} style={{ height }}>
       {/* Offline banner */}
       {!isOnline && (
         <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 flex items-center gap-2">
@@ -464,8 +496,32 @@ const SecureMapComponent = ({
         </div>
       )}
 
+      {/* Satellite toggle button */}
+      {showSatelliteToggle && (
+        <div className="absolute top-3 right-3 z-[1000] flex rounded-lg overflow-hidden border border-gray-300 shadow-md bg-white">
+          <button
+            type="button"
+            onClick={() => setSatelliteMode(false)}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              !satelliteMode ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            خريطة
+          </button>
+          <button
+            type="button"
+            onClick={() => setSatelliteMode(true)}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-gray-300 ${
+              satelliteMode ? 'bg-green-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            قمر صناعي
+          </button>
+        </div>
+      )}
+
       <MapContainer
-        key={mapIdRef.current}
+        key={`${mapIdRef.current}-${satelliteMode ? 'sat' : 'map'}`}
         center={validatedCenter}
         zoom={zoom}
         scrollWheelZoom={true}
@@ -475,8 +531,8 @@ const SecureMapComponent = ({
         maxBounds={[[-90, -180], [90, 180]]}
         onError={() => setMapError(true)}
       >
-        {/* Secure tile layer with fallback */}
-        <SecureTileLayer />
+        {/* Secure tile layer with fallback + satellite support */}
+        <SecureTileLayer satellite={satelliteMode} />
 
         {/* Secure map updater */}
         <SecureMapUpdater center={center} zoom={zoom} />

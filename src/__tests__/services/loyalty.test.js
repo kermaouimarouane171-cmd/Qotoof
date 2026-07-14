@@ -12,7 +12,7 @@ import {
   calculateLoyaltyPointsForOrder,
   calculateRewardDiscountAmount,
   loyaltyApi,
-} from '@/services/loyalty'
+} from '@/modules/loyalty'
 import { supabase } from '@/services/supabase'
 
 describe('loyalty service helpers', () => {

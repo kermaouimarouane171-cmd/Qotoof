@@ -5,7 +5,7 @@ jest.mock('@/services/supabase', () => ({
 import {
   isSlotPastCutoff,
   decorateDeliverySlot,
-} from '@/services/deliveryScheduleService'
+} from '@/modules/delivery'
 
 describe('deliveryScheduleService helpers', () => {
   it('blocks same-day slots past their cutoff window', () => {

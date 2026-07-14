@@ -11,14 +11,15 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
-
-const FILTERS = [
-  { id: 'all', label: 'الكل' },
-  { id: 'low', label: 'منخفض' },
-  { id: 'out', label: 'نافد' },
-]
+import { useTranslation } from 'react-i18next'
 
 const InventoryManager = ({ vendorId, onInventoryChange }) => {
+  const { t } = useTranslation()
+  const FILTERS = [
+    { id: 'all', label: t('vendor.inventory.filters.all', 'الكل') },
+    { id: 'low', label: t('vendor.inventory.filters.lowStock', 'منخفض') },
+    { id: 'out', label: t('vendor.inventory.filters.outOfStock', 'نافد') },
+  ]
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState([])
   const [summary, setSummary] = useState(null)
@@ -42,7 +43,7 @@ const InventoryManager = ({ vendorId, onInventoryChange }) => {
       )
     } catch (error) {
       logger.error('Error loading inventory summary:', error)
-      toast.error('تعذر تحميل بيانات المخزون')
+      toast.error(t('vendor.inventory.loadFailed', 'تعذر تحميل بيانات المخزون'))
     } finally {
       setLoading(false)
     }
@@ -79,7 +80,7 @@ const InventoryManager = ({ vendorId, onInventoryChange }) => {
   const handleSave = async (item) => {
     const nextQuantity = Number(draftStock[item.id])
     if (!Number.isFinite(nextQuantity) || nextQuantity < 0) {
-      toast.error('أدخل كمية صحيحة للمخزون')
+      toast.error(t('vendor.inventory.invalidQuantity', 'أدخل كمية صحيحة للمخزون'))
       return
     }
 
@@ -91,12 +92,12 @@ const InventoryManager = ({ vendorId, onInventoryChange }) => {
         nextQuantity,
       })
 
-      toast.success('تم تحديث المخزون بنجاح')
+      toast.success(t('vendor.inventory.updateSuccess', 'تم تحديث المخزون بنجاح'))
       await loadInventory()
       await onInventoryChange?.()
     } catch (error) {
       logger.error('Error updating stock from inventory manager:', error)
-      toast.error(error.message || 'تعذر تحديث المخزون')
+      toast.error(error.message || t('vendor.inventory.updateFailed', 'تعذر تحديث المخزون'))
     } finally {
       setSavingById((previous) => ({ ...previous, [item.id]: false }))
     }

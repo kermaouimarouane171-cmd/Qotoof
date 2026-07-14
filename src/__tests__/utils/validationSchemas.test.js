@@ -1,6 +1,8 @@
 import {
   loginSchema,
   registerSchema,
+  registerBuyerProfileSchema,
+  registerVendorProfileSchema,
   passwordResetSchema,
   newPasswordSchema,
   productSchema,
@@ -99,6 +101,69 @@ describe('validationSchemas', () => {
         password: 'weak',
         confirmPassword: 'weak',
         role: 'buyer',
+      })
+
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('registerBuyerProfileSchema', () => {
+    it('should validate valid buyer profile data', () => {
+      const result = registerBuyerProfileSchema.safeParse({
+        deliveryAddress: '12 Rue Hassan II, Casablanca',
+        city: 'Casablanca',
+      })
+
+      expect(result.success).toBe(true)
+    })
+
+    it('should reject missing city', () => {
+      const result = registerBuyerProfileSchema.safeParse({
+        deliveryAddress: '12 Rue Hassan II, Casablanca',
+      })
+
+      expect(result.success).toBe(false)
+    })
+  })
+
+  describe('registerVendorProfileSchema', () => {
+    it('should validate valid vendor profile data without storeType', () => {
+      const result = registerVendorProfileSchema.safeParse({
+        storeName: 'Green Valley Farm',
+        city: 'Marrakech',
+        cin: 'AB123456',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).not.toHaveProperty('storeType')
+    })
+
+    it('should reject missing storeName', () => {
+      const result = registerVendorProfileSchema.safeParse({
+        city: 'Marrakech',
+        cin: 'AB123456',
+      })
+
+      expect(result.success).toBe(false)
+    })
+
+    it('should strip unknown storeType value instead of accepting it (regression guard)', () => {
+      const result = registerVendorProfileSchema.safeParse({
+        storeName: 'Green Valley Farm',
+        city: 'Marrakech',
+        cin: 'AB123456',
+        storeType: 'farm',
+      })
+
+      expect(result.success).toBe(true)
+      expect(result.data).not.toHaveProperty('storeType')
+    })
+
+    it('should reject short city name', () => {
+      const result = registerVendorProfileSchema.safeParse({
+        storeName: 'Green Valley Farm',
+        city: 'A',
+        cin: 'AB123456',
       })
 
       expect(result.success).toBe(false)

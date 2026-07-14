@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
+import vendorSubscriptionService from '@/services/vendorSubscriptionService'
 
 const VendorCoupons = () => {
   const { t } = useTranslation()
@@ -27,6 +28,7 @@ const VendorCoupons = () => {
   const [coupons, setCoupons] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
+  const [subscriptionOk, setSubscriptionOk] = useState(null) // null=loading, true/false=result
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     code: '',
@@ -98,6 +100,21 @@ const VendorCoupons = () => {
     loadCoupons()
   }, [loadCoupons])
 
+  // Feature gate: coupons require Basic plan or higher
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (!user?.id) return
+      try {
+        const hasAccess = await vendorSubscriptionService.hasFeatureAccess(user.id, 'basic')
+        setSubscriptionOk(hasAccess)
+      } catch (error) {
+        logger.warn('[Coupons] Subscription check failed, allowing access:', error?.message)
+        setSubscriptionOk(true) // Fail open — don't block if check fails
+      }
+    }
+    checkSubscription()
+  }, [user?.id])
+
   const resetForm = () => {
     setFormData({
       code: generateCode(),
@@ -152,7 +169,7 @@ const VendorCoupons = () => {
     }
 
     if (formData.applies_to === 'bulk' && !formData.minimum_quantity) {
-      toast.error('أدخل الحد الأدنى للكمية لتفعيل عرض الكميات')
+      toast.error(t('vendor.coupons.minQuantityRequired', 'أدخل الحد الأدنى للكمية لتفعيل عرض الكميات'))
       return
     }
 
@@ -241,13 +258,58 @@ const VendorCoupons = () => {
 
   return (
     <div>
+      {/* Subscription Gate: Coupons require Basic plan or higher */}
+      {subscriptionOk === false && (
+        <Card className="p-8 mb-6 border-2 border-amber-200 bg-amber-50">
+          <div className="flex flex-col items-center text-center gap-4">
+            <SparklesIcon className="w-12 h-12 text-amber-500" />
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {t('vendor.coupons.upgradeRequired', 'ترقية مطلوبة')}
+              </h2>
+              <p className="text-sm text-gray-600 max-w-md">
+                {t('vendor.coupons.upgradeMessage', 'كوبونات والتخفيضات متاحة فقط للبائعين المشتركين في خطة أساسي أو أعلى. قم بترقية خطتك لإنشاء وإدارة الكوبونات.')}
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/vendor/subscription')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700 transition-colors"
+            >
+              <SparklesIcon className="w-4 h-4" />
+              {t('vendor.coupons.upgradeNow', 'ترقية الآن')}
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {/* Subscription Gate: Show full page block when not subscribed */}
+      {subscriptionOk === false ? (
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => navigate('/vendor/dashboard')}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              aria-label={t('vendor.coupons.aria.back', 'العودة إلى لوحة التحكم')}
+            >
+              <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <TagIcon className="w-7 h-7 text-green-600" />
+                {t('vendor.coupons.title', 'Coupon Manager')}
+              </h1>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/vendor/dashboard')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label="Back to dashboard"
+            aria-label={t('vendor.coupons.aria.back', 'العودة إلى لوحة التحكم')}
           >
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
@@ -290,7 +352,7 @@ const VendorCoupons = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingId ? t('vendor.coupons.editCoupon', 'Edit Coupon') : t('vendor.coupons.createNewCoupon', 'Create New Coupon')}
               </h2>
-              <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg" aria-label="Close">
+              <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg" aria-label={t('common.close', 'إغلاق')}>
                 <XMarkIcon className="w-5 h-5 text-gray-400" />
               </button>
             </div>
@@ -362,7 +424,7 @@ const VendorCoupons = () => {
               </div>
 
               {/* Discount Type & Value */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('vendor.coupons.discountType', 'Discount Type')}</label>
                   <select
@@ -391,7 +453,7 @@ const VendorCoupons = () => {
               </div>
 
               {/* Min Order & Quantity */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('vendor.coupons.minOrder', 'Min Order (MAD)')}</label>
                   <input
@@ -418,7 +480,7 @@ const VendorCoupons = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{t('vendor.coupons.maxUses', 'Max Uses')}</label>
                   <input
@@ -444,7 +506,7 @@ const VendorCoupons = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
                   <label className="block text-sm font-medium text-gray-700 mb-1">تاريخ البداية</label>
@@ -579,6 +641,8 @@ const VendorCoupons = () => {
             </Card>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   )

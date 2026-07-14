@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async'
 const DEFAULT_SITE = 'قطوف – سوق المنتجات الطازجة'
 const DEFAULT_DESC = 'اكتشف أفضل المنتجات الطازجة والعضوية من موردين موثوقين في سوق قطوف الإلكتروني.'
 const DEFAULT_IMAGE = '/og-image.png'
-const BASE_URL = import.meta.env.VITE_APP_URL || 'https://qotoof.com'
+const BASE_URL = import.meta.env.VITE_APP_URL || 'https://greenmarket-marketplace.web.app'
 
 /**
  * SEO component – wraps react-helmet-async Helmet with defaults

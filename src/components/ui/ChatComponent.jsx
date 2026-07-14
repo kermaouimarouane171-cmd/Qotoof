@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { PaperAirplaneIcon, PhoneIcon } from '@heroicons/react/24/solid'
-import { messagesApi } from '@/services/favorites'
+import { messagesApi } from '@/modules/chat'
 import { useAuthStore } from '@/store/authStore'
 import { logger } from '@/utils/logger'
 

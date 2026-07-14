@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { profilesService } from '@/services/profilesService'
-import storeTypeService from '@/services/storeTypeService'
-import { Card, Input, LoadingSpinner, Tooltip } from '@/components/ui'
+import { profilesService } from '@/modules/users'
+import { storeTypeService } from '@/modules/marketplace'
+import { Card, Input, LoadingSpinner } from '@/components/ui'
 import LocationPicker from '@/components/ui/LocationPicker'
 import PaymentPolicySettings from '@/components/vendor/PaymentPolicySettings'
 import CancellationPolicy from '@/components/vendor/CancellationPolicy'
@@ -13,7 +13,7 @@ import RefundPolicySettings from '@/components/vendor/RefundPolicySettings'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import storeEmergencyService from '@/services/storeEmergencyService'
 import cancellationService, { DEFAULT_VENDOR_CANCELLATION_POLICY, normalizeCancellationPolicy } from '@/services/cancellationService'
-import refundPolicyService, { DEFAULT_REFUND_POLICY } from '@/services/refundPolicyService'
+import { refundPolicyService, DEFAULT_REFUND_POLICY } from '@/modules/payments'
 import {
   Cog6ToothIcon,
   BellIcon,
@@ -28,7 +28,6 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { auditLogger } from '@/services/auditLogger'
-import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
 
 const VendorSettings = () => {
   const { t } = useTranslation()
@@ -53,8 +52,7 @@ const VendorSettings = () => {
     split: true,
     cod: false,
   })
-  const [paypalEmail, setPaypalEmail] = useState('')
-  const [paypalVerified, setPaypalVerified] = useState(false)
+  const [payoutMethod, setPayoutMethod] = useState('bank')
   const [cancellationPolicy, setCancellationPolicy] = useState({ ...DEFAULT_VENDOR_CANCELLATION_POLICY })
   const [refundPolicy, setRefundPolicy] = useState({ ...DEFAULT_REFUND_POLICY })
 
@@ -70,9 +68,6 @@ const VendorSettings = () => {
 
   // Store location
   const [storeLocation, setStoreLocation] = useState(null)
-
-  // Initial snapshot for change detection
-  const [initialSettings, setInitialSettings] = useState(null)
 
   // Load current settings
   /* eslint-disable react-hooks/exhaustive-deps */
@@ -103,8 +98,7 @@ const VendorSettings = () => {
         split: data?.payment_policy_split ?? true,
         cod: data?.payment_policy_cod ?? false,
       })
-      setPaypalEmail(data?.paypal_email || '')
-      setPaypalVerified(data?.paypal_verified === true)
+      setPayoutMethod(data?.payout_method || 'bank')
       setCancellationPolicy(vendorCancellationPolicy)
       setRefundPolicy(vendorRefundPolicy)
       setNotifyNewOrders(true)
@@ -115,26 +109,9 @@ const VendorSettings = () => {
       setStorePaused(Boolean(data?.store_paused))
       setStorePauseReason(data?.store_paused_reason || '')
       setStoreSetupSummary(storeTypeService.decorateStoreProfile(data))
-      const initialLocation = data?.latitude && data?.longitude
-        ? { lat: data.latitude, lng: data.longitude, address: data.store_address || '' }
-        : null
-      setStoreLocation(initialLocation)
-
-      setInitialSettings({
-        store_name: data?.store_name || '',
-        min_order_amount: (data?.min_order_amount ?? 50).toString(),
-        low_stock_threshold: (data?.low_stock_threshold ?? 10).toString(),
-        payment_policy_full: data?.payment_policy_full ?? true,
-        payment_policy_split: data?.payment_policy_split ?? true,
-        payment_policy_cod: data?.payment_policy_cod ?? false,
-        notify_order_updates: data?.notify_order_updates ?? true,
-        notify_customer_messages: data?.notify_customer_messages ?? true,
-        notify_low_stock: data?.notify_low_stock ?? true,
-        paypal_email: data?.paypal_email || '',
-        location: initialLocation,
-        cancellation_policy: normalizeCancellationPolicy(vendorCancellationPolicy),
-        refund_policy: { ...vendorRefundPolicy },
-      })
+      if (data?.latitude && data?.longitude) {
+        setStoreLocation({ lat: data.latitude, lng: data.longitude, address: data.store_address || '' })
+      }
     } catch (error) {
       logger.error('Error loading settings:', error)
       toast.error(t('vendor.settings.errors.loadFailed', 'Failed to load settings'))
@@ -168,12 +145,6 @@ const VendorSettings = () => {
       errors.paymentPolicies = 'يجب تفعيل سياسة دفع واحدة على الأقل.'
     }
 
-    if (!paypalEmail.trim()) {
-      errors.paypalEmail = 'بريد PayPal الإلكتروني إلزامي للبائع.'
-    } else if (!hasValidPayPalEmail(paypalEmail)) {
-      errors.paypalEmail = 'أدخل بريد PayPal إلكترونيًا صالحًا.'
-    }
-
     const normalizedCancellationPolicy = normalizeCancellationPolicy(cancellationPolicy)
 
     if (normalizedCancellationPolicy.free_cancellation_window_minutes < 0) {
@@ -205,12 +176,7 @@ const VendorSettings = () => {
     const validationErrors = validateForm()
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
-      toast.error(t('vendor.settings.errors.fixErrors', 'يرجى تصحيح الأخطاء قبل الحفظ'))
-      return
-    }
-
-    if (!initialSettings) {
-      toast.error(t('vendor.settings.errors.loadFirst', 'لم يتم تحميل الإعدادات بعد'))
+      toast.error(t('vendor.settings.errors.fixErrors', 'Please fix the errors before saving'))
       return
     }
 
@@ -218,62 +184,6 @@ const VendorSettings = () => {
     setErrors({})
 
     try {
-      // Build changed profile fields only
-      const changedFields = {}
-
-      if (storeName !== initialSettings.store_name) {
-        changedFields.store_name = storeName
-      }
-      if (minOrderAmount !== initialSettings.min_order_amount) {
-        changedFields.min_order_amount = safeNumber(minOrderAmount, 0)
-      }
-      if (lowStockThreshold !== initialSettings.low_stock_threshold) {
-        changedFields.low_stock_threshold = safeNumber(lowStockThreshold, 10)
-      }
-      if (paymentPolicies.full !== initialSettings.payment_policy_full) {
-        changedFields.payment_policy_full = paymentPolicies.full
-      }
-      if (paymentPolicies.split !== initialSettings.payment_policy_split) {
-        changedFields.payment_policy_split = paymentPolicies.split
-      }
-      if (paymentPolicies.cod !== initialSettings.payment_policy_cod) {
-        changedFields.payment_policy_cod = paymentPolicies.cod
-      }
-      if (notifyOrderUpdates !== initialSettings.notify_order_updates) {
-        changedFields.notify_order_updates = notifyOrderUpdates
-      }
-      if (notifyCustomerMessages !== initialSettings.notify_customer_messages) {
-        changedFields.notify_customer_messages = notifyCustomerMessages
-      }
-      if (notifyLowStock !== initialSettings.notify_low_stock) {
-        changedFields.notify_low_stock = notifyLowStock
-      }
-
-      const locationChanged = JSON.stringify(storeLocation || null) !== JSON.stringify(initialSettings.location || null)
-      if (locationChanged) {
-        if (storeLocation?.lat) {
-          changedFields.latitude = storeLocation.lat
-          changedFields.longitude = storeLocation.lng
-          changedFields.store_address = storeLocation.address || null
-        }
-      }
-
-      const currentPaypalEmail = paypalEmail.trim().toLowerCase()
-      const initialPaypalEmail = (initialSettings.paypal_email || '').trim().toLowerCase()
-      if (currentPaypalEmail !== initialPaypalEmail) {
-        changedFields.paypal_email = currentPaypalEmail
-        changedFields.payout_method = 'paypal'
-      }
-
-      const cancellationChanged = JSON.stringify(normalizeCancellationPolicy(cancellationPolicy)) !== JSON.stringify(initialSettings.cancellation_policy || null)
-      const refundChanged = JSON.stringify(refundPolicy) !== JSON.stringify(initialSettings.refund_policy || null)
-
-      if (Object.keys(changedFields).length === 0 && !cancellationChanged && !refundChanged) {
-        toast.success(t('vendor.settings.noChanges', 'لا توجد تغييرات للحفظ'))
-        setSaving(false)
-        return
-      }
-
       // Get old settings for audit logging
       const { data: previousProfile, error: previousProfileError } = await profilesService.fetchVendorProfile(user.id)
       if (previousProfileError) throw previousProfileError
@@ -289,85 +199,78 @@ const VendorSettings = () => {
             notify_order_updates: previousProfile.notify_order_updates,
             notify_customer_messages: previousProfile.notify_customer_messages,
             notify_low_stock: previousProfile.notify_low_stock,
-            paypal_email: previousProfile.paypal_email,
-            paypal_verified: previousProfile.paypal_verified,
+            payout_method: previousProfile.payout_method,
           }
         : null
 
       const oldCancellationPolicy = await cancellationService.getVendorCancellationPolicy(user.id)
       const oldRefundPolicy = await refundPolicyService.getVendorRefundPolicy(user.id)
 
-      if (Object.keys(changedFields).length > 0) {
-        const { error } = await profilesService.updateProfile(user.id, changedFields)
-        if (error) throw error
-      }
+      const minOrderAmountValue = safeNumber(minOrderAmount, 0)
+      const lowStockThresholdValue = safeNumber(lowStockThreshold, 10)
 
-      let savedCancellationPolicy = cancellationPolicy
-      let savedRefundPolicy = refundPolicy
+      const { error } = await profilesService.updateProfile(user.id, {
+        store_name: storeName,
+        min_order_amount: minOrderAmountValue,
+        low_stock_threshold: lowStockThresholdValue,
+        payment_policy_full: paymentPolicies.full,
+        payment_policy_split: paymentPolicies.split,
+        payment_policy_cod: paymentPolicies.cod,
+        notify_order_updates: notifyOrderUpdates,
+        notify_customer_messages: notifyCustomerMessages,
+        notify_low_stock: notifyLowStock,
+        ...(storeLocation?.lat ? {
+          latitude: storeLocation.lat,
+          longitude: storeLocation.lng,
+          store_address: storeLocation.address || null,
+        } : {}),
+        ...(payoutMethod === 'bank' ? {
+          payout_method: 'bank',
+        } : {
+          payout_method: payoutMethod,
+        }),
+      })
 
-      if (cancellationChanged) {
-        savedCancellationPolicy = await cancellationService.upsertVendorCancellationPolicy({
-          vendorId: user.id,
-          policy: cancellationPolicy,
-        })
-      }
-      if (refundChanged) {
-        savedRefundPolicy = await refundPolicyService.upsertVendorRefundPolicy({
-          vendorId: user.id,
-          policy: refundPolicy,
-        })
-      }
+      if (error) throw error
 
-      // Update local auth store with merged values
+      const savedCancellationPolicy = await cancellationService.upsertVendorCancellationPolicy({
+        vendorId: user.id,
+        policy: cancellationPolicy,
+      })
+      const savedRefundPolicy = await refundPolicyService.upsertVendorRefundPolicy({
+        vendorId: user.id,
+        policy: refundPolicy,
+      })
+
+      // Update local auth store
       useAuthStore.setState({
         profile: {
           ...profile,
           store_name: storeName,
-          min_order_amount: changedFields.min_order_amount ?? profile?.min_order_amount,
-          low_stock_threshold: changedFields.low_stock_threshold ?? profile?.low_stock_threshold,
+          min_order_amount: minOrderAmountValue,
+          low_stock_threshold: lowStockThresholdValue,
           payment_policy_full: paymentPolicies.full,
           payment_policy_split: paymentPolicies.split,
           payment_policy_cod: paymentPolicies.cod,
-          paypal_email: currentPaypalEmail,
-          payout_method: changedFields.payout_method ?? profile?.payout_method,
+          payout_method: payoutMethod,
         }
       })
       setCancellationPolicy(savedCancellationPolicy)
       setRefundPolicy(savedRefundPolicy)
 
-      // Update snapshot after successful save
-      setInitialSettings({
-        ...initialSettings,
-        store_name: storeName,
-        min_order_amount: minOrderAmount,
-        low_stock_threshold: lowStockThreshold,
-        payment_policy_full: paymentPolicies.full,
-        payment_policy_split: paymentPolicies.split,
-        payment_policy_cod: paymentPolicies.cod,
-        notify_order_updates: notifyOrderUpdates,
-        notify_customer_messages: notifyCustomerMessages,
-        notify_low_stock: notifyLowStock,
-        paypal_email: currentPaypalEmail,
-        location: storeLocation,
-        cancellation_policy: savedCancellationPolicy,
-        refund_policy: savedRefundPolicy,
-      })
-      setHasChanges(false)
-
       // Log settings update
       await auditLogger.logProfileAction('SETTINGS_UPDATED', {
         ...oldData,
         store_name: storeName,
-        min_order_amount: safeNumber(minOrderAmount, 0),
-        low_stock_threshold: safeNumber(lowStockThreshold, 10),
+        min_order_amount: parseFloat(minOrderAmount),
+        low_stock_threshold: parseInt(lowStockThreshold),
         payment_policy_full: paymentPolicies.full,
         payment_policy_split: paymentPolicies.split,
         payment_policy_cod: paymentPolicies.cod,
         notify_order_updates: notifyOrderUpdates,
         notify_customer_messages: notifyCustomerMessages,
         notify_low_stock: notifyLowStock,
-        paypal_email: currentPaypalEmail,
-        paypal_verified: paypalVerified,
+        payout_method: payoutMethod,
         cancellation_policy: savedCancellationPolicy,
         refund_policy: savedRefundPolicy,
       }, {
@@ -376,7 +279,8 @@ const VendorSettings = () => {
         refund_policy: oldRefundPolicy,
       })
 
-      toast.success(t('vendor.settings.saved', 'تم حفظ الإعدادات بنجاح'))
+      toast.success(t('vendor.settings.saved', 'Settings saved successfully!'))
+      setHasChanges(false)
     } catch (error) {
       const safeError = {
         message: error?.message || String(error),
@@ -385,7 +289,7 @@ const VendorSettings = () => {
         details: error?.details || null,
       }
       logger.error('Error saving settings:', safeError)
-      toast.error('تعذر حفظ الإعدادات. يرجى المحاولة مرة أخرى.')
+      toast.error(t('vendor.settings.errors.saveFailed', 'Failed to save settings'))
     } finally {
       setSaving(false)
     }
@@ -394,6 +298,11 @@ const VendorSettings = () => {
   const safeNumber = (value, fallback) => {
     const parsed = Number(value)
     if (Number.isNaN(parsed) || parsed < 0) return fallback
+    return parsed
+  }
+
+  const _safeJsonNumber = (value, fallback) => {
+    const parsed = safeNumber(value, fallback)
     return parsed
   }
 
@@ -455,10 +364,10 @@ const VendorSettings = () => {
           : state.profile,
       }))
 
-      toast.success(`تم إيقاف المتجر مؤقتًا وتعطيل ${result.pausedProductsCount} منتج نشط`)
+      toast.success(t('vendor.settings.success.storePaused', 'تم إيقاف المتجر مؤقتًا وتعطيل {{count}} منتج نشط', { count: result.pausedProductsCount }))
     } catch (error) {
       logger.error('Pause store error:', error)
-      toast.error('تعذر تفعيل وضع الطوارئ للمتجر')
+      toast.error(t('vendor.settings.errors.emergencyModeFailed', 'تعذر تفعيل وضع الطوارئ للمتجر'))
     } finally {
       setPausingStore(false)
     }
@@ -486,10 +395,10 @@ const VendorSettings = () => {
           : state.profile,
       }))
 
-      toast.success(`تمت إعادة تشغيل المتجر واستعادة ${result.resumedProductsCount} منتج`) 
+      toast.success(t('vendor.settings.success.storeResumed', 'تمت إعادة تشغيل المتجر واستعادة {{count}} منتج', { count: result.resumedProductsCount }))
     } catch (error) {
       logger.error('Resume store error:', error)
-      toast.error('تعذر إلغاء وضع الطوارئ')
+      toast.error(t('vendor.settings.errors.emergencyModeCancelled', 'تعذر إلغاء وضع الطوارئ'))
     } finally {
       setPausingStore(false)
     }
@@ -507,7 +416,7 @@ const VendorSettings = () => {
     <div>
       {location.state?.paypalSetupRequired && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {location.state?.paypalSetupMessage || 'يجب إكمال إعداد PayPal للمتابعة.'}
+          {location.state?.paypalSetupMessage || 'يجب إكمال بياناتك البنكية في العقد الرقمي للمتابعة.'}
         </div>
       )}
 
@@ -532,7 +441,7 @@ const VendorSettings = () => {
           </h2>
           <div className="space-y-4">
             <Input
-              label={t('vendor.settings.storeName', 'اسم المتجر')}
+              label={t('vendor.settings.storeName', 'Store Name')}
               value={storeName}
               onChange={(e) => handleFieldChange(setStoreName, e.target.value)}
               error={errors.storeName}
@@ -540,7 +449,7 @@ const VendorSettings = () => {
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
-                label={t('vendor.settings.minOrderAmount', 'الحد الأدنى للطلب')}
+                label={t('vendor.settings.minOrderAmount', 'Minimum Order Amount')}
                 type="number"
                 value={minOrderAmount}
                 onChange={(e) => handleFieldChange(setMinOrderAmount, e.target.value)}
@@ -549,18 +458,18 @@ const VendorSettings = () => {
                 step="0.01"
               />
               <div>
-                <label className="input-label">{t('vendor.settings.currency', 'العملة')}</label>
+                <label className="input-label">{t('vendor.settings.currency', 'Currency')}</label>
                 <select
                   value={currency}
                   onChange={() => handleFieldChange(setCurrency, 'MAD')}
                   className="input"
                 >
-                  <option value="MAD">MAD - {t('vendor.settings.currencies.mad', 'الدرهم المغربي')}</option>
+                  <option value="MAD">MAD - {t('vendor.settings.currencies.mad', 'Moroccan Dirham')}</option>
                 </select>
               </div>
             </div>
             <Input
-              label={t('vendor.settings.lowStockThreshold', 'حد تنبيه المخزون المنخفض')}
+              label={t('vendor.settings.lowStockThreshold', 'Low Stock Alert Threshold')}
               type="number"
               value={lowStockThreshold}
               onChange={(e) => handleFieldChange(setLowStockThreshold, e.target.value)}
@@ -569,7 +478,7 @@ const VendorSettings = () => {
               step="1"
             />
             <p className="text-xs text-gray-500">
-              {t('vendor.settings.lowStockHint', 'سيتم إعلامك عندما يقل مخزون المنتج عن هذا العدد')}
+              {t('vendor.settings.lowStockHint', 'Get alerted when product stock falls below this number')}
             </p>
           </div>
         </Card>
@@ -580,27 +489,20 @@ const VendorSettings = () => {
             {'الإعدادات المالية'}
           </h2>
 
-          <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 mb-4 text-sm text-slate-700 leading-6">
-            <p>
-              PayPal خدمة دفع إلكتروني آمنة تُستخدم لاستلام المدفوعات. أضف البريد المرتبط بحساب PayPal الخاص بمتجرك، وسيبقى في انتظار التحقق الإداري قبل تفعيل البيع/التوصيل.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="بريد PayPal الإلكتروني"
-              type="email"
-              value={paypalEmail}
-              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
-              error={errors.paypalEmail}
-              required
-              placeholder="name@example.com"
-            />
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
-              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
-                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
-              </p>
+          {/* Payout method info */}
+          <div className="mb-4">
+            <label className="input-label mb-2 block">طريقة استلام الأرباح</label>
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <BanknotesIcon className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">تحويل بنكي تلقائي</p>
+                  <p className="text-xs text-blue-700 mt-1 leading-5">
+                    يتم تحويل أرباحك تلقائياً إلى حسابك البنكي المسجل في العقد الرقمي بعد تأكيد كل طلب.
+                    تأكد من صحة رقم IBAN واسم البنك في بيانات العقد.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </Card>
@@ -618,7 +520,6 @@ const VendorSettings = () => {
             value={storeLocation || {}}
             onChange={(loc) => { setStoreLocation(loc); setHasChanges(true) }}
             required={false}
-            showGpsButton={false}
           />
         </Card>
 
@@ -695,11 +596,11 @@ const VendorSettings = () => {
                 checked={notifyNewOrders}
                 onChange={(e) => handleFieldChange(setNotifyNewOrders, e.target.checked)}
                 className="w-5 h-5 rounded text-green-500 focus:ring-green-500"
-                aria-label={t('vendor.settings.notifyNewOrders', 'الطلبات الجديدة')}
+                aria-label={t('vendor.settings.notifyNewOrders', 'New Orders')}
               />
               <div>
-                <span className="font-medium text-gray-900">{t('vendor.settings.notifyNewOrders', 'الطلبات الجديدة')}</span>
-                <p className="text-xs text-gray-500">{t('vendor.settings.notifyNewOrdersDesc', 'عندما يقدم العميل طلبًا جديدًا')}</p>
+                <span className="font-medium text-gray-900">{t('vendor.settings.notifyNewOrders', 'New Orders')}</span>
+                <p className="text-xs text-gray-500">{t('vendor.settings.notifyNewOrdersDesc', 'When a customer places a new order')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -708,11 +609,11 @@ const VendorSettings = () => {
                 checked={notifyOrderUpdates}
                 onChange={(e) => handleFieldChange(setNotifyOrderUpdates, e.target.checked)}
                 className="w-5 h-5 rounded text-green-500 focus:ring-green-500"
-                aria-label={t('vendor.settings.notifyOrderUpdates', 'تحديثات الطلب')}
+                aria-label={t('vendor.settings.notifyOrderUpdates', 'Order Updates')}
               />
               <div>
-                <span className="font-medium text-gray-900">{t('vendor.settings.notifyOrderUpdates', 'تحديثات الطلب')}</span>
-                <p className="text-xs text-gray-500">{t('vendor.settings.notifyOrderUpdatesDesc', 'عندما يتغير حالة الطلب')}</p>
+                <span className="font-medium text-gray-900">{t('vendor.settings.notifyOrderUpdates', 'Order Updates')}</span>
+                <p className="text-xs text-gray-500">{t('vendor.settings.notifyOrderUpdatesDesc', 'When order status changes')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -721,11 +622,11 @@ const VendorSettings = () => {
                 checked={notifyCustomerMessages}
                 onChange={(e) => handleFieldChange(setNotifyCustomerMessages, e.target.checked)}
                 className="w-5 h-5 rounded text-green-500 focus:ring-green-500"
-                aria-label={t('vendor.settings.notifyCustomerMessages', 'رسائل العملاء')}
+                aria-label={t('vendor.settings.notifyCustomerMessages', 'Customer Messages')}
               />
               <div>
-                <span className="font-medium text-gray-900">{t('vendor.settings.notifyCustomerMessages', 'رسائل العملاء')}</span>
-                <p className="text-xs text-gray-500">{t('vendor.settings.notifyCustomerMessagesDesc', 'عندما يرسل العميل رسالة')}</p>
+                <span className="font-medium text-gray-900">{t('vendor.settings.notifyCustomerMessages', 'Customer Messages')}</span>
+                <p className="text-xs text-gray-500">{t('vendor.settings.notifyCustomerMessagesDesc', 'When a customer sends a message')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -734,11 +635,11 @@ const VendorSettings = () => {
                 checked={notifyLowStock}
                 onChange={(e) => handleFieldChange(setNotifyLowStock, e.target.checked)}
                 className="w-5 h-5 rounded text-green-500 focus:ring-green-500"
-                aria-label={t('vendor.settings.notifyLowStock', 'تنبيهات انخفاض المخزون')}
+                aria-label={t('vendor.settings.notifyLowStock', 'Low Stock Alerts')}
               />
               <div>
-                <span className="font-medium text-gray-900">{t('vendor.settings.notifyLowStock', 'تنبيهات انخفاض المخزون')}</span>
-                <p className="text-xs text-gray-500">{t('vendor.settings.notifyLowStockDesc', 'عندما يقل مخزون المنتج عن الحد المحدد')}</p>
+                <span className="font-medium text-gray-900">{t('vendor.settings.notifyLowStock', 'Low Stock Alerts')}</span>
+                <p className="text-xs text-gray-500">{t('vendor.settings.notifyLowStockDesc', 'When product stock falls below threshold')}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -747,11 +648,11 @@ const VendorSettings = () => {
                 checked={notifyReviews}
                 onChange={(e) => handleFieldChange(setNotifyReviews, e.target.checked)}
                 className="w-5 h-5 rounded text-green-500 focus:ring-green-500"
-                aria-label={t('vendor.settings.notifyReviews', 'التقييمات الجديدة')}
+                aria-label={t('vendor.settings.notifyReviews', 'New Reviews')}
               />
               <div>
-                <span className="font-medium text-gray-900">{t('vendor.settings.notifyReviews', 'التقييمات الجديدة')}</span>
-                <p className="text-xs text-gray-500">{t('vendor.settings.notifyReviewsDesc', 'عندما يترك العميل تقييمًا')}</p>
+                <span className="font-medium text-gray-900">{t('vendor.settings.notifyReviews', 'New Reviews')}</span>
+                <p className="text-xs text-gray-500">{t('vendor.settings.notifyReviewsDesc', 'When a customer leaves a review')}</p>
               </div>
             </div>
           </div>

@@ -1,9 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore, resolveSafeAuthRedirect } from '@/modules/auth'
 import { supabase } from '@/services/supabase'
 import { LoadingSpinner } from '@/components/ui'
-import { resolveSafeAuthRedirect } from '@/utils/authRedirects'
 import { logger } from '@/utils/logger'
 
 // ============================================
@@ -207,10 +206,14 @@ const AuthCallback = () => {
   useEffect(() => {
     if (!loading && profile) {
       const params = new URLSearchParams(window.location.search)
-      const redirectTo = params.get('redirect_to') || sessionStorage.getItem('redirect_after_verification')
+      const redirectTo =
+        params.get('redirect_to') ||
+        sessionStorage.getItem('redirect_after_verification') ||
+        sessionStorage.getItem('pending_auth_redirect')
 
       if (redirectTo) {
         sessionStorage.removeItem('redirect_after_verification')
+        sessionStorage.removeItem('pending_auth_redirect')
       }
 
       const redirectPath = resolveSafeAuthRedirect(
@@ -230,38 +233,40 @@ const AuthCallback = () => {
     const isTimeoutError = errorType === 'timeout'
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md mx-auto px-4">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
-            isTimeoutError ? 'bg-amber-100' : 'bg-red-100'
-          }`}>
-            <svg className={`w-8 h-8 ${isTimeoutError ? 'text-amber-600' : 'text-red-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            {isOAuthError
-              ? 'Authentication Failed'
-              : isTimeoutError
-                ? 'Authentication Timeout'
-                : 'Verification Failed'}
-          </h2>
-          <p className="text-gray-500 mb-6">{error}</p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              onClick={() => navigate('/login')}
-              className="btn-primary"
-            >
-              Back to Login
-            </button>
-            {isOAuthError && (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+        <div className="text-center max-w-md mx-auto px-4 auth-fade-in">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/60 shadow-[0_8px_40px_rgba(0,0,0,0.08)] p-8 sm:p-10">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 ${
+              isTimeoutError ? 'bg-amber-50' : 'bg-red-50'
+            }`}>
+              <svg className={`w-8 h-8 ${isTimeoutError ? 'text-amber-500' : 'text-red-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2 tracking-tight">
+              {isOAuthError
+                ? 'Authentication Failed'
+                : isTimeoutError
+                  ? 'Authentication Timeout'
+                  : 'Verification Failed'}
+            </h2>
+            <p className="text-gray-500 mb-6 text-sm leading-relaxed">{error}</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => navigate('/register')}
-                className="btn-outline"
+                onClick={() => navigate('/login')}
+                className="inline-flex items-center justify-center h-12 px-6 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-600/20 transition-all"
               >
-                Try Different Method
+                Back to Login
               </button>
-            )}
+              {isOAuthError && (
+                <button
+                  onClick={() => navigate('/register')}
+                  className="inline-flex items-center justify-center h-12 px-6 rounded-2xl border border-gray-200 text-gray-700 font-semibold text-sm hover:border-gray-300 hover:bg-gray-50 transition-all"
+                >
+                  Try Different Method
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -273,10 +278,10 @@ const AuthCallback = () => {
   // ============================================
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      <div className="text-center auth-fade-in">
         <LoadingSpinner size="lg" />
-        <p className="mt-4 text-gray-600">
+        <p className="mt-4 text-gray-500 text-sm">
           Completing sign in...
         </p>
       </div>

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
-import { profilesService } from '@/services/profilesService'
+import { useAuthStore } from '@/modules/auth'
+import { profilesService } from '@/modules/users'
 import { Card, Input, LoadingSpinner, Tooltip } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import DeliveryPreferences from '@/components/driver/DeliveryPreferences'
@@ -12,11 +12,12 @@ import {
   TruckIcon,
   ShieldCheckIcon,
   CheckCircleIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 import { auditLogger } from '@/services/auditLogger'
-import { hasValidPayPalEmail } from '@/utils/paypalEligibility'
+import { MOROCCAN_BANKS } from '@/constants/banks'
 
 const normalizeDistanceValue = (value, fallback) => {
   const numericValue = Number(value)
@@ -43,8 +44,9 @@ const DriverSettings = () => {
   const [driverDeliveryPaymentCash, setDriverDeliveryPaymentCash] = useState(true)
   const [driverDeliveryPaymentTransfer, setDriverDeliveryPaymentTransfer] = useState(true)
   const [driverDeliveryPaymentNotes, setDriverDeliveryPaymentNotes] = useState('')
-  const [paypalEmail, setPaypalEmail] = useState('')
-  const [paypalVerified, setPaypalVerified] = useState(false)
+  const [bankAccountName, setBankAccountName] = useState('')
+  const [bankAccountIban, setBankAccountIban] = useState('')
+  const [bankName, setBankName] = useState('')
   const [errors, setErrors] = useState({})
 
   const handleFieldChange = (setter, value) => {
@@ -83,8 +85,9 @@ const DriverSettings = () => {
       setDriverDeliveryPaymentCash(data?.driver_delivery_payment_cash ?? true)
       setDriverDeliveryPaymentTransfer(data?.driver_delivery_payment_transfer ?? true)
       setDriverDeliveryPaymentNotes(data?.driver_delivery_payment_notes || '')
-      setPaypalEmail(data?.paypal_email || '')
-      setPaypalVerified(data?.paypal_verified === true)
+      setBankAccountName(data?.bank_account_name || '')
+      setBankAccountIban(data?.bank_account_iban || '')
+      setBankName(data?.bank_name || '')
       setHasChanges(false)
     } catch (error) {
       logger.error('Error loading driver settings:', error)
@@ -131,14 +134,20 @@ const DriverSettings = () => {
       nextErrors.driverDeliveryPaymentMethod = 'اختر طريقة واحدة على الأقل لتحصيل رسم التوصيل.'
     }
 
-    if (!paypalEmail.trim()) {
-      nextErrors.paypalEmail = 'بريد PayPal الإلكتروني إلزامي للسائق.'
-    } else if (!hasValidPayPalEmail(paypalEmail)) {
-      nextErrors.paypalEmail = 'أدخل بريد PayPal إلكترونيًا صالحًا.'
+    if (!bankAccountName.trim()) {
+      nextErrors.bankAccountName = 'اسم صاحب الحساب البنكي إلزامي.'
+    }
+    if (!bankAccountIban.trim()) {
+      nextErrors.bankAccountIban = 'رقم الحساب البنكي (RIB/IBAN) إلزامي.'
+    } else if (bankAccountIban.replace(/\s/g, '').length < 24) {
+      nextErrors.bankAccountIban = 'رقم الحساب البنكي يجب أن يكون 24 رقماً على الأقل.'
+    }
+    if (!bankName.trim()) {
+      nextErrors.bankName = 'اسم البنك إلزامي.'
     }
 
     return nextErrors
-  }, [acceptedCargoSizes, driverDeliveryPaymentCash, driverDeliveryPaymentTransfer, licenseNumber, maxDeliveryDistanceKm, minDeliveryDistanceKm, paypalEmail, t, vehiclePlate])
+  }, [acceptedCargoSizes, driverDeliveryPaymentCash, driverDeliveryPaymentTransfer, licenseNumber, maxDeliveryDistanceKm, minDeliveryDistanceKm, bankAccountName, bankAccountIban, bankName, t, vehiclePlate])
 
   const handleSave = useCallback(async () => {
     const validationErrors = validateForm()
@@ -170,8 +179,9 @@ const DriverSettings = () => {
             driver_delivery_payment_cash: previousProfile.driver_delivery_payment_cash,
             driver_delivery_payment_transfer: previousProfile.driver_delivery_payment_transfer,
             driver_delivery_payment_notes: previousProfile.driver_delivery_payment_notes,
-            paypal_email: previousProfile.paypal_email,
-            paypal_verified: previousProfile.paypal_verified,
+            bank_account_name: previousProfile.bank_account_name,
+            bank_account_iban: previousProfile.bank_account_iban,
+            bank_name: previousProfile.bank_name,
           }
         : null
 
@@ -189,8 +199,10 @@ const DriverSettings = () => {
         driver_delivery_payment_cash: driverDeliveryPaymentCash,
         driver_delivery_payment_transfer: driverDeliveryPaymentTransfer,
         driver_delivery_payment_notes: driverDeliveryPaymentNotes || null,
-        paypal_email: paypalEmail.trim().toLowerCase(),
-        payout_method: 'paypal',
+        bank_account_name: bankAccountName.trim() || null,
+        bank_account_iban: bankAccountIban.replace(/\s/g, '') || null,
+        bank_name: bankName.trim() || null,
+        payout_method: 'bank',
       }
 
       const { error } = await profilesService.updateProfile(user.id, updatePayload)
@@ -226,7 +238,9 @@ const DriverSettings = () => {
     notifyCustomerMessages,
     notifyNewDeliveries,
     notifyOrderUpdates,
-    paypalEmail,
+    bankAccountName,
+    bankAccountIban,
+    bankName,
     profile,
     t,
     user.id,
@@ -261,7 +275,7 @@ const DriverSettings = () => {
     <div>
       {location.state?.paypalSetupRequired && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          {location.state?.paypalSetupMessage || 'يجب إكمال إعداد PayPal للمتابعة.'}
+          {location.state?.paypalSetupMessage || 'يجب إكمال إعداد الحساب البنكي للمتابعة.'}
         </div>
       )}
 
@@ -280,35 +294,60 @@ const DriverSettings = () => {
       <div className="space-y-6">
         <Card className="p-6">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            PayPal Setup
+            <BanknotesIcon className="w-5 h-5 text-gray-600" />
+            {t('driver.settings.bankSetup', 'بيانات الحساب البنكي')}
             <Tooltip
-              title="ما هو PayPal؟"
+              title="لماذا نحتاج بياناتك البنكية؟"
               content={(
                 <>
-                  <p>PayPal خدمة دفع إلكتروني آمنة.</p>
-                  <p>نحتاجها لتحويل مستحقات التوصيل الخاصة بك.</p>
-                  <p>أدخل بريدًا مرتبطًا بحساب PayPal نشط.</p>
-                  <a className="text-blue-600 underline" href="https://www.paypal.com/ma/webapps/mpp/account-selection" target="_blank" rel="noreferrer">إنشاء حساب PayPal مجاني</a>
+                  <p>نحتاج بيانات حسابك البنكي لتحويل مستحقات التوصيل الخاصة بك.</p>
+                  <p>يتم تحويل الأرباح مباشرة إلى حسابك البنكي المغربي.</p>
                 </>
               )}
             />
           </h2>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-4">
             <Input
-              label="PayPal Email"
-              type="email"
-              value={paypalEmail}
-              onChange={(event) => handleFieldChange(setPaypalEmail, event.target.value)}
-              error={errors.paypalEmail}
+              label={t('driver.settings.bankAccountName', 'اسم صاحب الحساب')}
+              value={bankAccountName}
+              onChange={(event) => handleFieldChange(setBankAccountName, event.target.value)}
+              error={errors.bankAccountName}
               required
-              placeholder="name@example.com"
+              placeholder="الاسم الكامل كما هو في البنك"
             />
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="text-sm font-medium text-gray-800">حالة التحقق</p>
-              <p className={`mt-2 text-sm ${paypalVerified ? 'text-green-700' : 'text-amber-700'}`}>
-                {paypalVerified ? 'تم التحقق من حساب PayPal' : 'بانتظار التحقق الإداري من PayPal'}
-              </p>
+            <div>
+              <label className="input-label">
+                {t('driver.settings.bankName', 'اسم البنك')}
+                <span className="text-red-500 mr-1">*</span>
+              </label>
+              <select
+                value={bankName}
+                onChange={(event) => handleFieldChange(setBankName, event.target.value)}
+                className="input"
+              >
+                <option value="">{t('driver.settings.selectBank', 'اختر البنك')}</option>
+                {MOROCCAN_BANKS.map((bank) => (
+                  <option key={bank.code} value={bank.name}>
+                    {bank.name}
+                  </option>
+                ))}
+              </select>
+              {errors.bankName && (
+                <p className="mt-1 text-sm text-red-600">{errors.bankName}</p>
+              )}
             </div>
+            <Input
+              label={t('driver.settings.bankIban', 'رقم الحساب البنكي (RIB / IBAN)')}
+              value={bankAccountIban}
+              onChange={(event) => handleFieldChange(setBankAccountIban, event.target.value)}
+              error={errors.bankAccountIban}
+              required
+              placeholder="011 780 0000123456789012 34"
+              maxLength={34}
+            />
+            <p className="text-xs text-gray-500">
+              {t('driver.settings.bankHint', 'أدخل رقم الحساب البنكي كما هو في دفتر الصياغة أو RIB البنكي. سيتم تحويل أرباحك إلى هذا الحساب.')}
+            </p>
           </div>
         </Card>
 

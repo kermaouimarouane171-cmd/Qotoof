@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/consistent-type-definitions */
 // Auto-generated from SQL migrations. Update by re-running generator when schema changes.
 
 export type Json =
@@ -3049,6 +3048,37 @@ export type Database = {
         updated_at?: string | null
         vendor_id?: string | null
       }>
+      refunds: TableDef<{
+        amount: number
+        created_at: string
+        gateway_response: Json | null
+        id: string
+        order_id: string | null
+        payment_id: string
+        reason: string | null
+        status: string
+        updated_at: string
+      }, {
+        amount: number
+        created_at?: string | null
+        gateway_response?: Json | null
+        id?: string | null
+        order_id?: string | null
+        payment_id: string
+        reason?: string | null
+        status?: string | null
+        updated_at?: string | null
+      }, {
+        amount?: number | null
+        created_at?: string | null
+        gateway_response?: Json | null
+        id?: string | null
+        order_id?: string | null
+        payment_id?: string | null
+        reason?: string | null
+        status?: string | null
+        updated_at?: string | null
+      }>
       phone_otp: TableDef<{
         attempts: number | null
         created_at: string | null
@@ -5157,7 +5187,81 @@ export type Database = {
       }>
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          id: string
+          role: 'admin' | 'vendor' | 'buyer' | 'driver'
+          first_name: string
+          last_name: string
+          avatar_url: string | null
+          email: string
+          phone: string | null
+          city: string | null
+          country: string | null
+          latitude: number | null
+          longitude: number | null
+          store_name: string | null
+          store_description: string | null
+          store_type: string | null
+          bio: string | null
+          operating_hours: Json | null
+          active_products_count: number | null
+          min_order_amount: Json | null
+          rating: Json | null
+          is_verified: boolean | null
+          is_approved: boolean | null
+          is_suspended: boolean | null
+          delivery_option: string | null
+          has_own_driver: boolean | null
+          has_preferred_vendor: boolean | null
+          preferred_driver_id: string | null
+          partnership_status: string | null
+          is_available_for_delivery: boolean | null
+          vehicle_type: Json | null
+          vehicle_plate: string | null
+          accepted_cargo_sizes: string[] | null
+          min_delivery_distance_km: Json | null
+          max_delivery_distance_km: Json | null
+          driver_delivery_payment_cash: boolean | null
+          driver_delivery_payment_transfer: boolean | null
+          driver_delivery_payment_notes: string | null
+          created_at: string | null
+        }
+        Relationships: []
+      }
+      public_vendor_profiles: {
+        Row: {
+          id: string
+          role: 'admin' | 'vendor' | 'buyer' | 'driver'
+          first_name: string
+          last_name: string
+          avatar_url: string | null
+          city: string | null
+          country: string | null
+          latitude: number | null
+          longitude: number | null
+          store_name: string | null
+          store_description: string | null
+          store_type: string | null
+          bio: string | null
+          operating_hours: Json | null
+          active_products_count: number | null
+          min_order_amount: Json | null
+          rating: Json | null
+          is_verified: boolean | null
+          is_approved: boolean | null
+          delivery_option: string | null
+          has_own_driver: boolean | null
+          is_available_for_delivery: boolean | null
+          vehicle_type: Json | null
+          vehicle_plate: string | null
+          accepted_cargo_sizes: string[] | null
+          min_delivery_distance_km: Json | null
+          max_delivery_distance_km: Json | null
+          created_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_notification_defaults_and_preferences: {
@@ -6224,6 +6328,14 @@ export type Database = {
       validate_profile_email: {
         Args: {
           [key: string]: never
+        }
+        Returns: Json
+      }
+      verify_mfa_code: {
+        Args: {
+          p_user_id: string
+          p_code: string
+          p_method?: string
         }
         Returns: Json
       }

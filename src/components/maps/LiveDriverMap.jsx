@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Map, LoadingSpinner } from '@/components/ui'
-import { driverLocationService } from '@/services/driverLocationService'
+import { useMapCenter } from '@/hooks/useMapCenter'
+import { driverLocationService } from '@/modules/delivery'
 import { MapPinIcon, SignalIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
 
 const formatTime = (value) => {
@@ -124,21 +125,10 @@ const LiveDriverMap = ({
     return items
   }, [deliveryLocation, location, pickupLocation])
 
-  const center = useMemo(() => {
-    if (location?.lat && location?.lng) {
-      return [location.lat, location.lng]
-    }
-
-    if (pickupLocation?.lat && pickupLocation?.lng) {
-      return [pickupLocation.lat, pickupLocation.lng]
-    }
-
-    if (deliveryLocation?.lat && deliveryLocation?.lng) {
-      return [deliveryLocation.lat, deliveryLocation.lng]
-    }
-
-    return [33.5731, -7.5898]
-  }, [deliveryLocation, location, pickupLocation])
+  const center = useMapCenter({
+    lat: location?.lat || pickupLocation?.lat || deliveryLocation?.lat,
+    lng: location?.lng || pickupLocation?.lng || deliveryLocation?.lng,
+  })
 
   return (
     <div className={className}>

@@ -3,9 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { AdjustmentsHorizontalIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import SearchBar from '@/components/Search/SearchBar'
-import { ProductCard } from '@/components/ui'
-import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
-import productSearchService from '@/services/search/productSearchService'
+import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories, productSearchService } from '@/modules/catalog'
+import ProductCard from '@/components/ui/ProductCard'
 import { logger } from '@/utils/logger'
 
 const EMPTY_RESULTS = {
@@ -29,7 +28,8 @@ const SearchResults = () => {
   const params = Object.fromEntries(searchParams.entries())
   const filters = productSearchService.buildFiltersFromParams(params)
   const currentPage = filters.page
-  const subcategoryOptions = filters.category ? getSuggestedSubcategories(filters.category) : []
+  const currentLang = i18n.resolvedLanguage || i18n.language || 'en'
+  const subcategoryOptions = filters.category ? getSuggestedSubcategories(filters.category, currentLang) : []
   const sortOptions = [
     { value: 'relevance', label: t('search.sortBy.relevance', 'Most Relevant') },
     { value: 'newest', label: t('search.sortBy.newest', 'Newest First') },

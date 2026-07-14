@@ -157,7 +157,7 @@ const PLACEHOLDER_PATTERNS = [
   /your_name/i,
 ]
 
-const OFFICIAL_EMAIL = 'Qotoof273@gmail.com'
+const OFFICIAL_EMAIL = 'qotoof273@gmail.com'
 const OFFICIAL_PHONE = '+212674841248'
 const OFFICIAL_PHONE_DISPLAY = '+212 674 841 248'
 

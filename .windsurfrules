@@ -22,10 +22,12 @@
 - Tests: Jest (`jest.config.js`) للـ unit/integration + Cypress للـ e2e.
 - CI: `.github/workflows/ci.yml` (lint:ci → jest → snapshots → build → bundle size → lighthouse). CD: `cd.yml`. Node 22، `npm ci --legacy-peer-deps`.
 - Build/Deploy: Vite build + Firebase Hosting (`firebase.json`)، PWA عبر `vite-plugin-pwa`، Android عبر Capacitor (`capacitor.config.ts`).
-- Payments: PayPal (`@paypal/react-paypal-js`) + CMI (`src/services/cmiPayment.js`)، مع PaymentGuard في `src/contexts/PaymentGuard.jsx`.
-- عدد الصفحات التقريبي: 74 صفحة موزعة على public (14)، auth (8)، onboarding (3)، buyer (9)، vendor (18)، driver (13)، admin (22).
-- عدد الخدمات: 86 ملف في `src/services/` + 4 في `src/services/reports/` + 2 في `src/services/webhooks/` + 1 في `src/services/sms/` + 3 في `src/services/search/`.
-- عدد الاختبارات: 24 ملف اختبار للصفحات + 29 للخدمات + 4 للمتاجر + 15 للأدوات + 38 اختبار Cypress e2e.
+- Payments: PayPal (`@paypal/react-paypal-js`) + CMI (`src/modules/payments/api/cmiPayment.js`)، مع PaymentGuard في `src/contexts/PaymentGuard.jsx`.
+- بنية المشروع: طبقتان — `src/services/` (خدمات قديمة flat) و `src/modules/` (بنية feature-based حديثة: payments, checkout, cart, catalog, auth, orders, delivery, loyalty, coupons, reviews, notifications, chat, analytics, admin, marketplace, users, commissions). عند العمل على خدمة، ابحث في المكانين.
+- عدد الصفحات: ~103 صفحة موزعة على public (31)، auth (6 + 2 في components/features)، onboarding (3)، buyer (8)، vendor (18)، driver (13)، admin (22)، orders (1)، errors (2).
+- عدد الخدمات: ~68 ملف في `src/services/` (باستثناء __tests__) + 4 في `reports/` + 2 في `webhooks/` + 1 في `sms/` + 3 في `search/` + خدمات إضافية في `src/modules/*/api/` (paymentService, paymentGateway, paymentRecords, checkoutService, cmiPayment).
+- عدد المتاجر (Zustand stores): 3 في `src/store/` (authStore, authSessionStore, languageStore) + متاجر إضافية في `src/modules/*/stores/` (cartStore, favoritesStore، وغيرها).
+- عدد الاختبارات: ~38 ملف اختبار للصفحات + ~37 للخدمات + 4 للمتاجر + ~17 للأدوات + ~40 اختبار Cypress e2e + اختبارات في components/, hooks/, integration/, e2e/, a11y/, buyer/, database/, edge/, guest/, i18n/.
 - الجداول المفقودة المؤكدة: `fraud_reports`، `payment_disputes` — لا توجد في أي migration.
 - الجدول المشكوك فيه: `driver_locations` — يُشار إليه في الكود لكن قد لا يكون موجودًا في schema.
 - Express backend في `src/api/` مُعلَّم deprecated (`DEPRECATION_PLAN.md`) ويستخدم `seller` role بدلاً من `vendor`.
@@ -38,6 +40,60 @@
 - اعمل بأصغر تغيير ممكن يحقق الهدف. لا refactor كبير دون ضرورة ومبرر.
 - لا تلمس عددًا كبيرًا من الملفات دفعة واحدة. ركّز التغيير.
 - قل الحقيقة دائمًا حتى لو كانت سيئة. لا تخفِ المخاطر ولا المشاكل غير المفحوصة.
+
+## 1.5. فلسفة الإنهاء الكامل (Core Philosophy)
+
+> **كل برومت — حتى لو كان كلمة واحدة — يُفهم على أنه طلب إنهاء كامل، ليس مجرد إصلاح سريع.**
+
+عندما يطلب المستخدم أي شيء، يجب أن تنفذه كدورة كاملة من البداية إلى النهاية:
+
+### مراحل الإنهاء الكامل (إلزامية لكل برومت)
+
+1. **فهم الطلب بالكامل:** اقرأ `.windsurfrules` أولاً. حدد النطاق المعني. افهم الهدف النهائي — ليس فقط "أصلح X" بل "اجعل X يعمل بشكل صحيح نهائياً".
+
+2. **تنظيف المخلفات:** قبل الإصلاح، افحص:
+   - أكواد ميتة (dead code) في النطاق المعني.
+   - imports غير مستخدمة.
+   - متغيرات معرّفة وغير مستخدمة.
+   - تعليقات قديمة تشير إلى كود محذوف.
+   - ملفات أو وظائف لم تعد تُستخدم.
+
+3. **إصلاح المشكلة الجذرية:** أصلح السبب الحقيقي، ليس العرض. لا تضع band-aid.
+
+4. **التحقق من البنية:** بعد الإصلاح، تحقق:
+   - هل البنية المعمارية صحيحة؟ (ملف في المكان الصحيح، import من المسار الصحيح).
+   - هل كل استدعاء (function call, hook, service method) يشير إلى شيء موجود فعلاً؟
+   - هل توجد استدعاءات خاطئة أو مراجع مكسورة؟
+   - هل توجد حلقات استيراد دائرية (circular imports)؟
+
+5. **التحقق سطراً سطراً:** اقرأ الملف المعدل كاملاً بعد التعديل. تأكد:
+   - كل سطر له هدف واضح.
+   - لا توجد أسطر زائدة أو مكررة.
+   - لا توجد تناقضات داخلية (مثل متغير يُفحص بطريقة ثم يُستخدم بطريقة أخرى).
+   - لا توجد فوضى في الترتيب أو المنطق.
+
+6. **التحقق من عدم وجود كسر:** تأكد أن تعديلك لم يكسر:
+   - صفحة أخرى أو flow آخر.
+   - اختبار قائم.
+   - import في ملف آخر يعتمد على ما غيّرته.
+
+7. **التحقق من هدف كل ملف:** كل ملف في النطاق المعني يجب أن يكون له هدف واحد واضح بلا تناقض:
+   - لا ينبغي لملف أن يقوم بكل شيء (God component).
+   - لا ينبغي لملف أن يكون له هدف يتناقض مع اسمه أو مساره.
+   - إذا اكتشفت أن ملفاً يجمع مسؤوليات متعددة متناقضة، وثّق ذلك واقترح فصله.
+
+8. **اختبار + تقرير:** شغّل الاختبار المناسب. قدم تقريراً واضحاً. توقف.
+
+### ما يعنيه "حتى لو كان البرومت صغيراً"
+
+إذا قال المستخدم "صفحة تتبع الطلبات لا تعمل"، فهذا لا يعني "أصلح الزر". يعني:
+- اقرأ الصفحة كاملةً.
+- ابحث عن كل استدعاء خاطئ أو مكسور.
+- نظف المخلفات.
+- أصلح المشكلة الجذرية.
+- تحقق أن البنية صحيحة.
+- تحقق أن لا كسر في ملفات أخرى.
+- قدم تقريراً.
 
 ## 2. قواعد التحليل قبل التنفيذ
 
@@ -90,17 +146,18 @@
 ## 9. قواعد التعامل مع Payments
 
 - مزوّدا الدفع: PayPal و CMI. منطق التأهّل في `src/utils/paypalEligibility.js` والحارس في `src/contexts/PaymentGuard.jsx`.
+- ملفات الدفع موزعة: `src/modules/payments/api/` (paymentService, paymentGateway, paymentRecords, cmiPayment) + `src/services/` (payoutService, commissionService). ابحث في المكانين.
 - لا تعدّل منطق الدفع أو العمولات (`commissionService.js`, `payoutService.js`, `paymentService.js`, `cmiPayment.js`) إلا بتحليل مبرّر واختبار.
 - احترم مسارات الـ bypass في `PaymentGuard` (settings/digital-contract/onboarding) — تغييرها يحجب المستخدمين.
 
 ## 10. قواعد التعامل مع Orders
 
-- منطق الطلبات في `src/services/ordersService.ts` و`src/services/checkoutService.js` و`src/features/orders`.
+- منطق الطلبات موزع: `src/services/ordersService.ts` و `src/modules/checkout/api/checkoutService.js` و `src/features/orders` و `src/modules/orders/`. ابحث في المكانين.
 - لا تغيّر آلية انتقالات حالة الطلب دون فهم كامل لتأثيرها على buyer/vendor/driver/admin.
 
 ## 11. قواعد التعامل مع Products
 
-- منطق المنتجات في `src/services/` (مثل `productImages.js`, `inventoryService.js`) و`src/domains/catalog` و`src/pages/vendor`.
+- منطق المنتجات موزع: `src/services/` (مثل `productImages.js`, `inventoryService.js`) و `src/modules/catalog/` و `src/pages/vendor`. ابحث في المكانين.
 - احترم تدفّق الموافقة على المنتجات (`migrations/SUPABASE_APPROVE_PRODUCTS.sql`).
 
 ## 12. قواعد صفحات البائع (Vendor)
@@ -111,6 +168,17 @@
 ## 13. قواعد صفحات المشتري (Buyer)
 
 - انتبه لمنطق `buyerNeedsOnboarding` و`buyerPublicPaths` في `ProtectedRoute.jsx`؛ لا تكسر الوصول إلى marketplace/cart/checkout.
+- `BuyerLayout` تم حذفه؛ صفحات المشتري الآن داخل `MainLayout` في `ProtectedRoute.jsx`.
+- `/buyer` يعيد توجيه إلى `/marketplace` (BuyerIndexRedirect).
+- **لا توجد لوحة تحكم (dashboard) للمشتري.** المشتري يبدأ من `/marketplace`. لا تضع رابط "لوحة التحكم" أو "dashboard" في أي مكان يخص المشتري.
+- `roleDashboardPath` في `ProtectedRoute.jsx` يجب ألا يحتوي على `buyer`. `/marketplace` ليس dashboard — هو fallback فقط.
+- استخدم `USER_ROLES.BUYER` وليس السلسلة النصية `'buyer'` في كل المقارنات والشروط داخل `ProtectedRoute.jsx` وغيرها.
+- استخدم `shipping_*` وليس `delivery_*` في استعلامات جدول orders للأعمدة: `shipping_address`, `shipping_city`, `shipping_latitude`, `shipping_longitude`.
+- استخدم `total` وليس `total_amount` في استعلامات جدول orders.
+- لا تستخدم `window.confirm` في صفحات المشتري؛ استخدم modal dialog بدلاً من ذلك.
+- aria-labels لأزرار الرجوع يجب أن تقول "Back to marketplace" وليس "Back to dashboard".
+- `Tracking.jsx` هي صفحة guest-only: تعرض `AuthGate` للزوار، وتُ redirect المشتري إلى `/buyer/orders` والأدوار الأخرى إلى dashboards الخاصة بها.
+- عدد صفحات المشتري: 8 (Orders, Addresses, Settings, Coupons, Loyalty, Security, ShoppingLists, RFQ).
 
 ## 14. قواعد صفحات السائق (Driver)
 
@@ -162,7 +230,8 @@
 
 - لا تطبع/تكشف أسرارًا أو مفاتيح API أبدًا. لا تضع أسرارًا في الكود (انظر `.github/SECRETS_REQUIRED.md`).
 - استخدم `dompurify` لأي محتوى HTML من المستخدم. لا تستخدم `dangerouslySetInnerHTML` دون تعقيم.
-- احترم `rateLimiter.js`, `ipBlocking.js`, `vendorSecurity.js` ولا تلتف حولها.
+- احترم `rateLimiter.js` (في `src/utils/`), `ipBlocking.js`, `vendorSecurity.js` ولا تلتف حولها.
+- **ممنوع استخدام `window.confirm` أو `window.alert` في أي صفحة.** استخدم modal dialog أو toast بدلاً من ذلك. هذا يشمل جميع الأدوار (buyer, vendor, driver, admin).
 
 ## 23. قواعد Performance
 
@@ -316,7 +385,7 @@ Windsurf يعمل كـ **AI Engineering Agent مستقل داخل المشروع
 |-------|--------|----------|
 | Phase 1 | Admin pages (22 page) | High |
 | Phase 2 | Public pages (marketplace, product, stores, search, static) | High |
-| Phase 3 | Buyer pages (dashboard, orders, addresses, settings, checkout) | High |
+| Phase 3 | Buyer pages (orders, addresses, settings, checkout, loyalty, coupons, RFQ) | High |
 | Phase 4 | Vendor pages (products, orders, analytics, settings, digital-contract) | High |
 | Phase 5 | Driver pages (dashboard, active, available, earnings, delivery flows) | Medium |
 | Phase 6 | Auth and onboarding flows (login, register, OTP, MFA, onboarding) | High |
@@ -380,7 +449,7 @@ Windsurf يعمل كـ **AI Engineering Agent مستقل داخل المشروع
 - `ProtectedRoute` logic
 - `PaymentGuard` logic
 - PayPal integration (`src/services/paypal*.js`, `src/contexts/PaymentGuard.jsx`)
-- CMI integration (`src/services/cmiPayment.js`)
+- CMI integration (`src/modules/payments/api/cmiPayment.js`)
 - Orders status transitions (`src/services/ordersService.ts`, `src/features/orders`)
 - Payouts (`src/services/payoutService.js`, `src/pages/admin/Payouts.jsx`)
 - Refunds (`src/services/returns.js`)
@@ -447,15 +516,16 @@ Audit → Fix → Test → Report → Stop
 
 ## 40. Project Architecture Map (Discovered, Not Assumed)
 
-### Pages by Role (74 total)
+### Pages by Role (~103 total)
 
-**Public (14):** Home, Marketplace, ProductDetail, Stores, StoreDetail, SearchResults, Seasonal, About, Contact, HelpCenter, Terms, Privacy, BecomeVendor, Returns, Shipping, Tracking, OrderDetail, OrderTracking, OrderConfirmation, ProductCondition, Cart, Favorites, Notifications, Profile, Messages, Chat, BankAccount, ActivityLog
+**Public (31):** Home, Marketplace, ProductDetail, Stores, StoreDetail, SearchResults, Seasonal, About, Contact, HelpCenter, Terms, Privacy, BecomeVendor, BecomeDriver, Returns, Shipping, Tracking, OrderDetail, OrderTracking, OrderConfirmation, ProductCondition, Cart, Favorites, Notifications, Profile, Messages, Chat, BankAccount, ActivityLog, Unauthorized, NotFound
 
-**Auth (8):** Login, Register, ForgotPassword, ResetPassword, VerifyEmail, TwoFactor, PhoneVerification, AuthCallback
+**Auth (6 in pages/auth/):** Login, Register, ForgotPassword, ResetPassword, VerifyEmail, AuthCallback
+**Auth (2 elsewhere):** TwoFactor (`src/features/auth/components/`), PhoneVerification (`src/components/auth/`)
 
 **Onboarding (3):** BuyerOnboarding, VendorOnboarding, DriverOnboarding
 
-**Buyer (9):** Dashboard, Orders, Addresses, Settings, Coupons, Loyalty, Security, ShoppingLists, RFQ
+**Buyer (8):** Orders, Addresses, Settings, Coupons, Loyalty, Security, ShoppingLists, RFQ (Dashboard removed — `/buyer` redirects to `/marketplace`)
 
 **Vendor (18):** Dashboard, Products, Orders, Analytics, Profile, Reviews, Settings, Coupons, Schedules, Security, LocationSetup, DriverPreferenceSetup, FindDriver, DeliveryOptionSetup, DigitalContract, Subscription, RFQs, VendorPublicProfile
 
@@ -463,34 +533,47 @@ Audit → Fix → Test → Report → Stop
 
 **Admin (22):** Dashboard, Users, Products, Orders, Analytics, Settings, Reports, Vendors, Drivers, Moderation, Commissions, Payouts, Reviews, Security, CommissionManagement, Verification, DisputeManagement, FraudReports, SupportTickets, CircuitBreakers, DriverVerification, SettingsAuditLog
 
-### Services (86+ files)
+**Orders (1):** ProductCondition (`src/pages/orders/`)
+
+**Errors (2):** InternalServerError, ServiceUnavailable (`src/pages/errors/`)
+
+### Services (~68 in src/services/ + extras in src/modules/)
 
 **Core:** supabase.ts, authActionsService.js, authServices.js, authGateway.js, platformSettings.js
-**Orders:** ordersService.ts, checkoutService.js, cancellationService.js, returns.js
-**Payments:** paymentService.js, paymentGateway.js, paymentRecords.js, cmiPayment.js, payoutService.js, commissionService.js
+**Orders:** ordersService.ts, cancellationService.js, returns.js (checkoutService في `src/modules/checkout/api/`)
+**Payments:** payoutService.js, commissionService.js (paymentService, paymentGateway, paymentRecords, cmiPayment في `src/modules/payments/api/`)
 **Delivery:** deliveryMatchingService.js, autoDispatch.js, driverLocationService.js, deliveries.js, shippingCalculator.js
 **Products:** inventoryService.js, productImages.js, vendorAnalytics.js
 **Users:** profilesService.ts, onboardingService.js, authAdminOps.js
 **Communication:** chatService.jsx, notifications.js, emailService.js, sms/
-**Security:** ipBlocking.js, rateLimiter.js, vendorSecurity.js, fraudReportService.js, fraudAwarenessService.js, trustScoreService.js
+**Security:** ipBlocking.js, vendorSecurity.js, fraudReportService.js, fraudAwarenessService.js, trustScoreService.js (rateLimiter في `src/utils/`)
 **Analytics:** analytics.js, googleAnalytics.js, realtime.js, realtimeManager.js
-**Reports:** reports/ (csvExport, pdfExport, etc.)
-**Other:** coupons.js, loyalty.js, rfqService.js, reviewService.js, search/, webhooks/
+**Reports:** reports/ (csvExport, pdfExport, reportService)
+**Other:** rfqService.js, storeTypeService.js, storeEmergencyService.js, partnershipService.js, legalCameraService.js, supportTickets.js, sentry.js, search/, webhooks/
 
-### Stores (6 files)
-- `authStore.js` — Zustand + persist, المصدر الرئيسي للمصادقة
-- `authSessionStore.js` — جلسات متعددة
-- `useAuthStore` hook يُستخدم في `AppRouter.jsx` و`ProtectedRoute`
+### Modules (src/modules/ — feature-based architecture, 17 modules)
+
+`admin/`, `analytics/`, `auth/`, `cart/` (cartStore, favoritesStore), `catalog/`, `chat/`, `checkout/` (checkoutService), `commissions/`, `coupons/`, `delivery/`, `loyalty/`, `marketplace/`, `notifications/`, `orders/`, `payments/` (paymentService, paymentGateway, paymentRecords, cmiPayment), `reviews/`, `users/`
+
+كل module يحتوي على: `api/`, `domain/`, `hooks/`, `stores/`, `ui/`, `utils/`, `data/` (بعضها).
+
+### Stores (3 in src/store/ + extras in src/modules/)
+- `src/store/authStore.js` — Zustand + persist, المصدر الرئيسي للمصادقة
+- `src/store/authSessionStore.js` — جلسات متعددة
+- `src/store/languageStore.js` — اللغة
+- `src/modules/cart/stores/cartStore.js` — سلة التسوق
+- `src/modules/cart/stores/favoritesStore.js` — المفضلة
+- متاجر إضافية في `src/modules/*/stores/`
 
 ### Layouts (5)
-- `MainLayout` — للصفحات العامة
+- `MainLayout` — للصفحات العامة + صفحات المشتري
 - `AdminLayout` — /admin/*
 - `VendorLayout` — /vendor/*
 - `DriverLayout` — /driver/*
-- `BuyerLayout` — /buyer/*
+- ~~`BuyerLayout`~~ — /buyer/* (removed; buyer routes now in `MainLayout`)
 
 ### Hooks (20+ files)
-- `useAuthStore`, `useFetch`, `useRealtime`, `useDeliveryTracking`, `useVendorAnalytics`, `useDriverLocation`, `useNotifications`, `useCart`, etc.
+- `useAuthStore`, `useFetch`, `useRealtime`, `useDeliveryTracking`, `useVendorAnalytics`, `useDriverLocation`, `useNotifications`, `useCart`, `useDarkMode`, etc.
 
 ### Contexts
 - `PaymentGuard.jsx` — يتحكم في صلاحية الدفع والعمولة
@@ -508,7 +591,7 @@ Audit → Fix → Test → Report → Stop
 | `fraud_reports` | `AdminFraudReports.jsx`, `fraudReportService.js` | ❌ غير موجود في أي migration |
 | `payment_disputes` | `AdminDisputeManagement.jsx`, `disputeService.js` | ❌ غير موجود في أي migration |
 
-### الأعمدة الشبحية (Ghost Columns — تم إصلاحها)
+### الأعمدة الشبحية (Ghost Columns — تم إصلاحها في buyer/admin queries)
 
 | العمود | الجدول | الملفات التي كانت تستخدمه | الحالة |
 |--------|--------|--------------------------|--------|
@@ -516,7 +599,7 @@ Audit → Fix → Test → Report → Stop
 | `full_name` | `profiles` | `AdminDrivers.jsx`, `reportService.js` | ✅ Fixed → `first_name`+`last_name` |
 | `is_active` | `profiles` | `AdminDrivers.jsx`, `CommissionManagement.jsx`, `reportService.js` | ✅ Fixed — removed |
 | `payment_method` | `orders` | `reportService.js` | ✅ Fixed — removed |
-| `total_amount` | `orders` | `reportService.js` | ✅ Fixed → `total` |
+| `total_amount` | `orders` | `reportService.js`, `ordersService.ts` (BUYER_ORDER_COLUMNS) | ✅ Fixed → `total` في buyer/admin queries |
 | `completed_at` | `deliveries` | `reportService.js` | ✅ Fixed → `delivered_at` |
 | `action_taken` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolution_notes` |
 | `admin_notes` | `user_reports` | `Moderation.jsx` | ✅ Fixed → `resolution_notes` |
@@ -528,6 +611,24 @@ Audit → Fix → Test → Report → Stop
 | `admin_response` | `support_tickets` | `SupportTickets.jsx` | ✅ Fixed — removed |
 | `is_active` | `profiles` | `CommissionManagement.jsx` | ✅ Fixed — removed |
 | `user_id` | `payments` | `Commissions.jsx` | ✅ Fixed — removed |
+| `total_amount` | `orders` | `ordersService.ts` (`BUYER_ORDER_COLUMNS`) | ✅ Fixed → `total` (B-01) |
+| `delivery_address` | `orders` | `ordersService.ts` (`fetchBuyerOrdersAll`) | ✅ Fixed → `shipping_address` (B-02) |
+| `delivery_city` | `orders` | `ordersService.ts` (`fetchBuyerOrdersAll`) | ✅ Fixed → `shipping_city` (B-02) |
+| `delivery_latitude` | `orders` | `ordersService.ts` (`fetchBuyerOrdersAll`) | ✅ Fixed → `shipping_latitude` (B-02) |
+| `delivery_longitude` | `orders` | `ordersService.ts` (`fetchBuyerOrdersAll`) | ✅ Fixed → `shipping_longitude` (B-02) |
+
+### ⚠️ أعمدة ما زالت مستخدمة في صفحات non-buyer (تحتاج مراجعة)
+
+> الإصلاحات أعلاه طُبقت على buyer/admin queries. لكن نفس الأعمدة ما زالت مستخدمة في صفحات أخرى.
+> **ملاحظة:** `delivery_*` قد تكون صحيحة لجدول `deliveries` (وليس `orders`). تحتاج تحقق من schema.
+
+| العمود | الملفات الحالية | ملاحظة |
+|--------|----------------|--------|
+| `total_amount` | `admin/Analytics.jsx:124`, `vendor/Orders.jsx:248` | قد تكون صحيحة لـ admin/vendor queries (تحتاج تحقق) |
+| `delivery_address` | `driver/DeliveryComplete.jsx`, `driver/Available.jsx`, `driver/History.jsx`, `driver/Active.jsx`, `driver/Dashboard.jsx`, `driver/DeliveryTracking.jsx` | صحيحة إذا كانت من جدول `deliveries` وليس `orders` |
+| `delivery_latitude` | `driver/DeliveryTracking.jsx`, `driver/Dashboard.jsx` | نفس ما سبق |
+| `delivery_longitude` | `driver/DeliveryTracking.jsx`, `driver/Dashboard.jsx` | نفس ما سبق |
+| `shipping_address` | `OrderTracking.jsx:486` | يستخدم `shipping_address` مع fallback إلى `delivery_address` — نمط آمن |
 
 ### الأعمدة المشكوك فيها (Needs SQL Verification)
 
@@ -544,11 +645,12 @@ Audit → Fix → Test → Report → Stop
 
 | النوع | العدد | المغطى | النواقص |
 |-------|-------|--------|---------|
-| Page unit tests (`src/__tests__/pages/`) | 24 | Admin pages (13)، Login/Register/VerifyEmail، Checkout، DigitalContract، VendorDashboard/Settings، buyerOrdersRealtime، vendorOrdersRealtime | Buyer pages (8 missing)، Vendor pages (16 missing)، Driver pages (13 missing)، Public pages (14 missing) |
-| Service tests (`src/__tests__/services/`) | 29 | reportService، ordersService، authActionsService، paymentGateway، commissionService، deliveryMatchingService، etc. | Many services uncovered |
-| Store tests (`src/__tests__/stores/`) | 4 | authStore، authSessionStore، useCartStore | Limited coverage |
-| Utility tests (`src/__tests__/utils/`) | 15 | formatters، validators، helpers | Acceptable |
-| Cypress e2e (`cypress/e2e/`) | 38 | page-health-* لكل role، auth-flows، checkout، marketplace، mobile-white-screen، accessibility، security، smoke | Some flows need updating after ghost column fixes |
+| Page unit tests (`src/__tests__/pages/`) | ~38 | Admin pages (13)، Login/Register/VerifyEmail، Checkout، DigitalContract، VendorDashboard/Settings، Tracking، OrderTracking، Stores، Favorites، Reports | Buyer pages (8 missing)، Vendor pages (16 missing)، Driver pages (13 missing)، Public pages (14 missing) |
+| Service tests (`src/__tests__/services/`) | ~37 | reportService، ordersService، authActionsService، paymentGateway، commissionService، deliveryMatchingService، etc. | Many services uncovered |
+| Store tests (`src/__tests__/stores/`) | 4 | authStore، cartStore، favoritesStore، languageStore | Limited coverage |
+| Utility tests (`src/__tests__/utils/`) | ~17 | formatters، validators، helpers، rateLimiter، encryption | Acceptable |
+| Cypress e2e (`cypress/e2e/`) | ~40 | page-health-* لكل role، auth-flows، checkout، marketplace، mobile-white-screen، accessibility، security، smoke | Some flows need updating after ghost column fixes |
+| Other tests | ~20+ | components/, hooks/, integration/, e2e/, a11y/, buyer/, database/, edge/, guest/, i18n/ | Growing coverage |
 
 ### Regression Tests المضافة في مرحلة Admin
 
@@ -565,6 +667,11 @@ Audit → Fix → Test → Report → Stop
 | `AdminCommissions.columns.test.jsx` | Commissions | يمنع `user_id`/`commission`/`vendor_amount`/`method`/`gateway`/`metadata` |
 | `AdminPayouts.test.jsx` | Payouts | يتحقق من schema الحقيقي |
 | `AdminSupportTickets.columns.test.jsx` | SupportTickets | يمنع `admin_response` |
+| `ordersService.test.js` | ordersService | يمنع `total_amount` و `delivery_*` في buyer queries (B-01+B-02) |
+| `Coupons.test.jsx` | Coupons page | يتحقق من toast.error عند فشل تحميل الكوبونات (B-03) |
+| `ShoppingLists.test.jsx` | ShoppingLists page | يتحقق من toast.error عند فشل تحميل القوائم (B-04) |
+| `Addresses.test.jsx` | Addresses page | يتحقق من عدم المتابعة عند فشل إلغاء الافتراضيات (B-05) |
+| `deliveries.test.js` (B-06 block) | deliveries service | يتحقق من two-step query في getBuyerActiveDelivery (B-06) |
 
 ### Tests التي تحتاج update بعد fixes
 

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
 import { Card, LoadingSpinner, Button, Map } from '@/components/ui'
+import { useAuthStore } from '@/store/authStore'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import { hasStageCapture } from '@/services/legalCameraService'
 import { formatPrice } from '@/utils/currency'
 import {
@@ -17,8 +19,14 @@ const DeliveryPickupPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [delivery, setDelivery] = useState(null)
+  const pickupMapCenter = useMapCenter({
+    lat: delivery?.pickup_latitude,
+    lng: delivery?.pickup_longitude,
+    city: delivery?.order?.vendor?.city || profile?.city,
+  })
   const [submitting, setSubmitting] = useState(false)
   const [driverLoadingCaptured, setDriverLoadingCaptured] = useState(false)
   const [vendorReleaseCaptured, setVendorReleaseCaptured] = useState(false)
@@ -98,16 +106,21 @@ const DeliveryPickupPage = () => {
             <p className="text-gray-600 mt-1">{delivery.pickup_address}</p>
             <p className="text-gray-500">{delivery.order?.vendor?.city}</p>
 
-            <button className="flex items-center gap-2 mt-3 text-green-600 font-medium">
-              <PhoneIcon className="w-5 h-5" />
-              {t('driver.deliveryPickup.callVendor', 'Call Vendor')}: {delivery.order?.vendor?.phone}
-            </button>
+            {delivery.order?.vendor?.phone && (
+              <a
+                href={`tel:${delivery.order.vendor.phone}`}
+                className="flex items-center gap-2 mt-3 text-green-600 font-medium hover:text-green-700"
+              >
+                <PhoneIcon className="w-5 h-5" />
+                {t('driver.deliveryPickup.callVendor', 'Call Vendor')}: {delivery.order.vendor.phone}
+              </a>
+            )}
           </div>
         </div>
         
         {/* Map */}
         <Map
-          center={[delivery.pickup_latitude || 33.5731, delivery.pickup_longitude || -7.5898]}
+          center={pickupMapCenter}
           zoom={15}
           markers={[
             {

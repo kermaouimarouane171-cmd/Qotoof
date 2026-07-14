@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Chargement...",
+    "loginRequired": "Veuillez vous connecter pour continuer.",
     "error": "Une erreur est survenue",
     "success": "Succès",
     "save": "Enregistrer",
@@ -47,7 +48,13 @@
     "orders": "Commandes",
     "analytics": "Analytique",
     "users": "Utilisateurs",
-    "vendors": "Vendeurs"
+    "vendors": "Vendeurs",
+    "mainNavigation": "Navigation principale",
+    "lightMode": "Mode clair",
+    "darkMode": "Mode sombre",
+    "openUserMenu": "Ouvrir le menu utilisateur",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu"
   },
   "home": {
     "meta": {
@@ -62,7 +69,18 @@
       "title": "Plantes, Légumes et Fruits en Gros",
       "subtitle": "Connectez-vous directement avec les agriculteurs et pépinières. Achetez en gros, économisez plus.",
       "cta": "Parcourir le marché",
-      "sellCta": "Commencer à vendre"
+      "sellCta": "Commencer à vendre",
+      "badge": "Qotoof B2B Marketplace"
+    },
+    "cta": {
+      "browseProducts": "Parcourir les produits",
+      "startSelling": "Commencer à vendre",
+      "readyToGrow": "Prêt à développer votre activité ?",
+      "joinThousands": "Rejoignez des milliers de vendeurs et d'acheteurs sur la principale marketplace de gros au Maroc.",
+      "becomeVendor": "Devenir vendeur",
+      "startBuying": "Commencer à acheter",
+      "startNow": "Commencer maintenant",
+      "browseMarketplace": "Parcourir le marché"
     },
     "features": {
       "title": "Pourquoi choisir Qotoof ?",
@@ -84,10 +102,36 @@
       }
     },
     "categories": {
-      "title": "Parcourir les catégories",
-      "plants": "Plantes et Arbres",
+      "title": "Catégories",
+      "subtitle": "Choisissez la bonne catégorie pour commencer vos achats rapidement",
+      "wholesaleItems": "Produits en gros",
+      "viewAll": "Voir tout",
+      "plants": "Plantes",
       "vegetables": "Légumes",
-      "fruits": "Fruits"
+      "fruits": "Fruits",
+      "herbs": "Herbes",
+      "spices": "Épices",
+      "seeds": "Graines",
+      "items": "{{count}} articles"
+    },
+    "featuredProducts": {
+      "title": "Produits en vedette",
+      "subtitle": "Meilleures offres du jour de fournisseurs vérifiés",
+      "viewAll": "Plus",
+      "noProducts": "Aucun produit en vedette disponible pour le moment. Parcourez le marché pour voir toutes les offres.",
+      "noImage": "Image non disponible",
+      "freshProduct": "Produit frais",
+      "minOrder": "Min : {{min}} {{unit}}"
+    },
+    "trustedVendors": {
+      "title": "Vendeurs de confiance",
+      "subtitle": "Boutiques actives avec des avis positifs des acheteurs",
+      "viewAll": "Toutes les boutiques",
+      "noVendors": "Aucune boutique disponible pour le moment.",
+      "unknownVendor": "Boutique",
+      "morocco": "Maroc",
+      "verifiedBadge": "Fournisseur vérifié",
+      "verified": "Vérifié"
     },
     "footer": {
       "description": "La principale marketplace B2B de gros au Maroc pour les produits frais.",
@@ -99,12 +143,95 @@
       "company": "Entreprise",
       "aboutUs": "À propos",
       "becomeVendor": "Devenir vendeur",
+      "becomeDriver": "Devenir chauffeur",
       "contact": "Nous contacter",
       "support": "Support",
       "helpCenter": "Centre d'aide",
       "terms": "Conditions d'utilisation",
       "privacy": "Politique de confidentialité",
+      "forBuyers": "Pour les acheteurs",
+      "browseMarketplace": "Parcourir le marché",
+      "registerAsBuyer": "S'inscrire comme acheteur",
+      "forDrivers": "Pour les chauffeurs",
+      "registerAsDriver": "S'inscrire comme chauffeur",
       "copyright": "© {{year}} Qotoof - قطوف. Tous droits réservés."
+    },
+    "title": "Marché de gros pour fruits et légumes frais au Maroc",
+    "subtitle": "Qotoof connecte les acheteurs professionnels avec des fournisseurs de confiance pour une expérience d'achat rapide, des prix de gros clairs et un suivi complet des commandes.",
+    "searchPlaceholder": "Rechercher des légumes, des fruits, des fournisseurs...",
+    "searchAria": "Rechercher sur le marché",
+    "searchButton": "Rechercher",
+    "buyer": {
+      "welcomeBadge": "Bon retour",
+      "welcome": "Bonjour {{name}}",
+      "guestName": "acheteur",
+      "subtitle": "Suivez vos commandes, découvrez les offres du jour et lancez rapidement un nouvel achat.",
+      "stats": {
+        "orders": "Mes commandes",
+        "favorites": "Favoris",
+        "loyalty": "Points",
+        "addresses": "Adresses"
+      },
+      "recentOrders": "Vos commandes récentes",
+      "recentOrdersSubtitle": "Suivez le statut de vos dernières commandes",
+      "viewAllOrders": "Voir tout",
+      "noOrders": "Aucune commande pour l'instant. Commencez à parcourir le marché et créez votre première commande.",
+      "browseMarket": "Parcourir le marché",
+      "unknownVendor": "Vendeur"
+    },
+    "howItWorks": {
+      "title": "Comment fonctionne la plateforme pour les acheteurs ?",
+      "subtitle": "4 étapes simples de la recherche à la livraison",
+      "step": "Étape {{number}}",
+      "steps": {
+        "searchProduct": {
+          "title": "Rechercher le produit",
+          "description": "Utilisez la recherche ou les catégories pour rejoindre rapidement le bon fournisseur."
+        },
+        "chooseQuantity": {
+          "title": "Choisir la quantité et le prix",
+          "description": "Consultez les détails de gros, la quantité minimum de commande et les options de paiement."
+        },
+        "confirmOrder": {
+          "title": "Confirmer la commande en toute sécurité",
+          "description": "Finalisez la commande via un flux d'achat clair avec des informations de livraison précises."
+        },
+        "trackDelivery": {
+          "title": "Recevoir et suivre la livraison",
+          "description": "Suivez l'état de la commande jusqu'à la livraison finale dans la plateforme."
+        }
+      }
+    },
+    "roles": {
+      "title": "Trouvez votre rôle",
+      "subtitle": "Rejoignez Qotoof dans le rôle qui vous convient",
+      "buyer": {
+        "title": "Acheteur",
+        "description": "Achetez des produits frais en gros directement auprès des fournisseurs",
+        "feature1": "Prix de gros compétitifs",
+        "feature2": "Suivi des commandes en temps réel",
+        "feature3": "Points de fidélité et récompenses",
+        "feature4": "Demandes de devis personnalisées",
+        "cta": "S'inscrire comme acheteur"
+      },
+      "vendor": {
+        "title": "Vendeur",
+        "description": "Vendez vos produits et gérez votre boutique sur une plateforme nationale",
+        "feature1": "Gestion de la boutique et des produits",
+        "feature2": "Analyses des ventes et rapports",
+        "feature3": "Communication directe avec les acheteurs",
+        "feature4": "Expédition intégrée",
+        "cta": "S'inscrire comme vendeur"
+      },
+      "driver": {
+        "title": "Chauffeur",
+        "description": "Livrez des commandes et gagnez un revenu avec une flexibilité totale",
+        "feature1": "Horaires flexibles",
+        "feature2": "Revenus compétitifs",
+        "feature3": "Suivi des livraisons",
+        "feature4": "Évaluations et réputation",
+        "cta": "S'inscrire comme chauffeur"
+      }
     }
   },
   "authLayout": {
@@ -186,7 +313,13 @@
     "viewDetails": "Voir les détails",
     "vendor": "Vendeur",
     "location": "Localisation",
-    "minOrder": "Commande minimum"
+    "minOrder": "Commande minimum",
+    "errors": {
+      "network": "Impossible de charger les produits en raison de la connexion. Vérifiez votre réseau et réessayez.",
+      "server": "Le service est actuellement occupé. Veuillez réessayer plus tard.",
+      "notFound": "Nous n'avons pas pu trouver les produits demandés. Essayez d'ajuster les filtres ou la recherche.",
+      "default": "Impossible de charger les produits pour le moment. Veuillez réessayer plus tard."
+    }
   },
   "search": {
     "filters": "Filtres",
@@ -398,7 +531,6 @@
       "emptyTitle": "Pas encore d'avis",
       "emptyDescription": "Soyez le premier à évaluer cette boutique",
       "anonymousUser": "Utilisateur",
-      "loginRequired": "Veuillez vous connecter pour ajouter un avis",
       "selectRating": "Veuillez sélectionner une note",
       "submitSuccess": "Avis envoyé avec succès !"
     }
@@ -428,6 +560,20 @@
       "title": "Produit introuvable",
       "description": "Le produit que vous recherchez n'existe pas ou a été supprimé.",
       "backToMarketplace": "Retour au marché"
+    },
+    "card": {
+      "report": "Signaler ce produit",
+      "reportAria": "Signaler le produit",
+      "addToCart": "Ajouter {{name}} au panier",
+      "outOfStock": "Rupture de stock",
+      "verified": "Vendeur vérifié",
+      "paidVendor": "Vérifié",
+      "contactAfterOrder": "Les coordonnées s'affichent après confirmation de la commande",
+      "viewVendor": "Voir le vendeur",
+      "noRating": "Pas d'évaluation",
+      "price": "Prix : {{price}}",
+      "minOrder": "Min. commande : {{quantity}} {{unit}}",
+      "freeShipping": "Livraison gratuite"
     }
   },
   "productDetail": {
@@ -457,7 +603,6 @@
       "count": "Liste d'attente actuelle : {{count}}",
       "alreadyJoined": "Vous êtes déjà inscrit sur la liste d'attente",
       "join": "Rejoindre la liste d'attente",
-      "loginRequired": "Veuillez vous connecter d'abord pour rejoindre la liste d'attente",
       "joinSuccess": "Vous avez été ajouté à la liste d'attente avec succès",
       "joinFailed": "Impossible de vous ajouter à la liste d'attente"
     },
@@ -503,7 +648,6 @@
       "anonymousInitial": "U",
       "anonymousUser": "Utilisateur",
       "vendorReply": "Réponse du vendeur",
-      "loginRequired": "Veuillez vous connecter pour ajouter un avis",
       "selectRating": "Veuillez sélectionner une note",
       "submitSuccess": "Avis envoyé avec succès !",
       "submitFailed": "Impossible d'envoyer l'avis"
@@ -519,7 +663,7 @@
     "total": "Total",
     "quantity": "Quantité",
     "remove": "Supprimer",
-    "checkout": "Passer à la caisse",
+    "checkoutLabel": "Passer à la caisse",
     "continueShopping": "Continuer vos achats",
     "item": "article",
     "items": "articles",
@@ -527,6 +671,9 @@
     "clearCart": "Vider le panier",
     "orderSummary": "Résumé de la commande",
     "removeItemAria": "Supprimer {{name}}",
+    "negotiatedPrice": "Prix convenu",
+    "viewNegotiation": "Détails",
+    "negotiateInstead": "Négocier le prix à la place",
     "messages": {
       "singleVendorCheckout": "Vous ne pouvez passer commande que pour une seule boutique à la fois. Séparez votre panier par vendeur puis réessayez.",
       "cartCleared": "Panier vidé avec succès"
@@ -567,6 +714,8 @@
       "totalWithCount": "Total ({{count}} article)",
       "taxIncluded": "Taxe incluse {{amount}}"
     },
+    "guestNotice": "Votre panier est enregistré sur cet appareil. Connectez-vous pour finaliser la commande et y accéder depuis n'importe quel appareil.",
+    "multiVendorWarning": "Vous avez déjà des articles d'un autre vendeur dans votre panier. Le paiement ne prend en charge qu'un seul vendeur à la fois.",
     "checkout": {
       "itemUnavailable": "{{name}} n'est plus disponible",
       "priceChanged": "{{name}} : le prix est passé de {{oldPrice}} à {{newPrice}}",
@@ -598,6 +747,16 @@
       "title": "Vider complètement le panier ?",
       "description": "Cela supprimera les {{count}} article(s) de votre panier. Cette action est irréversible.",
       "confirm": "Tout vider"
+    },
+    "guestCheckout": {
+      "title": "Connexion requise",
+      "message": "Vous devez vous connecter pour finaliser votre commande. Votre panier est sauvegardé.",
+      "signIn": "Se connecter",
+      "createAccount": "Créer un compte"
+    },
+    "aria": {
+      "decrease": "Diminuer la quantite",
+      "increase": "Augmenter la quantite"
     }
   },
   "checkout": {
@@ -614,6 +773,25 @@
       "shipping": "Livraison",
       "delivery": "Transport",
       "payment": "Paiement"
+    },
+    "addressStep": {
+      "title": "Sélection d'adresse",
+      "saved": "Adresses enregistrées",
+      "newAddress": "Nouvelle adresse",
+      "placeholder": "Rue, bâtiment, appartement...",
+      "default": "Par défaut"
+    },
+    "trust": {
+      "secure": "Paiement sécurisé",
+      "encrypted": "Paiement chiffré",
+      "refundable": "Politique de remboursement 48h"
+    },
+    "guest": {
+      "title": "Vous y êtes presque !",
+      "description": "Connectez-vous ou créez un compte pour finaliser votre achat. Votre panier sera conservé.",
+      "signIn": "Se connecter",
+      "createAccount": "Créer un compte",
+      "backToCart": "Retour au panier"
     },
     "deliveryPayment": {
       "cash": "Espèces à la livraison",
@@ -749,6 +927,10 @@
       "applied": "Coupon {{code}} appliqué avec une remise de {{discount}}",
       "percentage": "{{value}}%",
       "fixed": "{{value}} MAD"
+    },
+    "aria": {
+      "page": "Page de paiement",
+      "form": "Formulaire de paiement"
     }
   },
   "vendor": {
@@ -768,7 +950,21 @@
       "saving": "Enregistrement...",
       "saveSchedule": "Enregistrer l'horaire",
       "savedSuccess": "Horaire enregistré avec succès !",
-      "saveFailed": "Échec de l'enregistrement de l'horaire"
+      "saveFailed": "Échec de l'enregistrement de l'horaire",
+      "deliverySlotsTitle": "Créneaux de livraison",
+      "deliverySlotsSubtitle": "Définissez les créneaux de livraison réservables, les délais de coupure quotidiens et la capacité par créneau.",
+      "deliverySlotsLoadFailed": "Échec du chargement des créneaux de livraison",
+      "deliverySlotsSaved": "Créneaux de livraison enregistrés avec succès !",
+      "deliverySlotsSaveFailed": "Échec de l'enregistrement des créneaux de livraison",
+      "addSlot": "Ajouter un créneau",
+      "noSlotsForDay": "Aucun créneau de livraison configuré pour ce jour.",
+      "slotLabel": "Nom du créneau",
+      "cutoffHours": "Heures de coupure",
+      "maxOrders": "Commandes max",
+      "removeSlot": "Supprimer",
+      "unsavedSlotChanges": "Vous avez des modifications de créneaux non enregistrées",
+      "allSlotsSaved": "Tous les créneaux de livraison sont enregistrés",
+      "saveDeliverySlots": "Enregistrer les créneaux de livraison"
     },
     "locationSetup": {
       "title": "Définir l'emplacement de votre boutique",
@@ -791,9 +987,267 @@
       "selectedCoordinates": "Coordonnées sélectionnées :",
       "saveButton": "Enregistrer l'emplacement",
       "selectLocationError": "Veuillez sélectionner l'emplacement de votre boutique sur la carte",
+      "moroccoBoundsError": "Veuillez sélectionner un emplacement dans les frontières du Maroc",
       "enterCityError": "Veuillez entrer votre ville",
       "savedSuccess": "Emplacement de la boutique enregistré avec succès !",
       "saveFailed": "Échec de l'enregistrement de l'emplacement"
+    },
+    "returns": {
+      "title": "Demandes de retour",
+      "subtitle": "Gérez les demandes de retour et de remboursement des acheteurs",
+      "unknownBuyer": "Acheteur",
+      "units": "unités",
+      "buyerDescription": "Description de l'acheteur",
+      "yourResponse": "Votre réponse",
+      "photoAlt": "Photo de retour {{n}}",
+      "pendingAlert": "Vous avez {{count}} demande(s) de retour en attente de réponse",
+      "empty": "Aucune demande de retour",
+      "emptyHint": "Les demandes de retour des acheteurs apparaîtront ici",
+      "reason": {
+        "defective": "Produit défectueux",
+        "wrong_item": "Mauvais article reçu",
+        "not_as_described": "Non conforme à la description",
+        "changed_mind": "Changement d'avis",
+        "other": "Autre"
+      },
+      "status": {
+        "pending": "En attente",
+        "vendor_approved": "Approuvée",
+        "vendor_rejected": "Rejetée",
+        "refund_issued": "Remboursée",
+        "escalated": "Escaladée",
+        "closed": "Fermée",
+        "cancelled_by_buyer": "Annulée par l'acheteur"
+      },
+      "filters": {
+        "all": "Tout",
+        "pending": "En attente",
+        "approved": "Approuvées",
+        "rejected": "Rejetées",
+        "refunded": "Remboursées",
+        "closed": "Fermées"
+      },
+      "actions": {
+        "approve": "Approuver le retour",
+        "reject": "Rejeter le retour"
+      },
+      "modal": {
+        "approveTitle": "Approuver la demande de retour",
+        "rejectTitle": "Rejeter la demande de retour",
+        "notesLabel": "Message à l'acheteur (optionnel)",
+        "approveNotesPlaceholder": "ex. Veuillez retourner l'article dans 3 jours...",
+        "rejectNotesPlaceholder": "ex. L'article retourné ne remplit pas les conditions de retour...",
+        "confirmApprove": "Confirmer l'approbation",
+        "confirmReject": "Confirmer le rejet"
+      },
+      "notifications": {
+        "approved": "Demande de retour approuvée",
+        "rejected": "Demande de retour rejetée"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les demandes de retour",
+        "respondFailed": "Impossible d'envoyer la réponse"
+      }
+    },
+    "wallet": {
+      "title": "Portefeuille & Revenus",
+      "subtitle": "Suivez vos revenus et commissions en cours",
+      "overdueAlert": {
+        "title": "Commission en retard",
+        "description": "Vous avez une facture de commission en retard. Veuillez payer pour éviter la suspension du compte."
+      },
+      "stats": {
+        "totalNet": "Revenus nets (livrés)",
+        "pendingRevenue": "Revenus en attente (en transit)",
+        "commissionOwed": "Commission due ce mois",
+        "totalSales": "Ventes totales (livrées)"
+      },
+      "commission": {
+        "title": "Commission mensuelle",
+        "period": "Période",
+        "sales": "Ventes",
+        "due": "Commission due",
+        "paid": "Payé",
+        "dueDate": "Date d'échéance",
+        "status": {
+          "active": "Active",
+          "pending": "En attente de confirmation",
+          "overdue": "En retard",
+          "paid": "Payée"
+        }
+      },
+      "history": {
+        "title": "Historique des commissions",
+        "period": "Période",
+        "sales": "Ventes",
+        "due": "Dû",
+        "paid": "Payé",
+        "status": "Statut"
+      },
+      "ledger": {
+        "title": "Registre des revenus",
+        "count": "{{count}} dernières commandes",
+        "gross": "Montant brut",
+        "commission": "Commission plateforme (3%)",
+        "net": "Revenus nets",
+        "empty": "Aucune commande terminée pour l'instant",
+        "emptyHint": "Vos revenus apparaîtront ici une fois les commandes livrées"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les données du portefeuille"
+      }
+    },
+    "rfqs": {
+      "title": "Tableau des demandes acheteurs",
+      "subtitle": "Parcourez les demandes en gros des acheteurs et soumettez vos offres de prix compétitives.",
+      "tabs": {
+        "board": "Tableau des demandes",
+        "offers": "Mes offres"
+      },
+      "stats": {
+        "openRequests": "Demandes ouvertes",
+        "pendingOffers": "Mes offres en attente",
+        "acceptedOffers": "Offres acceptées"
+      },
+      "offerStatus": {
+        "pending": "En attente",
+        "accepted": "Acceptée",
+        "rejected": "Rejetée",
+        "withdrawn": "Retirée"
+      },
+      "board": {
+        "buyer": "Acheteur",
+        "by": "Par",
+        "budget": "Budget",
+        "deadline": "Date limite",
+        "offers": "offres",
+        "expiringSoon": "Expire bientôt",
+        "alreadyOffered": "Vous avez déjà soumis une offre",
+        "submitOffer": "Soumettre une offre",
+        "empty": "Aucune demande ouverte pour le moment",
+        "emptyHint": "Revenez plus tard ou modifiez vos critères."
+      },
+      "offers": {
+        "title": "Mes offres soumises",
+        "requestLabel": "Demande",
+        "perUnit": "unité",
+        "withdraw": "Retirer l'offre",
+        "empty": "Aucune offre soumise. Parcourez le tableau et commencez à vendre."
+      },
+      "offerModal": {
+        "title": "Soumettre une offre de prix",
+        "quantity": "Quantité",
+        "maxBudget": "Budget maximum",
+        "city": "Ville",
+        "deadline": "Date limite",
+        "priceLabel": "Prix unitaire",
+        "currency": "MAD",
+        "pricePlaceholder": "Prix par unité",
+        "estimatedTotal": "Total estimé",
+        "messageLabel": "Message à l'acheteur (optionnel)",
+        "messagePlaceholder": "Spécifications, détails de livraison...",
+        "submit": "Envoyer l'offre"
+      },
+      "withdrawModal": {
+        "title": "Retirer l'offre",
+        "description": "Êtes-vous sûr de vouloir retirer cette offre ? Cette action est irréversible.",
+        "confirm": "Confirmer le retrait"
+      },
+      "filters": {
+        "searchPlaceholder": "Rechercher...",
+        "allCategories": "Toutes les catégories",
+        "cityPlaceholder": "Ville",
+        "apply": "Appliquer",
+        "reset": "Réinitialiser"
+      },
+      "notifications": {
+        "offerSubmitted": "Votre offre a été soumise avec succès",
+        "offerWithdrawn": "Offre retirée"
+      },
+      "errors": {
+        "loadFailed": "Impossible de charger les demandes",
+        "loadOffersFailed": "Impossible de charger vos offres",
+        "invalidPrice": "Veuillez entrer un prix valide",
+        "submitFailed": "Impossible de soumettre l'offre",
+        "withdrawFailed": "Impossible de retirer l'offre"
+      }
+    },
+    "orders": {
+      "title": "Gestion des commandes",
+      "orderLabel": "Commande",
+      "accepting": "Acceptation en cours...",
+      "rejecting": "Refus en cours...",
+      "rejectReasonDefault": "Non disponible",
+      "actions": {
+        "reject": "Refuser",
+        "accept": "Accepter",
+        "prepared": "Prêt pour la livraison",
+        "trackDelivery": "Suivre la livraison",
+        "noAction": "Aucune action requise"
+      },
+      "filters": {
+        "all": "Tout",
+        "pending": "Nouvelle",
+        "preparing": "En préparation",
+        "readyForDelivery": "Prête pour livraison",
+        "onTheWay": "En cours de livraison",
+        "delivered": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "status": {
+        "pending": "Nouvelle",
+        "preparing": "En préparation",
+        "rejected": "Rejetée",
+        "readyForDelivery": "Prête pour livraison",
+        "onTheWay": "En cours de livraison",
+        "delivered": "Terminée",
+        "cancelled": "Annulée"
+      },
+      "card": {
+        "itemCount": "Articles",
+        "paymentMethod": "Mode de paiement",
+        "paymentStatus": "Statut du paiement",
+        "orderStatus": "Statut de la commande",
+        "nextAction": "Prochaine action"
+      },
+      "assignDriver": {
+        "title": "Assigner un livreur",
+        "subtitle": "Sélectionnez un livreur pour la commande",
+        "noDrivers": "Aucun livreur disponible à proximité",
+        "confirm": "Assigner le livreur"
+      },
+      "tracking": {
+        "title": "Suivre la commande",
+        "status": "Statut",
+        "callDriver": "Appeler le livreur"
+      },
+      "chat": {
+        "title": "Discussion avec",
+        "driver": "Livreur"
+      },
+      "timeline": {
+        "title": "Historique de la commande"
+      },
+      "rejectModal": {
+        "title": "Refuser la commande",
+        "description": "Êtes-vous sûr de vouloir refuser cette commande ? Le client sera notifié.",
+        "reasonLabel": "Motif du refus (optionnel)",
+        "reasonPlaceholder": "Ex : produit momentanément indisponible",
+        "confirm": "Confirmer le refus"
+      },
+      "notifications": {
+        "orderAccepted": "Commande acceptée !",
+        "orderRejected": "Commande refusée",
+        "newOrderReceived": "🛒 Nouvelle commande : {{orderNumber}}"
+      },
+      "errors": {
+        "acceptFailed": "Impossible d'accepter la commande",
+        "rejectFailed": "Impossible de refuser la commande",
+        "driverAssignFailed": "Échec de l'assignation du livreur"
+      },
+      "success": {
+        "driverAssigned": "Livreur assigné avec succès !"
+      }
     },
     "coupons": {
       "title": "Gestionnaire de coupons",
@@ -843,7 +1297,495 @@
       "activated": "Coupon activé",
       "updateFailed": "Échec de la mise à jour du coupon",
       "deleted": "Coupon supprimé",
-      "deleteFailed": "Échec de la suppression du coupon"
+      "deleteFailed": "Échec de la suppression du coupon",
+      "upgradeRequired": "Mise à niveau requise",
+      "upgradeMessage": "Les coupons et réductions sont uniquement disponibles pour les vendeurs abonnés au plan Basic ou supérieur. Mettez à niveau votre plan pour créer et gérer des coupons.",
+      "upgradeNow": "Mettre à niveau",
+      "aria": {
+        "back": "Retour au tableau de bord"
+      }
+    },
+    "reviews": {
+      "loadFailed": "Impossible de charger les avis",
+      "vendorNotFound": "Impossible d'identifier le compte vendeur actuel",
+      "replyEmpty": "Veuillez écrire une réponse avant l'envoi",
+      "alreadyReplied": "Une réponse a déjà été envoyée pour cet avis",
+      "replySuccess": "Réponse envoyée avec succès",
+      "replyFailed": "Échec de l'envoi de la réponse"
+    },
+    "deliveryOptionSetup": {
+      "loadFailed": "Échec du chargement des paramètres de livraison",
+      "selectFirst": "Veuillez d'abord sélectionner une option de livraison",
+      "ownDriverSaved": "Option enregistrée. Liez maintenant un chauffeur avant d'accepter de nouvelles commandes.",
+      "findDriverActivated": "Option de recherche de chauffeur activée pour les nouvelles commandes.",
+      "selfActivated": "Livraison propre activée pour les nouvelles commandes.",
+      "saved": "Paramètre de livraison enregistré avec succès.",
+      "saveFailed": "Échec de l'enregistrement de l'option de livraison"
+    },
+    "driverPreferenceSetup": {
+      "selectChoice": "Veuillez indiquer si vous souhaitez un chauffeur préféré ou non",
+      "vendorNotFound": "Impossible d'identifier le compte vendeur actuel",
+      "saveFailed": "Échec de l'enregistrement des préférences de chauffeur"
+    },
+    "profile": {
+      "tabs": {
+        "storeInfo": "Infos Boutique",
+        "location": "Emplacement",
+        "hours": "Horaires",
+        "security": "Sécurité",
+        "preferences": "Préférences"
+      },
+      "bannerAlt": "Banniere du magasin",
+      "logoAlt": "Logo du magasin"
+    },
+    "productForm": {
+      "maxImagesError": "Maximum de {{max}} images par produit",
+      "unsupportedFormatError": "Format non supporté : {{fileName}}. Seuls JPG/PNG/WebP sont autorisés",
+      "fileTooLargeError": "Image trop grande : {{fileName}}. Maximum 5MB"
+    },
+    "inventory": {
+      "filters": {
+        "all": "Tous",
+        "lowStock": "Stock bas",
+        "outOfStock": "Rupture"
+      },
+      "loadFailed": "Échec du chargement des données d'inventaire",
+      "invalidQuantity": "Entrez une quantité de stock valide",
+      "updateSuccess": "Inventaire mis à jour avec succès",
+      "updateFailed": "Échec de la mise à jour de l'inventaire"
+    },
+    "products": {
+      "errors": {
+        "maxImages": "Maximum 5 images par produit",
+        "unsupportedImageType": "\"{{filename}}\" : type de fichier non autorisé. Utilisez uniquement JPG, PNG ou WebP",
+        "unsupportedImageExtension": "\"{{filename}}\" : extension de fichier non autorisée",
+        "imageTooLarge": "\"{{filename}}\" : la taille du fichier dépasse 5 Mo",
+        "paypalRequired": "Vous devez configurer et vérifier PayPal avant d'ajouter des produits",
+        "unsupportedFileType": "Type de fichier non supporté. Utilisez DOCX, CSV ou TXT",
+        "noProductsFound": "Aucun produit trouvé. Vérifiez le format du fichier",
+        "fileProcessingError": "Une erreur s'est produite lors du traitement du fichier",
+        "bulkInvalidPrice": "Produit \"{{name}}\" : prix invalide — ignoré",
+        "bulkInvalidQuantity": "Produit \"{{name}}\" : quantité invalide — ignorée",
+        "productRejected": "Le produit \"{{name}}\" a été rejeté — cliquez pour voir pourquoi",
+        "productNameRequired": "Le nom du produit est requis",
+        "productNameTooShort": "Le nom du produit doit contenir au moins 3 caractères",
+        "descriptionRequired": "Veuillez ajouter une description incluant la qualité, l'origine et le type d'emballage",
+        "descriptionTooShort": "Description trop courte — veuillez fournir une description détaillée (au moins 10 caractères)",
+        "invalidPrice": "Veuillez saisir un prix valide en dirhams marocains",
+        "priceTooHigh": "Le prix semble trop élevé. Veuillez vous assurer qu'il est conforme aux pratiques du commerce équitable.",
+        "invalidQuantity": "Veuillez saisir une quantité valide",
+        "saveFailed": "Une erreur s'est produite lors de l'enregistrement du produit",
+        "deleteFailed": "Une erreur s'est produite lors de la suppression du produit",
+        "loadFailed": "Échec du chargement des produits",
+        "imageRemoveFailed": "Échec de la suppression de l'image"
+      },
+      "success": {
+        "imageRemoved": "Image supprimée",
+        "bulkUploaded": "{{success}} produits téléchargés avec succès. {{failed}} produits ont échoué.",
+        "productUpdated": "Produit mis à jour avec succès !",
+        "productSubmitted": "Produit soumis pour révision. Il apparaîtra après approbation de l'administration dans les 24 heures.",
+        "productDeleted": "Produit supprimé avec succès"
+      },
+      "warnings": {
+        "lowStock": "⚠️ Attention : le stock est faible, seulement {{quantity}} {{unit}} restant. Les acheteurs risquent d'être déçus si le stock s'épuise.",
+        "outOfStock": "⚠️ Définir la quantité à 0 rendra ce produit indisponible.",
+        "productSuspended": "Le produit \"{{name}}\" a été temporairement suspendu par l'administration"
+      }
+    },
+    "paymentPolicy": {
+      "options": {
+        "full": {
+          "title": "Paiement intégral avant exécution",
+          "desc": "L'acheteur paie la totalité de la commande avant la préparation ou l'expédition."
+        },
+        "split": {
+          "title": "Paiement échelonné 50% + 50%",
+          "desc": "50% à la confirmation de la commande et 50% après confirmation de livraison ou avant la remise finale."
+        },
+        "cod": {
+          "title": "Paiement à la livraison",
+          "desc": "Disponible uniquement pour les acheteurs éligibles selon le score de confiance et l'historique d'engagement."
+        }
+      }
+    },
+    "cancellationPolicy": {
+      "feeType": {
+        "none": "Aucuns frais d'annulation",
+        "fixed": "Frais fixes en dirhams",
+        "percentage": "Frais en pourcentage de la valeur de la commande"
+      },
+      "summary": {
+        "disabled": "L'auto-annulation par l'acheteur sera bloquée, et il devra contacter le vendeur ou le support.",
+        "free": "L'annulation est gratuite pendant les {{minutes}} premières minutes, après lesquelles le remboursement reste de {{refund}}% sans frais supplémentaires.",
+        "withFee": "L'annulation est gratuite pendant les {{minutes}} premières minutes, après lesquelles des frais de {{fee}} s'appliquent avec un remboursement de {{refund}}% de la valeur de la commande."
+      },
+      "title": "Politique d'annulation des commandes",
+      "description": "Définissez quand l'acheteur est autorisé à annuler la commande, et s'il y a des frais ou un pourcentage de remboursement après l'expiration de la fenêtre gratuite."
+    },
+    "refundPolicy": {
+      "shipping": {
+        "buyer": "L'acheteur paie l'expédition",
+        "vendor": "Le vendeur paie l'expédition",
+        "shared": "Coûts partagés entre les deux parties"
+      },
+      "title": "Politique de retour et de remboursement",
+      "description": "Définissez les conditions de retour qui seront affichées à l'acheteur sur la page du produit avant l'achat.",
+      "returnWindowLabel": "Fenêtre de retour (jours)",
+      "shippingCostLabel": "Coût de l'expédition de retour"
+    },
+    "digitalContract": {
+      "title": "Activer le compte vendeur",
+      "back": "Retour",
+      "setupSteps": "Étapes de configuration du magasin",
+      "defaultStoreName": "Ma boutique sur Qotoof",
+      "defaultName": "[Nom du vendeur]",
+      "notAvailable": "Indisponible",
+      "retry": "Réessayer",
+      "viewFullContract": "Voir le contrat complet",
+      "signing": "Signature...",
+      "signContract": "Signer le contrat",
+      "logoutLater": "Se déconnecter et continuer plus tard",
+      "reviewWarning": "Après signature, votre magasin sera activé après vérification de l'administration si nécessaire.",
+      "steps": {
+        "yourInfo": "Vos informations",
+        "bankData": "Données bancaires",
+        "approvals": "Approbations"
+      },
+      "whyRequired": {
+        "title": "Pourquoi cette étape est-elle requise ?",
+        "reason1": "Cette étape est obligatoire pour activer votre compte vendeur avant d'accéder au tableau de bord vendeur, aux produits et aux commandes.",
+        "reason2": "La signature du contrat numérique protège vos droits et garantit une expérience sûre et fiable pour vous et vos clients.",
+        "reason3": "Juste après la signature, vous pourrez ajouter des produits, recevoir des commandes et percevoir vos gains.",
+        "reason4": "Les données bancaires et l'email PayPal sont requis pour percevoir vos gains de vente."
+      },
+      "vendorInfo": {
+        "title": "Informations du vendeur"
+      },
+      "bankInfo": {
+        "title": "Identité et données bancaires",
+        "subtitle": "Ces données sont requises pour activer votre compte et percevoir vos gains de vente."
+      },
+      "terms": {
+        "title": "Principales clauses du contrat"
+      },
+      "summary": {
+        "commission": {
+          "title": "Commission",
+          "description": "La plateforme prélève une commission au taux déterminé par l'abonnement choisi par le vendeur sur la valeur de chaque commande finalisée dans l'application."
+        },
+        "payment": {
+          "title": "Délai de paiement",
+          "description": "La commission doit être payée dans les 7 jours suivant la fin de chaque mois calendaire."
+        },
+        "freeze": {
+          "title": "Conséquences du non-paiement",
+          "description": "En cas de non-paiement dans le délai imparti, l'application se réserve le droit de geler le compte jusqu'au paiement complet."
+        },
+        "transfer": {
+          "title": "Délai de transfert",
+          "description": "Les gains sont transférés vers votre compte PayPal dans les 7 jours ouvrés après confirmation des commandes."
+        },
+        "shipping": {
+          "title": "Conditions de livraison",
+          "description": "Le vendeur s'engage à expédier les commandes dans le délai imparti et à fournir les informations de suivi si nécessaire."
+        }
+      },
+      "fullText": "Je, {{fullName}}, accepte les conditions suivantes :\n\n1. Commission de l'application : La plateforme prélève une commission au taux déterminé par mon abonnement choisi sur le total de mes ventes confirmées dans l'application durant chaque mois calendaire.\n\n2. Délai de paiement : La commission doit être payée dans les 7 jours suivant la fin de chaque mois.\n\n3. Conséquences du non-paiement : En cas de non-paiement dans le délai imparti, l'application se réserve le droit de geler mon compte immédiatement jusqu'au paiement complet.\n\n4. Dettes accumulées : La suppression du compte n'annule pas les commissions dues. Les données restent conservées par l'application à des fins de recouvrement légal.\n\n5. Transactions comptabilisées : La commission est calculée uniquement sur les transactions qui ont été confirmées dans l'application en cliquant sur le bouton « Paiement reçu ».\n\n6. Canaux de transfert des gains : J'accepte que tous mes transferts de gains depuis la plateforme se fassent uniquement via PayPal, et je m'engage à maintenir un email PayPal valide et actif.\n\n7. Réinitialisation mensuelle : Le compteur de commission est remis à zéro au début de chaque nouveau mois calendaire après le paiement de la commission précédente.",
+      "fields": {
+        "storeName": "Nom du magasin",
+        "fullName": "Nom complet",
+        "email": "E-mail",
+        "phone": "Numéro de téléphone",
+        "paypalEmail": "Email PayPal (obligatoire)",
+        "paypalEmailAria": "Email PayPal",
+        "paypalEmailConfirm": "Confirmer l'email PayPal",
+        "paypalEmailConfirmAria": "Confirmer l'email PayPal",
+        "cin": "Numéro de carte d'identité nationale (CIN)",
+        "cinAria": "Numéro de carte d'identité nationale",
+        "bankName": "Nom de la banque",
+        "selectBank": "Choisir la banque",
+        "iban": "Numéro IBAN",
+        "accountHolder": "Nom du titulaire du compte"
+      },
+      "paypal": {
+        "warning": "Assurez-vous que cet email est exactement correct. Vos gains seront envoyés directement via PayPal, et les fonds ne peuvent pas être récupérés automatiquement si l'email est erroné.",
+        "openPaypal": "Ouvrir PayPal pour vérifier votre email",
+        "tooltip": "PayPal est un service de paiement électronique mondial qui vous permet de recevoir vos gains de ventes. Assurez-vous d'entrer l'email associé à votre compte PayPal. Aucun montant ne sera déduit de votre compte.",
+        "tooltipApproval": "PayPal ne déduit aucun montant de votre compte lors de l'inscription. Votre email est uniquement utilisé pour envoyer vos gains de ventes après leur confirmation. L'application n'a pas accès à votre compte PayPal.",
+        "emailMismatch": "Les deux emails ne correspondent pas, assurez-vous de taper le même email dans les deux champs",
+        "invalidEmail": "Veuillez saisir une adresse email valide",
+        "emailsMatch": "Les emails correspondent ✓"
+      },
+      "approvals": {
+        "title": "Approbations",
+        "confirmData": "Je confirme que les informations saisies sont correctes",
+        "agreeTermsPrefix": "J'accepte les",
+        "termsLink": "conditions générales de la plateforme",
+        "agreePaypal": "J'accepte d'utiliser mon email PayPal pour les transferts"
+      },
+      "confirm": {
+        "cancel": "Voulez-vous annuler la signature et vous déconnecter ?",
+        "sign": "Êtes-vous sûr de vouloir signer le contrat numérique ? Cela ne peut pas être annulé après signature."
+      },
+      "errors": {
+        "loadTitle": "Impossible de charger le contrat",
+        "loadDescription": "Une erreur s'est produite lors de la récupération des données du contrat. Veuillez réessayer.",
+        "saveFailed": "Échec de l'enregistrement du contrat : {{message}}",
+        "unexpectedError": "Une erreur inattendue s'est produite",
+        "invalidPaypal": "Veuillez saisir un email PayPal valide avant de signer."
+      },
+      "success": {
+        "existingContractFound": "Un contrat existant a été trouvé et votre compte a été activé",
+        "signed": "Contrat signé avec succès, vous pouvez maintenant commencer à vendre"
+      },
+      "help": {
+        "title": "Besoin d'aide ? Contactez le support",
+        "whatsappMessage": "Bonjour, j'ai besoin d'aide concernant le contrat numérique du vendeur"
+      }
+    },
+    "subscription": {
+      "paymentCompleted": "Paiement effectué. Nous mettons à jour l'état de votre abonnement...",
+      "paymentCanceled": "Paiement annulé. Vous pouvez choisir un autre plan à tout moment.",
+      "loadFailed": "Impossible de charger les données d'abonnement pour le moment",
+      "checkoutFailed": "Impossible de démarrer la session de paiement",
+      "title": "Abonnement Premium Vendeur",
+      "subtitle": "Améliorez votre boutique, débloquez des outils de croissance avancés et réduisez les commissions.",
+      "refresh": "Actualiser",
+      "status": {
+        "active": "Actif",
+        "past_due": "En retard",
+        "grace_period": "Période de grâce",
+        "canceled": "Annulé"
+      },
+      "currentPlan": "Plan actuel",
+      "subscriptionEnds": "Fin de l'abonnement :",
+      "gracePeriodUntil": "Période de grâce jusqu'au :",
+      "monthly": "Mensuel",
+      "yearly": "Annuel",
+      "currentBadge": "Actuel",
+      "perMonth": "par mois",
+      "perYear": "par an",
+      "monthlyEquivalent": "~{{price}}/mois",
+      "maxProducts": "Produits max :",
+      "unlimited": "Illimité",
+      "commission": "Commission :",
+      "currentPlanButton": "Plan actuel",
+      "includedButton": "Inclus",
+      "upgradeButton": "Mettre à niveau",
+      "recentBilling": "Facturation récente",
+      "noInvoices": "Aucune facture pour le moment.",
+      "planActivity": "Activité du plan",
+      "noActivity": "Aucune activité d'abonnement pour le moment.",
+      "trialStarted": "Votre essai gratuit de 14 jours du plan Pro a été activé",
+      "trialActive": "Essai gratuit actif jusqu'au:",
+      "trialEnded": "Essai gratuit terminé. Mettez à niveau pour continuer à profiter des fonctionnalités premium."
+    },
+    "analytics": {
+      "forecast": {
+        "title": "Prévisions de ventes",
+        "subtitle": "Projection des revenus et commandes pour la prochaine période basée sur la performance actuelle",
+        "expectedRevenue": "Revenu attendu",
+        "expectedOrders": "Commandes attendues",
+        "growthRate": "Taux de croissance attendu",
+        "nextPeriod": "Prochaine période",
+        "basedOn": "Basé sur",
+        "pastOrders": "commandes passées",
+        "confidence": "Confiance",
+        "chartTitle": "Performance actuelle vs prévisions",
+        "projected": "Prévisions",
+        "insufficientData": "Au moins 3 commandes sont nécessaires pour générer des prévisions précises",
+        "currentOrders": "Commandes actuelles"
+      }
+    },
+    "tax": {
+      "title": "Gestion fiscale",
+      "subtitle": "Rapports TVA et traitement fiscal de vos ventes",
+      "export": "Exporter",
+      "exportSuccess": "Rapport fiscal exporté avec succès",
+      "exportFailed": "Échec de l'export du rapport",
+      "totalRevenue": "Revenu total",
+      "exemptRevenue": "Revenu exonéré",
+      "taxableRevenue": "Revenu imposable",
+      "tvaCollected": "TVA collectée",
+      "effectiveRate": "Taux effectif",
+      "orders": "commandes",
+      "exemptOrders": "commandes exonérées",
+      "taxableOrders": "commandes imposables",
+      "exempt": "Exonéré",
+      "taxable": "Imposable",
+      "breakdownTitle": "Répartition fiscale par commande",
+      "noData": "Aucune donnée fiscale pour la période sélectionnée",
+      "showingFirst": "Affichage des 20 premières sur",
+      "periods": {
+        "last30": "30 derniers jours",
+        "last90": "90 derniers jours",
+        "ytd": "Depuis le début de l'année",
+        "last365": "Dernière année"
+      },
+      "table": {
+        "orderId": "N° commande",
+        "date": "Date",
+        "total": "Montant",
+        "type": "Type",
+        "tva": "TVA"
+      },
+      "info": {
+        "title": "Informations fiscales importantes",
+        "description": "Les produits agricoles de base sont exonérés de TVA selon la loi marocaine. Les produits transformés ou conditionnés sont soumis à une TVA de 20%. Cette page vous aide à suivre et classer vos ventes à des fins fiscales."
+      },
+      "disclaimer": "Avertissement: Ces rapports sont à titre indicatif uniquement. Veuillez consulter un comptable ou un conseiller fiscal agréé pour la déclaration fiscale officielle. Les lois fiscales au Maroc peuvent changer, et vous devez vérifier les taux actuels auprès de la Direction Générale des Impôts.",
+      "errors": {
+        "loadFailed": "Impossible de charger les données fiscales"
+      },
+      "aria": {
+        "back": "Retour au tableau de bord"
+      }
+    },
+    "guidelines": {
+      "section1": {
+        "title": "1. Descriptions et Prix Precis des Produits",
+        "item1": "Fournir des descriptions fideles et precises pour tous les produits listes",
+        "item2": "Afficher les prix en Dirham Marocain (MAD) incluant toutes les taxes applicables",
+        "item3": "Mettre a jour les prix rapidement lorsque les couts changent",
+        "item4": "Ne pas s'engager dans des pratiques de tarification trompeuses (Loi 31-08 sur la Protection des Consommateurs)",
+        "item5": "Indiquer clairement le type d'unite, la quantite minimale de commande et l'origine du produit",
+        "item6": "Inclure des photos reelles et claires des produits (pas d'images de stock)"
+      },
+      "section2": {
+        "title": "2. Gestion des Stocks",
+        "item1": "Maintenir des niveaux de stock suffisants pour tous les produits listes",
+        "item2": "Mettre a jour les quantites de stock en temps reel",
+        "item3": "Marquer rapidement les produits comme \"En rupture de stock\" lorsqu'ils sont indisponibles",
+        "item4": "Ne pas lister de produits que vous ne pouvez pas fournir",
+        "item5": "Informer immediatement les acheteurs si le stock devient indisponible apres la commande",
+        "item6": "Des audits reguliers des stocks sont recommandes (au minimum hebdomadaire)"
+      },
+      "section3": {
+        "title": "3. Delais d'Execution des Commandes",
+        "item1": "Confirmer ou refuser les commandes dans les 24 heures suivant la reception",
+        "item2": "Preparer les commandes dans le delai convenu (par defaut: 48 heures)",
+        "item3": "Communiquer proactivement les retards aux acheteurs",
+        "item4": "Accepter les attributions de chauffeurs livreurs ou fournir des dispositions alternatives",
+        "item5": "Les annulations repetees de commandes peuvent entrainer la suspension du compte",
+        "item6": "Maintenir un taux d'execution d'au moins 95%"
+      },
+      "section4": {
+        "title": "4. Conformite Legale Marocaine",
+        "item1": "Respecter la Loi 31-08 sur la Protection des Consommateurs",
+        "item2": "Suivre la Loi 13-03 sur la Lutte contre la Fraude et la Tromperie Commerciale",
+        "item3": "Respecter les reglements de securite alimentaire (normes ONSSA)",
+        "item4": "Maintenir une inscription commerciale valide et une identification fiscale",
+        "item5": "Emettre des factures/recus appropries pour toutes les transactions",
+        "item6": "Respecter la Loi 09-08 sur la Protection des Donnees Personnelles",
+        "item7": "Respecter les droits de propriete intellectuelle et les lois sur les marques commerciales",
+        "item8": "Suivre les reglements environnementaux concernant l'emballage et les dechets"
+      },
+      "penalties": {
+        "item1": "Avertissement ecrit pour la premiere violation",
+        "item2": "Suspension temporaire (7 jours) pour violations repetees",
+        "item3": "Terminaison permanente du compte pour violations serieuses ou continues",
+        "item4": "Des actions legales peuvent etre engagees pour les violations de la loi marocaine",
+        "item5": "Des penalites financieres peuvent s'appliquer en cas d'activites frauduleuses"
+      },
+      "title": "Directives du Vendeur et Accord Legal",
+      "subtitle": "Veuillez lire et accepter ces directives pour continuer a vendre sur Qotoof. Ces directives sont basees sur la loi commerciale marocaine et les politiques de la plateforme.",
+      "accepted": "Accord du Vendeur Accepte ✓",
+      "acceptedDesc": "Vous avez accepte les directives du vendeur et les exigences de conformite legale marocaine.",
+      "hide": "Masquer",
+      "view": "Afficher",
+      "fullGuidelines": "Directives Completes",
+      "penaltiesTitle": "Penalites de Non-Conformite",
+      "agreeLabel": "J'ai lu et j'accepte les Directives du Vendeur",
+      "agreeDesc": "Je m'engage a fournir des informations precis sur les produits, a maintenir les niveaux de stock, a executer les commandes a temps et a respecter toutes les lois et reglements marocains, y compris la Loi 31-08 (Protection des Consommateurs), la Loi 13-03 (Anti-Fraude) et les normes ONSSA.",
+      "acceptAndContinue": "Accepter et Continuer",
+      "mustAccept": "Veuillez accepter les directives pour continuer"
+    },
+    "security": {
+      "title": "Paramètres de sécurité",
+      "subtitle": "Gérez la sécurité et la confidentialité de votre compte",
+      "loading": "Chargement des paramètres de sécurité...",
+      "personalInfo": "Informations personnelles",
+      "name": "Nom",
+      "phone": "Téléphone",
+      "changePassword": "Changer le mot de passe",
+      "currentPassword": "Mot de passe actuel",
+      "currentPasswordPlaceholder": "Entrez le mot de passe actuel",
+      "newPassword": "Nouveau mot de passe",
+      "newPasswordPlaceholder": "Au moins 8 caractères",
+      "confirmPassword": "Confirmer le nouveau mot de passe",
+      "confirmPasswordPlaceholder": "Entrez à nouveau le nouveau mot de passe",
+      "strength": {
+        "minLength": "8+ caractères",
+        "uppercase": "Lettre majuscule",
+        "lowercase": "Lettre minuscule",
+        "number": "Chiffre",
+        "special": "Caractère spécial"
+      },
+      "updatePassword": "Mettre à jour le mot de passe",
+      "updating": "Mise à jour...",
+      "goToProfile": "Aller au profil →",
+      "trustScore": "Score de confiance",
+      "outOf100": "sur 100",
+      "rating": "Évaluation",
+      "reviews": "Avis",
+      "orders": "Commandes",
+      "member": "Membre",
+      "months": "mois",
+      "verified": "Vérifié",
+      "approved": "Approuvé",
+      "notVerified": "Non vérifié",
+      "noTrustScore": "Aucun score de confiance disponible",
+      "twoFactorAuth": "Authentification à deux facteurs",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
+      "accountProtected": "Votre compte est protégé",
+      "usingMethod": "Utilisation de la vérification {{method}}",
+      "authenticatorApp": "Application d'authentification",
+      "disable2FA": "Désactiver l'A2F",
+      "disabling": "Désactivation...",
+      "enable2FA": "Activez l'A2F pour une meilleure sécurité",
+      "enable2FADesc": "Protégez votre compte avec une étape de vérification supplémentaire",
+      "enableTwoFactor": "Activer l'authentification à deux facteurs",
+      "mfaDisabled": "Authentification à deux facteurs désactivée",
+      "enterPasswordDisableMFA": "Veuillez entrer votre mot de passe pour désactiver l'authentification à deux facteurs :",
+      "activeSessions": "Sessions actives",
+      "manageSessions": "Gérez vos sessions actives",
+      "viewAll": "Voir tout",
+      "activeSessionsCount": "Vous avez {{count}} session(s) active(s) sur différents appareils",
+      "signOutOtherDevices": "Déconnecter tous les autres appareils",
+      "confirmRevokeSessions": "Déconnecter tous les autres appareils ?",
+      "sessionsRevoked": "Toutes les autres sessions ont été révoquées",
+      "recentActivity": "Activité récente",
+      "noActivity": "Aucune activité trouvée",
+      "viewFullActivity": "Voir le journal d'activité complet",
+      "mfaRequired": {
+        "enforced": "L'authentification à deux facteurs est désormais requise",
+        "warning": "L'authentification à deux facteurs sera bientôt requise",
+        "enforcedMessage": "Vous devez activer l'authentification à deux facteurs pour continuer à accéder à votre compte vendeur. Elle protège votre boutique contre les accès non autorisés.",
+        "gracePeriodMessage": "L'authentification à deux facteurs sera obligatoire pour tous les vendeurs. Vous avez {{days}} jours pour l'activer.",
+        "setupButton": "Activer l'authentification à deux facteurs maintenant"
+      },
+      "errors": {
+        "accountNotFound": "Impossible d'identifier le compte actuel",
+        "allFieldsRequired": "Tous les champs sont requis",
+        "passwordsNotMatch": "Les nouveaux mots de passe ne correspondent pas",
+        "passwordSame": "Le nouveau mot de passe doit être différent de l'ancien",
+        "passwordTooShort": "Le mot de passe doit comporter au moins 8 caractères",
+        "passwordNeedsUppercase": "Le mot de passe doit contenir au moins une lettre majuscule",
+        "passwordNeedsLowercase": "Le mot de passe doit contenir au moins une lettre minuscule",
+        "passwordNeedsNumber": "Le mot de passe doit contenir au moins un chiffre",
+        "passwordNeedsSpecial": "Le mot de passe doit contenir au moins un caractère spécial",
+        "incorrectPassword": "Le mot de passe actuel est incorrect",
+        "phoneRequired": "Ajoutez un numéro de téléphone à votre compte avant de changer le mot de passe. Allez à votre page de profil pour en ajouter un.",
+        "passwordChangeFailed": "Échec de la mise à jour du mot de passe",
+        "mfaDisableFailed": "Échec de la désactivation de l'A2F",
+        "revokeFailed": "Échec de la révocation des sessions"
+      },
+      "email": "E-mail",
+      "emailAlert": {
+        "title": "Alerte de sécurité : {{action}}",
+        "message": "Un changement de sécurité a été effectué sur votre compte : {{action}}. {{details}} Si ce n'était pas vous, veuillez contacter le support immédiatement."
+      }
     }
   },
   "admin": {
@@ -1136,7 +2078,70 @@
       "indefinite": "Indéfini",
       "unblock": "Débloquer",
       "ipRequired": "L'adresse IP est requise",
-      "reasonRequired": "La raison est requise",
+      "reasonRequired": "La raison est requise"
+    },
+    "auditReport": {
+      "title": "Audit d'activité et d'autorisations administrateur",
+      "subtitle": "Suivre toutes les actions administrateur et les changements d'autorisations",
+      "export": "Exporter CSV",
+      "exporting": "Exportation...",
+      "exportSuccess": "Journaux d'audit exportés avec succès",
+      "exportError": "Échec de l'export des journaux d'audit",
+      "filters": "Filtres",
+      "clearFilters": "Effacer",
+      "actorRole": "Rôle de l'acteur",
+      "allRoles": "Tous les rôles",
+      "actionCategory": "Catégorie d'action",
+      "allCategories": "Toutes les catégories",
+      "targetTable": "Table cible",
+      "allTables": "Toutes les tables",
+      "severity": "Gravité",
+      "allSeverities": "Toutes les gravités",
+      "startDate": "Date de début",
+      "endDate": "Date de fin",
+      "targetId": "ID cible",
+      "targetIdPlaceholder": "Entrer l'ID...",
+      "actorId": "ID de l'acteur",
+      "actorIdPlaceholder": "Entrer l'ID...",
+      "totalResults": "Résultats totaux",
+      "refresh": "Actualiser",
+      "noResults": "Aucun journal d'audit trouvé",
+      "timestamp": "Horodatage",
+      "actor": "Acteur",
+      "action": "Action",
+      "target": "Cible",
+      "details": "Détails",
+      "view": "Voir",
+      "showing": "Affichage",
+      "of": "de",
+      "logDetails": "Détails du journal",
+      "logIpAddress": "Adresse IP",
+      "userAgent": "Agent utilisateur",
+      "changes": "Modifications",
+      "noChanges": "Aucune modification détectée",
+      "old": "Ancien",
+      "new": "Nouveau",
+      "rawData": "Données brutes",
+      "oldValues": "Anciennes valeurs",
+      "newValues": "Nouvelles valeurs",
+      "noData": "Aucune donnée",
+      "unknown": "Inconnu",
+      "byAction": "Par action",
+      "byRole": "Par rôle",
+      "critical": "Critique",
+      "fetchError": "Échec de la récupération des détails du journal",
+      "changesCount": "{{count}} modification",
+      "changesCountPlural": "{{count}} modifications",
+      "previousValue": "Valeur précédente",
+      "newValue": "Nouvelle valeur",
+      "adminId": "ID administrateur",
+      "unknownAdmin": "Administrateur inconnu",
+      "notAvailable": "—",
+      "pageInfo": "Page {{page}} sur {{totalPages}}",
+      "previous": "Précédent",
+      "next": "Suivant",
+      "enabled": "Activé",
+      "disabled": "Désactivé",
       "ipBlocked": "IP bloquée avec succès",
       "ipUnblocked": "IP débloquée avec succès",
       "blockFailed": "Échec du blocage IP",
@@ -1846,7 +2851,22 @@
     "address": "Adresse",
     "city": "Ville",
     "country": "Pays",
-    "updateProfile": "Mettre à jour le profil"
+    "updateProfile": "Mettre à jour le profil",
+    "tabs": {
+      "personal": "Informations personnelles",
+      "store": "Informations de la boutique",
+      "delivery": "Adresse de livraison",
+      "security": "Sécurité"
+    },
+    "delivery": {
+      "infoTitle": "Adresse de livraison principale",
+      "infoDesc": "Cette adresse sera affichée au vendeur lors de la passation de la commande et utilisée comme adresse d'expédition par défaut.",
+      "address": "Adresse de livraison",
+      "addressPlaceholder": "Ville, quartier, rue, numéro de porte",
+      "city": "Ville",
+      "cityPlaceholder": "Sélectionnez une ville",
+      "country": "Pays"
+    }
   },
   "favorites": {
     "title": "Mes favoris",
@@ -1858,10 +2878,22 @@
     "browseMarketplace": "Parcourez le marché et cliquez sur l'icône cœur pour enregistrer des produits",
     "browseNow": "Parcourir maintenant",
     "addToCart": "Ajouter au panier",
+    "negotiatePrice": "Négocier le prix",
     "saveVendors": "Enregistrez vos vendeurs favoris pour un accès rapide",
     "viewProducts": "Voir les produits",
     "removeFavorite": "Retirer des favoris",
-    "addFavorite": "Ajouter aux favoris"
+    "addFavorite": "Ajouter aux favoris",
+    "guestNotice": "Vos favoris sont enregistrés sur cet appareil. Connectez-vous pour les synchroniser sur tous vos appareils et les conserver définitivement.",
+    "signInToSync": "Se connecter",
+    "outOfStock": "Rupture de stock",
+    "lowStock": "Il reste {{quantity}} seulement",
+    "retry": "Réessayer",
+    "removeConfirmTitle": "Retirer des favoris ?",
+    "removeConfirmMessage": "Êtes-vous sûr de vouloir retirer cet élément de vos favoris ?",
+    "addToCartAria": "Ajouter {{name}} au panier",
+    "outOfStockAria": "{{name}} est en rupture de stock",
+    "viewDetailsAria": "Voir les détails de {{name}}",
+    "removeFromFavoritesAria": "Retirer {{name}} des favoris"
   },
   "chat": {
     "title": "Discussion",
@@ -2035,88 +3067,54 @@
       "copyFailed": "Échec de la copie du lien",
       "selectRating": "Veuillez sélectionner une évaluation",
       "selectReason": "Veuillez sélectionner une raison"
+    },
+    "aria": {
+      "stars": "{{count}} etoile"
     }
   },
   "orderTracking": {
-    "title": "Suivre votre commande",
-    "subtitle": "Entrez votre numéro de commande et votre numéro de téléphone enregistré pour vérifier le statut de votre livraison.",
-    "unknownProduct": "Produit inconnu",
-    "form": {
-      "orderNumber": {
-        "label": "Numéro de commande",
-        "placeholder": "ex : ORD-20240101-00001",
-        "hint": "Trouvez votre numéro de commande dans l'e-mail de confirmation"
-      },
-      "or": "OU",
-      "and": "ET",
-      "phone": {
-        "label": "Numéro de téléphone",
-        "placeholder": "+212 6XX-XXXXXX",
-        "hint": "Utilisez le même numéro de téléphone que celui utilisé lors de l'achat"
-      },
-      "submit": "Suivre la commande",
-      "searching": "Recherche en cours...",
-      "recentSearches": "Recherches récentes",
-      "clearHistory": "Effacer l'historique"
+    "title": "Suivre vos commandes",
+    "subtitle": "Suivez le statut de votre livraison en temps réel",
+    "guest": {
+      "title": "Suivre vos commandes",
+      "message": "Connectez-vous pour voir vos commandes et suivre le statut de livraison en temps réel",
+      "signIn": "Se connecter",
+      "createAccount": "Créer un compte"
     },
-    "validation": {
-      "orderNumber": {
-        "min": "Le numéro de commande est trop court",
-        "max": "Le numéro de commande est trop long",
-        "format": "Le numéro de commande ne peut contenir que des lettres, des chiffres et des tirets"
-      },
-      "phone": {
-        "min": "Le numéro de téléphone est trop court",
-        "max": "Le numéro de téléphone est trop long",
-        "format": "Entrez un numéro de téléphone marocain valide (ex : +212612345678)"
-      },
-      "atLeastOne": "Veuillez entrer votre numéro de commande et votre numéro de téléphone",
-      "xssDetected": "Caractères invalides détectés",
-      "sqlDetected": "Caractères invalides détectés"
+    "tabs": {
+      "active": "Actives",
+      "completed": "Terminées"
+    },
+    "empty": {
+      "title": "Aucune commande pour le moment",
+      "message": "Commencez vos achats sur le marché",
+      "browseMarketplace": "Parcourir le marché"
+    },
+    "searchPlaceholder": "Rechercher par numéro de commande ou nom de boutique...",
+    "loadMore": "Charger plus",
+    "nonBuyer": {
+      "title": "Suivi des commandes",
+      "message": "Cette page est conçue pour les acheteurs. Suivez vos commandes et leur statut de livraison depuis votre tableau de bord.",
+      "goToDashboard": "Tableau de bord"
+    },
+    "stats": {
+      "total": "Total",
+      "active": "Actives",
+      "completed": "Terminées"
+    },
+    "viewAllOrders": "Voir toutes les commandes",
+    "buyerOrders": {
+      "loadError": "Impossible de charger vos commandes",
+      "empty": "Aucune commande active pour le moment"
     },
     "results": {
-      "searching": "Recherche de votre commande...",
       "found": {
         "title": "Commande trouvée !",
         "orderDate": "Date de commande",
         "total": "Total",
         "city": "Ville",
         "items": "Articles de la commande",
-        "viewFull": "Voir le suivi complet"
-      },
-      "notFound": {
-        "title": "Commande introuvable",
-        "desc": "Nous n'avons trouvé aucune commande correspondant à votre recherche. Veuillez vérifier les détails et réessayer.",
-        "searchedFor": "Recherché pour",
-        "suggestions": "Ce que vous pouvez essayer",
-        "tips": {
-          "orderNumber": "Vérifiez votre numéro de commande dans l'e-mail de confirmation",
-          "phone": "Assurez-vous d'utiliser le même numéro de téléphone que celui utilisé lors de l'inscription",
-          "email": "Vérifiez votre boîte e-mail pour la confirmation de commande"
-        }
-      },
-      "error": {
-        "title": "Échec de la recherche",
-        "desc": "Une erreur s'est produite lors de la recherche de votre commande. Veuillez réessayer plus tard."
-      }
-    },
-    "actions": {
-      "trackAnother": "Suivre une autre commande",
-      "tryAgain": "Réessayer",
-      "contactSupport": "Contacter le support"
-    },
-    "help": {
-      "step1": {
-        "title": "Entrez le numéro de commande",
-        "desc": "Trouvez-le dans votre e-mail de confirmation ou l'historique des commandes de votre compte"
-      },
-      "step2": {
-        "title": "Entrez votre numéro de téléphone",
-        "desc": "Utilisez le même numéro de téléphone marocain que celui utilisé lors de la commande"
-      },
-      "step3": {
-        "title": "Suivre la livraison",
-        "desc": "Consultez le statut en temps réel et les détails complets du suivi de votre commande"
+        "viewFull": "Voir le suivi"
       }
     },
     "status": {
@@ -2133,13 +3131,11 @@
       "driver_picked_up": "Récupérée",
       "awaiting_driver": "En attente d'un livreur"
     },
-    "notifications": {
-      "found": "Commande trouvée !"
-    },
-    "errors": {
-      "rateLimited": "Trop de tentatives. Veuillez patienter {{minutes}} minutes avant de réessayer.",
-      "requiresOrderAndPhone": "Veuillez saisir à la fois le numéro de commande et le numéro de téléphone pour des raisons de sécurité.",
-      "searchFailed": "Échec de la recherche. Veuillez réessayer."
+    "aria": {
+      "refresh": "Rafraichir",
+      "callDriver": "Appeler le chauffeur",
+      "chatDriver": "Discuter avec le chauffeur",
+      "openMaps": "Ouvrir dans les cartes"
     }
   },
   "auth": {
@@ -2167,7 +3163,7 @@
       "continueWithGoogle": "Continuer avec Google",
       "orContinueWithEmail": "ou continuer avec un e-mail",
       "emailAddress": "Adresse e-mail",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "password": "Mot de passe",
       "passwordPlaceholder": "Entrez votre mot de passe",
       "forgotPassword": "Mot de passe oublié ?",
@@ -2182,7 +3178,7 @@
       "lastName": "Nom",
       "lastNamePlaceholder": "Dupont",
       "emailAddress": "Adresse e-mail",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "phoneNumber": "Numéro de téléphone",
       "phonePlaceholder": "+212 6XX-XXXXXX",
       "identityVerification": "Vérification d'identité",
@@ -2267,7 +3263,7 @@
       "title": "Réinitialiser le mot de passe",
       "subtitle": "Entrez votre e-mail et nous vous enverrons un lien pour réinitialiser votre mot de passe.",
       "emailLabel": "Adresse e-mail",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "sending": "Envoi en cours...",
       "sendLink": "Envoyer le lien de réinitialisation",
       "rememberPassword": "Vous vous souvenez de votre mot de passe ?",
@@ -2275,23 +3271,84 @@
     },
     "verifyEmail": {
       "noPendingVerification": "Aucune vérification d'e-mail en attente. Veuillez vous inscrire d'abord.",
+      "noPendingVerificationHelp": "Veuillez créer un nouveau compte ou vous connecter.",
       "resendCooldown": "Veuillez attendre {{seconds}} secondes avant de renvoyer.",
       "rateLimited": "Trop de tentatives de renvoi. Veuillez attendre quelques minutes avant de réessayer.",
-      "resendSuccess": "E-mail de vérification renvoyé ! Vérifiez votre boîte de réception.",
-      "resendFailed": "Échec du renvoi de l'e-mail de vérification. Veuillez réessayer.",
+      "resendSuccess": "Code de vérification renvoyé ! Vérifiez votre boîte de réception.",
+      "resendFailed": "Échec du renvoi du code de vérification. Veuillez réessayer.",
+      "verifiedSuccess": "E-mail vérifié avec succès !",
       "verifiedTitle": "E-mail vérifié !",
       "verifiedDescription": "Votre e-mail a été vérifié avec succès. Redirection vers la connexion...",
       "title": "Vérifiez votre e-mail",
-      "description": "Nous avons envoyé un lien de vérification à",
-      "instructions": "Cliquez sur le lien dans l'e-mail pour vérifier votre compte.",
-      "helpTitle": "Vous n'avez pas reçu l'e-mail ?",
+      "subtitle": "Entrez le code de vérification à 6 chiffres envoyé à votre e-mail.",
+      "description": "Nous avons envoyé un code de vérification à",
+      "instructions": "Entrez le code à 6 chiffres reçu dans votre e-mail pour vérifier votre compte.",
+      "helpTitle": "Vous n'avez pas reçu le code ?",
       "helpSpam": "Vérifiez votre dossier spam ou courrier indésirable",
       "helpCorrectEmail": "Assurez-vous d'avoir entré la bonne adresse e-mail",
       "helpWait": "Attendez quelques minutes pour la livraison",
       "openEmailApp": "Ouvrir l'application e-mail",
-      "resendButton": "Renvoyer l'e-mail de vérification",
+      "resendButton": "Renvoyer le code de vérification",
       "resendIn": "Renvoyer dans {{seconds}}s",
-      "backToLogin": "Retour à la connexion"
+      "backToLogin": "Retour à la connexion",
+      "wrongEmail": "Mauvais e-mail ? Créez un nouveau compte",
+      "goToRegister": "Créer un nouveau compte",
+      "codePlaceholder": "123456",
+      "codeLabel": "Code de vérification",
+      "verifyButton": "Vérifier et activer le compte",
+      "invalidCode": "Code de vérification invalide ou expiré",
+      "invalidEmail": "Adresse e-mail invalide"
+    },
+    "mfa": {
+      "title": "Authentification à deux facteurs",
+      "headerDescription": "Votre compte est protégé par l'authentification à deux facteurs (2FA).",
+      "totpDescription": "Pour continuer, entrez le code de vérification à 6 chiffres généré par votre application d'authentification.",
+      "checkingMFA": "Vérification du statut MFA...",
+      "verifyButton": "Vérifier le code",
+      "verifying": "Vérification en cours...",
+      "cancelAndSignOut": "Annuler et se déconnecter",
+      "backToLogin": "Retour à la connexion",
+      "success": "Authentification vérifiée !",
+      "codeRefreshesIn": "Le code se renouvelle dans {{seconds}}s",
+      "languageSwitcher": "Langue",
+      "formAriaLabel": "Formulaire de vérification MFA",
+      "codeInputLegend": "Entrez votre code de vérification à 6 chiffres",
+      "digitLabel": "Chiffre {{n}}",
+      "howToGetCode": {
+        "title": "Comment obtenir votre code de vérification",
+        "step1": "Ouvrez votre application d'authentification.",
+        "step2": "Recherchez votre compte Qotoof.",
+        "step3": "Copiez le code de vérification actuel à 6 chiffres.",
+        "step4": "Entrez le code avant qu'il ne se renouvelle."
+      },
+      "noApp": {
+        "title": "Vous n'avez pas d'application d'authentification ?",
+        "description": "Nous recommandons l'une de ces applications gratuites et fiables :",
+        "note": "Disponibles sur iOS et Android. Recherchez-les dans votre magasin d'applications."
+      },
+      "security": {
+        "title": "Pourquoi est-ce requis ?",
+        "description": "L'authentification à deux facteurs ajoute une couche de sécurité supplémentaire. Même si quelqu'un connaît votre mot de passe, il ne peut pas accéder à votre compte sans le code généré sur votre appareil de confiance.",
+        "protectsLabel": "Cela protège vos :",
+        "item1": "Informations personnelles",
+        "item2": "Commandes",
+        "item3": "Paiements",
+        "item4": "Paramètres du compte"
+      },
+      "needHelp": {
+        "title": "Besoin d'aide ?",
+        "tip1": "Vérifiez que l'heure de votre appareil est correcte.",
+        "tip2": "Attendez l'apparition du prochain code de vérification.",
+        "tip3": "Assurez-vous d'avoir sélectionné le bon compte dans l'application.",
+        "tip4": "Essayez le nouveau code après son renouvellement.",
+        "tip5": "Contactez le support si vous avez définitivement perdu l'accès à votre authentificateur."
+      },
+      "errors": {
+        "incompleteCode": "Veuillez entrer les 6 chiffres",
+        "invalidCode": "Code invalide ou expiré. Veuillez réessayer.",
+        "noFactors": "Aucun facteur TOTP trouvé. Veuillez d'abord configurer le MFA.",
+        "verificationFailed": "Échec de la vérification du code. Veuillez réessayer."
+      }
     }
   },
   "buyerDashboard": {
@@ -2544,6 +3601,29 @@
       "passwordUpdateFailed": "Échec de la mise à jour du mot de passe"
     }
   },
+  "buyerTracking": {
+    "title": "Suivi des commandes",
+    "empty": "Aucune commande à suivre",
+    "emptyMessage": "Commencez vos achats sur la marketplace",
+    "browse": "Parcourir la marketplace",
+    "active": "Commandes actives",
+    "delivered": "Livré",
+    "driverAssigned": "Livreur assigné",
+    "eta": {
+      "label": "ETA",
+      "pending": "En attente",
+      "accepted": "Accepté",
+      "preparing": "En préparation",
+      "driverAssigned": "Livreur assigné",
+      "pickedUp": "Récupéré",
+      "onTheWay": "En route",
+      "arrivingSoon": "Arrivée imminente",
+      "minutes": "{{count}} min",
+      "hours": "{{count}}h",
+      "hoursMinutes": "{{h}}h {{m}}m",
+      "range": "{{min}}–{{max}}"
+    }
+  },
   "notFound": {
     "title": "Page introuvable",
     "description": "La page que vous recherchez n'existe pas ou a été déplacée.",
@@ -2622,7 +3702,7 @@
     },
     "q8": {
       "question": "Comment contacter le support ?",
-      "answer": "Vous pouvez nous joindre via la page Contact, nous envoyer un e-mail à Qotoof273@gmail.com ou appeler le +212 674 841 248 pendant les heures d'ouverture."
+      "answer": "Vous pouvez nous joindre via la page Contact, nous envoyer un e-mail à qotoof273@gmail.com ou appeler le +212 674 841 248 pendant les heures d'ouverture."
     },
     "stillQuestions": {
       "title": "Vous avez encore des questions ?",
@@ -2977,7 +4057,7 @@
     "section13": {
       "title": "13. Contact",
       "intro": "Pour toute question concernant ces Conditions, contactez-nous à :",
-      "email": "E-mail : Qotoof273@gmail.com",
+      "email": "E-mail : qotoof273@gmail.com",
       "phone": "Telephone : +212 674 841 248",
       "address": "Adresse : Casablanca, Maroc"
     },
@@ -3152,6 +4232,9 @@
     },
     "tracking": {
       "liveMap": "Carte de livraison en direct"
+    },
+    "settings": {
+      "paypalEmail": "Email PayPal"
     }
   },
   "buyer": {
@@ -3249,6 +4332,7 @@
         "tryAdjusting": "Essayez d'ajuster vos critères de recherche ou de filtrage"
       },
       "searchPlaceholder": "Rechercher par numéro de commande, vendeur ou produit...",
+      "clearSearchAria": "Effacer la recherche",
       "advancedFilters": "Filtres",
       "clearFilters": "Tout effacer",
       "orderCount": "Affichage de {{count}} commande(s)",
@@ -3262,7 +4346,9 @@
       "clearSelection": "Effacer la sélection",
       "selectAll": "Tout sélectionner",
       "loadMore": "Charger plus de commandes",
-      "showingCount": "Affichage de {{shown}} sur {{total}} commande(s)"
+      "showingCount": "Affichage de {{shown}} sur {{total}} commande(s)",
+      "noAddress": "Aucune adresse fournie",
+      "deliverySlot": "Créneau de livraison"
     },
     "coupons": {
       "title": "Mes coupons",
@@ -3321,6 +4407,75 @@
         "platinum": "Platine"
       }
     },
+    "rfq": {
+      "title": "Demandes de devis",
+      "subtitle": "Publiez vos besoins en produits et recevez des offres de fournisseurs — choisissez le meilleur prix et la meilleure qualité.",
+      "newRequest": "Nouvelle demande",
+      "deadline": "Date limite",
+      "maxBudget": "Budget max",
+      "offers": "offres",
+      "viewOffers": "Voir les offres",
+      "viewDetails": "Voir les détails",
+      "vendorFallback": "Fournisseur",
+      "unit": "unité",
+      "total": "total",
+      "acceptOffer": "Accepter cette offre",
+      "confirmCancel": "Êtes-vous sûr de vouloir annuler cette demande ?",
+      "cancelTitle": "Annuler la demande",
+      "noOffersYet": "Pas encore d'offres.",
+      "status": {
+        "open": "Ouverte",
+        "closed": "Clôturée",
+        "expired": "Expirée",
+        "cancelled": "Annulée"
+      },
+      "offerStatus": {
+        "pending": "En attente",
+        "accepted": "Acceptée",
+        "rejected": "Rejetée",
+        "withdrawn": "Retirée"
+      },
+      "summary": {
+        "total": "Total des demandes",
+        "open": "Ouvertes",
+        "completed": "Terminées"
+      },
+      "empty": {
+        "title": "Aucune demande pour le moment",
+        "desc": "Publiez votre première demande et recevez des offres de fournisseurs.",
+        "createButton": "Créer une demande"
+      },
+      "modal": {
+        "title": "Nouvelle demande de devis"
+      },
+      "form": {
+        "title": "Titre de la demande",
+        "titlePlaceholder": "ex. Besoin de 500 kg de tomates fraîches",
+        "category": "Catégorie",
+        "quantity": "Quantité",
+        "maxBudget": "Budget max (MAD)",
+        "optional": "Facultatif",
+        "city": "Ville",
+        "cityPlaceholder": "Casablanca",
+        "deadline": "Date limite des offres",
+        "description": "Détails supplémentaires",
+        "descriptionPlaceholder": "Spécifications de qualité, mode de livraison préféré...",
+        "submit": "Publier la demande"
+      },
+      "errors": {
+        "loadFailed": "Échec du chargement de vos demandes",
+        "loadOffersFailed": "Échec du chargement des offres",
+        "acceptFailed": "Échec de l'acceptation de l'offre",
+        "cancelFailed": "Échec de l'annulation de la demande",
+        "titleAndQuantityRequired": "Le titre et la quantité sont obligatoires",
+        "createFailed": "Échec de la création de la demande"
+      },
+      "success": {
+        "offerAccepted": "Offre acceptée et demande clôturée",
+        "cancelled": "Demande annulée",
+        "created": "Demande de devis publiée"
+      }
+    },
     "reports": {
       "title": "Rapports de dépenses",
       "subtitle": "Vos analyses et insights d'achat",
@@ -3356,6 +4511,12 @@
         "listDeleted": "Liste supprimée",
         "deleteFailed": "Échec de la suppression de la liste",
         "itemsAdded": "{{count}} article(s) ajouté(s) au panier"
+      }
+    },
+    "addresses": {
+      "aria": {
+        "edit": "Modifier l'adresse",
+        "delete": "Supprimer l'adresse"
       }
     }
   },
@@ -3463,7 +4624,7 @@
     "gdprRight4": "Droit à la portabilité des données (export)",
     "gdprRight5": "Droit d'opposition au traitement",
     "gdprRight6": "Droit de retirer le consentement",
-    "gdprContact": "Pour exercer l'un de ces droits, contactez-nous à Qotoof273@gmail.com",
+    "gdprContact": "Pour exercer l'un de ces droits, contactez-nous à qotoof273@gmail.com",
     "deleteAccountQuestion": "Supprimer votre compte ?",
     "permanently": "définitivement",
     "deleteAccountWarning1": "Cela supprimera",
@@ -3493,6 +4654,12 @@
     "accountDeleted": "Votre compte a été supprimé définitivement",
     "deleteAccountFailed": "Échec de la suppression du compte",
     "typeDeleteConfirm": "Veuillez taper exactement \"DELETE\" (en majuscules) pour confirmer"
+  },
+  "authGate": {
+    "title": "Connexion requise",
+    "message": "Vous devez être connecté pour continuer.",
+    "signIn": "Se connecter",
+    "createAccount": "Créer un compte"
   },
   "unauthorized": {
     "title": "Accès refusé",
@@ -3575,10 +4742,46 @@
       "upgradeFailed": "Échec de la mise à niveau du compte"
     }
   },
+  "becomeDriver": {
+    "title": "Devenir chauffeur",
+    "subtitle": "Commencez à livrer sur Qotoof",
+    "success": "Bienvenue ! Votre compte a été mis à niveau vers chauffeur",
+    "submit": "Devenir chauffeur",
+    "benefits": {
+      "title": "Avantages du chauffeur",
+      "flexible": "Horaires flexibles — travaillez quand vous voulez",
+      "competitive": "Revenus compétitifs par livraison",
+      "tracking": "Suivi des livraisons en temps réel",
+      "ratings": "Construisez votre réputation avec les évaluations"
+    },
+    "form": {
+      "vehicleType": "Type de véhicule",
+      "vehiclePlate": "Numéro de plaque",
+      "platePlaceholder": "ex. 12345-A-6",
+      "city": "Ville",
+      "cityPlaceholder": "Casablanca",
+      "phone": "Téléphone",
+      "phonePlaceholder": "+212 6XX XXX XXX",
+      "types": {
+        "motorcycle": "Moto",
+        "car": "Voiture",
+        "van": "Fourgonnette",
+        "truck": "Camion"
+      }
+    },
+    "errors": {
+      "phoneRequired": "Le numéro de téléphone est requis",
+      "phoneInvalid": "Entrez un numéro de téléphone marocain valide (+212 ou 06/07...)",
+      "plateRequired": "Le numéro de plaque est requis",
+      "plateLong": "Le numéro de plaque est trop long",
+      "cityRequired": "La ville est requise",
+      "fixErrors": "Veuillez corriger les erreurs dans le formulaire",
+      "upgradeFailed": "Échec de la mise à niveau du compte"
+    }
+  },
   "helpCenter": {
     "title": "Centre d'aide",
     "subtitle": "Trouvez des réponses ou contactez le support",
-    "loginRequired": "Veuillez vous connecter pour soumettre un ticket de support.",
     "contact": {
       "ticket": "Ticket de support",
       "ticketDesc": "Soumettre un ticket",
@@ -3605,7 +4808,11 @@
       "ticketServer": "Le support est temporairement indisponible. Veuillez réessayer plus tard."
     },
     "ticketSuccess": "Ticket de support soumis ! Nous répondrons dans les 24 heures.",
-    "ticketError": "Échec de la soumission du ticket"
+    "ticketError": "Échec de la soumission du ticket",
+    "authGate": {
+      "title": "Connectez-vous pour créer un ticket",
+      "message": "Vous devez être connecté pour soumettre un ticket de support."
+    }
   },
   "productComparison": {
     "title": "Comparer des produits",
@@ -3660,6 +4867,13 @@
       "loadFailed": "Échec du chargement des messages",
       "loadConversation": "Échec du chargement de la conversation",
       "sendFailed": "Échec de l'envoi du message"
+    },
+    "aria": {
+      "search": "Rechercher des messages",
+      "back": "Retour aux messages",
+      "callVendor": "Appeler le vendeur",
+      "input": "Saisie du message",
+      "send": "Envoyer le message"
     }
   },
   "layout": {
@@ -3728,6 +4942,13 @@
     "vendor": {
       "panelTitle": "Ma boutique",
       "defaultTitle": "Vendeur",
+      "mobileTabs": {
+        "home": "Accueil",
+        "products": "Produits",
+        "orders": "Commandes",
+        "subscription": "Plan",
+        "profile": "Profil"
+      },
       "links": {
         "dashboard": "Tableau de bord",
         "products": "Mes produits",
@@ -3737,12 +4958,18 @@
         "findDriver": "Trouver un chauffeur",
         "analytics": "Analytique",
         "reviews": "Avis",
+        "wallet": "Portefeuille",
+        "returns": "Retours",
+        "tax": "Impôts",
         "coupons": "Coupons",
         "premium": "Premium",
+        "rfqs": "Demandes de devis",
         "rfqBoard": "Demandes de devis",
         "schedules": "Horaires",
         "location": "Localisation",
+        "subscription": "Abonnement",
         "profile": "Profil",
+        "security": "Sécurité",
         "settings": "Paramètres"
       }
     },
@@ -3762,6 +4989,15 @@
       }
     },
     "buyer": {
+      "mobileTabs": {
+        "home": "Accueil",
+        "marketplace": "Marché",
+        "cart": "Panier",
+        "orders": "Commandes",
+        "tracking": "Suivi",
+        "settings": "Paramètres",
+        "more": "Plus"
+      },
       "links": {
         "dashboard": "Tableau de bord",
         "orders": "Commandes",
@@ -3782,8 +5018,7 @@
         "buyer": "Acheteur"
       }
     }
-  }
-  ,
+  },
   "marketplaceFeatures": {
     "common": {
       "unknownOrder": "Commande inconnue",
@@ -4186,6 +5421,173 @@
         "cancel": "Annuler",
         "confirm": "Confirmer la réception"
       }
+    }
+  },
+  "negotiation": {
+    "status": {
+      "pending": "En attente de réponse",
+      "accepted": "Accepté",
+      "rejected": "Refusé",
+      "countered": "Contre-offre",
+      "expired": "Expiré",
+      "converted": "Converti en commande"
+    },
+    "round": "Tour",
+    "originalPrice": "Prix original",
+    "proposedPrice": "Prix proposé",
+    "quantity": "Quantité",
+    "productTotal": "Total produit",
+    "delivery": "Livraison",
+    "deliveryFree": "Gratuit",
+    "distance": "Distance",
+    "grandTotal": "Total général",
+    "buyer": "Acheteur",
+    "vendor": "Vendeur",
+    "buyerNote": "Note de l'acheteur",
+    "vendorNote": "Note du vendeur",
+    "expiresIn": "Expire dans",
+    "disclaimer": "Ceci est une offre non contraignante jusqu'à l'approbation finale et le paiement",
+    "acceptOffer": "Accepter l'offre",
+    "rejectOffer": "Refuser l'offre",
+    "counterOffer": "Contre-offre",
+    "yourPrice": "Votre prix proposé",
+    "note": "Note (optionnel)",
+    "notePlaceholder": "Ajouter une note...",
+    "sendCounter": "Envoyer",
+    "accepted": "Offre acceptée",
+    "rejected": "Offre refusée",
+    "counterSent": "Contre-offre envoyée",
+    "payAndOrder": "Payer & créer la commande",
+    "creatingOrder": "Création de la commande...",
+    "addToCartAndCheckout": "Ajouter au panier & commander",
+    "addingToCart": "Ajout au panier...",
+    "addedToCart": "Ajouté au panier avec le prix négocié",
+    "createTitle": "Négocier le prix",
+    "sendOffer": "Envoyer l'offre",
+    "backToFavorites": "Retour aux favoris",
+    "completePayment": "Compléter le paiement via PayPal",
+    "orderCreated": "Commande créée avec succès",
+    "viewOrder": "Voir la commande",
+    "backToOrders": "Retour aux commandes",
+    "acceptedWaitingBuyer": "Offre acceptée — en attente du paiement de l'acheteur",
+    "convertedToOrder": "Offre convertie en commande avec succès",
+    "offerRejected": "Offre refusée",
+    "offerExpired": "Offre expirée",
+    "errors": {
+      "notFound": "Négociation introuvable",
+      "forbidden": "Vous ne pouvez pas voir cette négociation",
+      "loadFailed": "Échec du chargement de la négociation",
+      "acceptFailed": "Échec de l'acceptation de l'offre",
+      "rejectFailed": "Échec du refus de l'offre",
+      "counterFailed": "Échec de l'envoi de la contre-offre",
+      "invalidPrice": "Prix invalide",
+      "invalidQuantity": "Quantité invalide",
+      "convertFailed": "Échec de la conversion en commande",
+      "productNotFound": "Produit introuvable",
+      "createFailed": "Échec de la création de la négociation",
+      "addToCartFailed": "Échec de l'ajout au panier",
+      "phoneNotVerified": "Vérification du téléphone requise pour créer des négociations",
+      "rateLimitExceeded": "Limite de taux dépassée. Réessayez dans {{seconds}} secondes"
+    }
+  },
+  "onboarding": {
+    "skip": "Passer",
+    "next": "Suivant",
+    "previous": "Précédent",
+    "gotIt": "Compris !",
+    "saving": "Enregistrement...",
+    "nextArrow": "Suivant →",
+    "previousArrow": "← Précédent",
+    "errors": {
+      "saveFailed": "Impossible d'enregistrer la progression de l'intégration pour le moment",
+      "completeFailed": "Impossible de terminer l'intégration pour le moment"
+    },
+    "buyer": {
+      "roleLabel": "Configuration de l'acheteur",
+      "completeLabel": "Commencez vos achats maintenant 🚀",
+      "slides": {
+        "s1": {
+          "title": "Bienvenue sur Qotoof",
+          "lines": [
+            "Le premier marketplace de gros au Maroc",
+            "pour les légumes, fruits et plantes",
+            "Achetez directement auprès des agriculteurs",
+            "et des vendeurs aux prix de gros"
+          ]
+        },
+        "s2": {
+          "title": "Rechercher, Choisir & Payer",
+          "lines": [
+            "1️⃣ Recherchez votre produit",
+            "2️⃣ Choisissez le bon vendeur",
+            "3️⃣ Payez comme vous le souhaitez",
+            "4️⃣ Recevez votre commande et évaluez l'expérience"
+          ]
+        },
+        "s3": {
+          "title": "Protection complète pour vous",
+          "lines": [
+            "✅ Chaque transaction est vérifiée numériquement",
+            "✅ Photos de l'état du produit avant et après",
+            "✅ Signalement instantané de tout problème",
+            "✅ Soutien juridique complet au besoin"
+          ]
+        }
+      }
+    },
+    "vendor": {
+      "roleLabel": "Configuration du vendeur",
+      "completeLabel": "Signer le contrat et commencer →",
+      "slides": {
+        "s1": {
+          "title": "Commencez à vendre en 4 étapes",
+          "lines": [
+            "Atteignez des milliers d'acheteurs au Maroc",
+            "Sans frais initiaux",
+            "Commission flexible uniquement sur ce que vous vendez"
+          ]
+        },
+        "s2": {
+          "title": "Complétez votre profil commercial",
+          "lines": [
+            "1️⃣ Signez le contrat numérique",
+            "2️⃣ Ajoutez les informations de votre boutique",
+            "3️⃣ Définissez votre mode de livraison",
+            "4️⃣ Ajoutez vos produits"
+          ]
+        },
+        "s3": {
+          "title": "Comment fonctionne la commission ?",
+          "lines": [
+            "• Vendez vos produits et recevez l'argent directement",
+            "• À la fin de chaque mois, nous vous envoyons une facture pour la commission de la plateforme sur le total des ventes",
+            "• Payez dans les 7 jours",
+            "• Non-paiement = gel temporaire du compte"
+          ]
+        },
+        "s4": {
+          "title": "Vous êtes prêt à commencer !",
+          "lines": [
+            "✅ Votre boutique est protégée juridiquement",
+            "✅ Vos paiements sont garantis",
+            "✅ Soutien complet pour tout problème"
+          ],
+          "callout": [
+            "Première étape :",
+            "Signez le contrat numérique pour commencer à vendre"
+          ]
+        }
+      }
+    },
+    "negotiation": {
+      "slide1Title": "Négocier les prix",
+      "slide1Desc": "Vous avez trouvé un produit qui vous plaît mais vous voulez un meilleur prix ? Cliquez sur \"Négocier le prix\" sur n'importe quel produit dans vos favoris pour commencer une négociation avec le vendeur.",
+      "slide2Title": "Envoyez votre offre",
+      "slide2Desc": "Proposez votre prix et votre quantité. Le vendeur peut accepter, refuser ou envoyer une contre-offre. Vous pouvez négocier jusqu'à 3 tours.",
+      "slide3Title": "Prix verrouillé",
+      "slide3Desc": "Lorsque votre offre est acceptée, l'article est ajouté à votre panier avec le prix convenu verrouillé. Le prix ne changera pas même si le vendeur met à jour sa liste.",
+      "slide4Title": "Paiement unifié",
+      "slide4Desc": "Commandez tous vos articles au même endroit — articles négociés et réguliers ensemble. Payez une seule fois pour tout votre panier."
     }
   }
 }

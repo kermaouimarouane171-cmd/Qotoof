@@ -4,6 +4,7 @@
 // ============================================
 
 // Core Components
+export { default as Logo } from './Logo'
 export { default as Button } from './Button'
 export { default as Input } from './Input'
 export { default as Tooltip } from './Tooltip'
@@ -35,6 +36,12 @@ export { default as VendorGuidelines } from './VendorGuidelines'
 export { default as VendorAlerts } from './VendorAlerts'
 export { default as GeographicDeliveryNotification } from './GeographicDeliveryNotification'
 export { default as Recaptcha } from './Recaptcha'
+
+// Navigation & Discovery
+export { default as Breadcrumbs } from './Breadcrumbs'
+export { default as RecentlyViewed, trackProductView, getRecentlyViewedIds } from './RecentlyViewed'
+export { default as ProductRecommendations } from './ProductRecommendations'
+export { default as CartAbandonmentRecovery, saveCartSnapshot, getCartSnapshot, clearCartSnapshot } from './CartAbandonmentRecovery'
 
 // Performance Optimized Components
 export {

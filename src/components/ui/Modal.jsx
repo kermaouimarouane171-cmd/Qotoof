@@ -1,8 +1,11 @@
-import { Fragment } from 'react'
+import { Fragment, useRef, useEffect } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+  const { t } = useTranslation()
+  const closeBtnRef = useRef(null)
   const sizes = {
     sm: 'max-w-sm',
     md: 'max-w-lg',
@@ -10,6 +13,12 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
     xl: 'max-w-4xl',
     full: 'max-w-full mx-4',
   }
+
+  useEffect(() => {
+    if (isOpen && closeBtnRef.current) {
+      closeBtnRef.current.focus()
+    }
+  }, [isOpen])
 
   return (
     <Transition.Root show={isOpen} as={Fragment}>
@@ -48,9 +57,9 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
                     <button
                       type="button"
                       onClick={onClose}
-                      className="text-gray-400 hover:text-gray-500 transition-colors p-1 rounded-lg hover:bg-gray-100"
-                      aria-label="إغلاق النافذة"
-                      autoFocus
+                      className="text-gray-400 hover:text-gray-500 transition-colors p-1 rounded-lg hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+                      aria-label={t('common.close', 'Close')}
+                      ref={closeBtnRef}
                     >
                       <XMarkIcon className="w-5 h-5" />
                     </button>

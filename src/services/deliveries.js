@@ -414,6 +414,19 @@ export const deliveriesApi = {
   
   // Get buyer's active delivery tracking
   getBuyerActiveDelivery: withRetry(async (buyerId) => {
+    // Step 1: Get the buyer's active order IDs
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('id')
+      .eq('buyer_id', buyerId)
+      .in('status', ['pending', 'vendor_accepted', 'preparing', 'driver_assigned', 'driver_accepted', 'driver_picked_up', 'on_the_way'])
+
+    if (ordersError) throw ordersError
+
+    const orderIds = (orders || []).map((o) => o.id)
+    if (orderIds.length === 0) return null
+
+    // Step 2: Get active deliveries for those orders
     const { data, error } = await supabase
       .from('deliveries')
       .select(`
@@ -424,7 +437,7 @@ export const deliveriesApi = {
         driver:profiles!driver_id(first_name, last_name, phone, avatar_url, vehicle_type, vehicle_plate),
         order:orders(order_number, total)
       `)
-      .eq('order.buyer_id', buyerId)
+      .in('order_id', orderIds)
       .in('status', ['accepted', 'picked_up', 'on_the_way'])
       .order('created_at', { ascending: false })
       .limit(1)
@@ -435,98 +448,111 @@ export const deliveriesApi = {
   }, { maxRetries: 3, baseDelay: 1000 })
 }
 
-// Orders API (extended)
-export const ordersApi = {
-  // ... existing methods ...
-  
-  // Vendor accept order
-  acceptOrder: withRetry(async (orderId) => {
-    const { data, error } = await supabase.functions.invoke('accept-order', {
-      body: { orderId },
-    })
+// ─────────────────────────────────────────────────────────────────────────────
+// Vendor Order Actions (legacy — misplaced in deliveries.js)
+// These functions are order-related (vendor accept/reject + order subscriptions)
+// but live in deliveries.js for historical reasons.
+// They are exported here as vendorOrderActionsApi with a backward-compatible
+// alias `ordersApi` for existing consumers.
+// Migration target: move to ordersService.ts or a new vendorOrderService.ts
+// in Phase 3. See src/modules/orders/README.md and src/modules/delivery/README.md.
+// ─────────────────────────────────────────────────────────────────────────────
 
-    if (error) throw error
-    if (!data?.success || !data?.order) {
-      throw new Error(data?.error || 'Failed to accept order')
-    }
+export const acceptOrder = withRetry(async (orderId) => {
+  const { data, error } = await supabase.functions.invoke('accept-order', {
+    body: { orderId },
+  })
 
-    return data.order
-  }, { maxRetries: 2, baseDelay: 1000 }),
-
-  // Vendor reject order
-  rejectOrder: withRetry(async (orderId, reason = '') => {
-    const { data, error } = await supabase.functions.invoke('reject-order', {
-      body: { orderId, reason },
-    })
-
-    if (error) throw error
-    if (!data?.success || !data?.order) {
-      throw new Error(data?.error || 'Failed to reject order')
-    }
-
-    return data.order
-  }, { maxRetries: 2, baseDelay: 1000 }),
-
-  // Subscribe to order updates (real-time)
-  subscribeToOrder: (orderId, callback) => {
-    const channel = supabase
-      .channel(`order:${orderId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          callback(payload.new)
-        }
-      )
-      .subscribe()
-    
-    return channel
-  },
-  
-  // Subscribe to buyer's orders (real-time)
-  subscribeToBuyerOrders: (buyerId, callback) => {
-    const channel = supabase
-      .channel(`buyer-orders:${buyerId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `buyer_id=eq.${buyerId}`,
-        },
-        (payload) => {
-          callback(payload)
-        }
-      )
-      .subscribe()
-    
-    return channel
-  },
-  
-  // Subscribe to vendor's orders (real-time)
-  subscribeToVendorOrders: (vendorId, callback) => {
-    const channel = supabase
-      .channel(`vendor-orders:${vendorId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-          filter: `vendor_id=eq.${vendorId}`,
-        },
-        (payload) => {
-          callback(payload)
-        }
-      )
-      .subscribe()
-    
-    return channel
+  if (error) throw error
+  if (!data?.success || !data?.order) {
+    throw new Error(data?.error || 'Failed to accept order')
   }
+
+  return data.order
+}, { maxRetries: 2, baseDelay: 1000 })
+
+export const rejectOrder = withRetry(async (orderId, reason = '') => {
+  const { data, error } = await supabase.functions.invoke('reject-order', {
+    body: { orderId, reason },
+  })
+
+  if (error) throw error
+  if (!data?.success || !data?.order) {
+    throw new Error(data?.error || 'Failed to reject order')
+  }
+
+  return data.order
+}, { maxRetries: 2, baseDelay: 1000 })
+
+export const subscribeToOrder = (orderId, callback) => {
+  const channel = supabase
+    .channel(`order:${orderId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orders',
+        filter: `id=eq.${orderId}`,
+      },
+      (payload) => {
+        callback(payload.new)
+      }
+    )
+    .subscribe()
+
+  return channel
 }
+
+export const subscribeToBuyerOrders = (buyerId, callback) => {
+  const channel = supabase
+    .channel(`buyer-orders:${buyerId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `buyer_id=eq.${buyerId}`,
+      },
+      (payload) => {
+        callback(payload)
+      }
+    )
+    .subscribe()
+
+  return channel
+}
+
+export const subscribeToVendorOrders = (vendorId, callback) => {
+  const channel = supabase
+    .channel(`vendor-orders:${vendorId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `vendor_id=eq.${vendorId}`,
+      },
+      (payload) => {
+        callback(payload)
+      }
+    )
+    .subscribe()
+
+  return channel
+}
+
+// Grouped export — new canonical name
+export const vendorOrderActionsApi = {
+  acceptOrder,
+  rejectOrder,
+  subscribeToOrder,
+  subscribeToBuyerOrders,
+  subscribeToVendorOrders,
+}
+
+// Backward-compatible alias — existing imports of `ordersApi` from deliveries.js
+// will continue to work. Consumers should migrate to `vendorOrderActionsApi`.
+export { vendorOrderActionsApi as ordersApi }

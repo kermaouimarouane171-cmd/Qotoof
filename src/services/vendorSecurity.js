@@ -13,7 +13,7 @@ import { auditLogger } from '@/services/auditLogger'
 import { logger } from '../utils/logger.js'
 
 // Re-export from authServices.js for backward compatibility
-export { mfaService, sessionService, autoLogoutService } from '@/services/authServices'
+export { mfaService, sessionService, autoLogoutService } from '@/modules/auth'
 
 let isVendorTrustScoreRpcAvailable = false
 

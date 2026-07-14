@@ -77,6 +77,28 @@ describe('rateLimiter utility', () => {
     jest.useRealTimers()
   })
 
+  it('keeps the block active even after the rolling window expires', () => {
+    jest.useFakeTimers()
+    const now = Date.now()
+    jest.setSystemTime(now)
+
+    for (let i = 0; i < 6; i += 1) {
+      checkLoginRate('block-window@example.com')
+    }
+
+    // Window (15 minutes) has expired, but block duration is 30 minutes
+    jest.setSystemTime(now + (16 * 60 * 1000))
+    const stillBlocked = checkLoginRate('block-window@example.com')
+    expect(stillBlocked.allowed).toBe(false)
+
+    // After the full block duration, attempts are allowed again
+    jest.setSystemTime(now + (31 * 60 * 1000))
+    const unblocked = checkLoginRate('block-window@example.com')
+    expect(unblocked.allowed).toBe(true)
+
+    jest.useRealTimers()
+  })
+
   it('enforceRateLimit throws RateLimitError when blocked', () => {
     const blockedCheck = () => ({
       allowed: false,

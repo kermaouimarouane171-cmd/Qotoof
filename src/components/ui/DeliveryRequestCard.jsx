@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MapPinIcon, ClockIcon, CurrencyDollarIcon, CheckCircleIcon, XCircleIcon, TruckIcon } from '@heroicons/react/24/outline'
 import { supabase } from '@/services/supabase'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 

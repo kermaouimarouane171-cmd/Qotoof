@@ -9,7 +9,7 @@ import {
   TruckIcon,
 } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/utils/currency'
-import { getPayPalSettlementCurrency } from '@/lib/config'
+import { getPayPalSettlementCurrency, getStripePublishableKey } from '@/lib/config'
 
 const BANK_OPTIONS = [
   { name: 'Attijariwafa Bank', color: '#F37021' },
@@ -94,6 +94,8 @@ const PaymentTypeSelector = ({
 }) => {
   const selectedWarning = warningCopyByType[paymentType] || warningCopyByType.full
   const paypalSettlementCurrency = getPayPalSettlementCurrency()
+  const stripePublishableKey = getStripePublishableKey()
+  const stripeEnabled = Boolean(stripePublishableKey)
 
   const paymentBreakdown = useMemo(() => {
     const total = Number(totalAmount || 0)
@@ -241,10 +243,24 @@ const PaymentTypeSelector = ({
               <CreditCardIcon className="h-5 w-5" />
               وسيلة دفع المبلغ الآن
             </h3>
-            <p className="mt-1 text-sm text-blue-800">يمكنك اختيار PayPal أو التحويل البنكي حسب المتاح.</p>
+            <p className="mt-1 text-sm text-blue-800">يمكنك الدفع بالبطاقة البنكية (Stripe) أو PayPal أو التحويل البنكي حسب المتاح.</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {stripeEnabled && (
+              <button
+                type="button"
+                onClick={() => onPaymentMethodChange('stripe')}
+                disabled={disabled}
+                data-testid="payment-method-stripe"
+                data-cy="payment-method-stripe"
+                className={`rounded-xl border px-3 py-3 text-left transition-colors ${selectedPaymentMethod === 'stripe' ? 'border-indigo-500 bg-white text-indigo-900' : 'border-indigo-100 bg-white/80 text-gray-700'} ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:border-indigo-300'}`}
+              >
+                <p className="text-sm font-semibold">بطاقة بنكية (Stripe)</p>
+                <p className="text-xs mt-1">دفع آمن بالبطاقة البنكية المغربية — درهم (MAD)</p>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => onPaymentMethodChange('paypal')}

@@ -4,7 +4,7 @@
  * @auth-required true
  */
 
-import { deliveriesApi } from '@/services/deliveries';
+import { deliveriesApi } from '@/modules/delivery';
 
 /** Driver accepts a delivery assignment. */
 export const acceptDelivery  = (deliveryId)         => deliveriesApi.acceptDelivery(deliveryId);

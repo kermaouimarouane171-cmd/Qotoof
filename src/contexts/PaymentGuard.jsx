@@ -1,23 +1,24 @@
 import { useMemo } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
+import { USER_ROLES } from '@/constants/roles'
 import {
   getPayPalSetupBlockMessage,
   getPayPalSetupRoute,
   isPayPalSetupComplete,
   PAYPAL_REQUIRED_ROLES,
-} from '@/utils/paypalEligibility'
+} from '@/modules/payments'
 
 const isBypassPath = (pathname, role) => {
   if (!pathname) return false
   if (pathname === '/login' || pathname === '/verify-phone') return true
   if (pathname.startsWith('/onboarding')) return true
 
-  if (role === 'vendor') {
+  if (role === USER_ROLES.VENDOR) {
     return pathname === '/vendor/settings' || pathname === '/vendor/digital-contract'
   }
 
-  if (role === 'driver') {
+  if (role === USER_ROLES.DRIVER) {
     return pathname === '/driver/settings'
   }
 

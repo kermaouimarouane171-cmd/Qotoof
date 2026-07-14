@@ -2,7 +2,7 @@ import {
   buildMinimumOrderMessage,
   buildVendorCartBuckets,
   evaluateVendorMinimumOrders,
-} from '@/services/minimumOrderService'
+} from '@/modules/cart'
 
 describe('minimumOrderService', () => {
   test('groups cart items by vendor subtotal', () => {

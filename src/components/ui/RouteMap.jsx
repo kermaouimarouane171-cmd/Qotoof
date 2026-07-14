@@ -4,10 +4,11 @@
  * Uses OSRM (free, no API key) for routing and react-leaflet for display.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { getCityCoordinates, getDefaultCityCenter } from '@/utils/cityCoordinates'
 import { TruckIcon, ExclamationTriangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 
 // Fix default icon paths broken by bundlers
@@ -79,9 +80,12 @@ const RouteMap = ({
       .finally(() => setLoading(false))
   }, [origin, destination])
 
-  const center = origin?.lat
-    ? [origin.lat, origin.lng]
-    : [33.5731, -7.5898]
+  const center = useMemo(() => {
+    if (origin?.lat && origin?.lng) return [origin.lat, origin.lng]
+    if (destination?.lat && destination?.lng) return [destination.lat, destination.lng]
+    const fallback = getDefaultCityCenter()
+    return [fallback.lat, fallback.lng]
+  }, [origin, destination])
 
   const boundsPositions = route
     ? route.polyline

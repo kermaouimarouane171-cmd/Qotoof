@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/modules/cart'
 import { Card, LoadingSpinner } from '@/components/ui'
 import { useTranslation } from 'react-i18next'
-import { hydrateRowsWithProductItems, isProductImagesRelationError } from '@/services/productImages'
+import { hydrateRowsWithProductItems, isProductImagesRelationError } from '@/modules/catalog'
 import { supabase } from '@/services/supabase'
 import { formatPrice } from '@/utils/currency'
 import {
@@ -19,25 +20,20 @@ import {
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
+const SHOPPING_LISTS_KEY = (userId) => ['buyer-shopping-lists', userId]
+
 const ShoppingLists = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { addItem } = useCartStore()
-  const [lists, setLists] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [newListName, setNewListName] = useState('')
 
-  const loadLists = useCallback(async () => {
-    if (!user?.id) {
-      setLists([])
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    try {
+  const { data: lists = [], isLoading: loading } = useQuery({
+    queryKey: SHOPPING_LISTS_KEY(user?.id),
+    queryFn: async () => {
       const buildQuery = (selectClause) => supabase
         .from('shopping_lists')
         .select(selectClause)
@@ -51,34 +47,22 @@ const ShoppingLists = () => {
 
       if (result.error) {
         if (!isProductImagesRelationError(result.error)) throw result.error
-
         logger.warn('Shopping lists: product_images relation missing, hydrating separately', result.error)
-
         const fallbackResult = await buildQuery(`
           *,
           items:shopping_list_items(*, product:products(id, name, price_per_unit, unit_type))
         `)
-
         if (fallbackResult.error) throw fallbackResult.error
-
-        result = {
-          ...fallbackResult,
-          data: await hydrateRowsWithProductItems(fallbackResult.data || []),
-        }
+        return await hydrateRowsWithProductItems(fallbackResult.data || [])
       }
 
-      const { data } = result
-      setLists(data || [])
-    } catch (error) {
-      logger.error('Error loading shopping lists:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [user?.id])
+      return result.data || []
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 2 * 60 * 1000,
+  })
 
-  useEffect(() => {
-    loadLists()
-  }, [loadLists])
+  const invalidateLists = () => queryClient.invalidateQueries({ queryKey: SHOPPING_LISTS_KEY(user?.id) })
 
   const createList = async () => {
     if (!newListName.trim()) {
@@ -87,14 +71,12 @@ const ShoppingLists = () => {
     }
 
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('shopping_lists')
         .insert({ user_id: user.id, name: newListName.trim() })
-        .select()
-        .single()
 
       if (error) throw error
-      setLists(prev => [data, ...prev])
+      invalidateLists()
       setNewListName('')
       setShowForm(false)
       toast.success(t('buyer.shoppingLists.notifications.listCreated', 'List created'))
@@ -108,7 +90,7 @@ const ShoppingLists = () => {
     try {
       await supabase.from('shopping_list_items').delete().eq('list_id', id)
       await supabase.from('shopping_lists').delete().eq('id', id)
-      setLists(prev => prev.filter(l => l.id !== id))
+      invalidateLists()
       toast.success(t('buyer.shoppingLists.notifications.listDeleted', 'List deleted'))
     } catch {
       toast.error(t('buyer.shoppingLists.notifications.deleteFailed', 'Failed to delete list'))
@@ -151,7 +133,7 @@ const ShoppingLists = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/buyer/dashboard')} className="p-2 hover:bg-gray-100 rounded-lg">
+          <button onClick={() => navigate('/marketplace')} className="p-2 hover:bg-gray-100 rounded-lg" aria-label={t('buyer.shoppingLists.backToMarketplace', 'Back to marketplace')}>
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
           <div>

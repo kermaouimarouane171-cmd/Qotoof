@@ -21,8 +21,12 @@ type PendingPaymentRow = {
 }
 
 const isSecretAuthorized = (req: Request) => {
+  // FAIL-CLOSED: if no secret is configured, deny batch/cron access.
+  // Individual order reconciliation still works via JWT auth path below.
+  // This prevents batch operations from being openly accessible if the
+  // secret is accidentally unset or deleted.
   if (!RECONCILIATION_SECRET) {
-    return true
+    return false
   }
 
   const authHeader = req.headers.get('authorization') || ''
@@ -114,12 +118,14 @@ const isOlderThanThreshold = (payment: PendingPaymentRow, minimumAgeMs: number) 
 }
 
 serve(async (req) => {
+  const requestOrigin = req.headers.get('Origin')
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: paypalCorsHeaders })
+    return new Response('ok', { headers: paypalCorsHeaders(requestOrigin) })
   }
 
   if (req.method !== 'POST') {
-    return paypalJsonResponse({ error: 'Method not allowed' }, 405)
+    return paypalJsonResponse({ error: 'Method not allowed' }, 405, requestOrigin)
   }
 
   try {
@@ -140,23 +146,23 @@ serve(async (req) => {
       const callerJwt = extractBearerToken(req)
 
       if (!callerJwt) {
-        return paypalJsonResponse({ error: 'Unauthorized' }, 401)
+        return paypalJsonResponse({ error: 'Unauthorized' }, 401, requestOrigin)
       }
 
       if (!orderId) {
-        return paypalJsonResponse({ error: 'orderId is required for authenticated reconciliation' }, 400)
+        return paypalJsonResponse({ error: 'orderId is required for authenticated reconciliation' }, 400, requestOrigin)
       }
 
       const { data: { user }, error: authError } = await adminClient.auth.getUser(callerJwt)
 
       if (authError || !user) {
-        return paypalJsonResponse({ error: 'Unauthorized' }, 401)
+        return paypalJsonResponse({ error: 'Unauthorized' }, 401, requestOrigin)
       }
 
       const order = await loadAuthorizedOrder(adminClient, orderId, user.id)
 
       if (order.payment_method !== 'paypal') {
-        return paypalJsonResponse({ error: 'This order does not use PayPal' }, 400)
+        return paypalJsonResponse({ error: 'This order does not use PayPal' }, 400, requestOrigin)
       }
 
       const result = await reconcileSingleOrder(adminClient, orderId)
@@ -165,12 +171,12 @@ serve(async (req) => {
         success: true,
         scope: 'order',
         result,
-      })
+      }, 200, requestOrigin)
     }
 
     if (orderId) {
       const result = await reconcileSingleOrder(adminClient, orderId)
-      return paypalJsonResponse({ success: true, scope: 'order', result })
+      return paypalJsonResponse({ success: true, scope: 'order', result }, 200, requestOrigin)
     }
 
     const { data: pendingPayments, error: pendingError } = await adminClient
@@ -252,11 +258,11 @@ serve(async (req) => {
       summary,
       results,
       ran_at: new Date().toISOString(),
-    })
+    }, 200, requestOrigin)
   } catch (error) {
     return paypalJsonResponse({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-    }, 500)
+    }, 500, requestOrigin)
   }
 })

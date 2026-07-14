@@ -36,7 +36,8 @@ const mockStore = {
 
 const mockMfaService = {
   getSettings: jest.fn(),
-  enableWithEmail: jest.fn(),
+  initiateEmailMFA: jest.fn(),
+  verifyEmailMFA: jest.fn(),
   disable: jest.fn(),
   generateTOTPSecret: jest.fn(),
   verifyCode: jest.fn(),
@@ -63,7 +64,8 @@ jest.mock('@/store/authStore', () => ({
 jest.mock('@/services/authServices', () => ({
   mfaService: {
     getSettings: (...args) => mockMfaService.getSettings(...args),
-    enableWithEmail: (...args) => mockMfaService.enableWithEmail(...args),
+    initiateEmailMFA: (...args) => mockMfaService.initiateEmailMFA(...args),
+    verifyEmailMFA: (...args) => mockMfaService.verifyEmailMFA(...args),
     disable: (...args) => mockMfaService.disable(...args),
     generateTOTPSecret: (...args) => mockMfaService.generateTOTPSecret(...args),
     verifyCode: (...args) => mockMfaService.verifyCode(...args),
@@ -234,7 +236,7 @@ describe('MFA Setup Flow - Vendor', () => {
     expect(await screen.findByText(/ABCDEFSECRET/i)).toBeInTheDocument()
   })
 
-  it('entering correct TOTP code enables MFA and logs event', async () => {
+  it('entering correct TOTP code enables MFA and shows backup codes', async () => {
     const user = userEvent.setup()
     renderWithProviders(<VendorSecurityPage />)
 
@@ -244,16 +246,11 @@ describe('MFA Setup Flow - Vendor', () => {
     await user.type(await screen.findByPlaceholderText('000000'), '123456')
     await user.click(screen.getByRole('button', { name: /Verify Code/i }))
 
-    await waitFor(() => expect(mockMfaService.enableWithTOTP).toHaveBeenCalled())
-
-    await actSafe(async () => {
-      await mockAuditLogger.logMFAAction('MFA_ENABLED', mockStore.user.id)
-    })
-    expect(mockAuditLogger.logMFAAction).toHaveBeenCalledWith('MFA_ENABLED', 'u-vendor')
+    await waitFor(() => expect(mockMfaService.enableWithTOTP).toHaveBeenCalledWith('ABCDEFSECRET', '123456'))
   })
 
   it('entering wrong TOTP code shows error and allows retry', async () => {
-    mockMfaService.verifyCode.mockResolvedValueOnce({ success: false, error: 'رمز التحقق غير صحيح' })
+    mockMfaService.enableWithTOTP.mockResolvedValueOnce({ success: false, error: 'رمز التحقق غير صحيح' })
     const user = userEvent.setup()
     renderWithProviders(<VendorSecurityPage />)
 
@@ -264,7 +261,7 @@ describe('MFA Setup Flow - Vendor', () => {
     await user.click(screen.getByRole('button', { name: /Verify Code/i }))
 
     await waitFor(() => expect(mockToast.error).toHaveBeenCalled())
-    expect(mockMfaService.enableWithTOTP).not.toHaveBeenCalled()
+    expect(mockMfaService.enableWithTOTP).toHaveBeenCalledWith('ABCDEFSECRET', '111111')
   })
 
   it('shows recovery codes after enabling MFA', async () => {
@@ -317,7 +314,7 @@ describe('MFA Login Flow', () => {
 
     await user.click(screen.getByRole('button', { name: /Verify Code/i }))
 
-    await waitFor(() => expect(mockStore.verifyMFA).toHaveBeenCalledWith('123456'))
+    await waitFor(() => expect(mockStore.verifyMFA).toHaveBeenCalledWith('123456', 'totp'))
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/vendor/dashboard'))
   })
 

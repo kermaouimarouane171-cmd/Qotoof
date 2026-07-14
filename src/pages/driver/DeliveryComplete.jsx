@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
 import { Card, LoadingSpinner, Button, Map } from '@/components/ui'
+import { useAuthStore } from '@/store/authStore'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import { hasStageCapture } from '@/services/legalCameraService'
 import {
   MapPinIcon,
@@ -17,8 +19,14 @@ const DeliveryCompletePage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { profile } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [delivery, setDelivery] = useState(null)
+  const dropoffMapCenter = useMapCenter({
+    lat: delivery?.delivery_latitude,
+    lng: delivery?.delivery_longitude,
+    city: delivery?.order?.shipping_city || profile?.city,
+  })
   const [submitting, setSubmitting] = useState(false)
   const [driverDropoffCaptured, setDriverDropoffCaptured] = useState(false)
   
@@ -55,7 +63,7 @@ const DeliveryCompletePage = () => {
     try {
       await deliveriesApi.markDelivered(id)
       toast.success(t('driver.deliveryComplete.completeSuccess', 'Delivery completed successfully!'))
-      navigate('/driver/dashboard')
+      navigate(`/driver/delivery/${id}/summary`)
     } catch (_error) {
       toast.error(t('driver.deliveryComplete.completeFailed', 'Failed to complete delivery'))
     } finally {
@@ -102,16 +110,21 @@ const DeliveryCompletePage = () => {
             <p className="text-gray-600 mt-1">{delivery.delivery_address}</p>
             <p className="text-gray-500">{delivery.order?.buyer?.city}</p>
 
-            <button className="flex items-center gap-2 mt-3 text-green-600 font-medium">
-              <PhoneIcon className="w-5 h-5" />
-              {t('driver.deliveryComplete.callBuyer', 'Call Buyer')}: {delivery.order?.buyer?.phone}
-            </button>
+            {delivery.order?.buyer?.phone && (
+              <a
+                href={`tel:${delivery.order.buyer.phone}`}
+                className="flex items-center gap-2 mt-3 text-green-600 font-medium hover:text-green-700"
+              >
+                <PhoneIcon className="w-5 h-5" />
+                {t('driver.deliveryComplete.callBuyer', 'Call Buyer')}: {delivery.order.buyer.phone}
+              </a>
+            )}
           </div>
         </div>
         
         {/* Map */}
         <Map
-          center={[delivery.delivery_latitude || 33.5731, delivery.delivery_longitude || -7.5898]}
+          center={dropoffMapCenter}
           zoom={15}
           markers={[
             {

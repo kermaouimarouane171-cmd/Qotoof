@@ -113,7 +113,7 @@ serve(async (req) => {
       return jsonResponse({ error: 'Method not allowed' }, 405)
     }
 
-    const { orderId, captureId: payloadCaptureId, amount, reason = 'requested_by_customer' } = await req.json()
+    const { orderId, captureId: payloadCaptureId, amount, reason = 'requested_by_customer', idempotencyId } = await req.json()
 
     if (!orderId && !payloadCaptureId) {
       return jsonResponse({ error: 'Missing required field: orderId or captureId' }, 400)
@@ -122,12 +122,20 @@ serve(async (req) => {
     const token = await getAccessToken()
     const captureId = payloadCaptureId || await resolveCaptureIdFromOrder(token, orderId)
 
+    // PayPal-Request-Id provides server-side idempotency for refund requests.
+    // If the same ID is sent twice, PayPal returns the original refund instead of creating a duplicate.
+    // Default to captureId so repeated calls for the same capture are naturally idempotent.
+    const paypalRequestId = (typeof idempotencyId === 'string' && idempotencyId.trim())
+      ? idempotencyId.trim()
+      : `refund-${captureId}`
+
     const response = await fetch(`${PAYPAL_API_BASE}/v2/payments/captures/${captureId}/refund`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
+        'PayPal-Request-Id': paypalRequestId,
       },
       body: JSON.stringify({
         amount: resolveSettlementRefund(amount, 'MAD'),

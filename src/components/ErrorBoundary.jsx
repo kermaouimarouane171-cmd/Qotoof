@@ -9,6 +9,7 @@ import React from 'react';
 import { ErrorBoundary as ReactErrorBoundary } from 'react-error-boundary';
 import { useTranslation } from 'react-i18next';
 import { logger } from '@/utils/logger';
+import { logError } from '@/services/sentry';
 import { recoverFromStaleAsset } from '@/utils/staleAssetRecovery';
 
 const isChunkLoadError = (error) => {
@@ -115,11 +116,13 @@ const handleError = (error, errorInfo) => {
   logger.error('Component Stack:', errorInfo.componentStack);
   logger.error('Full Stack:', error.stack);
 
-  // في بيئة Production، يمكنك إرسال الخطأ إلى خادم logging
-  // مثل: Sentry, Logstash, إلخ
-  if (import.meta.env.PROD) {
-    // sendErrorToServer(error, errorInfo);
-  }
+  logError(error, {
+    tags: { source: 'error-boundary' },
+    extra: {
+      componentStack: errorInfo.componentStack,
+      stack: error.stack,
+    },
+  })
 };
 
 /**

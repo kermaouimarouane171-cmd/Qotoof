@@ -1,6 +1,6 @@
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
-import { resolvePaymentMethod } from '@/services/paymentRecords'
+import { resolvePaymentMethod } from '@/modules/payments'
 
 /**
  * Email Notification Service
@@ -10,7 +10,6 @@ import { resolvePaymentMethod } from '@/services/paymentRecords'
 class EmailService {
   constructor() {
     this.enabled = import.meta.env.VITE_EMAIL_ENABLED === 'true'
-    this.fromEmail = import.meta.env.VITE_EMAIL_FROM || 'support@qotoof.ma'
     this.appName = 'Qotoof'
   }
 
@@ -295,12 +294,10 @@ class EmailService {
    */
   async sendEmail({ to, toName, subject, template, data }) {
     try {
-      const { response, error } = await supabase.functions.invoke('send-email', {
+      const { data: responseData, error } = await supabase.functions.invoke('send-email', {
         body: {
           to,
           toName,
-          from: this.fromEmail,
-          fromName: this.appName,
           subject,
           template,
           data,
@@ -308,12 +305,32 @@ class EmailService {
       })
 
       if (error) {
-        logger.error('Email sending error:', error)
-        return { success: false, error: error.message }
+        // supabase.functions.invoke returns a FunctionsHttpError with a generic
+        // "non-2xx status code" message when the Edge Function returns 4xx/5xx.
+        // Extract the actual error body from error.context (the Response object).
+        let errorDetail = error.message
+        try {
+          const resp = error.context
+          if (resp && typeof resp.json === 'function') {
+            const errorBody = await resp.json()
+            if (errorBody?.error) {
+              errorDetail = errorBody.error
+              if (errorBody?.providerErrors?.length) {
+                errorDetail += ` — Provider errors: ${errorBody.providerErrors.join('; ')}`
+              }
+            } else {
+              errorDetail = JSON.stringify(errorBody)
+            }
+          }
+        } catch {
+          // Response body already consumed or not JSON — keep generic message
+        }
+        logger.error('Email sending error:', errorDetail)
+        return { success: false, error: errorDetail }
       }
 
       logger.info('Email sent successfully to:', to)
-      return { success: true, messageId: response?.messageId }
+      return { success: true, messageId: responseData?.messageId }
     } catch (error) {
       logger.error('Email service error:', error)
       return { success: false, error: error.message }

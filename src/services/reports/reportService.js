@@ -1,5 +1,6 @@
 import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
+import { requireAdmin } from '@/utils/authHelpers'
 
 /**
  * Generate sales report for a date range
@@ -47,6 +48,12 @@ async function generateSalesReport({ startDate, endDate, vendorId = null } = {})
  */
 async function generateUserReport({ startDate, endDate } = {}) {
   try {
+    // Defense-in-depth: verify admin role (complements RLS)
+    const adminCheck = await requireAdmin()
+    if (!adminCheck.isAdmin) {
+      throw new Error(adminCheck.error)
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, first_name, last_name, email, role, created_at')
@@ -70,7 +77,7 @@ async function generateInventoryReport({ vendorId = null } = {}) {
     let query = supabase
       .from('products')
       .select(`
-        id, name, category, price, stock_quantity, created_at,
+        id, name, category, price_per_unit, stock_quantity, created_at,
         vendor:profiles!products_vendor_id_fkey(first_name, last_name, store_name)
       `)
       .order('stock_quantity', { ascending: true })

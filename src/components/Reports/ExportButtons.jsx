@@ -1,9 +1,7 @@
 import { memo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import { csvExport } from '@/services/reports/csvExport'
-import { excelExport } from '@/services/reports/excelExport'
-import { pdfExport } from '@/services/reports/pdfExport'
+import { csvExport, excelExport, pdfExport } from '@/modules/analytics'
 import { logger } from '@/utils/logger'
 
 const ExportButtons = memo(function ExportButtons({

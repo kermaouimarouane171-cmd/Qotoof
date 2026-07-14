@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { mfaService, sessionService } from '@/services/authServices'
+import { sessionService } from '@/modules/auth'
+import { supabase } from '@/services/supabase'
 import { useAuditLogs } from '@/services/auditLogger'
 import {
   getSecurityAlerts,
@@ -33,7 +34,6 @@ import {
 } from '@heroicons/react/24/outline'
 import { maskData } from '@/utils/encryption'
 import toast from 'react-hot-toast'
-import { supabase } from '@/services/supabase'
 import { logger } from '@/utils/logger'
 
 const severityConfig = {
@@ -107,9 +107,10 @@ const AdminSecurityPage = () => {
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 20 })
 
-  // Refs for unsubscribe
+  // Refs for unsubscribe and in-flight request guards
   const alertsUnsubRef = useRef(null)
   const blockedIPsUnsubRef = useRef(null)
+  const isLoadingSecurityData = useRef(false)
 
   /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
@@ -150,17 +151,22 @@ const AdminSecurityPage = () => {
   }, [])
 
   const loadSecurityData = async () => {
+    if (isLoadingSecurityData.current) return
+    isLoadingSecurityData.current = true
     try {
       setLoading(true)
-      const mfa = await mfaService.getSettings()
+      const { data: factorsData } = await supabase.auth.mfa.listFactors()
+      const totpFactors = factorsData?.totp || []
+      const mfa = totpFactors.length > 0 ? { is_enabled: true, method: 'totp', factors: totpFactors } : null
       setMfaSettings(mfa)
 
       const sessions = await sessionService.getActiveSessions()
       setSessionCount(sessions.length)
     } catch (error) {
-      logger.error('Load security data error:', error)
+      logger.error('Load security data error:', JSON.stringify(error, null, 2))
     } finally {
       setLoading(false)
+      isLoadingSecurityData.current = false
     }
   }
 
@@ -192,7 +198,7 @@ const AdminSecurityPage = () => {
         blockedUsers: blockedUsers || 0
       })
     } catch (error) {
-      logger.error('Load system stats error:', error)
+      logger.error('Load system stats error:', JSON.stringify(error, null, 2))
     }
   }
 
@@ -207,7 +213,7 @@ const AdminSecurityPage = () => {
       const { success, data } = await getSecurityAlerts(options)
       if (success) setSecurityAlerts(data)
     } catch (error) {
-      logger.error('Load security alerts error:', error)
+      logger.error('Load security alerts error:', JSON.stringify(error, null, 2))
     } finally {
       setAlertsLoading(false)
     }
@@ -219,7 +225,7 @@ const AdminSecurityPage = () => {
       const { success, data } = await getBlockedIPs()
       if (success) setBlockedIPs(data)
     } catch (error) {
-      logger.error('Load blocked IPs error:', error)
+      logger.error('Load blocked IPs error:', JSON.stringify(error, null, 2))
     } finally {
       setBlockedIPsLoading(false)
     }
@@ -230,7 +236,7 @@ const AdminSecurityPage = () => {
       const { success, data } = await getSecurityAlertsStats()
       if (success && data) setAlertsStats(data)
     } catch (error) {
-      logger.error('Load alerts stats error:', error)
+      logger.error('Load alerts stats error:', JSON.stringify(error, null, 2))
     }
   }
 
@@ -241,14 +247,15 @@ const AdminSecurityPage = () => {
 
     try {
       setDisablingMFA(true)
-      const result = await mfaService.disable()
-
-      if (result.success) {
-        toast.success(t('admin.security.mfaDisabled', 'Two-factor authentication disabled'))
-        await loadSecurityData()
-      } else {
-        toast.error(result.error || t('admin.security.mfaDisableFailed', 'Failed to disable MFA'))
+      const { data: factorsData } = await supabase.auth.mfa.listFactors()
+      const totpFactors = factorsData?.totp || []
+      for (const factor of totpFactors) {
+        const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id })
+        if (unenrollError) throw unenrollError
       }
+
+      toast.success(t('admin.security.mfaDisabled', 'Two-factor authentication disabled'))
+      await loadSecurityData()
     } catch (_error) {
       toast.error(t('admin.security.mfaDisableFailed', 'Failed to disable MFA'))
     } finally {
@@ -525,7 +532,7 @@ const AdminSecurityPage = () => {
                     <span className="font-medium text-green-900">{t('admin.security.accountProtected', 'Account Protected')}</span>
                   </div>
                   <p className="text-sm text-green-700">
-                    {t('admin.security.mfaMethod', 'Using {{method}}', { method: mfaSettings.method === 'email' ? t('admin.security.email', 'Email') : t('admin.security.authenticatorApp', 'Authenticator App') })}
+                    {t('admin.security.mfaMethod', 'Using {{method}}', { method: t('admin.security.authenticatorApp', 'Authenticator App') })}
                   </p>
                 </div>
 

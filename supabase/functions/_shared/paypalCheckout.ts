@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { getCorsHeaders } from './cors.ts'
 
 const PAYPAL_CLIENT_ID = Deno.env.get('VITE_PAYPAL_CLIENT_ID')
 const PAYPAL_CLIENT_SECRET = Deno.env.get('PAYPAL_CLIENT_SECRET')
@@ -9,18 +10,14 @@ const PAYPAL_API_BASE = Deno.env.get('PAYPAL_API_BASE')
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-export const paypalCorsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+export const paypalCorsHeaders = (requestOrigin: string | null) => getCorsHeaders(requestOrigin)
 
-export const paypalJsonResponse = (body: unknown, status = 200) =>
+export const paypalJsonResponse = (body: unknown, status = 200, requestOrigin: string | null = null) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...paypalCorsHeaders,
+      ...paypalCorsHeaders(requestOrigin),
     },
   })
 
@@ -115,6 +112,9 @@ const paypalApiRequest = async (
   const data = rawBody ? JSON.parse(rawBody) : {}
 
   if (!response.ok) {
+    // FG-004: Log full PayPal response server-side; do not include raw details in the error message
+    // that is forwarded to the buyer-facing Edge Function response.
+    console.error('PayPal API error response:', { status: response.status, body: data })
     throw new Error((data as { message?: string })?.message || 'PayPal API request failed')
   }
 
@@ -130,6 +130,31 @@ export const capturePayPalOrder = async (accessToken: string, paypalOrderId: str
     method: 'POST',
     body: '{}',
   })
+
+/**
+ * FG-010: Best-effort attempt to void an existing PayPal order before replacing it on retry.
+ * PayPal orders created with intent=CAPTURE cannot be explicitly voided via a public API,
+ * but the endpoint is attempted and any failure is logged server-side only. Unpaid PayPal
+ * orders expire automatically after a short window (typically ~3 hours), so this is an
+ * acceptable risk documented in the production hardening report.
+ */
+export const voidPayPalOrder = async (accessToken: string, paypalOrderId: string): Promise<void> => {
+  try {
+    const response = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders/${paypalOrderId}/void`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      console.error(`voidPayPalOrder: failed to void ${paypalOrderId}`, { status: response.status, body })
+    }
+  } catch (error) {
+    console.error(`voidPayPalOrder: error voiding ${paypalOrderId}`, error)
+  }
+}
 
 export const extractPayPalCaptures = (paypalOrderData: PayPalOrderData) =>
   paypalOrderData.purchase_units?.flatMap((unit) => unit?.payments?.captures || []) || []

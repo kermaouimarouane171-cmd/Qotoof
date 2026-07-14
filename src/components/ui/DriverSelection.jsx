@@ -4,7 +4,7 @@ import {
   getCargoSizeLabel,
   getDriverDeliveryPaymentMethodLabel,
   normalizeDriverPreferences,
-} from '@/services/deliveryMatchingService'
+} from '@/modules/delivery'
 
 const DriverSelection = ({ drivers = [], selectedDriver, onChange, cargoSize, deliveryPaymentMethod }) => {
   if (drivers.length === 0) {

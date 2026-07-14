@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { supabase } from '@/services/supabase'
-import { calculateDistance } from '@/services/deliveryMatchingService'
+import { calculateDistance } from '@/modules/delivery'
 import { logger } from '@/utils/logger'
 import toast from 'react-hot-toast'
 

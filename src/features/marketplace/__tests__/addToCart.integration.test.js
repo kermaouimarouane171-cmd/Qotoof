@@ -55,17 +55,21 @@ jest.mock('@/store/authStore', () => ({
   }),
 }))
 
-// ─── Mock: Favorites store ────────────────────────────────────────────────────
-jest.mock('@/store/favoritesStore', () => ({
-  useFavoritesStore: jest.fn((selector) => {
-    const state = {
-      toggleProduct: jest.fn(),
-      isFavorited: jest.fn().mockReturnValue(false),
-    }
-    if (typeof selector === 'function') return selector(state)
-    return state
-  }),
-}))
+// ─── Mock: Favorites store (merged into @/modules/cart mock, real cartStore preserved) ─────
+jest.mock('@/modules/cart', () => {
+  const actual = jest.requireActual('@/modules/cart')
+  return {
+    ...actual,
+    useFavoritesStore: jest.fn((selector) => {
+      const state = {
+        toggleProduct: jest.fn(),
+        isFavorited: jest.fn().mockReturnValue(false),
+      }
+      if (typeof selector === 'function') return selector(state)
+      return state
+    }),
+  }
+})
 
 // ─── Mock: ReportAbuseModal (heavy modal with its own Supabase calls) ─────────
 jest.mock('@/components/ReportAbuseModal', () => ({
@@ -78,9 +82,35 @@ jest.mock('@/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }))
 
+// ─── Mock: react-i18next (use real Arabic translations so t() returns Arabic) ─
+jest.mock('react-i18next', () => {
+  const ar = require('@/i18n/locales/ar.json')
+  const t = (key, fallbackOrOptions, options) => {
+    const opts = typeof fallbackOrOptions === 'object' ? fallbackOrOptions : options || {}
+    const fallback = typeof fallbackOrOptions === 'string' ? fallbackOrOptions : undefined
+    const parts = key.split('.')
+    let val = ar
+    for (const p of parts) {
+      val = val?.[p]
+      if (val === undefined) break
+    }
+    if (typeof val === 'string' && opts) {
+      Object.keys(opts).forEach((k) => {
+        val = val.replace(new RegExp(`{{${k}}}`, 'g'), opts[k])
+      })
+    }
+    return val !== undefined ? val : (fallback ?? key)
+  }
+  return {
+    useTranslation: () => ({ t, i18n: { language: 'ar' } }),
+    withTranslation: () => (Component) => Component,
+    I18nextProvider: ({ children }) => children,
+  }
+})
+
 // ─── Imports (after all mocks) ────────────────────────────────────────────────
 import ProductCard from '@/components/ui/ProductCard'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/modules/cart'
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 const makeProduct = (overrides = {}) => ({
@@ -153,13 +183,13 @@ describe('ProductCard – Add to Cart integration', () => {
     it('shows the minimum order quantity note when > 1', () => {
       renderCard(makeProduct({ min_order_quantity: 5, unit_type: 'kg' }))
 
-      expect(screen.getByText(/أدنى كمية:\s*5\s*kg/i)).toBeInTheDocument()
+      expect(screen.getByText(/الحد الأدنى:\s*5\s*kg/i)).toBeInTheDocument()
     })
 
     it('does not show minimum order note when min_order_quantity is 1', () => {
       renderCard(makeProduct({ min_order_quantity: 1 }))
 
-      expect(screen.queryByText(/أدنى كمية:/i)).not.toBeInTheDocument()
+      expect(screen.queryByText(/الحد الأدنى:/i)).not.toBeInTheDocument()
     })
 
     it('shows the add-to-cart button when product is available', () => {
@@ -433,7 +463,7 @@ describe('ProductCard – Add to Cart integration', () => {
       await user.click(heartBtn)
 
       expect(mockToastError).toHaveBeenCalledWith(
-        expect.stringMatching(/login|sign in/i)
+        expect.stringMatching(/login|sign in|تسجيل الدخول/i)
       )
     })
   })

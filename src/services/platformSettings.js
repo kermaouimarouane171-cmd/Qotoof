@@ -268,7 +268,7 @@ const logSettingsChange = async (newValues, oldValues, adminId) => {
 /**
  * Get client IP address
  */
-const getClientIP = async () => {
+const _getClientIP = async () => {
   try {
     const response = await fetch('https://api.ipify.org?format=json')
     const data = await response.json()

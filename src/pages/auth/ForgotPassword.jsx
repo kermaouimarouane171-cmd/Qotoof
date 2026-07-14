@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Input, Button } from '@/components/ui'
 import { passwordResetSchema } from '@/utils/validationSchemas'
+import { EnvelopeIcon, CheckCircleIcon } from '@heroicons/react/24/outline'
+import AuthCard from '@/components/auth/AuthCard'
+import AuthHeader from '@/components/auth/AuthHeader'
+import AuthFooter from '@/components/auth/AuthFooter'
 
 const ForgotPasswordPage = () => {
   const { t } = useTranslation()
@@ -38,27 +42,39 @@ const ForgotPasswordPage = () => {
   }
 
   return (
-    <div className="max-w-md mx-auto" dir="rtl" data-cy="forgot-password-page" data-testid="forgot-password-page">
-      <h2 className="text-2xl font-bold text-gray-900 mb-2">
-        {t('auth.forgotPassword.title', 'نسيت كلمة المرور')}
-      </h2>
-      <p className="text-gray-600 mb-6">
-        {t('auth.forgotPassword.subtitle', 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور')}
-      </p>
+    <AuthCard>
+      <AuthHeader
+        icon={<EnvelopeIcon className="w-8 h-8 text-green-600" />}
+        title={t('auth.forgotPassword.title', 'نسيت كلمة المرور')}
+        subtitle={t('auth.forgotPassword.subtitle', 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة تعيين كلمة المرور')}
+      />
 
       {success ? (
-        <div className="rounded-xl border border-green-200 bg-green-50 p-4" data-cy="forgot-password-success" data-testid="forgot-password-success">
-          <p className="text-green-700 text-sm">
+        <div className="auth-scale-in rounded-2xl border border-green-200 bg-green-50/80 p-6 text-center" data-cy="forgot-password-success" data-testid="forgot-password-success">
+          <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <CheckCircleIcon className="w-7 h-7 text-green-600" />
+          </div>
+          <p className="text-green-700 text-sm leading-relaxed mb-4">
             {t('auth.forgotPassword.success', 'تم إرسال رابط إعادة التعيين إذا كان البريد الإلكتروني مسجلًا لدينا.')}
           </p>
-          <Link to="/login" className="inline-block mt-3 text-green-700 font-semibold hover:underline" data-cy="forgot-password-back-login">
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center h-11 px-6 rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 text-white font-semibold text-sm hover:from-green-700 hover:to-emerald-700 transition-all shadow-lg shadow-green-600/20"
+            data-cy="forgot-password-back-login"
+          >
             {t('auth.forgotPassword.backToLogin', 'العودة لتسجيل الدخول')}
           </Link>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4" data-cy="forgot-password-form" data-testid="forgot-password-form">
+        <form onSubmit={handleSubmit} className="space-y-5" data-cy="forgot-password-form" data-testid="forgot-password-form">
           {error && (
-            <div className="alert-error" data-cy="forgot-password-error" data-testid="forgot-password-error">{error}</div>
+            <div
+              className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700"
+              data-cy="forgot-password-error"
+              data-testid="forgot-password-error"
+            >
+              {error}
+            </div>
           )}
 
           <Input
@@ -75,19 +91,25 @@ const ForgotPasswordPage = () => {
             data-testid="forgot-password-email-input"
           />
 
-          <Button type="submit" variant="primary" className="w-full" isLoading={loading} data-cy="forgot-password-submit-button" data-testid="forgot-password-submit-button">
+          <Button
+            type="submit"
+            variant="primary"
+            className="w-full"
+            isLoading={loading}
+            data-cy="forgot-password-submit-button"
+            data-testid="forgot-password-submit-button"
+          >
             {t('auth.forgotPassword.submit', 'إرسال رابط إعادة التعيين')}
           </Button>
 
-          <p className="text-sm text-center text-gray-600">
-            {t('auth.forgotPassword.haveAccount', 'تذكرت كلمة المرور؟')}{' '}
-            <Link to="/login" className="text-green-600 hover:underline font-semibold" data-cy="forgot-password-login-link">
-              {t('auth.forgotPassword.login', 'تسجيل الدخول')}
-            </Link>
-          </p>
+          <AuthFooter
+            question={t('auth.forgotPassword.haveAccount', 'تذكرت كلمة المرور؟')}
+            linkTo="/login"
+            linkText={t('auth.forgotPassword.login', 'تسجيل الدخول')}
+          />
         </form>
       )}
-    </div>
+    </AuthCard>
   )
 }
 

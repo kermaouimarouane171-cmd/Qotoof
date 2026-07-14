@@ -8,7 +8,7 @@ import * as Sentry from '@sentry/react'
 import { registerSW } from 'virtual:pwa-register'
 import ErrorBoundary from './components/ErrorBoundary'
 import { SkipLink } from './utils/accessibility.jsx'
-import App from './App'
+import App from './app/App'
 import i18n from './i18n'
 import './index.css'
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { LoadingSpinner } from '@/components/ui'
 import { useAuthStore } from '@/store/authStore'
@@ -49,6 +50,7 @@ const clampStep = (step, length) => {
 
 const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }) => {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { user, profile, loading } = useAuthStore()
   const [currentStep, setCurrentStep] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -104,7 +106,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
       await updateOnboardingStep(user.id, nextStep)
       setCurrentStep(nextStep)
     } catch (error) {
-      toast.error(error.message || 'تعذر حفظ تقدم التهيئة الآن')
+      toast.error(error.message || t('onboarding.errors.saveFailed', 'تعذر حفظ تقدم التهيئة الآن'))
     } finally {
       setSaving(false)
     }
@@ -131,7 +133,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
 
       navigate(completePath, { replace: true })
     } catch (error) {
-      toast.error(error.message || 'تعذر إكمال التهيئة حالياً')
+      toast.error(error.message || t('onboarding.errors.completeFailed', 'تعذر إكمال التهيئة حالياً'))
     } finally {
       setSaving(false)
     }
@@ -225,7 +227,7 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
                   disabled={saving}
                   className="inline-flex items-center justify-center rounded-2xl border border-slate-200 px-5 py-3 text-base font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  السابق ←
+                  {t('onboarding.previousArrow', '← السابق')}
                 </button>
               ) : null}
 
@@ -237,10 +239,10 @@ const OnboardingFlow = ({ role, roleLabel, slides, completeLabel, completePath }
                 className={`inline-flex items-center justify-center rounded-2xl px-6 py-3 text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${theme.primaryButton}`}
               >
                 {saving
-                  ? 'جارٍ الحفظ...'
+                  ? t('onboarding.saving', 'جارٍ الحفظ...')
                   : currentStep === slides.length - 1
                     ? completeLabel
-                    : 'التالي →'}
+                    : t('onboarding.nextArrow', 'التالي →')}
               </button>
             </div>
           </div>

@@ -11,7 +11,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const CMI_MERCHANT_ID = Deno.env.get('CMI_MERCHANT_ID')
 const CMI_STORE_KEY = Deno.env.get('CMI_STORE_KEY')
-const CMI_API_URL = Deno.env.get('CMI_API_URL') || 'https://payment.cmi.co.ma/fim/api'
+const _CMI_API_URL = Deno.env.get('CMI_API_URL') || 'https://payment.cmi.co.ma/fim/api'
 const CMI_REFUND_URL = Deno.env.get('CMI_REFUND_URL') || 'https://payment.cmi.co.ma/fim/Refund'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')

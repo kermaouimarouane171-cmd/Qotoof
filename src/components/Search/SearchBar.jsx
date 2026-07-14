@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
-import { algoliaService } from '@/services/search/algoliaService'
+import { algoliaService } from '@/modules/marketplace'
 import { logger } from '@/utils/logger'
 
 const DEBOUNCE_MS = 300

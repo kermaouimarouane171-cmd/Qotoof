@@ -1,104 +1,36 @@
 import { supabase } from './supabase'
 import { withRetry } from '@/utils/withRetry'
 
-export const DEFAULT_NOTIFICATION_PREFERENCES = {
-  in_app_enabled: true,
-  email_enabled: true,
-  sms_enabled: false,
-  order_updates: true,
-  payment_updates: true,
-  promotional_updates: true,
-  review_updates: true,
-  loyalty_updates: true,
-  inventory_alerts: true,
-  delivery_updates: true,
-  system_updates: true,
-  quiet_hours_start: null,
-  quiet_hours_end: null,
-}
+// ── Preference constants and helpers (extracted to notificationPreferences.js) ──
+// Imported here for use by notificationsApi and re-exported for backward compatibility.
+import {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_CATEGORY_OPTIONS,
+  NOTIFICATION_PREFERENCE_FIELDS,
+  NOTIFICATION_PREFERENCES_EVENT,
+  normalizeNotificationCategory,
+  getNotificationPreferenceKey,
+  normalizeNotificationPreferences,
+  isWithinQuietHours,
+  shouldMuteNotificationPreview,
+  dispatchNotificationPreferencesUpdated,
+} from './notificationPreferences'
 
-export const NOTIFICATION_CATEGORY_OPTIONS = [
-  { id: 'order_update', label: 'الطلبات' },
-  { id: 'payment', label: 'المدفوعات' },
-  { id: 'delivery', label: 'التوصيل' },
-  { id: 'review', label: 'التقييمات' },
-  { id: 'loyalty', label: 'الولاء' },
-  { id: 'promotion', label: 'العروض' },
-  { id: 'inventory', label: 'المخزون' },
-  { id: 'message', label: 'الرسائل' },
-  { id: 'system', label: 'النظام' },
-]
-
-export const NOTIFICATION_PREFERENCE_FIELDS = [
-  { key: 'order_updates', label: 'تحديثات الطلبات' },
-  { key: 'payment_updates', label: 'تحديثات الدفع والعمولات' },
-  { key: 'delivery_updates', label: 'تحديثات التوصيل' },
-  { key: 'review_updates', label: 'التقييمات الجديدة' },
-  { key: 'loyalty_updates', label: 'الولاء والإحالات' },
-  { key: 'promotional_updates', label: 'العروض والكوبونات' },
-  { key: 'inventory_alerts', label: 'تنبيهات المخزون والتوفر' },
-  { key: 'system_updates', label: 'إشعارات النظام والرسائل العامة' },
-]
-
-const NOTIFICATION_CATEGORY_ALIASES = {
-  order: 'order_update',
-  order_update: 'order_update',
-  order_updates: 'order_update',
-  order_status: 'order_update',
-  new_order: 'order_update',
-  payment: 'payment',
-  payment_updates: 'payment',
-  payment_update: 'payment',
-  commission: 'payment',
-  bank_transfer: 'payment',
-  promotion: 'promotion',
-  promotions: 'promotion',
-  promotional: 'promotion',
-  promotional_updates: 'promotion',
-  product: 'promotion',
-  review: 'review',
-  reviews: 'review',
-  review_update: 'review',
-  review_updates: 'review',
-  loyalty: 'loyalty',
-  loyalty_update: 'loyalty',
-  loyalty_updates: 'loyalty',
-  referral: 'loyalty',
-  referrals: 'loyalty',
-  inventory: 'inventory',
-  inventory_alert: 'inventory',
-  inventory_alerts: 'inventory',
-  stock: 'inventory',
-  low_stock: 'inventory',
-  delivery: 'delivery',
-  delivery_update: 'delivery',
-  delivery_updates: 'delivery',
-  delivery_assignment: 'delivery',
-  driver_verification: 'delivery',
-  message: 'message',
-  messages: 'message',
-  chat: 'message',
-  general: 'system',
-  system: 'system',
-  support: 'system',
-  partnership_request: 'system',
-  partnership_request_response: 'system',
-}
-
-const NOTIFICATION_PREFERENCE_BY_CATEGORY = {
-  order_update: 'order_updates',
-  payment: 'payment_updates',
-  promotion: 'promotional_updates',
-  review: 'review_updates',
-  loyalty: 'loyalty_updates',
-  inventory: 'inventory_alerts',
-  delivery: 'delivery_updates',
-  message: 'system_updates',
-  system: 'system_updates',
+// Re-export for backward compatibility — existing imports from '@/services/notifications'
+// continue to work unchanged.
+export {
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NOTIFICATION_CATEGORY_OPTIONS,
+  NOTIFICATION_PREFERENCE_FIELDS,
+  normalizeNotificationCategory,
+  getNotificationPreferenceKey,
+  normalizeNotificationPreferences,
+  isWithinQuietHours,
+  shouldMuteNotificationPreview,
+  dispatchNotificationPreferencesUpdated,
 }
 
 const NOTIFICATION_BADGE_EVENT = 'notification-badge-update'
-const NOTIFICATION_PREFERENCES_EVENT = 'notification-preferences-updated'
 
 let notificationSubscriptionSequence = 0
 
@@ -115,36 +47,6 @@ const resolveListOptions = (limitOrOptions, maybeOptions = {}) => {
     ...(limitOrOptions || {}),
   }
 }
-
-const sanitizeTimeValue = (value) => {
-  if (!value || typeof value !== 'string') return null
-  const trimmed = value.trim()
-  return trimmed ? trimmed.slice(0, 5) : null
-}
-
-const toMinutes = (value) => {
-  if (!value || typeof value !== 'string' || !value.includes(':')) return null
-  const [hours, minutes] = value.split(':').map(Number)
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
-  return (hours * 60) + minutes
-}
-
-export const normalizeNotificationCategory = (category, type = null) => {
-  const rawValue = String(category || type || 'system').trim().toLowerCase()
-  return NOTIFICATION_CATEGORY_ALIASES[rawValue] || 'system'
-}
-
-export const getNotificationPreferenceKey = (category, type = null) => {
-  const normalizedCategory = normalizeNotificationCategory(category, type)
-  return NOTIFICATION_PREFERENCE_BY_CATEGORY[normalizedCategory] || 'system_updates'
-}
-
-export const normalizeNotificationPreferences = (preferences = {}) => ({
-  ...DEFAULT_NOTIFICATION_PREFERENCES,
-  ...preferences,
-  quiet_hours_start: sanitizeTimeValue(preferences?.quiet_hours_start),
-  quiet_hours_end: sanitizeTimeValue(preferences?.quiet_hours_end),
-})
 
 export const isNotificationRead = (notification = {}) => Boolean(notification?.read_at || notification?.is_read)
 
@@ -200,39 +102,6 @@ export const normalizeNotification = (notification = {}) => {
   }
 }
 
-export const isWithinQuietHours = (preferences = {}, value = new Date()) => {
-  const normalizedPreferences = normalizeNotificationPreferences(preferences)
-  const startMinutes = toMinutes(normalizedPreferences.quiet_hours_start)
-  const endMinutes = toMinutes(normalizedPreferences.quiet_hours_end)
-
-  if (startMinutes === null || endMinutes === null || startMinutes === endMinutes) {
-    return false
-  }
-
-  const currentValue = value instanceof Date ? value : new Date(value)
-  const currentMinutes = (currentValue.getHours() * 60) + currentValue.getMinutes()
-
-  if (startMinutes < endMinutes) {
-    return currentMinutes >= startMinutes && currentMinutes < endMinutes
-  }
-
-  return currentMinutes >= startMinutes || currentMinutes < endMinutes
-}
-
-export const shouldMuteNotificationPreview = (preferences = {}, notification = {}, value = new Date()) => {
-  const normalizedPreferences = normalizeNotificationPreferences(preferences)
-  if (!normalizedPreferences.in_app_enabled) {
-    return true
-  }
-
-  const preferenceKey = getNotificationPreferenceKey(notification.category, notification.type)
-  if (normalizedPreferences[preferenceKey] === false) {
-    return true
-  }
-
-  return isWithinQuietHours(normalizedPreferences, value)
-}
-
 const buildNotificationInsertPayload = (notification = {}) => {
   const normalized = normalizeNotification(notification)
 
@@ -257,13 +126,6 @@ export const dispatchNotificationBadgeUpdate = (unreadCount) => {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent(NOTIFICATION_BADGE_EVENT, {
     detail: { unreadCount },
-  }))
-}
-
-export const dispatchNotificationPreferencesUpdated = (preferences) => {
-  if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent(NOTIFICATION_PREFERENCES_EVENT, {
-    detail: { preferences: normalizeNotificationPreferences(preferences) },
   }))
 }
 
@@ -396,6 +258,18 @@ export const notificationsApi = {
 
     if (data) {
       return normalizeNotificationPreferences(data)
+    }
+
+    // Check if profile exists before upserting (FK constraint)
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profileError || !profileData) {
+      // Profile doesn't exist yet — return defaults instead of causing FK violation
+      return normalizeNotificationPreferences({ user_id: userId })
     }
 
     const { data: inserted, error: insertError } = await supabase

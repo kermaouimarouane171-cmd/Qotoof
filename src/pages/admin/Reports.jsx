@@ -6,17 +6,17 @@ import {
   CubeIcon,
   TruckIcon
 } from '@heroicons/react/24/outline'
-import { reportService } from '@/services/reports/reportService'
+import { reportService } from '@/modules/analytics'
 import { flattenReport, COLUMNS_MAP } from '@/components/Reports/ReportPreview'
 import ReportPreview from '@/components/Reports/ReportPreview'
 import ExportButtons from '@/components/Reports/ExportButtons'
 import { logger } from '@/utils/logger'
 
 const REPORT_TYPES = [
-  { key: 'sales', label: 'تقرير المبيعات', icon: ChartBarIcon, color: 'green' },
-  { key: 'users', label: 'تقرير المستخدمين', icon: UsersIcon, color: 'blue' },
-  { key: 'inventory', label: 'تقرير المخزون', icon: CubeIcon, color: 'orange' },
-  { key: 'delivery', label: 'تقرير التوصيل', icon: TruckIcon, color: 'purple' }
+  { key: 'sales',     labelKey: 'admin.reports.type.sales',     icon: ChartBarIcon, color: 'green' },
+  { key: 'users',     labelKey: 'admin.reports.type.users',     icon: UsersIcon,    color: 'blue' },
+  { key: 'inventory', labelKey: 'admin.reports.type.inventory', icon: CubeIcon,     color: 'orange' },
+  { key: 'delivery',  labelKey: 'admin.reports.type.delivery',  icon: TruckIcon,    color: 'purple' },
 ]
 
 const getDefaultDates = () => {
@@ -31,6 +31,8 @@ const getDefaultDates = () => {
 
 export default function Reports() {
   const { t } = useTranslation()
+
+  const getTypeLabel = (key) => t(`admin.reports.type.${key}`, key)
   const dates = getDefaultDates()
 
   const [reportType, setReportType] = useState('sales')
@@ -69,13 +71,13 @@ export default function Reports() {
     <div className="p-6 space-y-6" data-testid="reports-page">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {t('reports.title', 'التقارير والتحليلات')}
+          {t('reports.title', 'Reports & Analytics')}
         </h1>
       </div>
 
       {/* Report type selector */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {REPORT_TYPES.map(({ key, label, icon: Icon, color: _color }) => (
+        {REPORT_TYPES.map(({ key, labelKey, icon: Icon, color: _color }) => (
           <button
             key={key}
             onClick={() => { setReportType(key); setGenerated(false) }}
@@ -90,7 +92,7 @@ export default function Reports() {
             }`}>
               <Icon className="h-5 w-5" />
             </div>
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t(labelKey, key)}</span>
           </button>
         ))}
       </div>
@@ -102,7 +104,7 @@ export default function Reports() {
             <>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t('reports.startDate', 'من تاريخ')}
+                  {t('reports.startDate', 'From Date')}
                 </label>
                 <input
                   type="date"
@@ -114,7 +116,7 @@ export default function Reports() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                  {t('reports.endDate', 'إلى تاريخ')}
+                  {t('reports.endDate', 'To Date')}
                 </label>
                 <input
                   type="date"
@@ -135,7 +137,7 @@ export default function Reports() {
             data-testid="generate-report-btn"
           >
             {loading && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />}
-            {t('reports.generate', 'توليد التقرير')}
+            {t('reports.generate', 'Generate Report')}
           </button>
 
           {generated && (
@@ -143,7 +145,7 @@ export default function Reports() {
               rows={flatRows}
               columns={columns}
               filename={`report_${reportType}_${startDate}`}
-              title={REPORT_TYPES.find(r => r.key === reportType)?.label || ''}
+              title={getTypeLabel(reportType)}
               previewElementId="report-preview-table"
             />
           )}
@@ -167,7 +169,7 @@ export default function Reports() {
         {generated && (
           <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {rows.length} {t('reports.records', 'سجل')}
+              {rows.length} {t('reports.records', 'records')}
             </p>
           </div>
         )}

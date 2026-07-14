@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '@/store/authStore'
+import { useQuery } from '@tanstack/react-query'
 import productSearchService from '@/services/search/productSearchService'
-import { profilesService } from '@/services/profilesService'
+import { profilesService } from '@/modules/users'
 import { formatPrice } from '@/utils/currency.jsx'
 import { logger } from '@/utils/logger'
 import {
@@ -19,35 +19,19 @@ import {
 } from '@heroicons/react/24/outline'
 
 const categories = [
-  { id: 'vegetables', label: 'خضروات', emoji: '🥬' },
-  { id: 'fruits', label: 'فواكه', emoji: '🍊' },
-  { id: 'plants', label: 'نباتات', emoji: '🌱' },
-  { id: 'herbs', label: 'أعشاب', emoji: '🌿' },
-  { id: 'spices', label: 'توابل', emoji: '🫚' },
-  { id: 'seeds', label: 'بذور', emoji: '🌾' },
+  { id: 'vegetables', i18nKey: 'vegetables', emoji: '🥬' },
+  { id: 'fruits', i18nKey: 'fruits', emoji: '🍊' },
+  { id: 'plants', i18nKey: 'plants', emoji: '🌱' },
+  { id: 'herbs', i18nKey: 'herbs', emoji: '🌿' },
+  { id: 'spices', i18nKey: 'spices', emoji: '🫚' },
+  { id: 'seeds', i18nKey: 'seeds', emoji: '🌾' },
 ]
 
 const buyerSteps = [
-  {
-    title: 'ابحث عن المنتج',
-    description: 'استخدم البحث أو الأقسام للوصول بسرعة إلى المورد المناسب.',
-    icon: MagnifyingGlassIcon,
-  },
-  {
-    title: 'اختر الكمية والسعر',
-    description: 'راجع تفاصيل الجملة، الحد الأدنى للطلب، وخيارات الدفع.',
-    icon: ShoppingCartIcon,
-  },
-  {
-    title: 'أكّد الطلب بأمان',
-    description: 'أكمل الطلب عبر تدفق شراء واضح مع معلومات شحن دقيقة.',
-    icon: ShieldCheckIcon,
-  },
-  {
-    title: 'استلم وتتبع التوصيل',
-    description: 'تابع حالة الطلب حتى التسليم النهائي داخل المنصة.',
-    icon: TruckIcon,
-  },
+  { id: 'searchProduct', icon: MagnifyingGlassIcon },
+  { id: 'chooseQuantity', icon: ShoppingCartIcon },
+  { id: 'confirmOrder', icon: ShieldCheckIcon },
+  { id: 'trackDelivery', icon: TruckIcon },
 ]
 
 const ProductSkeletonCard = () => (
@@ -74,95 +58,42 @@ const VendorSkeletonCard = () => (
 )
 
 const HomePage = () => {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { user, profile } = useAuthStore()
 
   const [searchQuery, setSearchQuery] = useState('')
-  const [featuredProducts, setFeaturedProducts] = useState([])
-  const [trustedVendors, setTrustedVendors] = useState([])
-  const [productsLoading, setProductsLoading] = useState(true)
-  const [vendorsLoading, setVendorsLoading] = useState(true)
 
   const isArabic = (i18n.language || 'ar').toLowerCase().startsWith('ar')
 
-  useEffect(() => {
-    const loadHomeData = async () => {
-      setProductsLoading(true)
-      setVendorsLoading(true)
+  // SM-1 fix: استخدام TanStack Query بدلاً من useEffect+useState
+  // البيانات تُكاش لمدة 5 دقائق → لا إعادة جلب عند كل navigation
+  const { data: featuredProducts = [], isLoading: productsLoading } = useQuery({
+    queryKey: ['home', 'featured-products'],
+    queryFn: async () => {
+      const result = await productSearchService.getFeaturedProducts(8)
+      return (Array.isArray(result) ? result : []).filter((p) => p?.is_available !== false).slice(0, 8)
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    onError: (error) => logger.error('Error loading featured products:', error),
+  })
 
-      try {
-        const [productsResult, vendorsResult] = await Promise.all([
-          productSearchService.getFeaturedProducts(8),
-          profilesService.fetchActiveVerifiedVendors(),
-        ])
+  const { data: trustedVendors = [], isLoading: vendorsLoading } = useQuery({
+    queryKey: ['home', 'trusted-vendors'],
+    queryFn: async () => {
+      const result = await profilesService.fetchActiveVerifiedVendors()
+      return (Array.isArray(result?.data) ? result.data : [])
+        .filter((v) => v?.is_approved !== false)
+        .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
+        .slice(0, 6)
+    },
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    onError: (error) => logger.error('Error loading trusted vendors:', error),
+  })
 
-        const products = Array.isArray(productsResult) ? productsResult : []
-        const vendors = Array.isArray(vendorsResult?.data) ? vendorsResult.data : []
-
-        const topProducts = products
-          .filter((p) => p?.is_available !== false)
-          .slice(0, 8)
-
-        const topVendors = vendors
-          .filter((v) => v?.is_approved !== false)
-          .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
-          .slice(0, 6)
-
-        setFeaturedProducts(topProducts)
-        setTrustedVendors(topVendors)
-      } catch (error) {
-        logger.error('Error loading home data:', error)
-        setFeaturedProducts([])
-        setTrustedVendors([])
-      } finally {
-        setProductsLoading(false)
-        setVendorsLoading(false)
-      }
-    }
-
-    loadHomeData()
-  }, [])
-
-  const primaryCta = useMemo(() => {
-    if (!user) {
-      return { to: '/register', label: 'ابدأ الآن' }
-    }
-
-    if (profile?.role === 'vendor') {
-      return { to: '/vendor/dashboard', label: 'لوحة تحكم البائع' }
-    }
-
-    if (profile?.role === 'driver') {
-      return { to: '/driver/dashboard', label: 'لوحة تحكم السائق' }
-    }
-
-    if (profile?.role === 'admin') {
-      return { to: '/admin/dashboard', label: 'لوحة تحكم الإدارة' }
-    }
-
-    return { to: '/buyer/dashboard', label: 'لوحة تحكم المشتري' }
-  }, [profile?.role, user])
-
-  const secondaryCta = useMemo(() => {
-    if (!user) {
-      return { to: '/marketplace', label: 'تصفح السوق' }
-    }
-
-    if (profile?.role === 'vendor') {
-      return { to: '/vendor/products', label: 'إدارة المنتجات' }
-    }
-
-    if (profile?.role === 'driver') {
-      return { to: '/tracking', label: 'متابعة الطلبات' }
-    }
-
-    if (profile?.role === 'admin') {
-      return { to: '/admin/orders', label: 'إدارة الطلبات' }
-    }
-
-    return { to: '/buyer/orders', label: 'طلباتي' }
-  }, [profile?.role, user])
+  const primaryCta = { to: '/register', label: t('home.cta.startNow', 'ابدأ الآن') }
+  const secondaryCta = { to: '/marketplace', label: t('home.cta.browseMarketplace', 'تصفح السوق') }
 
   const handleSearchSubmit = (event) => {
     event.preventDefault()
@@ -182,15 +113,15 @@ const HomePage = () => {
 
         <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
           <p className="mb-4 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-sm text-white/95 backdrop-blur">
-            Qotoof B2B Marketplace
+            {t('home.hero.badge', 'Qotoof B2B Marketplace')}
           </p>
 
           <h1 className="max-w-3xl text-3xl font-black leading-tight text-white sm:text-5xl">
-            سوق الجملة للخضر والفواكه في المغرب
+            {t('home.title', 'سوق الجملة للخضر والفواكه في المغرب')}
           </h1>
 
           <p className="mt-4 max-w-2xl text-sm leading-7 text-emerald-50 sm:text-base">
-            منصة قطوف تربط المشترين المهنيين بالموردين الموثوقين عبر تجربة شراء سريعة، أسعار جملة واضحة، وتتبع طلبات كامل.
+            {t('home.subtitle', 'منصة قطوف تربط المشترين المهنيين بالموردين الموثوقين عبر تجربة شراء سريعة، أسعار جملة واضحة، وتتبع طلبات كامل.')}
           </p>
 
           <form onSubmit={handleSearchSubmit} className="mt-8 max-w-2xl rounded-2xl bg-white p-2 shadow-2xl shadow-emerald-900/20">
@@ -201,13 +132,13 @@ const HomePage = () => {
                   type="search"
                   value={searchQuery}
                   onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="ابحث عن خضر، فواكه، موردين..."
-                  aria-label="ابحث في السوق"
+                  placeholder={t('home.searchPlaceholder', 'ابحث عن خضر، فواكه، موردين...')}
+                  aria-label={t('home.searchAria', 'ابحث في السوق')}
                   className="h-11 w-full rounded-xl border border-emerald-100 bg-emerald-50/30 pr-10 pl-3 text-sm outline-none ring-emerald-300 transition focus:ring"
                 />
               </div>
               <button type="submit" className="h-11 rounded-xl bg-emerald-600 px-5 text-sm font-semibold text-white transition hover:bg-emerald-700">
-                بحث
+                {t('home.searchButton', 'بحث')}
               </button>
             </div>
           </form>
@@ -226,11 +157,11 @@ const HomePage = () => {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">التصنيفات</h2>
-            <p className="mt-1 text-sm text-gray-500">اختر القسم المناسب لبدء الشراء بسرعة</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('home.categories.title', 'التصنيفات')}</h2>
+            <p className="mt-1 text-sm text-gray-500">{t('home.categories.subtitle', 'اختر القسم المناسب لبدء الشراء بسرعة')}</p>
           </div>
           <Link to="/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
-            عرض الكل
+            {t('home.categories.viewAll', 'عرض الكل')}
             {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
@@ -243,8 +174,8 @@ const HomePage = () => {
               className="group rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
             >
               <div className="text-3xl">{category.emoji}</div>
-              <h3 className="mt-3 text-sm font-semibold text-gray-900">{category.label}</h3>
-              <p className="mt-1 text-xs text-gray-500">منتجات جملة</p>
+              <h3 className="mt-3 text-sm font-semibold text-gray-900">{t(`home.categories.${category.i18nKey}`, category.i18nKey)}</h3>
+              <p className="mt-1 text-xs text-gray-500">{t('home.categories.wholesaleItems', 'منتجات جملة')}</p>
             </Link>
           ))}
         </div>
@@ -253,11 +184,11 @@ const HomePage = () => {
       <section className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">منتجات مميزة</h2>
-            <p className="mt-1 text-sm text-gray-500">أفضل عروض اليوم من الموردين المعتمدين</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('home.featuredProducts.title', 'منتجات مميزة')}</h2>
+            <p className="mt-1 text-sm text-gray-500">{t('home.featuredProducts.subtitle', 'أفضل عروض اليوم من الموردين المعتمدين')}</p>
           </div>
           <Link to="/marketplace" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
-            المزيد
+            {t('home.featuredProducts.viewAll', 'المزيد')}
             {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
@@ -270,7 +201,7 @@ const HomePage = () => {
           </div>
         ) : featuredProducts.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-            لا توجد منتجات مميزة حالياً. تصفح السوق للاطلاع على كامل العروض.
+            {t('home.featuredProducts.noProducts', 'لا توجد منتجات مميزة حالياً. تصفح السوق للاطلاع على كامل العروض.')}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -288,16 +219,16 @@ const HomePage = () => {
                     {primaryImage ? (
                       <img src={primaryImage} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-emerald-500">صورة غير متوفرة</div>
+                      <div className="flex h-full items-center justify-center text-sm text-emerald-500">{t('home.featuredProducts.noImage', 'صورة غير متوفرة')}</div>
                     )}
                   </div>
 
                   <h3 className="mt-4 line-clamp-1 text-sm font-semibold text-gray-900">{product.name}</h3>
-                  <p className="mt-1 line-clamp-1 text-xs text-gray-500">{product.category || 'منتج طازج'}</p>
+                  <p className="mt-1 line-clamp-1 text-xs text-gray-500">{product.category || t('home.featuredProducts.freshProduct', 'منتج طازج')}</p>
 
                   <div className="mt-4 flex items-end justify-between">
                     <p className="text-sm font-bold text-emerald-700">{formatPrice(product.price_per_unit || 0)}</p>
-                    <p className="text-xs text-gray-500">حد أدنى: {product.min_order_quantity || 1} {product.unit_type || ''}</p>
+                    <p className="text-xs text-gray-500">{t('home.featuredProducts.minOrder', 'حد أدنى: {{min}} {{unit}}', { min: product.min_order_quantity || 1, unit: product.unit_type || '' })}</p>
                   </div>
                 </Link>
               )
@@ -309,11 +240,11 @@ const HomePage = () => {
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="mb-6 flex items-end justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">بائعون موثوقون</h2>
-            <p className="mt-1 text-sm text-gray-500">متاجر فعالة مع تقييمات إيجابية من المشترين</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('home.trustedVendors.title', 'بائعون موثوقون')}</h2>
+            <p className="mt-1 text-sm text-gray-500">{t('home.trustedVendors.subtitle', 'متاجر فعالة مع تقييمات إيجابية من المشترين')}</p>
           </div>
           <Link to="/stores" className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800">
-            كل المتاجر
+            {t('home.trustedVendors.viewAll', 'كل المتاجر')}
             {isArabic ? <ArrowRightIcon className="h-4 w-4" /> : <ArrowLeftIcon className="h-4 w-4" />}
           </Link>
         </div>
@@ -326,13 +257,13 @@ const HomePage = () => {
           </div>
         ) : trustedVendors.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-emerald-200 bg-white px-6 py-12 text-center text-sm text-gray-500">
-            لا توجد متاجر متاحة حالياً.
+            {t('home.trustedVendors.noVendors', 'لا توجد متاجر متاحة حالياً.')}
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {trustedVendors.map((vendor) => {
               const rating = Number(vendor.rating || 0)
-              const vendorName = vendor.store_name || `${vendor.first_name || ''} ${vendor.last_name || ''}`.trim() || 'متجر'
+              const vendorName = vendor.store_name || `${vendor.first_name || ''} ${vendor.last_name || ''}`.trim() || t('home.trustedVendors.unknownVendor', 'متجر')
 
               return (
                 <Link
@@ -346,7 +277,7 @@ const HomePage = () => {
                     </div>
                     <div className="min-w-0">
                       <h3 className="line-clamp-1 text-sm font-semibold text-gray-900">{vendorName}</h3>
-                      <p className="text-xs text-gray-500">{vendor.city || 'المغرب'}</p>
+                      <p className="text-xs text-gray-500">{vendor.city || t('home.trustedVendors.morocco', 'المغرب')}</p>
                     </div>
                   </div>
 
@@ -360,12 +291,12 @@ const HomePage = () => {
                   <div className="mt-3 flex items-center justify-between text-xs text-gray-600">
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
                       <UserGroupIcon className="h-3.5 w-3.5" />
-                      مورد معتمد
+                      {t('home.trustedVendors.verifiedBadge', 'مورد معتمد')}
                     </span>
                     {vendor.is_verified && (
                       <span className="inline-flex items-center gap-1 text-emerald-700">
                         <ShieldCheckIcon className="h-4 w-4" />
-                        موثّق
+                        {t('home.trustedVendors.verified', 'موثّق')}
                       </span>
                     )}
                   </div>
@@ -376,20 +307,74 @@ const HomePage = () => {
         )}
       </section>
 
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="mb-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-900">{t('home.roles.title', 'اكتشف دورك المناسب')}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t('home.roles.subtitle', 'انضم إلى منصة قطوف بالدور الذي يناسبك')}</p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="rounded-2xl border border-emerald-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-3xl">🛒</div>
+            <h3 className="text-lg font-bold text-gray-900">{t('home.roles.buyer.title', 'مشتري')}</h3>
+            <p className="mt-2 text-sm text-gray-600">{t('home.roles.buyer.description', 'اشترِ المنتجات الطازجة بالجملة مباشرة من الموردين')}</p>
+            <ul className="mt-4 space-y-2 text-xs text-gray-600">
+              <li className="flex items-center gap-2">✓ {t('home.roles.buyer.feature1', 'شراء بالجملة بأسعار تنافسية')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.buyer.feature2', 'تتبع الطلبات في الوقت الفعلي')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.buyer.feature3', 'نقاط ولاء ومكافآت')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.buyer.feature4', 'طلب عروض أسعار مخصصة')}</li>
+            </ul>
+            <Link to="/register?role=buyer" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700">
+              {t('home.roles.buyer.cta', 'سجل كمشتري')}
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border border-teal-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-teal-100 text-3xl">🏪</div>
+            <h3 className="text-lg font-bold text-gray-900">{t('home.roles.vendor.title', 'بائع')}</h3>
+            <p className="mt-2 text-sm text-gray-600">{t('home.roles.vendor.description', 'اعرض منتجاتك وأدر متجرك على منصة وطنية')}</p>
+            <ul className="mt-4 space-y-2 text-xs text-gray-600">
+              <li className="flex items-center gap-2">✓ {t('home.roles.vendor.feature1', 'إدارة المتجر والمنتجات')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.vendor.feature2', 'تحليلات المبيعات والتقارير')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.vendor.feature3', 'تواصل مباشر مع المشترين')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.vendor.feature4', 'شحن وتوصيل متكامل')}</li>
+            </ul>
+            <Link to="/register?role=vendor" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700">
+              {t('home.roles.vendor.cta', 'سجل كبائع')}
+            </Link>
+          </div>
+
+          <div className="rounded-2xl border border-cyan-100 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-100 text-3xl">🚚</div>
+            <h3 className="text-lg font-bold text-gray-900">{t('home.roles.driver.title', 'سائق')}</h3>
+            <p className="mt-2 text-sm text-gray-600">{t('home.roles.driver.description', 'اوصل الطلبات وحقق دخلاً إضافياً بمرونة تامة')}</p>
+            <ul className="mt-4 space-y-2 text-xs text-gray-600">
+              <li className="flex items-center gap-2">✓ {t('home.roles.driver.feature1', 'مرونة في الجدول والعمل')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.driver.feature2', 'أرباح تنافسية')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.driver.feature3', 'تتبع التوصيلات والمسارات')}</li>
+              <li className="flex items-center gap-2">✓ {t('home.roles.driver.feature4', 'تقييمات وسمعة')}</li>
+            </ul>
+            <Link to="/register?role=driver" className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-cyan-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700">
+              {t('home.roles.driver.cta', 'سجل كسائق')}
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-7xl px-4 py-8 pb-16 sm:px-6 lg:px-8">
         <div className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-2xl font-bold text-gray-900">كيف تعمل المنصة للمشتري؟</h2>
-          <p className="mt-1 text-sm text-gray-500">4 خطوات فقط من البحث حتى الاستلام</p>
+          <h2 className="text-2xl font-bold text-gray-900">{t('home.howItWorks.title', 'كيف تعمل المنصة للمشتري؟')}</h2>
+          <p className="mt-1 text-sm text-gray-500">{t('home.howItWorks.subtitle', '4 خطوات فقط من البحث حتى الاستلام')}</p>
 
           <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {buyerSteps.map((step, index) => (
-              <article key={step.title} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
+              <article key={step.id} className="rounded-2xl border border-emerald-100 bg-emerald-50/40 p-4">
                 <div className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-emerald-700 shadow-sm">
                   <step.icon className="h-5 w-5" />
                 </div>
-                <p className="mb-2 text-xs font-bold text-emerald-700">الخطوة {index + 1}</p>
-                <h3 className="text-sm font-semibold text-gray-900">{step.title}</h3>
-                <p className="mt-2 text-xs leading-6 text-gray-600">{step.description}</p>
+                <p className="mb-2 text-xs font-bold text-emerald-700">{t('home.howItWorks.step', 'الخطوة {{number}}', { number: index + 1 })}</p>
+                <h3 className="text-sm font-semibold text-gray-900">{t(`home.howItWorks.steps.${step.id}.title`, step.id)}</h3>
+                <p className="mt-2 text-xs leading-6 text-gray-600">{t(`home.howItWorks.steps.${step.id}.description`, '')}</p>
               </article>
             ))}
           </div>

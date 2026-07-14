@@ -27,9 +27,9 @@ class RateLimiter {
     
     // Get or create limit record
     let record = this.limits.get(limitKey)
-    
-    if (!record || now > record.resetAt) {
-      // First attempt or window expired
+
+    if (!record || (now > record.resetAt && (!record.blockedUntil || now > record.blockedUntil))) {
+      // First attempt or window expired (and any prior block has cleared)
       record = {
         count: 1,
         windowStart: now,
@@ -37,7 +37,7 @@ class RateLimiter {
         blockedUntil: null
       }
       this.limits.set(limitKey, record)
-      
+
       return {
         allowed: true,
         remaining: maxAttempts - 1,
@@ -45,7 +45,7 @@ class RateLimiter {
         blockedUntil: null
       }
     }
-    
+
     // Check if blocked
     if (record.blockedUntil && now < record.blockedUntil) {
       return {
@@ -56,7 +56,7 @@ class RateLimiter {
         retryAfter: record.blockedUntil - now
       }
     }
-    
+
     // Increment count
     record.count++
     
@@ -184,6 +184,47 @@ export const RATE_LIMITS = {
     maxAttempts: 10,
     windowMs: 60 * 60 * 1000, // 1 hour
     blockDuration: 30 * 60 * 1000 // 30 minutes
+  },
+
+  // Reviews
+  REVIEW_CREATE: {
+    maxAttempts: 5,
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    blockDuration: 15 * 60 * 1000 // 15 minutes
+  },
+
+  REVIEW_REPLY: {
+    maxAttempts: 10,
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    blockDuration: 15 * 60 * 1000 // 15 minutes
+  },
+
+  // Chat - message sending
+  CHAT_MESSAGE_SEND: {
+    maxAttempts: 30,
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    blockDuration: 5 * 60 * 1000 // 5 minutes
+  },
+
+  // Chat - conversation creation
+  CHAT_CONVERSATION_CREATE: {
+    maxAttempts: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    blockDuration: 30 * 60 * 1000 // 30 minutes
+  },
+
+  // Chat - file upload
+  CHAT_FILE_UPLOAD: {
+    maxAttempts: 20,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    blockDuration: 15 * 60 * 1000 // 15 minutes
+  },
+
+  // Commissions - payment notice submission (vendor → admin)
+  COMMISSION_PAYMENT_NOTICE: {
+    maxAttempts: 5,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    blockDuration: 30 * 60 * 1000 // 30 minutes
   }
 }
 
@@ -284,6 +325,78 @@ export const checkOrderTrackingRate = (identifier) => {
     'order_tracking',
     RATE_LIMITS.ORDER_TRACKING.maxAttempts,
     RATE_LIMITS.ORDER_TRACKING.windowMs
+  )
+}
+
+/**
+ * Check review creation rate limit (5 per 10 minutes)
+ */
+export const checkReviewCreateRate = (userId) => {
+  return rateLimiter.check(
+    userId,
+    'review_create',
+    RATE_LIMITS.REVIEW_CREATE.maxAttempts,
+    RATE_LIMITS.REVIEW_CREATE.windowMs
+  )
+}
+
+/**
+ * Check review reply rate limit (10 per 10 minutes)
+ */
+export const checkReviewReplyRate = (vendorId) => {
+  return rateLimiter.check(
+    vendorId,
+    'review_reply',
+    RATE_LIMITS.REVIEW_REPLY.maxAttempts,
+    RATE_LIMITS.REVIEW_REPLY.windowMs
+  )
+}
+
+/**
+ * Check chat message send rate limit (30 per 10 minutes)
+ */
+export const checkChatMessageSendRate = (userId) => {
+  return rateLimiter.check(
+    userId,
+    'chat_message_send',
+    RATE_LIMITS.CHAT_MESSAGE_SEND.maxAttempts,
+    RATE_LIMITS.CHAT_MESSAGE_SEND.windowMs
+  )
+}
+
+/**
+ * Check chat conversation creation rate limit (10 per hour)
+ */
+export const checkChatConversationCreateRate = (userId) => {
+  return rateLimiter.check(
+    userId,
+    'chat_conversation_create',
+    RATE_LIMITS.CHAT_CONVERSATION_CREATE.maxAttempts,
+    RATE_LIMITS.CHAT_CONVERSATION_CREATE.windowMs
+  )
+}
+
+/**
+ * Check chat file upload rate limit (20 per hour)
+ */
+export const checkChatFileUploadRate = (userId) => {
+  return rateLimiter.check(
+    userId,
+    'chat_file_upload',
+    RATE_LIMITS.CHAT_FILE_UPLOAD.maxAttempts,
+    RATE_LIMITS.CHAT_FILE_UPLOAD.windowMs
+  )
+}
+
+/**
+ * Check commission payment notice rate limit (5 per hour per vendor)
+ */
+export const checkCommissionPaymentNoticeRate = (vendorId) => {
+  return rateLimiter.check(
+    vendorId,
+    'commission_payment_notice',
+    RATE_LIMITS.COMMISSION_PAYMENT_NOTICE.maxAttempts,
+    RATE_LIMITS.COMMISSION_PAYMENT_NOTICE.windowMs
   )
 }
 
@@ -408,6 +521,12 @@ export default {
   checkAPIRate,
   checkProductCreateRate,
   checkOrderTrackingRate,
+  checkReviewCreateRate,
+  checkReviewReplyRate,
+  checkChatMessageSendRate,
+  checkChatConversationCreateRate,
+  checkChatFileUploadRate,
+  checkCommissionPaymentNoticeRate,
   RateLimitError,
   enforceRateLimit,
   withRateLimit,

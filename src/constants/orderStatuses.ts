@@ -25,7 +25,7 @@
 // 1. STATUS KEY CONSTANTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ORDER_STATUS_VALUES = {
+export const ORDER_STATUS_VALUES = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   PAYMENT_RECEIVED: 'payment_received',

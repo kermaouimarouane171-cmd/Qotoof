@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { notificationsApi } from '@/services/notifications'
+import { notificationsApi } from '@/modules/notifications'
 import trustScoreService from '@/services/trustScoreService'
 import { logger } from '@/utils/logger'
 

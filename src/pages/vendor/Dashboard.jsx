@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { realtimeService } from '@/services/realtime'
-import { ordersApi } from '@/services/deliveries'
+import { ordersApi } from '@/modules/orders'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import CommissionDashboard from '@/components/vendor/CommissionDashboard'
 import StoreEvolutionNotification from '@/components/vendor/StoreEvolutionNotification'
@@ -73,18 +73,6 @@ const Line = lazy(() =>
 )
 
 const VendorLocationSetup = React.lazy(() => import('./LocationSetup'))
-
-// ============================================================
-// HELPER: Days ago label
-// ============================================================
-const _getDayLabel = (dateStr) => {
-  const date = new Date(dateStr)
-  const today = new Date()
-  const diff = Math.floor((today - date) / (1000 * 60 * 60 * 24))
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Yesterday'
-  return date.toLocaleDateString('fr-MA', { weekday: 'short' })
-}
 
 // ============================================================
 // MAIN COMPONENT
@@ -288,7 +276,6 @@ const VendorDashboard = () => {
           .from('reviews')
           .select('rating')
           .eq('vendor_id', profile.id)
-          .eq('is_flagged', false)
           .is('deleted_at', null),
         supabase
           .from('orders')

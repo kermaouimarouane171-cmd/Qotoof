@@ -6,19 +6,45 @@
  */
 
 import { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
-import { ProtectedRoute, MainLayout, AdminLayout, VendorLayout, DriverLayout, BuyerLayout } from '@/components/ProtectedRoute';
+import { ProtectedRoute, MainLayout, AdminLayout, VendorLayout, DriverLayout } from '@/components/ProtectedRoute';
+import AuthLayout from '@/layouts/AuthLayout';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { USER_ROLES } from '@/constants/roles';
 
 const BuyerIndexRedirect = () => {
-  const { profile, loading, profileLoading } = useAuthStore();
+  const profile        = useAuthStore((s) => s.profile);
+  const loading        = useAuthStore((s) => s.loading);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
   if (loading || profileLoading) return null;
   if (profile?.role === USER_ROLES.BUYER && profile?.onboarding_completed === false) {
     return <Navigate to="/onboarding/buyer" replace />;
   }
-  return <Navigate to="/buyer/dashboard" replace />;
+  return <Navigate to="/marketplace" replace />;
+};
+
+/**
+ * HomePageGateway — keep the marketing landing page for guests only.
+ * Authenticated users are sent directly to their role-appropriate home.
+ */
+export const HomePageGateway = () => {
+  const profile        = useAuthStore((s) => s.profile);
+  const loading        = useAuthStore((s) => s.loading);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
+  if (loading || profileLoading) return null;
+  if (!profile) return <HomePage />;
+  if (profile?.role === USER_ROLES.BUYER && profile?.onboarding_completed === false) {
+    return <Navigate to="/onboarding/buyer" replace />;
+  }
+  const destinations = {
+    [USER_ROLES.BUYER]: '/marketplace',
+    [USER_ROLES.VENDOR]: '/vendor/dashboard',
+    [USER_ROLES.DRIVER]: '/driver/dashboard',
+    [USER_ROLES.ADMIN]: '/admin/dashboard',
+  };
+  return <Navigate to={destinations[profile.role] || '/marketplace'} replace />;
 };
 
 // ── Loading fallback ──────────────────────────────────────────────────────────
@@ -40,20 +66,27 @@ const SuspenseRoute = ({ children }) => (
   <Suspense fallback={<LoadingFallback />}>{children}</Suspense>
 );
 
+const ProductRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/product/${id}`} replace />;
+};
+
 /**
  * RoleOrdersRedirect — send each role to their own orders page.
  * Unauthenticated users are redirected to login (ProtectedRoute handles that
  * for inner routes; here we cover the bare /orders path).
  */
 const RoleOrdersRedirect = () => {
-  const { profile, loading, profileLoading } = useAuthStore();
+  const profile        = useAuthStore((s) => s.profile);
+  const loading        = useAuthStore((s) => s.loading);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
   if (loading || profileLoading) return null;
   if (!profile) return <Navigate to="/login" replace />;
   const destinations = {
-    buyer:  '/buyer/orders',
-    vendor: '/vendor/orders',
-    driver: '/driver/active',
-    admin:  '/admin/orders',
+    [USER_ROLES.BUYER]:  '/buyer/orders',
+    [USER_ROLES.VENDOR]: '/vendor/orders',
+    [USER_ROLES.DRIVER]: '/driver/active',
+    [USER_ROLES.ADMIN]:  '/admin/orders',
   };
   return <Navigate to={destinations[profile.role] || '/marketplace'} replace />;
 };
@@ -102,6 +135,7 @@ const HelpCenterPage       = lazy(() => import('@/pages/HelpCenter'));
 const TermsPage            = lazy(() => import('@/pages/Terms'));
 const PrivacyPage          = lazy(() => import('@/pages/Privacy'));
 const BecomeVendorPage     = lazy(() => import('@/pages/BecomeVendor'));
+const BecomeDriverPage     = lazy(() => import('@/pages/BecomeDriver'));
 const ReturnsPage          = lazy(() => import('@/pages/Returns'));
 const ShippingPage         = lazy(() => import('@/pages/Shipping'));
 const TrackingPage         = lazy(() => import('@/pages/Tracking'));
@@ -116,6 +150,9 @@ const BuyerLoyalty         = lazy(() => import('@/pages/buyer/Loyalty'));
 const BuyerSecurity        = lazy(() => import('@/pages/buyer/Security'));
 const BuyerShoppingLists   = lazy(() => import('@/pages/buyer/ShoppingLists'));
 const BuyerRFQ             = lazy(() => import('@/pages/buyer/RFQ'));
+const BuyerNegotiation     = lazy(() => import('@/pages/buyer/Negotiation'));
+const BuyerCreateNegotiation = lazy(() => import('@/pages/buyer/CreateNegotiation'));
+const BuyerTracking        = lazy(() => import('@/pages/buyer/Tracking'));
 
 // ── Vendor pages ──────────────────────────────────────────────────────────────
 const VendorDashboard           = lazy(() => import('@/pages/vendor/Dashboard'));
@@ -136,6 +173,10 @@ const VendorFindDriver          = lazy(() => import('@/pages/vendor/FindDriver')
 const VendorDeliveryOptionSetup = lazy(() => import('@/pages/vendor/DeliveryOptionSetup'));
 const VendorSubscription        = lazy(() => import('@/pages/vendor/Subscription'));
 const VendorRFQs                = lazy(() => import('@/pages/vendor/RFQs'));
+const VendorNegotiation          = lazy(() => import('@/pages/vendor/Negotiation'));
+const VendorWallet               = lazy(() => import('@/pages/vendor/Wallet'));
+const VendorReturns              = lazy(() => import('@/pages/vendor/Returns'));
+const VendorTax                  = lazy(() => import('@/pages/vendor/Tax'));
 
 // ── Driver pages ──────────────────────────────────────────────────────────────
 const DriverDashboard          = lazy(() => import('@/pages/driver/Dashboard'));
@@ -151,6 +192,9 @@ const DriverFindVendor         = lazy(() => import('@/pages/driver/FindVendor'))
 const DriverDeliveryTracking   = lazy(() => import('@/pages/driver/DeliveryTracking'));
 const DriverDeliveryPickup     = lazy(() => import('@/pages/driver/DeliveryPickup'));
 const DriverDeliveryComplete   = lazy(() => import('@/pages/driver/DeliveryComplete'));
+const DriverDeliverySummary    = lazy(() => import('@/pages/driver/DeliverySummary'));
+const DriverPerformance        = lazy(() => import('@/pages/driver/Performance'));
+const DriverWallet             = lazy(() => import('@/pages/driver/Wallet'));
 
 // ── Admin pages ───────────────────────────────────────────────────────────────
 const AdminDashboard           = lazy(() => import('@/pages/admin/Dashboard'));
@@ -169,10 +213,13 @@ const AdminReviews             = lazy(() => import('@/pages/admin/Reviews'));
 const AdminSecurity            = lazy(() => import('@/pages/admin/Security'));
 const AdminCommissionManagement = lazy(() => import('@/pages/admin/CommissionManagement'));
 const AdminVerification        = lazy(() => import('@/pages/admin/Verification'));
-/* TEMPORARILY DISABLED: payment_disputes and fraud_reports tables do not exist in DB schema — requires migration before re-enabling */
-// const AdminDisputeManagement   = lazy(() => import('@/pages/admin/DisputeManagement'));
-// const AdminFraudReports        = lazy(() => import('@/pages/admin/FraudReports'));
+const AdminDisputeManagement   = lazy(() => import('@/pages/admin/DisputeManagement'));
+const AdminFraudReports        = lazy(() => import('@/pages/admin/FraudReports'));
 const AdminSupportTickets      = lazy(() => import('@/pages/admin/SupportTickets'));
+const AdminCircuitBreakers     = lazy(() => import('@/pages/admin/CircuitBreakers'));
+const AdminSettingsAuditLog    = lazy(() => import('@/pages/admin/SettingsAuditLog'));
+const AdminAuditReport         = lazy(() => import('@/pages/admin/AdminAuditReport'));
+const AdminDriverVerification  = lazy(() => import('@/pages/admin/DriverVerification'));
 
 // ── Error pages ───────────────────────────────────────────────────────────────
 const NotFoundPage             = lazy(() => import('@/components/NotFound'));
@@ -185,13 +232,17 @@ export function AppRouter() {
   return (
     <Routes>
       {/* ── Auth ─────────────────────────────────────────────────────────── */}
-      <Route path="/login"           element={<SuspenseRoute><LoginPage /></SuspenseRoute>} />
-      <Route path="/register"        element={<SuspenseRoute><RegisterPage /></SuspenseRoute>} />
-      <Route path="/forgot-password" element={<SuspenseRoute><ForgotPasswordPage /></SuspenseRoute>} />
-      <Route path="/reset-password"  element={<SuspenseRoute><ResetPasswordPage /></SuspenseRoute>} />
-      <Route path="/verify-email"    element={<SuspenseRoute><VerifyEmailPage /></SuspenseRoute>} />
+      <Route element={<AuthLayout />}>
+        <Route path="/login"           element={<SuspenseRoute><LoginPage /></SuspenseRoute>} />
+        <Route path="/register"        element={<SuspenseRoute><RegisterPage /></SuspenseRoute>} />
+        <Route path="/forgot-password" element={<SuspenseRoute><ForgotPasswordPage /></SuspenseRoute>} />
+        <Route path="/reset-password"  element={<SuspenseRoute><ResetPasswordPage /></SuspenseRoute>} />
+        <Route path="/verify-email"    element={<SuspenseRoute><VerifyEmailPage /></SuspenseRoute>} />
+        <Route path="/verify-phone"    element={<SuspenseRoute><PhoneVerificationPage /></SuspenseRoute>} />
+      </Route>
+      {/* MFA Verify uses its own full-screen layout */}
       <Route path="/mfa-verify"      element={<SuspenseRoute><TwoFactorPage /></SuspenseRoute>} />
-      <Route path="/verify-phone"    element={<SuspenseRoute><PhoneVerificationPage /></SuspenseRoute>} />
+      {/* Auth callback uses its own full-screen layout */}
       <Route path="/auth/callback"   element={<SuspenseRoute><AuthCallbackPage /></SuspenseRoute>} />
 
       {/* ── Onboarding ───────────────────────────────────────────────────── */}
@@ -206,14 +257,16 @@ export function AppRouter() {
 
       {/* ── Main (public + auth-gated) ───────────────────────────────────── */}
       <Route path="/" element={<MainLayout />}>
-        <Route index element={<SuspenseRoute><HomePage /></SuspenseRoute>} />
+        <Route index element={<SuspenseRoute><HomePageGateway /></SuspenseRoute>} />
         <Route path="marketplace"          element={<SuspenseRoute><MarketplacePage /></SuspenseRoute>} />
         <Route path="product/:id"          element={<SuspenseRoute><ProductDetailPage /></SuspenseRoute>} />
-        <Route path="products/:id"         element={<SuspenseRoute><ProductDetailPage /></SuspenseRoute>} />
+        <Route path="products/:id"         element={<ProductRedirect />} />
         <Route path="stores"               element={<SuspenseRoute><StoresPage /></SuspenseRoute>} />
         <Route path="stores/:id"           element={<SuspenseRoute><StoreDetailPage /></SuspenseRoute>} />
         <Route path="cart"                 element={<SuspenseRoute><CartPage /></SuspenseRoute>} />
+        <Route path="checkout"             element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
         <Route path="search"               element={<SuspenseRoute><SearchResultsPage /></SuspenseRoute>} />
+        <Route path="favorites"            element={<SuspenseRoute><FavoritesPage /></SuspenseRoute>} />
         <Route path="orders"               element={<RoleOrdersRedirect />} />
         <Route path="about"                element={<SuspenseRoute><AboutPage /></SuspenseRoute>} />
         <Route path="contact"              element={<SuspenseRoute><ContactPage /></SuspenseRoute>} />
@@ -221,6 +274,7 @@ export function AppRouter() {
         <Route path="terms"                element={<SuspenseRoute><TermsPage /></SuspenseRoute>} />
         <Route path="privacy"              element={<SuspenseRoute><PrivacyPage /></SuspenseRoute>} />
         <Route path="become-vendor"        element={<SuspenseRoute><BecomeVendorPage /></SuspenseRoute>} />
+        <Route path="become-driver"        element={<SuspenseRoute><BecomeDriverPage /></SuspenseRoute>} />
         <Route path="returns"              element={<SuspenseRoute><ReturnsPage /></SuspenseRoute>} />
         <Route path="shipping"             element={<SuspenseRoute><ShippingPage /></SuspenseRoute>} />
         <Route path="tracking"             element={<SuspenseRoute><TrackingPage /></SuspenseRoute>} />
@@ -236,7 +290,6 @@ export function AppRouter() {
           <Route path="order-confirmation/:id"    element={<SuspenseRoute><OrderConfirmationPage /></SuspenseRoute>} />
           <Route path="order-tracking/:id"        element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
           <Route path="tracking/:id"              element={<SuspenseRoute><OrderTrackingPage /></SuspenseRoute>} />
-          <Route path="favorites"                 element={<SuspenseRoute><FavoritesPage /></SuspenseRoute>} />
           <Route path="notifications"             element={<SuspenseRoute><NotificationsPage /></SuspenseRoute>} />
           <Route path="profile"                   element={<SuspenseRoute><ProfilePage /></SuspenseRoute>} />
           {/* checkout: buyer only – vendors/drivers have no checkout flow */}
@@ -248,47 +301,38 @@ export function AppRouter() {
 
         {/* buyer-only routes inside MainLayout */}
         <Route element={<ProtectedRoute allowedRoles={[USER_ROLES.BUYER]} requiredRole={USER_ROLES.BUYER} />}>
-          <Route path="checkout"                  element={<SuspenseRoute><CheckoutPage /></SuspenseRoute>} />
+          <Route path="buyer/dashboard"          element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
+          <Route path="buyer/orders"             element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
+          <Route path="buyer/addresses"          element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
+          <Route path="buyer/settings"           element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
+          <Route path="buyer/coupons"            element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
+          <Route path="buyer/loyalty"            element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
+          <Route path="buyer/security"           element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
+          <Route path="buyer/shopping-lists"     element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
+          <Route path="buyer/rfq"                element={<SuspenseRoute><BuyerRFQ /></SuspenseRoute>} />
+          <Route path="buyer/tracking"            element={<SuspenseRoute><BuyerTracking /></SuspenseRoute>} />
+          <Route path="buyer/negotiations/new" element={<SuspenseRoute><BuyerCreateNegotiation /></SuspenseRoute>} />
+          <Route path="buyer/negotiations/:id"    element={<SuspenseRoute><BuyerNegotiation /></SuspenseRoute>} />
         </Route>
 
       </Route>
 
-      {/* ── Buyer ────────────────────────────────────────────────────────── */}
-      <Route
-        path="/buyer"
-        element={
-          <SuspenseRoute>
-            <ProtectedRoute
-              Layout={BuyerLayout}
-              requiredRole={USER_ROLES.BUYER}
-              allowedRoles={[USER_ROLES.BUYER]}
-            />
-          </SuspenseRoute>
-        }
-      >
-        <Route index                    element={<BuyerIndexRedirect />} />
-        <Route path="dashboard"        element={<SuspenseRoute><BuyerDashboard /></SuspenseRoute>} />
-        <Route path="orders"           element={<SuspenseRoute><BuyerOrders /></SuspenseRoute>} />
-        <Route path="addresses"        element={<SuspenseRoute><BuyerAddresses /></SuspenseRoute>} />
-        <Route path="settings"         element={<SuspenseRoute><BuyerSettings /></SuspenseRoute>} />
-        <Route path="coupons"          element={<SuspenseRoute><BuyerCoupons /></SuspenseRoute>} />
-        <Route path="loyalty"          element={<SuspenseRoute><BuyerLoyalty /></SuspenseRoute>} />
-        <Route path="security"         element={<SuspenseRoute><BuyerSecurity /></SuspenseRoute>} />
-        <Route path="shopping-lists"   element={<SuspenseRoute><BuyerShoppingLists /></SuspenseRoute>} />
-        <Route path="rfq"              element={<SuspenseRoute><BuyerRFQ /></SuspenseRoute>} />
-      </Route>
+      {/* ── Buyer redirect (dashboard removed, all pages now in MainLayout) ── */}
+      <Route path="/buyer" element={<BuyerIndexRedirect />} />
 
       {/* ── Vendor ───────────────────────────────────────────────────────── */}
       <Route
         path="/vendor"
         element={
-          <SuspenseRoute>
-            <ProtectedRoute
-              Layout={VendorLayout}
-              requiredRole={USER_ROLES.VENDOR}
-              allowedRoles={[USER_ROLES.VENDOR]}
-            />
-          </SuspenseRoute>
+          <ErrorBoundary>
+            <SuspenseRoute>
+              <ProtectedRoute
+                Layout={VendorLayout}
+                requiredRole={USER_ROLES.VENDOR}
+                allowedRoles={[USER_ROLES.VENDOR]}
+              />
+            </SuspenseRoute>
+          </ErrorBoundary>
         }
       >
         <Route index                      element={<Navigate to="/vendor/dashboard" replace />} />
@@ -309,19 +353,25 @@ export function AppRouter() {
         <Route path="find-driver"         element={<SuspenseRoute><VendorFindDriver /></SuspenseRoute>} />
         <Route path="digital-contract"    element={<SuspenseRoute><VendorDigitalContract /></SuspenseRoute>} />
         <Route path="rfqs"                element={<SuspenseRoute><VendorRFQs /></SuspenseRoute>} />
+        <Route path="negotiations/:id"    element={<SuspenseRoute><VendorNegotiation /></SuspenseRoute>} />
+        <Route path="wallet"              element={<SuspenseRoute><VendorWallet /></SuspenseRoute>} />
+        <Route path="returns"             element={<SuspenseRoute><VendorReturns /></SuspenseRoute>} />
+        <Route path="tax"                 element={<SuspenseRoute><VendorTax /></SuspenseRoute>} />
       </Route>
 
       {/* ── Driver ───────────────────────────────────────────────────────── */}
       <Route
         path="/driver"
         element={
-          <SuspenseRoute>
-            <ProtectedRoute
+          <ErrorBoundary>
+            <SuspenseRoute>
+              <ProtectedRoute
               Layout={DriverLayout}
               requiredRole={USER_ROLES.DRIVER}
               allowedRoles={[USER_ROLES.DRIVER]}
             />
-          </SuspenseRoute>
+            </SuspenseRoute>
+          </ErrorBoundary>
         }
       >
         <Route index                           element={<Navigate to="/driver/dashboard" replace />} />
@@ -337,21 +387,26 @@ export function AppRouter() {
         <Route path="find-vendor"              element={<SuspenseRoute><DriverFindVendor /></SuspenseRoute>} />
         <Route path="delivery/:id/pickup"      element={<SuspenseRoute><DriverDeliveryPickup /></SuspenseRoute>} />
         <Route path="delivery/:id/deliver"     element={<SuspenseRoute><DriverDeliveryTracking /></SuspenseRoute>} />
-        <Route path="delivery/:id/tracking"    element={<SuspenseRoute><DriverDeliveryTracking /></SuspenseRoute>} />
+        <Route path="delivery/:id/tracking"    element={<Navigate to="/driver/active" replace />} />
         <Route path="delivery/:id/complete"    element={<SuspenseRoute><DriverDeliveryComplete /></SuspenseRoute>} />
+        <Route path="delivery/:id/summary"    element={<SuspenseRoute><DriverDeliverySummary /></SuspenseRoute>} />
+        <Route path="performance"              element={<SuspenseRoute><DriverPerformance /></SuspenseRoute>} />
+        <Route path="wallet"                   element={<SuspenseRoute><DriverWallet /></SuspenseRoute>} />
       </Route>
 
       {/* ── Admin ────────────────────────────────────────────────────────── */}
       <Route
         path="/admin"
         element={
-          <SuspenseRoute>
-            <ProtectedRoute
+          <ErrorBoundary>
+            <SuspenseRoute>
+              <ProtectedRoute
               Layout={AdminLayout}
               requiredRole={USER_ROLES.ADMIN}
               allowedRoles={[USER_ROLES.ADMIN]}
             />
-          </SuspenseRoute>
+            </SuspenseRoute>
+          </ErrorBoundary>
         }
       >
         <Route index                          element={<Navigate to="/admin/dashboard" replace />} />
@@ -371,11 +426,14 @@ export function AppRouter() {
         <Route path="security"                element={<SuspenseRoute><AdminSecurity /></SuspenseRoute>} />
         <Route path="commission-management"   element={<SuspenseRoute><AdminCommissionManagement /></SuspenseRoute>} />
         <Route path="verification"            element={<SuspenseRoute><AdminVerification /></SuspenseRoute>} />
-        {/* TEMPORARILY DISABLED: payment_disputes and fraud_reports tables do not exist in DB schema — requires migration before re-enabling */}
-        {/* <Route path="disputes"                element={<SuspenseRoute><AdminDisputeManagement /></SuspenseRoute>} /> */}
-        {/* <Route path="fraud-reports"           element={<SuspenseRoute><AdminFraudReports /></SuspenseRoute>} /> */}
+        <Route path="disputes"                element={<SuspenseRoute><AdminDisputeManagement /></SuspenseRoute>} />
+        <Route path="fraud-reports"           element={<SuspenseRoute><AdminFraudReports /></SuspenseRoute>} />
         <Route path="support-tickets"         element={<SuspenseRoute><AdminSupportTickets /></SuspenseRoute>} />
         <Route path="support"                 element={<Navigate to="/admin/support-tickets" replace />} />
+        <Route path="system-health"            element={<SuspenseRoute><AdminCircuitBreakers /></SuspenseRoute>} />
+        <Route path="settings-audit"           element={<SuspenseRoute><AdminSettingsAuditLog /></SuspenseRoute>} />
+        <Route path="audit-report"             element={<SuspenseRoute><AdminAuditReport /></SuspenseRoute>} />
+        <Route path="driver-verification"      element={<SuspenseRoute><AdminDriverVerification /></SuspenseRoute>} />
       </Route>
 
       {/* ── Error pages ──────────────────────────────────────────────────── */}

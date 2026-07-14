@@ -17,7 +17,7 @@ import {
   CheckoutWriteVendorOrder,
 } from '../_shared/checkoutPersistence.ts'
 import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
-import { requireAuth } from '../_shared/auth.ts'
+import { requireRole } from '../_shared/auth.ts'
 
 // CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
 // See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
@@ -78,10 +78,10 @@ serve(async (req) => {
 
     let auth
     try {
-      auth = await requireAuth(req)
+      auth = await requireRole(req, ['buyer'])
     } catch (error) {
       if (error instanceof Response) {
-        throw new HttpError(error.status === 401 ? 'Authentication required' : 'Forbidden', error.status)
+        throw new HttpError(error.status === 401 ? 'Authentication required' : 'Access restricted to buyers only', error.status)
       }
       throw new HttpError('Authentication required', 401)
     }

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import profilesService from '@/services/profilesService'
+import { profilesService } from '@/modules/users'
 import {
   BuildingStorefrontIcon,
   MagnifyingGlassIcon,
@@ -62,6 +63,7 @@ const StoreCardSkeleton = () => (
 
 const Stores = () => {
   const { t, i18n } = useTranslation()
+  const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [stores, setStores] = useState([])
   const [search, setSearch] = useState('')
@@ -86,21 +88,32 @@ const Stores = () => {
           return
         }
 
-        const [productsResult, ordersResult] = await Promise.all([
+        // Products are public; orders are restricted to authenticated participants.
+        // Only fetch order counts for authenticated users to avoid RLS errors for guests.
+        const requests = [
           supabase
             .from('products')
             .select('vendor_id, category')
             .in('vendor_id', vendorIds)
-            .eq('approval_status', 'approved')
-            .eq('is_available', true),
-          supabase
-            .from('orders')
-            .select('vendor_id')
-            .in('vendor_id', vendorIds),
-        ])
+            .eq('approval_status', 'published')
+            .eq('is_available', true)
+            .limit(5000),
+        ]
+
+        if (user) {
+          requests.push(
+            supabase
+              .from('orders')
+              .select('vendor_id')
+              .in('vendor_id', vendorIds)
+              .limit(5000)
+          )
+        }
+
+        const [productsResult, ordersResult] = await Promise.all(requests)
 
         if (productsResult.error) throw productsResult.error
-        if (ordersResult.error) throw ordersResult.error
+        if (ordersResult?.error) throw ordersResult.error
 
         const productCounts = {}
         const categoriesByVendor = {}
@@ -111,8 +124,10 @@ const Stores = () => {
         }
 
         const orderCounts = {}
-        for (const row of ordersResult.data || []) {
-          orderCounts[row.vendor_id] = (orderCounts[row.vendor_id] || 0) + 1
+        if (ordersResult?.data) {
+          for (const row of ordersResult.data) {
+            orderCounts[row.vendor_id] = (orderCounts[row.vendor_id] || 0) + 1
+          }
         }
 
         const enriched = (vendors || []).map((vendor) => ({
@@ -133,7 +148,7 @@ const Stores = () => {
     }
 
     loadStores()
-  }, [])
+  }, [user])
 
   const filteredStores = useMemo(() => {
     const query = search.trim().toLowerCase()

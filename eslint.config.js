@@ -4,6 +4,7 @@ import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import jsxA11y from 'eslint-plugin-jsx-a11y'
 import globals from 'globals'
+import tseslint from 'typescript-eslint'
 
 export default [
   {
@@ -30,6 +31,28 @@ export default [
     ],
   },
   js.configs.recommended,
+  // TypeScript files only: use @typescript-eslint parser to avoid parsing errors
+  // Not spreading tseslint.configs.recommended because it sets the TS parser globally
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-expressions': 'error',
+      'no-unused-vars': 'off',
+      'no-undef': 'off',
+    },
+  },
   // Node/runtime scripts and backend API files
   {
     files: ['cypress.config.js', '.lighthouserc.js', 'database/**/*.js', 'src/api/**/*.js', 'src/middleware/**/*.js'],
@@ -177,6 +200,24 @@ export default [
     rules: {
       'no-unused-vars': 'off',
       'no-console': 'off',
+    },
+  },
+  // Modular boundaries (MODULAR_DEVELOPMENT_PLAN.md — Phase 0):
+  // Enforce importing modules only through their public API (src/modules/<name>/index).
+  // Deep imports into a module's internals (data/api/ui/domain/...) are forbidden.
+  // Relative intra-module imports (e.g. '../data/repository') are unaffected because the
+  // rule matches the literal alias-based import path, not the resolved file path.
+  {
+    files: ['src/**/*.{js,jsx,ts,tsx}'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        patterns: [
+          {
+            group: ['@/modules/*/*', 'src/modules/*/*'],
+            message: 'استورد فقط من الواجهة العامة للموديول: @/modules/<name> (index). ممنوع الاستيراد العميق من داخل موديول آخر.',
+          },
+        ],
+      }],
     },
   },
 ]

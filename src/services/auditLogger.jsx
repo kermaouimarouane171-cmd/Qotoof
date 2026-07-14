@@ -18,14 +18,18 @@ class AuditLogger {
     this.isFlushing = false
     this.maxQueueSize = 50
     this.flushInterval = 5000 // 5 seconds
-    this.isOnline = navigator.onLine
+    this.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
     
     // Listen for online/offline events
-    window.addEventListener('online', () => { this.isOnline = true; this.flush() })
-    window.addEventListener('offline', () => { this.isOnline = false })
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => { this.isOnline = true; this.flush() })
+      window.addEventListener('offline', () => { this.isOnline = false })
+    }
     
     // Auto flush
-    setInterval(() => this.flush(), this.flushInterval)
+    if (typeof window !== 'undefined') {
+      setInterval(() => this.flush(), this.flushInterval)
+    }
   }
 
   enqueue(auditLog) {

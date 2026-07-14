@@ -48,7 +48,7 @@ Qotoof (قطوف) is a **B2B wholesale marketplace** for plants, vegetables, and
 | **Testing** | Jest + React Testing Library, Cypress (E2E) |
 | **Maps** | Leaflet + React Leaflet |
 | **Error Monitoring** | Sentry |
-| **Payments** | Stripe, CMI (Moroccan gateway), Bank Transfer |
+| **Payments** | PayPal, Bank Transfer, COD (Cash on Delivery) |
 | **Deployment** | Firebase Hosting |
 | **Charts** | Chart.js, Recharts |
 | **Validation** | Zod |
@@ -175,6 +175,167 @@ greenmarket/
 │   │   ├── withRetry.js   # Retry wrapper with exponential backoff
 │   │   ├── logger.js      # Structured logging
 │   │   └── ...
+│   ├── modules/           # Modular architecture (migration in progress)
+│   │   ├── shared/        # Shared module — re-export layer (Phase 1.1)
+│   │   │   ├── index.js   # Public API entry point
+│   │   │   ├── ui/        # UI component re-exports
+│   │   │   ├── hooks/     # Generic hook re-exports
+│   │   │   └── utils/     # Utility re-exports
+│   │   └── auth/          # Auth module — re-export layer (Phase 1.3)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # Auth services and gateway re-exports
+│   │       ├── domain/    # Role constants and RBAC re-exports
+│   │       ├── ui/        # ProtectedRoute, layouts, auth components
+│   │       ├── stores/    # AuthStore and session store re-exports
+│   │       └── utils/     # Auth redirect utilities re-exports
+│   │   └── users/         # Users module — re-export layer (Phase 1.4)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # Profile services and notification preferences
+│   │       ├── domain/    # Database type re-exports
+│   │       ├── data/      # Data layer placeholder (future extraction)
+│   │       ├── ui/        # Profile/settings/addresses pages
+│   │       ├── stores/    # User store placeholder
+│   │       └── utils/     # CIN validation and profile form schema
+│   │   └── catalog/       # Catalog module — re-export layer (Phase 2.1)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── data/      # Product repository re-exports
+│   │       ├── api/       # Products API, image helpers, search service
+│   │       ├── domain/    # Product business logic, categories
+│   │       ├── ui/        # ProductCard, ProductForm, product pages
+│   │       ├── hooks/     # useProducts, useProductById, useAvailableRegions
+│   │       ├── stores/    # Catalog store placeholder
+│   │       └── utils/     # Catalog utils placeholder
+│   │   └── marketplace/   # Marketplace module — re-export layer (Phase 2.2)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # Algolia service, store type service
+│   │       ├── domain/    # Seasonal calendar, public visibility helpers
+│   │       ├── ui/        # Marketplace, Stores, StoreDetail, SearchResults, Seasonal, SearchBar
+│   │       ├── hooks/     # Product and review query hooks
+│   │       ├── stores/    # Marketplace store placeholder
+│   │       └── utils/     # Marketplace utils placeholder
+│   │   └── cart/          # Cart module — re-export layer (Phase 2.3)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # Favorites API, minimum order service
+│   │       ├── domain/    # Cart quantity utilities
+│   │       ├── ui/        # Cart page, Favorites page
+│   │       ├── hooks/     # useCartHydrated
+│   │       ├── stores/    # useCartStore, useFavoritesStore
+│   │       └── utils/     # Cart utils placeholder
+│   │   └── orders/        # Orders module — re-export layer (Phase 2.4)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # ordersService, ordersApi
+│   │       ├── data/      # orderRepository
+│   │       ├── domain/    # orderLogic, orderStatuses constants
+│   │       ├── ui/        # Order pages + order components
+│   │       ├── hooks/     # useOrderView, order query hooks
+│   │       ├── stores/    # Placeholder (no dedicated order store)
+│   │       └── utils/     # Orders utils placeholder
+│   │   └── delivery/      # Delivery module — re-export layer (Phase 2.5)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # deliveries.js, deliveryMatchingService, deliveryEligibilityService, deliveryScheduleService, driverLocationService
+│   │       ├── data/      # Placeholder (no dedicated delivery repository)
+│   │       ├── domain/    # driver.config constants
+│   │       ├── ui/        # Driver pages + vendor delivery pages + admin driver pages + delivery components
+│   │       ├── hooks/     # useDriverQueries (driver profile, deliveries, stats, earnings, mutations)
+│   │       ├── stores/    # Placeholder (no dedicated delivery store)
+│   │       └── utils/     # Delivery utils placeholder
+│   │   └── checkout/      # Checkout module — re-export layer (Phase 3.1)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # checkoutService, coupons, minimumOrderService
+│   │       ├── data/      # Placeholder (no dedicated checkout repository yet)
+│   │       ├── domain/    # checkoutCleanup (rollback records)
+│   │       ├── ui/        # CheckoutSimplified + checkout step components
+│   │       ├── hooks/     # useCheckoutPricing
+│   │       ├── stores/    # Placeholder (no dedicated checkout store yet)
+│   │       └── utils/     # checkoutCleanup
+│   │   └── payments/      # Payments module — re-export layer (Phase 3.2)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # paymentService, paymentGateway, paymentRecords, cmiPayment (legacy), refundPolicyService
+│   │       ├── data/      # Placeholder (paymentRecords.js is closest to data layer)
+│   │       ├── domain/    # Payment constants, PayPal eligibility, existing domains/payments
+│   │       ├── ui/        # PaymentGuard, OrderPaymentSection, PaymentReceiptUpload, PaymentPolicySettings, RefundPolicySettings, DeliveryPaymentPolicy
+│   │       ├── hooks/     # paymentKeys, usePaymentHistory, usePaymentDetail, useCreatePayment, useConfirmPayment
+│   │       ├── stores/    # Placeholder (no dedicated payment store)
+│   │       └── utils/     # paypalEligibility utilities
+│   │   └── notifications/  # Notifications module — re-export layer (Phase 3.3, updated 3.4)
+│   │       ├── index.js   # Public API entry point
+│   │       ├── api/       # notificationsApi, commissionNotifications, emailService, preference helpers (from notificationPreferences.js)
+│   │       ├── data/      # Placeholder (notificationsApi is closest to data layer)
+│   │       ├── domain/    # Notification formatting helpers, category normalization, events, preference constants
+│   │       ├── ui/        # NotificationLink (bell badge), NotificationsPage
+│   │       ├── hooks/     # notificationKeys, useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead, useNotificationPreferences, useSaveNotificationPreferences, useRealtimeNotifications
+│   │       ├── stores/    # Placeholder (no dedicated notification store)
+│   │       └── utils/     # Notification formatting/display helpers
+│   │       # Phase 3.4: preference helpers extracted to src/services/notificationPreferences.js
+│   │       # Phase 3.4: support ticket hooks extracted to src/hooks/queries/useSupportTicketQueries.js
+│   │   └── coupons/         # Coupons module — re-export layer (Phase 4.1)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # couponsApi, subscribeToVendorCouponRedemptions
+│   │       ├── data/        # Placeholder (couponsApi is closest to data layer)
+│   │       ├── domain/      # normalizeCoupon, isCouponCurrentlyActive, calculateCouponDiscountAmount, calculateBulkDiscountBreakdown
+│   │       ├── ui/          # Placeholder (no coupon-specific UI components yet)
+│   │       ├── hooks/       # Placeholder (no coupon-specific hooks yet)
+│   │       ├── stores/      # Placeholder (no dedicated coupon store)
+│   │       └── utils/       # Coupon formatting and calculation helpers
+│   │   └── reviews/          # Reviews module — re-export layer (Phase 4.2)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # reviewsApi, reviewService, buildReviewSummary
+│   │       ├── data/        # Placeholder (reviewsApi/reviewService are closest to data layer)
+│   │       ├── domain/      # buildReviewSummary (rating aggregation)
+│   │       ├── ui/          # Placeholder (ReviewModal and pages not re-exported yet)
+│   │       ├── hooks/       # reviewKeys, useVendorReviews, useDeletedReviews, useCreateReview, useDeleteReview, useRestoreReview
+│   │       ├── stores/      # Placeholder (no dedicated review store)
+│   │       └── utils/       # buildReviewSummary (aliased)
+│   │   └── chat/             # Chat module — re-export layer (Phase 4.3)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # chatService, messagesApi
+│   │       ├── data/        # Placeholder (chatService/messagesApi are closest to data layer)
+│   │       ├── domain/      # Placeholder (domain logic embedded in chatService)
+│   │       ├── ui/          # Placeholder (chat components not re-exported yet)
+│   │       ├── hooks/       # useChatList, useChatMessages, useUnreadCount, useSendMessage, useUploadFile, useMarkAsRead, useDeleteConversation
+│   │       ├── stores/      # Placeholder (no dedicated chat store)
+│   │       └── utils/       # Placeholder (utils embedded in chatService)
+│   │   └── commissions/       # Commissions module — re-export layer (Phase 4.4)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # commissionService, commissionNotifications, payoutService
+│   │       ├── data/        # Placeholder (commissionService is closest to data layer)
+│   │       ├── domain/      # Placeholder (domain logic embedded in commissionService)
+│   │       ├── ui/          # Placeholder (commission pages/components not re-exported yet)
+│   │       ├── hooks/       # Placeholder (no dedicated commission hooks exist)
+│   │       ├── stores/      # Placeholder (no dedicated commission store)
+│   │       └── utils/       # Placeholder (utils embedded in commissionService)
+│   │   └── analytics/         # Analytics module — re-export layer (Phase 4.5)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # analyticsApi, vendorAnalytics, reportService, export utils, tracking
+│   │       ├── data/        # Placeholder (analyticsApi/reportService are closest to data layer)
+│   │       ├── domain/      # Placeholder (domain logic embedded in vendorAnalytics.js)
+│   │       ├── ui/          # Placeholder (analytics pages/components not re-exported yet)
+│   │       ├── hooks/       # useVendorStats, useAdminStats
+│   │       ├── stores/      # Placeholder (no dedicated analytics store)
+│   │       └── utils/       # GA wrapper functions (re-exported from api layer)
+│   │   └── admin/              # Admin module — re-export layer (Phase 4.6)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # platformSettings, fraudReportService, disputeService
+│   │       ├── data/        # Placeholder (admin data via services + Supabase directly)
+│   │       ├── domain/      # Placeholder (admin is composition surface, not domain owner)
+│   │       ├── ui/          # Admin pages, VerificationPanel, AdminLayout
+│   │       ├── hooks/       # adminKeys, useAdminUsers, useAdminStats, etc.
+│   │       ├── stores/      # Placeholder (no dedicated admin store)
+│   │       └── utils/       # Placeholder (uses shared utilities)
+│   │   └── loyalty/           # Loyalty module — re-export layer (Phase 6.5)
+│   │       ├── index.js     # Public API entry point
+│   │       ├── api/         # loyaltyApi, LOYALTY_TIERS, REFERRAL_REWARD_POINTS, helpers
+│   │       ├── domain/      # Placeholder (tier/points logic currently in loyalty.js)
+│   │       ├── hooks/       # Placeholder (no dedicated loyalty hooks yet)
+│   │       ├── ui/          # Placeholder (Loyalty.jsx page not re-exported yet)
+│   │       ├── stores/      # Placeholder (no dedicated loyalty store)
+│   │       └── utils/       # Placeholder (referral link, notification helper in loyalty.js)
+│   ├── app/               # App composition layer (Phase 1.2)
+│   │   ├── index.js       # Public API entry point
+│   │   ├── App.jsx        # Re-exports root App
+│   │   ├── AppRouter.jsx  # Re-exports AppRouter
+│   │   ├── providers.jsx  # AppProviders wrapper (for future use)
+│   │   └── orchestrators/ # Cross-module flow coordinators (re-exports)
 │   ├── i18n/              # Internationalization
 │   │   ├── index.js       # i18next configuration
 │   │   └── locales/       # Translation files
@@ -352,6 +513,8 @@ import Button from '@/components/ui/Button'
 ---
 
 ## 5. How to Add a New Feature
+
+> **Note:** The project is migrating from `src/features/` to `src/modules/`. New code should follow the modular structure described in `MODULAR_DEVELOPMENT_PLAN.md`. The legacy `src/features/` approach below is kept for reference until the migration completes.
 
 Follow these steps to add a complete feature from concept to deployment.
 
@@ -1325,3 +1488,21 @@ npm run dev -- --port 3001
 ---
 
 *This guide is a living document. Update it as the project evolves.*
+
+---
+
+## TODO — Outdated Sections (Modular Migration)
+
+**What is outdated:**
+- Section 9 (Edge Functions): Lists `create-payment-intent`, `stripe-checkout`, `stripe-webhook`, `create-cmi-session`, `verify-cmi-callback`, `refund-cmi-payment` — Stripe and CMI are retired; PayPal is the active payment provider.
+- Section "Payment Integration Issues": References Stripe/CMI API keys and CMI merchant callback URLs.
+- "Useful Resources" table: Links to Stripe Dashboard and CMI website — no longer relevant.
+- Section 5 (How to Add a New Feature): Uses `src/features/` structure — being replaced by `src/modules/`.
+
+**Why it is outdated:** Payment providers changed from Stripe/CMI to PayPal. Project architecture is migrating from feature-based to modular.
+
+**Which phase should update it:**
+- Edge Functions section → **Phase 3** (when `payments` module is created)
+- Payment troubleshooting → **Phase 3**
+- Feature structure guide → **Phase 2** (when first business module is migrated)
+- `src/modules/shared/`, `src/modules/auth/`, `src/modules/users/`, and `src/app/` are already reflected in Section 3 (Project Structure) ✅

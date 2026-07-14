@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, lazy, Suspense, useMemo } from 'react'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { runProductImageFallbackQuery } from '@/services/productImages'
-import { Button, Card, Modal, Input, Map, LoadingSpinner, VendorAlerts, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
-import InventoryManager from '@/components/vendor/InventoryManager'
+import { runProductImageFallbackQuery } from '@/modules/catalog'
+import { Button, Card, Modal, Input, Map, LoadingSpinner, EmptyState, StateSkeleton as Skeleton, Logo } from '@/components/ui'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import ImageUploader from '@/components/vendor/ProductForm'
 import { formatPrice } from '@/utils/currency'
-import { PlusIcon, PencilIcon, TrashIcon, ArrowUpTrayIcon, PhotoIcon, ExclamationTriangleIcon, DocumentArrowUpIcon, TagIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { MAIN_CATEGORIES, getSuggestedSubcategories } from '@/constants/categories'
+import { PlusIcon, PhotoIcon, ExclamationTriangleIcon, DocumentArrowUpIcon, TagIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { MAIN_CATEGORIES, getSuggestedSubcategories, getCategoryLabel } from '@/constants/categories'
 import { useTranslation } from 'react-i18next'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -19,7 +19,7 @@ const VendorLocationSetup = lazy(() => import('./LocationSetup'))
 
 const VendorProducts = () => {
   const { profile } = useAuthStore()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(false)
@@ -32,6 +32,11 @@ const VendorProducts = () => {
   const [imagePreviews, setImagePreviews] = useState([])
   const [existingImages, setExistingImages] = useState([])
   const [selectedLocation, setSelectedLocation] = useState(null)
+  const productMapCenter = useMapCenter({
+    lat: selectedLocation?.lat,
+    lng: selectedLocation?.lng,
+    city: profile?.city,
+  })
   const [needsLocation, setNeedsLocation] = useState(false)
   const [rejectionReasonProduct, setRejectionReasonProduct] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -54,10 +59,11 @@ const VendorProducts = () => {
   const [bulkParsing, setBulkParsing] = useState(false)
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, success: 0, failed: 0 })
 
-  // Get suggested subcategories for current category
+  // Get suggested subcategories for current category (localized)
+  const currentLang = i18n.resolvedLanguage || i18n.language || 'en'
   const suggestedSubcategories = useMemo(() => {
-    return getSuggestedSubcategories(formData.category)
-  }, [formData.category])
+    return getSuggestedSubcategories(formData.category, currentLang)
+  }, [formData.category, currentLang])
 
   // Filter suggestions based on input
   const filteredSuggestions = useMemo(() => {
@@ -147,8 +153,8 @@ const VendorProducts = () => {
       setProducts(data || [])
     } catch (error) {
       logger.error('Error loading products:', error)
-      toast.error('Failed to load products')
-      setLoadError('Failed to load products')
+      toast.error(t('vendor.products.errors.loadFailed', 'Failed to load products'))
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -184,11 +190,11 @@ const VendorProducts = () => {
               )
             } else if (updated.approval_status === 'rejected') {
               toast.error(
-                `تم رفض منتج “${updated.name}” — اضغط للاطلاع على السبب`,
+                t('vendor.products.errors.productRejected', 'تم رفض منتج “{{name}}” — اضغط للاطلاع على السبب', { name: updated.name }),
                 { duration: 8000 }
               )
             } else if (updated.approval_status === 'suspended') {
-              toast(`تم تعليق منتج “${updated.name}” مؤقتاً من قبل الإدارة`, { icon: '⚠️', duration: 6000 })
+              toast(t('vendor.products.warnings.productSuspended', 'تم تعليق منتج “{{name}}” مؤقتاً من قبل الإدارة', { name: updated.name }), { icon: '⚠️', duration: 6000 })
             }
 
             // Refresh the local list to reflect the new status immediately
@@ -267,23 +273,23 @@ const VendorProducts = () => {
   const validateImageFile = (file) => {
     // Validate MIME type (can't be spoofed via filename alone)
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      return `"${file.name}": نوع الملف غير مسموح. استخدم JPG أو PNG أو WebP فقط`
+      return t('vendor.products.errors.unsupportedImageType', '"{{filename}}": نوع الملف غير مسموح. استخدم JPG أو PNG أو WebP فقط', { filename: file.name })
     }
     // Validate extension from whitelist
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
-      return `"${file.name}": امتداد الملف غير مسموح`
+      return t('vendor.products.errors.unsupportedImageExtension', '"{{filename}}": امتداد الملف غير مسموح', { filename: file.name })
     }
     // Validate size
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      return `"${file.name}": حجم الملف يتجاوز 5MB`
+      return t('vendor.products.errors.imageTooLarge', '"{{filename}}": حجم الملف يتجاوز 5MB', { filename: file.name })
     }
     return null
   }
 
   const handleImagesAdded = (files, previews) => {
     if (files.length + imageFiles.length > 5) {
-      toast.error('الحد الأقصى هو 5 صور لكل منتج')
+      toast.error(t('vendor.products.errors.maxImages', 'الحد الأقصى هو 5 صور لكل منتج'))
       return
     }
 
@@ -318,9 +324,9 @@ const VendorProducts = () => {
       
       if (error) throw error
       setExistingImages(existingImages.filter(img => img.id !== imageId))
-      toast.success('Image removed')
+      toast.success(t('vendor.products.success.imageRemoved', 'Image removed'))
     } catch (_error) {
-      toast.error('Failed to remove image')
+      toast.error(t('vendor.products.errors.imageRemoveFailed', 'Failed to remove image'))
     }
   }
   
@@ -341,13 +347,13 @@ const VendorProducts = () => {
 
     const price = parseFloat(parts[2])
     if (isNaN(price) || price <= 0) {
-      toast.error(`منتج "${parts[0].substring(0, 30)}": السعر غير صالح — تم التخطي`)
+      toast.error(t('vendor.products.errors.bulkInvalidPrice', 'منتج "{{name}}": السعر غير صالح — تم التخطي', { name: parts[0].substring(0, 30) }))
       return null
     }
 
     const quantity = parseFloat(parts[3])
     if (isNaN(quantity) || quantity < 0) {
-      toast.error(`منتج "${name}": الكمية غير صالحة — تم التخطي`)
+      toast.error(t('vendor.products.errors.bulkInvalidQuantity', 'منتج "{{name}}": الكمية غير صالحة — تم التخطي', { name }))
       return null
     }
 
@@ -412,7 +418,7 @@ const VendorProducts = () => {
 
     try {
       if (!isPayPalSetupComplete(profile)) {
-        toast.error('يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات')
+        toast.error(t('vendor.products.errors.paypalRequired', 'يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات'))
         setBulkParsing(false)
         return
       }
@@ -468,13 +474,13 @@ const VendorProducts = () => {
           return null
         }).filter(Boolean)
       } else {
-        toast.error('نوع الملف غير مدعوم. استخدم DOCX أو CSV أو TXT')
+        toast.error(t('vendor.products.errors.unsupportedFileType', 'نوع الملف غير مدعوم. استخدم DOCX أو CSV أو TXT'))
         setBulkParsing(false)
         return
       }
 
       if (products.length === 0) {
-        toast.error('لم يتم العثور على منتجات. تأكد من تنسيق الملف')
+        toast.error(t('vendor.products.errors.noProductsFound', 'لم يتم العثور على منتجات. تأكد من تنسيق الملف'))
         setBulkParsing(false)
         return
       }
@@ -520,7 +526,7 @@ const VendorProducts = () => {
         setBulkProgress(prev => ({ ...prev, success: successCount, failed: failedCount }))
       }
 
-      toast.success(`تم رفع ${successCount} منتج بنجاح. فشل ${failedCount} منتج.`)
+      toast.success(t('vendor.products.success.bulkUploaded', 'تم رفع {{success}} منتج بنجاح. فشل {{failed}} منتج.', { success: successCount, failed: failedCount }))
       
       // Reset and close
       setBulkFile(null)
@@ -532,7 +538,7 @@ const VendorProducts = () => {
       await loadProducts()
     } catch (error) {
       logger.error('Error processing bulk upload:', error)
-      toast.error('حدث خطأ أثناء معالجة الملف')
+      toast.error(t('vendor.products.errors.fileProcessingError', 'حدث خطأ أثناء معالجة الملف'))
       setBulkParsing(false)
     }
   }
@@ -541,28 +547,28 @@ const VendorProducts = () => {
     e.preventDefault()
 
     if (!isPayPalSetupComplete(profile)) {
-      toast.error('يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات')
+      toast.error(t('vendor.products.errors.paypalRequired', 'يجب إكمال إعداد PayPal والتحقق منه قبل إضافة المنتجات'))
       return
     }
 
     // Validation - Accurate Product Description
     if (!formData.name.trim()) {
-      toast.error('اسم المنتج مطلوب')
+      toast.error(t('vendor.products.errors.productNameRequired', 'اسم المنتج مطلوب'))
       return
     }
 
     if (formData.name.trim().length < 3) {
-      toast.error('اسم المنتج يجب أن يكون 3 أحرف على الأقل')
+      toast.error(t('vendor.products.errors.productNameTooShort', 'اسم المنتج يجب أن يكون 3 أحرف على الأقل'))
       return
     }
 
     if (!formData.description.trim()) {
-      toast.error('يجب إضافة وصف للمنتج يتضمن جودة وأصل ونوعية التغليف')
+      toast.error(t('vendor.products.errors.descriptionRequired', 'يجب إضافة وصف للمنتج يتضمن جودة وأصل ونوعية التغليف'))
       return
     }
 
     if (formData.description.trim().length < 10) {
-      toast.error('الوصف قصير جداً — يرجى توفير وصف دقيق (10 أحرف على الأقل)')
+      toast.error(t('vendor.products.errors.descriptionTooShort', 'الوصف قصير جداً — يرجى توفير وصف دقيق (10 أحرف على الأقل)'))
       return
     }
 
@@ -572,28 +578,28 @@ const VendorProducts = () => {
     const minOrder = parseFloat(formData.min_order_quantity) || 1
 
     if (isNaN(price) || price <= 0) {
-      toast.error('يجب إدخال سعر صحيح بالدرهم المغربي')
+      toast.error(t('vendor.products.errors.invalidPrice', 'يجب إدخال سعر صحيح بالدرهم المغربي'))
       return
     }
 
     if (price > 100000) {
-      toast.error('السعر يبدو مرتفعاً جداً. يرجى التحقق من توافق التسعير مع ممارسات التجارة العادلة.')
+      toast.error(t('vendor.products.errors.priceTooHigh', 'السعر يبدو مرتفعاً جداً. يرجى التحقق من توافق التسعير مع ممارسات التجارة العادلة.'))
       return
     }
 
     if (isNaN(quantity) || quantity < 0) {
-      toast.error('يجب إدخال كمية صحيحة')
+      toast.error(t('vendor.products.errors.invalidQuantity', 'يجب إدخال كمية صحيحة'))
       return
     }
 
     // Stock warning for low quantities
     if (quantity > 0 && quantity <= 10) {
-      toast(`⚠️ تحذير: المخزون منخفض فقط ${quantity} ${formData.unit_type}. قد يخيب آمال المشترين إذا نفد المخزون.`, { duration: 5000 })
+      toast(t('vendor.products.warnings.lowStock', '⚠️ تحذير: المخزون منخفض فقط {{quantity}} {{unit}}. قد يخيب آمال المشترين إذا نفد المخزون.', { quantity, unit: formData.unit_type }), { duration: 5000 })
     }
 
     // Out of stock warning
     if (quantity === 0 && editingProduct?.is_available) {
-      toast('⚠️ تعيين الكمية إلى 0 سيجعل هذا المنتج غير متوفر.', { duration: 5000 })
+      toast(t('vendor.products.warnings.outOfStock', '⚠️ تعيين الكمية إلى 0 سيجعل هذا المنتج غير متوفر.'), { duration: 5000 })
     }
 
     setSubmitting(true)
@@ -609,10 +615,17 @@ const VendorProducts = () => {
         min_order_quantity: minOrder,
         available_quantity: quantity,
         description: formData.description.trim(),
-        latitude: selectedLocation?.lat || formData.latitude,
-        longitude: selectedLocation?.lng || formData.longitude,
         is_available: false, // Will be set to true after admin approval
         approval_status: 'pending', // Requires admin approval before visible to buyers
+      }
+
+      // Only include location columns if they have values
+      // (columns were added in migration 20260711000013; defensive against missing columns)
+      const lat = selectedLocation?.lat || formData.latitude
+      const lng = selectedLocation?.lng || formData.longitude
+      if (lat != null && lng != null) {
+        productData.latitude = lat
+        productData.longitude = lng
       }
 
       if (editingProduct) {
@@ -629,7 +642,7 @@ const VendorProducts = () => {
           await uploadImages(editingProduct.id)
         }
         
-        toast.success('تم تحديث المنتج بنجاح!')
+        toast.success(t('vendor.products.success.productUpdated', 'تم تحديث المنتج بنجاح!'))
       } else {
         // Create new product
         const { data, error } = await supabase
@@ -646,7 +659,7 @@ const VendorProducts = () => {
         }
         
         toast.success(
-          'تم إرسال المنتج للمراجعة. سيظهر بعد موافقة الإدارة خلال 24 ساعة.',
+          t('vendor.products.success.productSubmitted', 'تم إرسال المنتج للمراجعة. سيظهر بعد موافقة الإدارة خلال 24 ساعة.'),
           { duration: 6000 }
         )
       }
@@ -656,7 +669,7 @@ const VendorProducts = () => {
       loadProducts()
     } catch (error) {
       logger.error('Error saving product:', error)
-      toast.error(error.message || 'حدث خطأ أثناء حفظ المنتج')
+      toast.error(error.message || t('vendor.products.errors.saveFailed', 'حدث خطأ أثناء حفظ المنتج'))
     } finally {
       setSubmitting(false)
     }
@@ -688,11 +701,11 @@ const VendorProducts = () => {
         .eq('id', id)
       
       if (error) throw error
-      toast.success('تم حذف المنتج بنجاح')
+      toast.success(t('vendor.products.success.productDeleted', 'تم حذف المنتج بنجاح'))
       loadProducts()
     } catch (error) {
       logger.error('Error deleting product:', error)
-      toast.error('حدث خطأ أثناء حذف المنتج')
+      toast.error(t('vendor.products.errors.deleteFailed', 'حدث خطأ أثناء حذف المنتج'))
     }
   }
   
@@ -767,9 +780,7 @@ const VendorProducts = () => {
       {/* Header with Logo and Title */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-6">
-          <div className="flex items-center justify-center h-12 w-12 rounded-full bg-green-600">
-            <span className="text-white text-lg font-bold">قطوف</span>
-          </div>
+          <Logo size="lg" showText={false} />
           <div>
             <h1 className="text-3xl font-bold text-gray-900 text-right">إدارة المنتجات</h1>
             <p className="text-gray-500 text-right text-sm">نظّم منتجات متجرك بسهولة</p>
@@ -904,7 +915,7 @@ const VendorProducts = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
-                        <p className="text-xs text-gray-500 capitalize">{product.category}{product.subcategory ? ` • ${product.subcategory}` : ''}</p>
+                        <p className="text-xs text-gray-500">{getCategoryLabel(product.category, currentLang)}{product.subcategory ? ` • ${product.subcategory}` : ''}</p>
                         <h2 className="text-lg font-semibold text-gray-900 text-right">{product.name}</h2>
                       </div>
                       <span className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold whitespace-nowrap ${statusBadgeClasses[product.approval_status || (product.is_available ? 'active' : 'inactive')] || 'bg-gray-100 text-gray-600'}`}>
@@ -1003,7 +1014,7 @@ const VendorProducts = () => {
                 className="input"
               >
                 {MAIN_CATEGORIES.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.emoji} {cat.label}</option>
+                  <option key={cat.id} value={cat.id}>{cat.emoji} {getCategoryLabel(cat.id, currentLang)}</option>
                 ))}
               </select>
             </div>
@@ -1147,8 +1158,8 @@ const VendorProducts = () => {
             <p className="input-label text-right">موقع المنتج (اختياري)</p>
             <p className="text-xs text-gray-500 text-right mb-2">انقر على الخريطة لتعيين موقع المنتج</p>
             <Map
-              center={selectedLocation || [33.5731, -7.5898]}
-              zoom={selectedLocation ? 14 : 6}
+              center={productMapCenter}
+              zoom={selectedLocation ? 14 : 12}
               onLocationSelect={handleLocationSelect}
               height="200px"
             />

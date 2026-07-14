@@ -1,17 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useCartStore } from '@/store/cartStore'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useCartStore } from '@/modules/cart'
 import { useAuthStore } from '@/store/authStore'
+import useRequireAuth from '@/hooks/useRequireAuth'
 import { supabase } from '@/services/supabase'
-import { runProductImageFallbackQuery } from '@/services/productImages'
+import { runProductImageFallbackQuery } from '@/modules/catalog'
 import inventoryService from '@/services/inventoryService'
-import reviewService from '@/services/reviewService'
-import refundPolicyService from '@/services/refundPolicyService'
-import { Button, LoadingSpinner, Map, StarRating } from '@/components/ui'
+import { reviewService } from '@/modules/reviews'
+import { refundPolicyService } from '@/modules/payments'
+import { Button, LoadingSpinner, Map, StarRating, RecentlyViewed, ProductRecommendations, trackProductView } from '@/components/ui'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { formatPrice } from '@/utils/currency'
-import { formatQuantity, getQuantityStep, normalizeQuantity } from '@/utils/cartQuantity'
+import { formatQuantity, getQuantityStep, normalizeQuantity } from '@/modules/cart'
 import { getCategoryLabel } from '@/constants/categories'
 import {
   MapPinIcon,
@@ -40,27 +43,18 @@ const getTextLocale = (language = 'en') => {
 const ProductDetailPage = () => {
   const { t, i18n } = useTranslation()
   const { id } = useParams()
+  const queryClient = useQueryClient()
   const { addItem } = useCartStore()
   const { user, profile } = useAuthStore()
+  const { requireAuth } = useRequireAuth()
 
-  const [product, setProduct] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  // UI-only state (not server data)
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
-  const [reviews, setReviews] = useState([])
-  const [_reviewsLoading, setReviewsLoading] = useState(false)
-  const [reviewsPage] = useState(1)
-  const [_totalReviews, setTotalReviews] = useState(0)
-  const [averageRating, setAverageRating] = useState(0)
   const [userRating, setUserRating] = useState(0)
   const [reviewText, setReviewText] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
   const [joiningWaitlist, setJoiningWaitlist] = useState(false)
-  const [waitlistEntry, setWaitlistEntry] = useState(null)
-  const [refundPolicy, setRefundPolicy] = useState(null)
-  const [_relatedProducts, setRelatedProducts] = useState([])
-  const [_relatedLoading, setRelatedLoading] = useState(false)
   const currentLanguage = i18n.resolvedLanguage || i18n.language || 'en'
   const textLocale = useMemo(() => getTextLocale(currentLanguage), [currentLanguage])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(textLocale), [textLocale])
@@ -69,6 +63,197 @@ const ProductDetailPage = () => {
     month: 'short',
     day: 'numeric',
   }), [textLocale])
+  // SM-2 fix: جلب بيانات المنتج عبر TanStack Query → كاش مشترك مع Marketplace
+  // عند العودة من صفحة التفاصيل تُعاد البيانات فوراً من الكاش دون طلب HTTP
+  const {
+    data: product,
+    isLoading: loading,
+    isError: productFetchError,
+  } = useQuery({
+    queryKey: ['product', id],
+    queryFn: async () => {
+      if (!id) return null
+      const buildQuery = (selectClause) => supabase
+        .from('products')
+        .select(selectClause)
+        .eq('id', id)
+        .single()
+
+      try {
+        const { data } = await runProductImageFallbackQuery({
+          buildQuery,
+          selectWithImages: `
+            *,
+            vendor:public_vendor_profiles!vendor_id(
+              id,
+              first_name,
+              last_name,
+              store_name,
+              store_description,
+              avatar_url,
+              city,
+              country,
+              latitude,
+              longitude
+            ),
+            product_images(id, url, is_primary)
+          `,
+          selectWithoutImages: `
+            *,
+            vendor:public_vendor_profiles!vendor_id(
+              id,
+              first_name,
+              last_name,
+              store_name,
+              store_description,
+              avatar_url,
+              city,
+              country,
+              latitude,
+              longitude
+            )
+          `,
+          onRelationError: (relationError) => logger.warn('Product detail: product_images relation missing, hydrating separately', relationError),
+        })
+        return data
+      } catch (error) {
+        if (error.code === 'PGRST116') return null
+        throw error
+      }
+    },
+    enabled: Boolean(id),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error) => {
+      if (error?.code === 'PGRST116') return false
+      return failureCount < 2
+    },
+  })
+
+  const notFound = !loading && (productFetchError || product === null)
+
+  // Unified map center: vendor coords → vendor city → buyer city → Casablanca
+  const vendorMapCenter = useMapCenter({
+    lat: product?.vendor?.latitude,
+    lng: product?.vendor?.longitude,
+    city: product?.vendor?.city || profile?.city,
+  })
+
+  // Sync initial quantity & selectedImage when product loads (UI state only)
+  useEffect(() => {
+    if (product) {
+      setQuantity(product.min_order_quantity || 1)
+      if (product.images?.length > 0) {
+        const primaryIndex = product.images.findIndex(img => img.is_primary)
+        setSelectedImage(primaryIndex >= 0 ? primaryIndex : 0)
+      }
+      if (product.id) {
+        trackProductView(product.id)
+      }
+    }
+  }, [product?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // SM-2 fix: Reviews via TanStack Query — كاش مستقل لكل منتج
+  const {
+    data: reviewsData,
+    isLoading: _reviewsLoading,
+  } = useQuery({
+    queryKey: ['product-reviews', id, 1],
+    queryFn: async () => {
+      const from = 0
+      const to = REVIEWS_PER_PAGE - 1
+
+      const { data, error, count } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          reviewer:profiles!reviews_user_id_fkey(first_name, last_name, avatar_url)
+        `, { count: 'exact' })
+        .eq('product_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to)
+
+      if (error) throw error
+
+      // Calculate average rating in same query batch
+      let averageRating = 0
+      if ((count || 0) > 0) {
+        const { data: allRatings } = await supabase
+          .from('reviews')
+          .select('rating')
+          .eq('product_id', id)
+          .is('deleted_at', null)
+        if (allRatings?.length > 0) {
+          averageRating = allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
+        }
+      }
+
+      return { reviews: data || [], totalReviews: count || 0, averageRating }
+    },
+    enabled: Boolean(id) && Boolean(product),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  })
+
+  const reviews = reviewsData?.reviews ?? []
+  const _totalReviews = reviewsData?.totalReviews ?? 0
+  const averageRating = reviewsData?.averageRating ?? 0
+
+  // SM-2 fix: Related products via TanStack Query
+  const { data: _relatedProducts = [], isLoading: _relatedLoading } = useQuery({
+    queryKey: ['product-related', id, product?.category],
+    queryFn: async () => {
+      const buildQuery = (selectClause) => supabase
+        .from('products')
+        .select(selectClause)
+        .eq('is_available', true)
+        .eq('category', product.category)
+        .neq('id', id)
+        .order('created_at', { ascending: false })
+        .limit(4)
+
+      const { data } = await runProductImageFallbackQuery({
+        buildQuery,
+        selectWithImages: `*, product_images(url, is_primary)`,
+        selectWithoutImages: '*',
+        onRelationError: (error) => logger.warn('Product detail related products: product_images relation missing, hydrating separately', error),
+      })
+
+      return data || []
+    },
+    enabled: Boolean(id) && Boolean(product?.category),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  })
+
+  // SM-2 fix: Refund policy via TanStack Query
+  const { data: refundPolicy = null } = useQuery({
+    queryKey: ['vendor-refund-policy', product?.vendor_id],
+    queryFn: async () => {
+      try {
+        return await refundPolicyService.getVendorRefundPolicy(product.vendor_id)
+      } catch (error) {
+        logger.warn('Error loading vendor refund policy:', error)
+        return null
+      }
+    },
+    enabled: Boolean(product?.vendor_id),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  })
+
+  // SM-6 fix: Waitlist entry — يبقى useEffect لأنه مرتبط بحالة المستخدم وليس بيانات عامة
+  // نستخدم useQuery مع enabled لتأمين cleanup صحيح
+  const { data: waitlistEntry = null } = useQuery({
+    queryKey: ['waitlist-entry', id, user?.id],
+    queryFn: () => inventoryService.getUserWaitlistEntry(id, user.id),
+    enabled: Boolean(id) && Boolean(user?.id) && Boolean(product),
+    staleTime: 60 * 1000,
+    gcTime: 2 * 60 * 1000,
+    retry: false,
+  })
+
   const localizedCategoryLabel = useMemo(() => {
     if (!product?.category) return ''
     return getCategoryLabel(product.category, currentLanguage)
@@ -160,222 +345,8 @@ const ProductDetailPage = () => {
     }
   }, [product, averageRating, reviews, t, localizedCategoryLabel])
 
-  const loadProduct = useCallback(async () => {
-    if (!id) return
-
-    setLoading(true)
-    setNotFound(false)
-    try {
-      const buildQuery = (selectClause) => supabase
-        .from('products')
-        .select(selectClause)
-        .eq('id', id)
-        .single()
-
-      let data
-      try {
-        ({ data } = await runProductImageFallbackQuery({
-          buildQuery,
-          selectWithImages: `
-            *,
-            vendor:profiles!products_vendor_id_fkey(
-              id,
-              first_name,
-              last_name,
-              store_name,
-              store_description,
-              avatar_url,
-              city,
-              country,
-              latitude,
-              longitude
-            ),
-            product_images(id, url, is_primary)
-          `,
-          selectWithoutImages: `
-            *,
-            vendor:profiles!products_vendor_id_fkey(
-              id,
-              first_name,
-              last_name,
-              store_name,
-              store_description,
-              avatar_url,
-              city,
-              country,
-              latitude,
-              longitude
-            )
-          `,
-          onRelationError: (relationError) => logger.warn('Product detail: product_images relation missing, hydrating separately', relationError),
-        }))
-      } catch (error) {
-        if (error.code === 'PGRST116') {
-          setNotFound(true)
-          return
-        }
-
-        throw error
-      }
-
-      setProduct(data)
-      setQuantity(data?.min_order_quantity || 1)
-
-      // Set primary image as selected
-      if (data?.images?.length > 0) {
-        const primaryIndex = data.images.findIndex(img => img.is_primary)
-        setSelectedImage(primaryIndex >= 0 ? primaryIndex : 0)
-      }
-    } catch (error) {
-      logger.error('Error loading product:', error)
-      toast.error(t('product.notFound.title', 'Product not found'))
-      setNotFound(true)
-    } finally {
-      setLoading(false)
-    }
-  }, [id, t])
-
-  const loadReviews = useCallback(async () => {
-    if (!id || !product) return
-
-    setReviewsLoading(true)
-    try {
-      const from = (reviewsPage - 1) * REVIEWS_PER_PAGE
-      const to = from + REVIEWS_PER_PAGE - 1
-
-      const { data, error, count } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          reviewer:profiles!reviews_user_id_fkey(first_name, last_name, avatar_url)
-        `, { count: 'exact' })
-        .eq('product_id', id)
-        .is('deleted_at', null)
-        .order('created_at', { ascending: false })
-        .range(from, to)
-
-      if (error) throw error
-
-      setReviews(data || [])
-      setTotalReviews(count || 0)
-
-      // Calculate average rating from all reviews (not just current page)
-      if (count > 0) {
-        const { data: allRatings } = await supabase
-          .from('reviews')
-          .select('rating')
-          .eq('product_id', id)
-          .is('deleted_at', null)
-
-        if (allRatings && allRatings.length > 0) {
-          const avg = allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
-          setAverageRating(avg)
-        }
-      }
-    } catch (error) {
-      logger.error('Error loading reviews:', error)
-    } finally {
-      setReviewsLoading(false)
-    }
-  }, [id, product, reviewsPage])
-
-  const loadRelatedProducts = useCallback(async () => {
-    if (!product?.category) return
-
-    setRelatedLoading(true)
-    try {
-      const buildQuery = (selectClause) => supabase
-        .from('products')
-        .select(selectClause)
-        .eq('is_available', true)
-        .eq('category', product.category)
-        .neq('id', id)
-        .order('created_at', { ascending: false })
-        .limit(4)
-
-      const { data } = await runProductImageFallbackQuery({
-        buildQuery,
-        selectWithImages: `
-          *,
-          product_images(url, is_primary)
-        `,
-        selectWithoutImages: '*',
-        onRelationError: (error) => logger.warn('Product detail related products: product_images relation missing, hydrating separately', error),
-      })
-
-      setRelatedProducts(data || [])
-    } catch (error) {
-      logger.error('Error loading related products:', error)
-    } finally {
-      setRelatedLoading(false)
-    }
-  }, [id, product?.category])
-
-  const loadRefundPolicy = useCallback(async () => {
-    if (!product?.vendor_id) return
-
-    try {
-      const policy = await refundPolicyService.getVendorRefundPolicy(product.vendor_id)
-      setRefundPolicy(policy)
-    } catch (error) {
-      logger.warn('Error loading vendor refund policy:', error)
-      setRefundPolicy(null)
-    }
-  }, [product?.vendor_id])
-
-  useEffect(() => {
-    loadProduct()
-  }, [id, loadProduct])
-
-  useEffect(() => {
-    if (product) {
-      loadReviews()
-    }
-  }, [id, product, loadReviews])
-
-  useEffect(() => {
-    if (product?.category) {
-      loadRelatedProducts()
-    }
-  }, [product?.category, loadRelatedProducts])
-
-  useEffect(() => {
-    if (product?.vendor_id) {
-      loadRefundPolicy()
-    }
-  }, [loadRefundPolicy, product?.vendor_id])
-
-  useEffect(() => {
-    let active = true
-
-    const loadWaitlistEntry = async () => {
-      if (!product?.id || !user?.id) {
-        if (active) setWaitlistEntry(null)
-        return
-      }
-
-      try {
-        const entry = await inventoryService.getUserWaitlistEntry(product.id, user.id)
-        if (active) {
-          setWaitlistEntry(entry)
-        }
-      } catch (error) {
-        logger.warn('Error loading waitlist entry:', error)
-      }
-    }
-
-    loadWaitlistEntry()
-
-    return () => {
-      active = false
-    }
-  }, [product?.id, user?.id])
-
   const handleSubmitReview = async () => {
-    if (!user) {
-      toast.error(t('productDetail.reviews.loginRequired', 'Please login to add a review'))
-      return
-    }
+    if (!requireAuth({ from: `/product/${id}` })) return
 
     if (userRating === 0) {
       toast.error(t('productDetail.reviews.selectRating', 'Please select a rating'))
@@ -396,7 +367,8 @@ const ProductDetailPage = () => {
       toast.success(t('productDetail.reviews.submitSuccess', 'Review submitted successfully!'))
       setUserRating(0)
       setReviewText('')
-      await loadReviews()
+      // Invalidate reviews cache so the new review appears immediately
+      await queryClient.invalidateQueries({ queryKey: ['product-reviews', id] })
     } catch (error) {
       logger.error('Error submitting review:', error)
       toast.error(t('productDetail.reviews.submitFailed', 'Failed to submit review'))
@@ -465,7 +437,9 @@ const ProductDetailPage = () => {
       return
     }
 
-    if (eligibility.reason === 'LOCATION_MISSING') {
+    // Only show location hint for authenticated users who haven't set a location yet.
+    // Guests don't have a profile so the hint is meaningless for them.
+    if (eligibility.reason === 'LOCATION_MISSING' && user) {
       toast(eligibility.message || 'سيتم التحقق من التوصيل بعد تحديد موقعك.', {
         icon: '📍',
         duration: 4000,
@@ -478,24 +452,21 @@ const ProductDetailPage = () => {
   const handleJoinWaitlist = async () => {
     if (!product) return
 
-    if (!user) {
-      toast.error(t('productDetail.waitlist.loginRequired', 'Please login first to join the waitlist'))
-      return
-    }
+    if (!requireAuth({ from: `/product/${id}`, onUnauthorized: () => toast.error(t('common.loginRequired', 'Please sign in to continue.')) })) return
 
     setJoiningWaitlist(true)
     try {
-      const entry = await inventoryService.joinWaitlist({
+      await inventoryService.joinWaitlist({
         productId: product.id,
         userId: user.id,
         requestedQuantity: quantity,
       })
 
-      setWaitlistEntry(entry)
-      setProduct((previous) => previous ? {
-        ...previous,
-        waitlist_count: Number(previous.waitlist_count || 0) + 1,
-      } : previous)
+      // Invalidate waitlist and product caches to reflect updated waitlist_count
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['waitlist-entry', id, user?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['product', id] }),
+      ])
       toast.success(t('productDetail.waitlist.joinSuccess', 'You have been added to the waitlist successfully'))
     } catch (error) {
       logger.error('Error joining waitlist:', error)
@@ -950,10 +921,7 @@ const ProductDetailPage = () => {
               )}
             </div>
             <Map
-              center={[
-                product.vendor.latitude || 33.5731,
-                product.vendor.longitude || -7.5898
-              ]}
+              center={vendorMapCenter}
               zoom={10}
               markers={
                 product.vendor.latitude && product.vendor.longitude
@@ -1101,6 +1069,12 @@ const ProductDetailPage = () => {
           )}
         </div>
       </div>
+
+      {/* Recently Viewed */}
+      <RecentlyViewed excludeId={product?.id} className="mt-12" />
+
+      {/* Product Recommendations */}
+      <ProductRecommendations category={product?.category} excludeId={product?.id} className="mt-8" />
     </div>
   )
 }

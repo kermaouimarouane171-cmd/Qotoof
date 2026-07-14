@@ -1,6 +1,6 @@
 import { supabase } from '@/services/supabase'
 import toast from 'react-hot-toast'
-import { sessionService, autoLogoutService } from '@/modules/auth'
+import { sessionService, autoLogoutService, mfaService } from '@/modules/auth'
 import { auditLogger } from '@/services/auditLogger'
 import { emailService } from '@/services/emailService'
 import { useCartStore } from '@/modules/cart'
@@ -199,30 +199,17 @@ export function createAuthActions(set, get) {
     },
 
     // ============================================
-    // VERIFY MFA CODE (Supabase MFA API)
+    // VERIFY MFA CODE (server-side mfa_settings)
     // ============================================
-    verifyMFA: async (code) => {
+    verifyMFA: async (code, method = 'email') => {
       try {
         const { user } = get()
         if (!user) return unauthenticatedResponse()
 
-        // List TOTP factors to find the one to verify
-        const { data: factorsData, error: factorsError } = await supabase.auth.mfa.listFactors()
-        if (factorsError) throw factorsError
+        const result = await mfaService.verifyCode(code, method)
 
-        const totpFactors = factorsData?.totp || []
-        if (totpFactors.length === 0) {
-          return { success: false, error: 'No TOTP factors found' }
-        }
-
-        const factor = totpFactors[0]
-        const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
-          factorId: factor.id,
-          code,
-        })
-
-        if (verifyError) {
-          return { success: false, error: verifyError.message || 'Invalid code' }
+        if (!result.success) {
+          return result
         }
 
         // Register session only if profile exists (active_sessions has FK to profiles)
@@ -233,7 +220,7 @@ export function createAuthActions(set, get) {
           logger.warn('Skipping session registration in verifyMFA — profile missing')
         }
 
-        // MFA verified - complete login (session is now aal2)
+        // MFA verified - complete login
         set({
           mfaRequired: false,
           mfaPending: false,
@@ -273,11 +260,16 @@ export function createAuthActions(set, get) {
         }
 
         // SIGNED_OUT is logged server-side by the sign-out Edge Function.
-        // Falls back to direct signOut if the Edge Function call fails.
+        // Call Edge Function FIRST while JWT is still valid, then signOut locally.
         try {
-          await supabase.functions.invoke('sign-out', {})
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user) {
+            await supabase.functions.invoke('sign-out', {
+              body: { user_id: user.id }
+            })
+          }
         } catch (edgeFnErr) {
-          logger.error('sign-out Edge Function call failed, falling back to direct signOut:', edgeFnErr)
+          logger.error('sign-out Edge Function call failed, continuing with signOut:', edgeFnErr)
         }
 
         const { error } = await supabase.auth.signOut()
@@ -333,7 +325,13 @@ export function createAuthActions(set, get) {
             last_name: userData.lastName,
             role: userData.role,
             phone: userData.phone || null,
-            cin: userData.cin || null,
+            cin_number: userData.cin || null,
+            // Store vendor/buyer city and store_name in user_metadata so the
+            // handle_new_user() trigger can persist them to profiles directly,
+            // avoiding the RLS-blocked upsert that runs after signUp when
+            // email confirmation is enabled (no session = auth.uid() is NULL).
+            ...(userData.city ? { city: userData.city } : {}),
+            ...(userData.role === 'vendor' && userData.storeName ? { store_name: userData.storeName } : {}),
             referral_code_used: userData.referralCode || null,
           },
         }
@@ -359,7 +357,7 @@ export function createAuthActions(set, get) {
             email: data.user.email,
             role: userData.role,
             phone: userData.phone || null,
-            cin: userData.cin || null,
+            cin_number: userData.cin || null,
           }
 
           // Add vendor-specific fields
@@ -735,20 +733,8 @@ export function createAuthActions(set, get) {
 
     disableMFA: async () => {
       try {
-        const { data: factorsData, error: listError } = await supabase.auth.mfa.listFactors()
-        if (listError) throw listError
-
-        const totpFactors = factorsData?.totp || []
-        if (totpFactors.length === 0) {
-          return { success: false, error: 'No MFA factors found' }
-        }
-
-        for (const factor of totpFactors) {
-          const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId: factor.id })
-          if (unenrollError) throw unenrollError
-        }
-
-        return { success: true }
+        const result = await mfaService.disable()
+        return result
       } catch (err) {
         logger.error('Disable MFA error:', err)
         return { success: false, error: err.message }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { supabase } from '@/services/supabase'
-import { platformSettings } from '@/services/platformSettings'
+import { platformSettings } from '@/modules/admin'
+import { getAdminCommissionsPayments } from '@/modules/commissions'
 import { Card, LoadingSpinner } from '@/components/ui'
 import {
   BanknotesIcon,
@@ -49,26 +49,13 @@ const AdminCommissionsPage = () => {
       setLoading(true)
 
       const now = new Date()
-      const periodDays = {
-        '7d': 7,
-        '30d': 30,
-        '90d': 90,
-      }[period] || 30
-      const startDate = new Date(now.getTime() - periodDays * 24 * 60 * 60 * 1000).toISOString()
 
       // Fetch platform commission rate (default 10%)
       const settings = await platformSettings.getSettings()
-      const commissionRate = (settings?.commission_rate ?? 10) / 100
+      const commissionRate = (settings?.commission_rate ?? 3) / 100
 
       // Load all payments (commission is calculated from amount)
-      const { data: paymentsRaw, error: paymentsError } = await supabase
-        .from('payments')
-        .select(`
-          id, order_id, amount, payment_method, status, created_at
-        `)
-        .gte('created_at', startDate)
-        .order('created_at', { ascending: false })
-        .limit(100)
+      const { data: paymentsRaw, error: paymentsError } = await getAdminCommissionsPayments({ period })
 
       if (paymentsError) throw paymentsError
 

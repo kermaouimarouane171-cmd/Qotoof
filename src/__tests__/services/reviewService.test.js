@@ -10,7 +10,7 @@ jest.mock('@/utils/logger', () => ({
   },
 }))
 
-import { buildReviewSummary } from '@/services/reviewService'
+import { buildReviewSummary } from '@/modules/reviews'
 
 describe('reviewService helpers', () => {
   it('builds summary metrics from review rows', () => {

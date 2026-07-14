@@ -37,7 +37,7 @@ export default defineConfig({
     }),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.png', 'robots.txt', 'apple-touch-icon.png', 'offline.html'],
       manifest: {
         name: 'Qotoof - B2B Plant Marketplace',
         short_name: 'Qotoof',
@@ -57,8 +57,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        // Navigate fallback for SPA
-        navigateFallback: '/index.html',
+        // Navigate fallback for offline/uncached SPA routes
+        navigateFallback: '/offline.html',
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//],
         // Cleanup old caches on update
         cleanupOutdatedCaches: true,

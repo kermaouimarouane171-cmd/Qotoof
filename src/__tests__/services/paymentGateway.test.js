@@ -102,10 +102,10 @@ jest.mock('@/services/supabase', () => {
 
 import {
   confirmPayment,
-  createPaymentIntent,
+  createGatewayPaymentIntent as createPaymentIntent,
   getPaymentById,
   paymentGateway,
-} from '@/services/paymentGateway'
+} from '@/modules/payments'
 
 const mockSupabase = globalThis.__mockSupabase
 
@@ -143,6 +143,10 @@ describe('paymentGateway', () => {
         amount: 250,
         currency: 'MAD',
       })
+      expect(options.body.returnUrl).toContain('/order-confirmation/order-1?paypal=success')
+      expect(options.body.cancelUrl).toContain('/order-confirmation/order-1?paypal=cancel')
+      expect(options.body.returnUrl).not.toContain('.supabase.co')
+      expect(options.body.cancelUrl).not.toContain('.supabase.co')
 
       return {
         data: {

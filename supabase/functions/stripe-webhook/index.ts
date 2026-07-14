@@ -1,7 +1,12 @@
 // ============================================
 // Supabase Edge Function: stripe-webhook
-// Handles Stripe webhook events for subscription management only.
-// Marketplace order checkout uses PayPal/bank flows instead.
+// Handles Stripe webhook events for:
+//   1. Subscription management (vendor plans)
+//   2. Marketplace order payments (buyer checkout → payout records created)
+//   3. Refund processing
+// Note: Morocco is not supported by Stripe Connect, so vendor/driver
+// payouts are recorded as pending and processed via Global Payouts
+// (see process-stripe-payouts Edge Function).
 // ============================================
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
@@ -251,6 +256,183 @@ serve(async (req) => {
         })
 
         console.log('Subscription updated for vendor:', vendor.id, 'New plan:', newPlanId)
+        break
+      }
+
+      // ============================================
+      // Marketplace: Checkout session completed (buyer paid)
+      // ============================================
+      case 'checkout.session.completed': {
+        const session = event.data.object
+
+        // Only process marketplace payments (not subscriptions)
+        const orderId = session.metadata?.order_id
+        if (!orderId) {
+          console.log('checkout.session.completed: no order_id in metadata, skipping (likely subscription)')
+          break
+        }
+
+        const orderNumber = session.metadata?.order_number || ''
+        const vendorId = session.metadata?.vendor_id || ''
+        const driverId = session.metadata?.driver_id || ''
+        const vendorAmount = Number(session.metadata?.vendor_amount || 0)
+        const driverAmount = Number(session.metadata?.driver_amount || 0)
+
+        const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || ''
+
+        console.log(`Marketplace payment completed: order=${orderNumber}, vendor=${vendorId}, driver=${driverId}`)
+
+        // 1. Update order status to paid
+        const { error: orderUpdateError } = await supabase
+          .from('orders')
+          .update({
+            payment_status: 'paid',
+            stripe_payment_intent_id: paymentIntentId,
+            stripe_charge_id: session.payment_intent?.latest_charge || null,
+            status: 'paid',
+          })
+          .eq('id', orderId)
+
+        if (orderUpdateError) {
+          console.error('Failed to update order payment_status:', orderUpdateError.message)
+        }
+
+        // 2. Update payment record
+        await supabase
+          .from('payments')
+          .update({
+            status: 'paid',
+            stripe_payment_intent_id: paymentIntentId,
+            paid_at: new Date().toISOString(),
+          })
+          .eq('order_id', orderId)
+          .maybeSingle()
+
+        // 3. Create pending payout records for vendor and driver.
+        // These will be processed by the process-stripe-payouts function
+        // via Stripe Global Payouts to Moroccan bank accounts.
+        try {
+          const { data: existingPayout } = await supabase
+            .from('payout_records')
+            .select('id')
+            .eq('order_id', orderId)
+            .maybeSingle()
+
+          if (!existingPayout) {
+            const payoutInserts: Array<Record<string, unknown>> = []
+
+            if (vendorId && vendorAmount > 0) {
+              payoutInserts.push({
+                order_id: orderId,
+                recipient_id: vendorId,
+                recipient_type: 'vendor',
+                amount: vendorAmount,
+                currency: 'MAD',
+                status: 'pending',
+                payment_method: 'bank_transfer',
+                stripe_payment_intent_id: paymentIntentId,
+              })
+            }
+
+            if (driverId && driverAmount > 0) {
+              payoutInserts.push({
+                order_id: orderId,
+                recipient_id: driverId,
+                recipient_type: 'driver',
+                amount: driverAmount,
+                currency: 'MAD',
+                status: 'pending',
+                payment_method: 'bank_transfer',
+                stripe_payment_intent_id: paymentIntentId,
+              })
+            }
+
+            if (payoutInserts.length > 0) {
+              await supabase.from('payout_records').insert(payoutInserts)
+              console.log(`Created ${payoutInserts.length} pending payout records for order ${orderNumber}`)
+            }
+          }
+        } catch (payoutError) {
+          console.error('Failed to create payout records:', (payoutError as Error).message)
+        }
+
+        // 4. Record platform commission
+        try {
+          const { data: existingCommission } = await supabase
+            .from('platform_commissions')
+            .select('id')
+            .eq('order_id', orderId)
+            .maybeSingle()
+
+          if (!existingCommission) {
+            const totalAmount = Number(session.amount_total || 0) / 100
+            const platformCommission = totalAmount - vendorAmount - driverAmount
+
+            await supabase.from('platform_commissions').insert({
+              order_id: orderId,
+              buyer_id: session.metadata?.buyer_id || null,
+              vendor_id: vendorId || null,
+              driver_id: driverId || null,
+              subtotal: totalAmount,
+              vendor_amount: vendorAmount,
+              driver_amount: driverAmount,
+              platform_commission: platformCommission,
+              status: 'collected',
+              collected_at: new Date().toISOString(),
+            })
+          }
+        } catch (commissionError) {
+          console.error('Failed to record platform commission:', (commissionError as Error).message)
+        }
+
+        console.log(`Marketplace order ${orderNumber} marked as paid`)
+        break
+      }
+
+      // ============================================
+      // Marketplace: Payment failed
+      // ============================================
+      case 'checkout.session.async_payment_failed': {
+        const session = event.data.object
+        const orderId = session.metadata?.order_id
+        if (!orderId) break
+
+        await supabase
+          .from('orders')
+          .update({ payment_status: 'failed' })
+          .eq('id', orderId)
+
+        console.log(`Marketplace order payment failed: ${orderId}`)
+        break
+      }
+
+      // ============================================
+      // Refund processed
+      // ============================================
+      case 'charge.refunded': {
+        const charge = event.data.object
+        const paymentIntentId = charge.payment_intent as string
+        if (!paymentIntentId) break
+
+        // Find order by payment intent ID
+        const { data: order } = await supabase
+          .from('orders')
+          .select('id, order_number, payment_status')
+          .eq('stripe_payment_intent_id', paymentIntentId)
+          .maybeSingle()
+
+        if (!order) break
+
+        const isFullRefund = charge.amount_refunded >= charge.amount
+        await supabase
+          .from('orders')
+          .update({
+            payment_status: isFullRefund ? 'refunded' : 'partial_refund',
+            status: isFullRefund ? 'cancelled' : order.status === 'paid' ? 'paid' : order.status,
+          })
+          .eq('id', order.id)
+
+        console.log(`Order ${order.order_number} refund processed: ${isFullRefund ? 'full' : 'partial'}`)
         break
       }
 

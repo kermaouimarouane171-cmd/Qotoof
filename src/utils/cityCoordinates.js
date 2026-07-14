@@ -123,6 +123,131 @@ const CITY_COORDINATES = {
   'khemisset': { lat: 33.8242, lng: -6.0663, label: 'الخميسات' },
   'khemissett': { lat: 33.8242, lng: -6.0663, label: 'الخميسات' },
   'الخميسات': { lat: 33.8242, lng: -6.0663, label: 'الخميسات' },
+
+  // Zaio
+  'zaio': { lat: 34.9419, lng: -2.7342, label: 'زايو' },
+  'zaïo': { lat: 34.9419, lng: -2.7342, label: 'زايو' },
+  'زايو': { lat: 34.9419, lng: -2.7342, label: 'زايو' },
+
+  // Berkane
+  'berkane': { lat: 34.9228, lng: -2.3176, label: 'بركان' },
+  'بركان': { lat: 34.9228, lng: -2.3176, label: 'بركان' },
+
+  // Taourirt
+  'taourirt': { lat: 34.4167, lng: -2.8833, label: 'تاوريرت' },
+  'تاوريرت': { lat: 34.4167, lng: -2.8833, label: 'تاوريرت' },
+
+  // Jerada
+  'jerada': { lat: 34.3050, lng: -2.1667, label: 'جرسيف' },
+  'جرسيف': { lat: 34.3050, lng: -2.1667, label: 'جرسيف' },
+
+  // Figuig
+  'figuig': { lat: 32.1076, lng: -1.2244, label: 'فكيك' },
+  'فكيك': { lat: 32.1076, lng: -1.2244, label: 'فكيك' },
+
+  // Guercif
+  'guercif': { lat: 34.2242, lng: -3.3467, label: 'جرسيف' },
+  'جرسيف': { lat: 34.2242, lng: -3.3467, label: 'جرسيف' },
+
+  // Oued Zem
+  'oued zem': { lat: 32.8628, lng: -6.5728, label: 'وادي زم' },
+  'وادي زم': { lat: 32.8628, lng: -6.5728, label: 'وادي زم' },
+
+  // Berrechid
+  'berrechid': { lat: 33.2650, lng: -7.5867, label: 'برشيد' },
+  'برشيد': { lat: 33.2650, lng: -7.5867, label: 'برشيد' },
+
+  // Mohammedia
+  'mohammedia': { lat: 33.6833, lng: -7.3833, label: 'المحمدية' },
+  'المحمدية': { lat: 33.6833, lng: -7.3833, label: 'المحمدية' },
+
+  // Tanger-Tetouan region
+  'larache': { lat: 35.1833, lng: -6.1500, label: 'العرائش' },
+
+  // Guelmim
+  'guelmim': { lat: 28.9870, lng: -10.0570, label: 'كلميم' },
+  'كلميم': { lat: 28.9870, lng: -10.0570, label: 'كلميم' },
+
+  // Tarfaya
+  'tarfaya': { lat: 27.9281, lng: -12.9333, label: 'طرفاية' },
+  'طرفاية': { lat: 27.9281, lng: -12.9333, label: 'طرفاية' },
+
+  // Tiznit
+  'tiznit': { lat: 29.6936, lng: -9.7331, label: 'تيزنيت' },
+  'تيزنيت': { lat: 29.6936, lng: -9.7331, label: 'تيزنيت' },
+
+  // Inezgane
+  'inezgane': { lat: 30.3833, lng: -9.5333, label: 'إنزكان' },
+  'إنزكان': { lat: 30.3833, lng: -9.5333, label: 'إنزكان' },
+
+  // Ouarzazate
+  'ouarzazate': { lat: 30.9335, lng: -6.9370, label: 'ورزازات' },
+  'ورزازات': { lat: 30.9335, lng: -6.9370, label: 'ورزازات' },
+
+  // Zagora
+  'zagora': { lat: 30.3289, lng: -5.8333, label: 'زاكورة' },
+  'زاكورة': { lat: 30.3289, lng: -5.8333, label: 'زاكورة' },
+
+  // Tinghir
+  'tinghir': { lat: 31.5147, lng: -5.5328, label: 'تنغير' },
+  'تنغير': { lat: 31.5147, lng: -5.5328, label: 'تنغير' },
+
+  // Midelt
+  'midelt': { lat: 32.6833, lng: -4.7500, label: 'ميدلت' },
+  'ميدلت': { lat: 32.6833, lng: -4.7500, label: 'ميدلت' },
+
+  // Azilal
+  'azilal': { lat: 31.9631, lng: -6.5667, label: 'أزيلال' },
+  'أزيلال': { lat: 31.9631, lng: -6.5667, label: 'أزيلال' },
+
+  // Fquih Ben Salah
+  'fquih ben salah': { lat: 32.5047, lng: -6.7231, label: 'فقيه بن صالح' },
+  'فقيه بن صالح': { lat: 32.5047, lng: -6.7231, label: 'فقيه بن صالح' },
+
+  // Sidi Kacem
+  'sidi kacem': { lat: 34.2214, lng: -5.7078, label: 'سيدي قاسم' },
+  'سيدي قاسم': { lat: 34.2214, lng: -5.7078, label: 'سيدي قاسم' },
+
+  // Sidi Slimane
+  'sidi slimane': { lat: 34.2653, lng: -5.9264, label: 'سيدي سليمان' },
+  'سيدي سليمان': { lat: 34.2653, lng: -5.9264, label: 'سيدي سليمان' },
+
+  // Boujdour
+  'boujdour': { lat: 26.1250, lng: -14.4833, label: 'بوجدور' },
+  'بوجدور': { lat: 26.1250, lng: -14.4833, label: 'بوجدور' },
+
+  // Smara
+  'smara': { lat: 26.7390, lng: -11.6700, label: 'السمارة' },
+  'السمارة': { lat: 26.7390, lng: -11.6700, label: 'السمارة' },
+
+  // Tan-Tan
+  'tan-tan': { lat: 28.4380, lng: -11.1030, label: 'طانطان' },
+  'tan tan': { lat: 28.4380, lng: -11.1030, label: 'طانطان' },
+  'طانطان': { lat: 28.4380, lng: -11.1030, label: 'طانطان' },
+
+  // Moulay Ali Cherif (Errachidia area)
+  'rif': { lat: 35.0, lng: -3.0, label: 'الريف' },
+
+  // Al Hoceima
+  'al hoceima': { lat: 35.2439, lng: -3.9347, label: 'الحسيمة' },
+  'hoceima': { lat: 35.2439, lng: -3.9347, label: 'الحسيمة' },
+  'الحسيمة': { lat: 35.2439, lng: -3.9347, label: 'الحسيمة' },
+
+  // Driouch
+  'driouch': { lat: 35.1667, lng: -3.3333, label: 'دريوش' },
+  'دريوش': { lat: 35.1667, lng: -3.3333, label: 'دريوش' },
+
+  // Nador region villages
+  'zeghanghane': { lat: 35.1167, lng: -2.8833, label: 'زغنغان' },
+  'زغنغان': { lat: 35.1167, lng: -2.8833, label: 'زغنغان' },
+
+  // Targuist
+  'targuist': { lat: 35.0500, lng: -4.3167, label: 'تارجيست' },
+  'تارجيست': { lat: 35.0500, lng: -4.3167, label: 'تارجيست' },
+
+  // Imzouren
+  'imzouren': { lat: 35.2000, lng: -3.8500, label: 'إمزورن' },
+  'إمزورن': { lat: 35.2000, lng: -3.8500, label: 'إمزورن' },
 }
 
 /**

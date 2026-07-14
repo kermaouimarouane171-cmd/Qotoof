@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sessionService } from '@/services/authServices'
+import { sessionService } from '@/modules/auth'
 import {
   ComputerDesktopIcon,
   DevicePhoneMobileIcon,
@@ -86,20 +86,20 @@ const SessionManager = ({ isOpen, onClose }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
+    <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white/90 backdrop-blur-xl rounded-3xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-[0_8px_40px_rgba(0,0,0,0.12)] border border-white/60 auth-scale-in">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Active Sessions</h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <h2 className="text-2xl font-bold text-gray-900 tracking-tight">Active Sessions</h2>
+              <p className="text-sm text-gray-500 mt-1">
                 Manage your active sessions across devices
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 transition-colors"
             >
               <XMarkIcon className="w-6 h-6" />
             </button>
@@ -124,10 +124,10 @@ const SessionManager = ({ isOpen, onClose }) => {
               {sessions.filter(s => s.is_current).map(session => (
                 <div
                   key={session.id}
-                  className="p-4 bg-green-50 border-2 border-green-200 rounded-xl"
+                  className="p-4 bg-green-50/80 border-2 border-green-200 rounded-2xl"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center flex-shrink-0">
                       {getDeviceIcon(session.device_info)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -155,10 +155,10 @@ const SessionManager = ({ isOpen, onClose }) => {
               {sessions.filter(s => !s.is_current).map(session => (
                 <div
                   key={session.id}
-                  className="p-4 bg-gray-50 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors"
+                  className="p-4 bg-gray-50/80 border border-gray-200 rounded-2xl hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center flex-shrink-0">
                       {getDeviceIcon(session.device_info)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -194,10 +194,10 @@ const SessionManager = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 space-y-3">
+        <div className="p-6 border-t border-gray-100 space-y-3">
           {/* Warning */}
           {sessions.length > 3 && (
-            <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-3 p-4 bg-amber-50/80 border border-amber-200 rounded-2xl">
               <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-medium text-yellow-900">Too many active sessions?</p>

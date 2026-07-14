@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { useDarkMode } from '@/hooks/useDarkMode'
+import { Logo } from '@/components/ui'
 import NotificationLink from '@/components/notifications/NotificationLink'
 import {
   Bars3Icon,
@@ -28,6 +29,7 @@ import {
   TagIcon,
   MapPinIcon,
   DocumentTextIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline'
 
 const DashboardLayout = () => {
@@ -53,6 +55,8 @@ const DashboardLayout = () => {
     { to: '/vendor/coupons', label: t('layout.vendor.links.coupons', 'Coupons'), icon: TagIcon },
     { to: '/vendor/subscription', label: t('layout.vendor.links.premium', 'Premium'), icon: BoltIcon },
     { to: '/vendor/rfqs', label: t('layout.vendor.links.rfqBoard', 'RFQ Board'), icon: DocumentTextIcon },
+    { to: '/vendor/wallet', label: t('layout.vendor.links.wallet', 'Wallet'), icon: BanknotesIcon },
+    { to: '/vendor/returns', label: t('layout.vendor.links.returns', 'Returns'), icon: ArrowUturnLeftIcon },
     { to: '/vendor/profile', label: t('layout.vendor.links.profile', 'Profile'), icon: UserIcon },
   ]
 
@@ -82,10 +86,9 @@ const DashboardLayout = () => {
     { to: '/admin/settings', label: t('layout.admin.links.settings', 'Settings'), icon: Cog6ToothIcon },
   ]
 
-  // 6 items: Dashboard | Orders | Addresses | Shopping Lists | Loyalty | Settings
+  // 5 items: Orders | Addresses | Shopping Lists | Loyalty | Settings
   // Security → tab inside Settings
   const buyerNavItems = [
-    { to: '/buyer/dashboard', label: t('layout.buyer.links.dashboard', 'Dashboard'), icon: HomeIcon },
     { to: '/buyer/orders', label: t('layout.buyer.links.orders', 'Orders'), icon: ShoppingBagIcon },
     { to: '/buyer/addresses', label: t('layout.buyer.links.addresses', 'Addresses'), icon: MapPinIcon },
     { to: '/buyer/shopping-lists', label: t('layout.buyer.links.shoppingLists', 'Shopping Lists'), icon: ClipboardDocumentListIcon },
@@ -116,12 +119,7 @@ const DashboardLayout = () => {
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100 dark:border-gray-800">
           {sidebarOpen && (
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
-                <span className="text-white font-bold text-lg">Q</span>
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Qotoof</span>
-            </Link>
+            <Logo size="md" textClass="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent" />
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -183,12 +181,7 @@ const DashboardLayout = () => {
           />
           <aside className="fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 z-50 shadow-xl">
             <div className="flex items-center justify-between h-16 px-4 border-b border-gray-100 dark:border-gray-800">
-              <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileSidebarOpen(false)}>
-                <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">Q</span>
-                </div>
-                <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Qotoof</span>
-              </Link>
+              <Logo size="md" textClass="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent" onClick={() => setMobileSidebarOpen(false)} />
               <button
                 onClick={() => setMobileSidebarOpen(false)}
                 className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"

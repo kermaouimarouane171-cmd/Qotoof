@@ -1,4 +1,4 @@
-import { USER_ROLES } from '@/constants/roles'
+import { USER_ROLES } from '@/modules/auth'
 
 export const canViewAdminDashboard = (userLike) => {
   const role = userLike?.role
@@ -29,7 +29,9 @@ export const canDeleteOrder = (userLike, order) => {
   return false
 }
 
+// Returns true only for roles that have a dedicated dashboard route.
+// BUYER intentionally excluded: buyers navigate via /marketplace, not a dashboard.
 export const canAccessRoleDashboard = (userLike) => {
   if (!userLike?.role) return false
-  return [USER_ROLES.ADMIN, USER_ROLES.VENDOR, USER_ROLES.DRIVER, USER_ROLES.BUYER].includes(userLike.role)
+  return [USER_ROLES.ADMIN, USER_ROLES.VENDOR, USER_ROLES.DRIVER].includes(userLike.role)
 }

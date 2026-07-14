@@ -1,15 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { HeartIcon, ShoppingBagIcon, TrashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline'
+import { HeartIcon, ShoppingBagIcon, TrashIcon, ExclamationTriangleIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartSolid } from '@heroicons/react/24/solid'
-import { useFavoritesStore } from '@/store/favoritesStore'
+import { useFavoritesStore } from '@/modules/cart'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
-import { favoritesApi } from '@/services/favorites'
+import { useCartStore, favoritesApi } from '@/modules/cart'
 import { formatPrice } from '@/utils/currency'
 import toast from 'react-hot-toast'
 import { useTranslation } from 'react-i18next'
+import { Breadcrumbs } from '@/components/ui'
 import { logger } from '@/utils/logger'
+import NegotiationOnboarding, { hasSeenOnboarding } from '@/components/onboarding/NegotiationOnboarding'
 
 const FavoritesPage = () => {
   const { t } = useTranslation()
@@ -20,6 +21,7 @@ const FavoritesPage = () => {
     loading, 
     error, 
     loadFavorites, 
+    loadGuestFavorites,
     getFavoriteProducts, 
     getFavoriteVendors,
     toggleProduct 
@@ -27,7 +29,14 @@ const FavoritesPage = () => {
   const { addItem } = useCartStore()
   const [activeTab, setActiveTab] = useState('products')
   const [removeConfirm, setRemoveConfirm] = useState(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const subscriptionRef = useRef(null)
+
+  useEffect(() => {
+    if (!hasSeenOnboarding()) {
+      setShowOnboarding(true)
+    }
+  }, [])
 
   useEffect(() => {
     if (user) {
@@ -43,6 +52,8 @@ const FavoritesPage = () => {
         // Re-fetch favorites from server when changes occur
         loadFavorites(user.id)
       })
+    } else {
+      loadGuestFavorites()
     }
 
     // Cleanup subscription on unmount
@@ -52,7 +63,7 @@ const FavoritesPage = () => {
         subscriptionRef.current = null
       }
     }
-  }, [user, loadFavorites])
+  }, [user, loadFavorites, loadGuestFavorites, navigate])
 
   const handleRemoveFavorite = (favId, itemName) => {
     setRemoveConfirm({ id: favId, name: itemName })
@@ -60,17 +71,21 @@ const FavoritesPage = () => {
 
   const confirmRemove = async () => {
     if (removeConfirm) {
-      await toggleProduct(user.id, removeConfirm.id)
+      await toggleProduct(user?.id || null, removeConfirm.id)
       setRemoveConfirm(null)
     }
   }
 
   const handleAddToCart = (product) => {
     if (!product.is_available) {
-      toast.error('This product is currently out of stock')
+      toast.error(t('favorites.outOfStock', 'This product is currently out of stock'))
       return
     }
     addItem(product, product.min_order_quantity || 1)
+  }
+
+  const handleNegotiate = (product) => {
+    navigate(`/buyer/negotiations/new?productId=${product.id}`)
   }
 
   const handleImageError = (e) => {
@@ -82,13 +97,9 @@ const FavoritesPage = () => {
   const favoriteProducts = getFavoriteProducts()
   const favoriteVendors = getFavoriteVendors()
 
-  if (!user) {
-    navigate('/login')
-    return null
-  }
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-full bg-gray-50">
+      <Breadcrumbs className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6" />
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -106,33 +117,71 @@ const FavoritesPage = () => {
         </div>
       </div>
 
+      {/* Guest notice */}
+      {!user && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 flex items-start justify-between gap-4">
+            <p className="text-sm text-blue-800">
+              {t('favorites.guestNotice', 'Your favorites are saved on this device. Sign in to sync them across devices and keep them permanently.')}
+            </p>
+            <button
+              onClick={() => navigate('/login', { state: { from: '/favorites' } })}
+              className="text-sm font-medium text-blue-700 hover:text-blue-900 whitespace-nowrap"
+            >
+              {t('favorites.signInToSync', 'Sign In')}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit">
-          <button
-            onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === 'products'
-                ? 'bg-green-500 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-            role="tab"
-            aria-selected={activeTab === 'products'}
-          >
-            {t('favorites.products', 'Products')} ({favoriteProducts.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('vendors')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === 'vendors'
-                ? 'bg-green-500 text-white shadow-sm'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-            role="tab"
-            aria-selected={activeTab === 'vendors'}
-          >
-            {t('favorites.vendors', 'Vendors')} ({favoriteVendors.length})
-          </button>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200 w-fit">
+            <button
+              onClick={() => setActiveTab('products')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                activeTab === 'products'
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              role="tab"
+              aria-selected={activeTab === 'products'}
+            >
+              {t('favorites.products', 'Products')} ({favoriteProducts.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('vendors')}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                activeTab === 'vendors'
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+              role="tab"
+              aria-selected={activeTab === 'vendors'}
+            >
+              {t('favorites.vendors', 'Vendors')} ({favoriteVendors.length})
+            </button>
+          </div>
+          {activeTab === 'products' && favoriteProducts.length > 0 && (
+            <button
+              onClick={() => {
+                const available = favoriteProducts.filter((fav) => fav.product && fav.product.is_available !== false)
+                if (available.length === 0) {
+                  toast.error(t('favorites.allOutOfStock', 'All favorite products are out of stock'))
+                  return
+                }
+                available.forEach((fav) => {
+                  addItem(fav.product, fav.product.min_order_quantity || 1)
+                })
+                toast.success(t('favorites.addAllToCartSuccess', '{{count}} items added to cart', { count: available.length }))
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-50 text-primary-700 text-sm font-medium hover:bg-primary-100 transition-colors border border-primary-200"
+            >
+              <ShoppingBagIcon className="w-4 h-4" />
+              {t('favorites.addAllToCart', 'Add all to cart')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -148,7 +197,7 @@ const FavoritesPage = () => {
               onClick={() => user && loadFavorites(user.id)}
               className="text-sm text-red-600 hover:text-red-700 font-medium"
             >
-              Retry
+              {t('common.tryAgain', 'Retry')}
             </button>
           </div>
         </div>
@@ -158,7 +207,7 @@ const FavoritesPage = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         {loading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
           </div>
         ) : activeTab === 'products' ? (
           favoriteProducts.length === 0 && !error ? (
@@ -172,7 +221,7 @@ const FavoritesPage = () => {
               </p>
               <button
                 onClick={() => navigate('/marketplace')}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium transition-colors"
               >
                 <ShoppingBagIcon className="w-5 h-5" />
                 {t('favorites.browseNow', 'Browse Now')}
@@ -206,23 +255,23 @@ const FavoritesPage = () => {
                           navigate(`/product/${product.id}`)
                         }
                       }}
-                      aria-label={`View ${product.name} details`}
+                      aria-label={t('favorites.viewDetailsAria', 'View {{name}} details', { name: product.name })}
                     >
                       {/* Out of Stock Overlay */}
                       {isOutOfStock && (
                         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
                           <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                            Out of Stock
+                            {t('favorites.outOfStock', 'Out of Stock')}
                           </span>
                         </div>
                       )}
-                      
+
                       {/* Low Stock Badge */}
                       {isLowStock && !isOutOfStock && (
                         <div className="absolute top-3 left-3 z-10">
                           <span className="bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1">
                             <ExclamationTriangleIcon className="w-3 h-3" />
-                            Only {product.available_quantity} left
+                            {t('favorites.lowStock', 'Only {{quantity}} left', { quantity: product.available_quantity })}
                           </span>
                         </div>
                       )}
@@ -251,10 +300,10 @@ const FavoritesPage = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleRemoveFavorite(fav.id, product.name)
+                          handleRemoveFavorite(product.id, product.name)
                         }}
                         className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:bg-red-50 transition-all z-20"
-                        aria-label={`Remove ${product.name} from favorites`}
+                        aria-label={t('favorites.removeFromFavoritesAria', 'Remove {{name}} from favorites', { name: product.name })}
                       >
                         <TrashIcon className="w-5 h-5 text-red-500" />
                       </button>
@@ -263,7 +312,7 @@ const FavoritesPage = () => {
                     {/* Content */}
                     <div className="p-4">
                       <h3
-                        className="font-semibold text-gray-900 line-clamp-2 mb-2 cursor-pointer hover:text-green-600 transition-colors"
+                        className="font-semibold text-gray-900 line-clamp-2 mb-2 cursor-pointer hover:text-primary-600 transition-colors"
                         onClick={() => navigate(`/product/${product.id}`)}
                         // eslint-disable-next-line jsx-a11y/no-noninteractive-element-to-interactive-role
                         role="button"
@@ -281,7 +330,7 @@ const FavoritesPage = () => {
                       {/* Vendor */}
                       {product.vendor && (
                         <div className="flex items-center gap-2 mb-3">
-                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
                             <span className="text-white text-[10px] font-bold">
                               {product.vendor.first_name?.[0]}{product.vendor.last_name?.[0]}
                             </span>
@@ -300,18 +349,29 @@ const FavoritesPage = () => {
                             <span className="text-sm text-gray-400">/{product.unit_type}</span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          disabled={isOutOfStock}
-                          className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                            isOutOfStock
-                              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                              : 'bg-green-500 hover:bg-green-600 text-white'
-                          }`}
-                          aria-label={isOutOfStock ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                        >
-                          {isOutOfStock ? 'Out of Stock' : t('favorites.addToCart', 'Add to Cart')}
-                        </button>
+                        <div className="flex flex-col gap-1.5 items-end">
+                          <button
+                            onClick={() => handleAddToCart(product)}
+                            disabled={isOutOfStock}
+                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                              isOutOfStock
+                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                : 'bg-primary-500 hover:bg-primary-600 text-white'
+                            }`}
+                            aria-label={isOutOfStock ? t('favorites.outOfStockAria', '{{name}} is out of stock', { name: product.name }) : t('favorites.addToCartAria', 'Add {{name}} to cart', { name: product.name })}
+                          >
+                            {isOutOfStock ? t('favorites.outOfStock', 'Out of Stock') : t('favorites.addToCart', 'Add to Cart')}
+                          </button>
+                          {!isOutOfStock && (
+                            <button
+                              onClick={() => handleNegotiate(product)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 transition-colors"
+                            >
+                              <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
+                              {t('favorites.negotiatePrice', 'Negotiate Price')}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -331,7 +391,7 @@ const FavoritesPage = () => {
               </p>
               <button
                 onClick={() => navigate('/stores')}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-medium transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium transition-colors"
               >
                 <ShoppingBagIcon className="w-5 h-5" />
                 {t('favorites.browseStores', 'Browse Stores')}
@@ -350,7 +410,7 @@ const FavoritesPage = () => {
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-emerald-600 flex items-center justify-center">
                           <span className="text-white text-lg font-bold">
                             {vendor.first_name?.[0]}{vendor.last_name?.[0]}
                           </span>
@@ -367,7 +427,7 @@ const FavoritesPage = () => {
                       <button
                         onClick={() => handleRemoveFavorite(fav.id, vendor.store_name || `${vendor.first_name} ${vendor.last_name}`)}
                         className="text-gray-400 hover:text-red-500 transition-colors p-2"
-                        aria-label={`Remove ${vendor.store_name || `${vendor.first_name} ${vendor.last_name}`} from favorites`}
+                        aria-label={t('favorites.removeFromFavoritesAria', 'Remove {{name}} from favorites', { name: vendor.store_name || `${vendor.first_name} ${vendor.last_name}` })}
                       >
                         <TrashIcon className="w-5 h-5" />
                       </button>
@@ -380,8 +440,8 @@ const FavoritesPage = () => {
                     )}
 
                     <button
-                      onClick={() => navigate(`/marketplace?vendorId=${vendor.id}`)}
-                      className="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                      onClick={() => navigate(`/stores/${vendor.id}`)}
+                      className="w-full px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-colors"
                     >
                       {t('favorites.viewProducts', 'View Products')}
                     </button>
@@ -408,18 +468,25 @@ const FavoritesPage = () => {
                 onClick={() => setRemoveConfirm(null)}
                 className="btn-outline flex-1"
               >
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </button>
               <button
                 onClick={confirmRemove}
                 className="btn-primary flex-1 bg-red-600 hover:bg-red-700"
               >
-                Remove
+                {t('favorites.removeFavorite', 'Remove')}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Onboarding Modal */}
+      <NegotiationOnboarding
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        onSkip={() => setShowOnboarding(false)}
+      />
     </div>
   )
 }

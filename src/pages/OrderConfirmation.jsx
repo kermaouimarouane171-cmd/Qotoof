@@ -1,12 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
-import { CheckCircleIcon, ShoppingBagIcon, TruckIcon } from '@heroicons/react/24/outline'
+import { CheckCircleIcon, ShoppingBagIcon, TruckIcon, ClockIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { LoadingSpinner, Receipt } from '@/components/ui'
 import PaymentReceiptUpload from '@/components/orders/PaymentReceiptUpload'
-import { paymentGateway } from '@/services/paymentGateway'
-import { updateOrderPaymentRecord, getLatestOrderPaymentRecord } from '@/services/paymentService'
+import { paymentGateway, updateOrderPaymentRecord, getLatestOrderPaymentRecord } from '@/modules/payments'
 import { useAuthStore } from '@/store/authStore'
 import { logger } from '@/utils/logger'
 import { useOrderView } from '@/hooks/useOrderView'
@@ -89,7 +88,7 @@ const OrderConfirmation = () => {
 
       if (paypalAction === 'cancel') {
         if (active) {
-          setPaypalMessage('تم إلغاء عملية PayPal. يمكنك إعادة المحاولة من نفس صفحة الطلب.')
+          setPaypalMessage(t('orderConfirmation.paypal.cancelledMessage'))
         }
         return
       }
@@ -100,7 +99,7 @@ const OrderConfirmation = () => {
 
       if (order.payment_record_status === 'completed') {
         if (active) {
-          setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
+          setPaypalMessage(t('orderConfirmation.paypal.confirmedMessage'))
         }
         return
       }
@@ -126,18 +125,18 @@ const OrderConfirmation = () => {
             })
           }
           if (active) {
-            setPaypalMessage('تم تأكيد دفع PayPal بنجاح.')
+            setPaypalMessage(t('orderConfirmation.paypal.confirmedMessage'))
           }
-          toast.success('تم تأكيد دفع PayPal بنجاح.')
+          toast.success(t('orderConfirmation.paypal.confirmedMessage'))
         } else if (active) {
-          setPaypalMessage('تمت العودة من PayPal لكن حالة الدفع ما زالت قيد المعالجة.')
+          setPaypalMessage(t('orderConfirmation.paypal.pendingMessage'))
         }
       } catch (error) {
         logger.error('PayPal confirmation failed:', error)
         if (active) {
-          setPaypalMessage(error.message || 'تعذر تأكيد دفع PayPal.')
+          setPaypalMessage(error.message || t('orderConfirmation.paypal.errorMessage'))
         }
-        toast.error(error.message || 'تعذر تأكيد دفع PayPal.')
+        toast.error(error.message || t('orderConfirmation.paypal.errorMessage'))
       } finally {
         if (active) {
           setProcessingPayPal(false)
@@ -150,13 +149,38 @@ const OrderConfirmation = () => {
     return () => {
       active = false
     }
-  }, [refetch, order?.id, order?.payment_method, order?.payment_record_status, paypalAction, paypalToken])
+  }, [refetch, order?.id, order?.payment_method, order?.payment_record_status, paypalAction, paypalToken, t])
 
+  // PAY-003/UX-003: Mark old PayPal payment as superseded before creating a new one
   const restartPayPalCheckout = async () => {
     if (!order?.id) return
 
+    // PAY-003: Prevent retry if payment is already completed
+    if (order.payment_record_status === 'completed') {
+      toast.error(t('orderConfirmation.paypal.alreadyPaidError'))
+      return
+    }
+
     try {
       setProcessingPayPal(true)
+
+      // PAY-003: Mark old payment record as superseded before creating new PayPal order
+      const oldPaymentRecord = await getLatestOrderPaymentRecord({
+        orderId: order.id,
+        paymentMethod: 'paypal',
+        select: 'id, status, transaction_id',
+        allowMissing: true,
+      })
+
+      if (oldPaymentRecord?.id && oldPaymentRecord.status === 'pending') {
+        await updateOrderPaymentRecord({
+          paymentId: oldPaymentRecord.id,
+          values: {
+            status: 'superseded',
+          },
+        })
+      }
+
       const { data, error } = await supabase.functions.invoke('create-paypal-order', {
         body: {
           orderId: order.id,
@@ -176,9 +200,10 @@ const OrderConfirmation = () => {
       }
 
       if (!data?.orderId || !data?.approvalUrl) {
-        throw new Error('تعذر إعادة تهيئة جلسة PayPal.')
+        throw new Error(t('orderConfirmation.paypal.retryInitError'))
       }
 
+      // Update payment record with new PayPal order ID
       const paymentRecord = await getLatestOrderPaymentRecord({
         orderId: order.id,
         paymentMethod: 'paypal',
@@ -187,14 +212,13 @@ const OrderConfirmation = () => {
       })
 
       if (!paymentRecord?.id) {
-        throw new Error('تعذر العثور على سجل دفع PayPal لإعادة التهيئة.')
+        throw new Error(t('orderConfirmation.paypal.recordNotFoundError'))
       }
 
       await updateOrderPaymentRecord({
         paymentId: paymentRecord.id,
         values: {
           transaction_id: data.orderId,
-          gateway_response: data,
           status: 'pending',
         },
       })
@@ -202,7 +226,7 @@ const OrderConfirmation = () => {
       window.location.href = data.approvalUrl
     } catch (error) {
       logger.error('Failed to restart PayPal checkout:', error)
-      toast.error(error.message || 'تعذر إعادة تهيئة PayPal.')
+      toast.error(error.message || t('orderConfirmation.paypal.retryError'))
       setProcessingPayPal(false)
     }
   }
@@ -244,7 +268,7 @@ const OrderConfirmation = () => {
               {t('orderConfirmation.viewOrders', 'View My Orders')}
             </button>
             <button onClick={() => navigate('/marketplace')} className="btn-outline">
-              {t('orderConfirmation.continueShopping', 'متابعة التسوق')}
+              {t('orderConfirmation.continueShopping', 'Continue Shopping')}
             </button>
           </div>
         </div>
@@ -252,13 +276,39 @@ const OrderConfirmation = () => {
     )
   }
 
+  // PAY-002: Determine title and icon based on payment status
+  const paymentStatus = order?.payment_record_status || order?.payment_status
+  const paymentMethod = order?.payment_method || order?.payment_type
+  const isPaid = paymentStatus === 'completed' || paymentStatus === 'paid' || paymentStatus === 'verified'
+  const isPending = paymentStatus === 'pending' || paymentStatus === 'processing' || paymentStatus === 'awaiting_transfer'
+  const isFailed = paymentStatus === 'failed' || paymentStatus === 'cancelled' || paymentStatus === 'superseded'
+  const isCOD = paymentMethod === 'cod'
+  const isBankPendingReview = paymentMethod === 'bank' && (paymentStatus === 'processing' || paymentStatus === 'paid' || paymentStatus === 'pending')
+
+  const confirmationTitle = isCOD
+    ? t('orderConfirmation.titleCod', 'Order Placed — Pay on Delivery')
+    : isBankPendingReview
+    ? t('orderConfirmation.titleBankReview', 'Payment Pending Review')
+    : isPaid
+    ? t('orderConfirmation.title', 'Order Confirmed!')
+    : isFailed
+    ? t('orderConfirmation.titleFailed', 'Payment Failed')
+    : isPending
+    ? t('orderConfirmation.titlePending', 'Payment Pending')
+    : t('orderConfirmation.title', 'Order Confirmed!')
+
+  const titleIconColor = isPaid || isCOD ? 'green' : isPending || isBankPendingReview ? 'amber' : isFailed ? 'red' : 'green'
+  const TitleIcon = isPaid || isCOD ? CheckCircleIcon : isPending || isBankPendingReview ? ClockIcon : isFailed ? ExclamationCircleIcon : CheckCircleIcon
+  const iconBgClass = titleIconColor === 'green' ? 'bg-green-100' : titleIconColor === 'amber' ? 'bg-amber-100' : 'bg-red-100'
+  const iconTextClass = titleIconColor === 'green' ? 'text-green-500' : titleIconColor === 'amber' ? 'text-amber-500' : 'text-red-500'
+
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16" data-testid="order-confirmation-page">
       <div className="text-center mb-8">
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircleIcon className="w-12 h-12 text-green-500" />
+        <div className={`w-20 h-20 ${iconBgClass} rounded-full flex items-center justify-center mx-auto mb-4`}>
+          <TitleIcon className={`w-12 h-12 ${iconTextClass}`} />
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{t('orderConfirmation.title', 'Order Confirmed!')}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2" data-testid="order-confirmation-title">{confirmationTitle}</h1>
         <p className="text-gray-600">
           {order ? `${t('orderConfirmation.orderPrefix', 'Order')} #${order.id?.slice(0, 8)}` : t('orderConfirmation.orderPlaced', 'Your order has been placed successfully')}
         </p>
@@ -267,6 +317,40 @@ const OrderConfirmation = () => {
       {paypalMessage && (
         <div className={`mb-8 rounded-xl border px-4 py-4 text-sm leading-6 ${paypalAction === 'cancel' ? 'border-amber-200 bg-amber-50 text-amber-900' : paypalAction === 'success' ? 'border-green-200 bg-green-50 text-green-900' : 'border-blue-200 bg-blue-50 text-blue-900'}`}>
           {paypalMessage}
+        </div>
+      )}
+
+      {/* PAY-004: Pending payment state banner */}
+      {isPending && !isCOD && (
+        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-4" data-testid="payment-pending-banner">
+          <div className="flex items-start gap-3">
+            <ClockIcon className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-amber-900">{t('orderConfirmation.pendingTitle', 'Payment Pending')}</p>
+              <p className="text-sm text-amber-800 mt-1">
+                {paymentMethod === 'paypal'
+                  ? t('orderConfirmation.pendingPaypalDesc', 'Your PayPal payment has not been completed yet. You can retry the payment using the button below.')
+                  : paymentMethod === 'bank'
+                  ? t('orderConfirmation.pendingBankDesc', 'Your bank transfer is being reviewed. You will be notified once payment is confirmed.')
+                  : t('orderConfirmation.pendingDesc', 'Your payment is being processed. Please wait for confirmation.')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PAY-002: Failed payment banner */}
+      {isFailed && (
+        <div className="mb-8 rounded-xl border border-red-200 bg-red-50 px-4 py-4" data-testid="payment-failed-banner">
+          <div className="flex items-start gap-3">
+            <ExclamationCircleIcon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red-900">{t('orderConfirmation.failedTitle', 'Payment Failed')}</p>
+              <p className="text-sm text-red-800 mt-1">
+                {t('orderConfirmation.failedDesc', 'Your payment could not be completed. Please try again or choose a different payment method.')}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -288,19 +372,20 @@ const OrderConfirmation = () => {
 
       {order?.payment_method === 'paypal' && (
         <div className="card p-6 mb-8 border border-blue-200 bg-blue-50">
-          <h2 className="font-semibold text-blue-900 mb-2">الدفع عبر PayPal</h2>
+          <h2 className="font-semibold text-blue-900 mb-2">{t('orderConfirmation.paypal.sectionTitle')}</h2>
           <p className="text-sm leading-6 text-blue-900">
             {order?.payment_record_status === 'completed'
-              ? 'تم تأكيد عملية PayPal لهذا الطلب بنجاح.'
-              : 'هذا الطلب ينتظر إكمال أو تأكيد عملية PayPal. يمكنك متابعة الدفع من الزر أدناه إذا لم تكتمل العملية.'}
+              ? t('orderConfirmation.paypal.completedDescription')
+              : t('orderConfirmation.paypal.pendingDescription')}
           </p>
           {order?.payment_record_status !== 'completed' && (
             <button
               onClick={restartPayPalCheckout}
               className="btn-primary mt-4"
               disabled={processingPayPal}
+              data-testid="retry-paypal-button"
             >
-              {processingPayPal ? 'جاري تهيئة PayPal...' : 'إتمام الدفع عبر PayPal'}
+              {processingPayPal ? t('orderConfirmation.paypal.processingButton') : t('orderConfirmation.paypal.retryButton')}
             </button>
           )}
         </div>
@@ -308,9 +393,9 @@ const OrderConfirmation = () => {
 
       {order?.payment_type === 'cod' && (
         <div className="card p-6 mb-8 border border-amber-200 bg-amber-50">
-          <h2 className="font-semibold text-amber-900 mb-2">سياسة الدفع عند الاستلام</h2>
+          <h2 className="font-semibold text-amber-900 mb-2">{t('orderConfirmation.cod.sectionTitle')}</h2>
           <p className="text-sm leading-6 text-amber-900">
-            تم تسجيل هذا الطلب كدفع عند الاستلام. في حال ثبوت التسليم أو التنفيذ ورفض الدفع، قد يتم خفض درجة الثقة وفتح نزاع تحصيل وفق الشروط القانونية للمنصة.
+            {t('orderConfirmation.cod.policyText')}
           </p>
         </div>
       )}

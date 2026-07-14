@@ -84,7 +84,7 @@ const AdminProductsPage = () => {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
   }, [products])
 
-  const allSelected = products.length > 0 && selectedIds.length === products.length
+  const _allSelected = products.length > 0 && selectedIds.length === products.length
 
   const canBatchApprove = selectedIds.length > 0 && selectedIds.every(
     (id) => products.find((p) => p.id === id)?.approval_status === 'pending'

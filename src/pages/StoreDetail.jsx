@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { supabase } from '@/services/supabase'
-import { runProductImageFallbackQuery } from '@/services/productImages'
-import storeTypeService from '@/services/storeTypeService'
+import { runProductImageFallbackQuery } from '@/modules/catalog'
+import { storeTypeService } from '@/modules/marketplace'
 import { Card, LoadingSpinner, ProductCard, Map, StarRating, SimpleRating } from '@/components/ui'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useAuthStore } from '@/store/authStore'
+import useRequireAuth from '@/hooks/useRequireAuth'
 import {
   MapPinIcon,
   PhoneIcon,
@@ -59,10 +61,16 @@ const StoreDetail = () => {
   const { t, i18n } = useTranslation()
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
+  const { requireAuth } = useRequireAuth()
 
   // Store state
   const [store, setStore] = useState(null)
+  const storeMapCenter = useMapCenter({
+    lat: store?.latitude,
+    lng: store?.longitude,
+    city: store?.city || profile?.city,
+  })
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
   const [storeError, setStoreError] = useState(false)
@@ -88,9 +96,9 @@ const StoreDetail = () => {
   const [reviewText, setReviewText] = useState('')
   const [submittingReview, setSubmittingReview] = useState(false)
 
-  // Follow state
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followLoading, setFollowLoading] = useState(false)
+  // Follow state (TEMPORARILY DISABLED — see checkFollowStatus/handleFollowStore below)
+  const [_isFollowing, _setIsFollowing] = useState(false)
+  const [_followLoading, _setFollowLoading] = useState(false)
   const displayName = store?.store_name || [store?.first_name, store?.last_name].filter(Boolean).join(' ').trim()
   const textLocale = useMemo(() => getTextLocale(i18n.resolvedLanguage || i18n.language || 'en'), [i18n.language, i18n.resolvedLanguage])
   const numberFormatter = useMemo(() => new Intl.NumberFormat(textLocale), [textLocale])
@@ -111,7 +119,7 @@ const StoreDetail = () => {
     const loadStoreFailedMessage = t('storeDetail.error.loadStoreFailed', 'Failed to load store information. Please try again.')
     try {
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_vendor_profiles')
         .select('*')
         .eq('id', id)
         .single()
@@ -254,7 +262,7 @@ const StoreDetail = () => {
           .select(selectClause, { count: 'exact' })
           .eq('vendor_id', id)
           .eq('is_available', true)
-          .eq('approval_status', 'approved')
+          .eq('approval_status', 'published')
 
         if (categoryFilter !== 'all') {
           query = query.eq('category', categoryFilter)
@@ -344,7 +352,7 @@ const StoreDetail = () => {
 
   // TEMPORARILY DISABLED: store_follows.store_id references stores.id,
   // but current public store routes use profiles.id and vendors have no stores rows.
-  const checkFollowStatus = useCallback(async () => {
+  const _checkFollowStatus = useCallback(async () => {
     return
     /*
     if (!user || !id) return
@@ -356,12 +364,12 @@ const StoreDetail = () => {
         .eq('store_id', id)
         .single()
 
-      setIsFollowing(!!data)
+      _setIsFollowing(!!data)
     } catch {
-      setIsFollowing(false)
+      _setIsFollowing(false)
     }
     */
-  }, [user, id])
+  }, [])
 
   // Debounced auto-search for product search
   useEffect(() => {
@@ -390,7 +398,7 @@ const StoreDetail = () => {
 
   // TEMPORARILY DISABLED: store_follows.store_id references stores.id,
   // but current public store routes use profiles.id and vendors have no stores rows.
-  const handleFollowStore = async () => {
+  const _handleFollowStore = async () => {
     return
     /*
     if (!user) {
@@ -398,30 +406,30 @@ const StoreDetail = () => {
       return
     }
 
-    setFollowLoading(true)
+    _setFollowLoading(true)
     try {
-      if (isFollowing) {
+      if (_isFollowing) {
         await supabase
           .from('store_follows')
           .delete()
           .eq('user_id', user.id)
           .eq('store_id', id)
 
-        setIsFollowing(false)
+        _setIsFollowing(false)
         toast.success(t('storeDetail.actions.unfollowSuccess', 'Unfollowed store'))
       } else {
         await supabase
           .from('store_follows')
           .insert({ user_id: user.id, store_id: id })
 
-        setIsFollowing(true)
+        _setIsFollowing(true)
         toast.success(t('storeDetail.actions.followSuccess', 'Now following this store!'))
       }
     } catch (error) {
       logger.error('Error toggling follow:', error)
       toast.error(t('storeDetail.error.followUpdateFailed', 'Failed to update follow status'))
     } finally {
-      setFollowLoading(false)
+      _setFollowLoading(false)
     }
     */
   }
@@ -435,10 +443,7 @@ const StoreDetail = () => {
   }, [store?.phone, t])
 
   const handleSendMessage = () => {
-    if (!user) {
-      toast.error(t('storeDetail.actions.loginToMessage', 'Please login to send messages'))
-      return
-    }
+    if (!requireAuth({ from: `/stores/${id}` })) return
     navigate(`/messages?vendor=${id}`)
   }
 
@@ -462,10 +467,7 @@ const StoreDetail = () => {
   }
 
   const handleSubmitReview = async () => {
-    if (!user) {
-      toast.error(t('storeDetail.reviews.loginRequired', 'Please login to add a review'))
-      return
-    }
+    if (!requireAuth({ from: `/stores/${id}`, onUnauthorized: () => toast.error(t('common.loginRequired', 'Please sign in to continue.')) })) return
 
     if (userRating === 0) {
       toast.error(t('storeDetail.reviews.selectRating', 'Please select a rating'))
@@ -1143,10 +1145,7 @@ const StoreDetail = () => {
               {/* Map */}
               <div className="lg:col-span-2">
                 <Map
-                  center={[
-                    store.latitude || 33.5731,
-                    store.longitude || -7.5898
-                  ]}
+                  center={storeMapCenter}
                   zoom={12}
                   markers={
                     store.latitude && store.longitude

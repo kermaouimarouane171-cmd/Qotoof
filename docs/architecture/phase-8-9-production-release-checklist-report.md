@@ -574,7 +574,7 @@ The **only thing blocking real-money production** is the PayPal live setup and v
 - [ ] Test checkout flow in sandbox
 - [ ] Test payout flow in sandbox
 - [ ] Firebase Hosting deploy configured
-- [ ] Custom domain configured (qotoof.ma)
+- [ ] Custom domain configured (greenmarket-marketplace.web.app)
 - [ ] Sentry alert rules configured
 
 ### Must Complete Before Real Payments

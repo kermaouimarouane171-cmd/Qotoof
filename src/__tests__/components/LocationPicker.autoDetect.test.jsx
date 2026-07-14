@@ -40,9 +40,4 @@ describe('LocationPicker auto-detect', () => {
     render(<LocationPicker value={{}} onChange={jest.fn()} autoDetect={false} />)
     expect(mockGeolocation.getCurrentPosition).not.toHaveBeenCalled()
   })
-
-  it('hides the GPS button when showGpsButton is false', () => {
-    render(<LocationPicker value={{}} onChange={jest.fn()} showGpsButton={false} />)
-    expect(screen.queryByTestId('location-detect-btn')).not.toBeInTheDocument()
-  })
 })

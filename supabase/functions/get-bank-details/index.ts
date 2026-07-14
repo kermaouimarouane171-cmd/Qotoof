@@ -134,20 +134,36 @@ serve(async (req) => {
       })
     }
 
-    const { data: banks, error: banksError } = await query
+    let banks: unknown[] | null = null
+    let banksError: Error | null = null
 
+    try {
+      const result = await query
+      banks = result.data
+      banksError = result.error
+    } catch (error) {
+      console.error('Failed to fetch bank details:', error)
+      banksError = error instanceof Error ? error : new Error('Failed to fetch bank details')
+    }
+
+    // If the table is missing or schema mismatch, return fallback hardcoded list
+    // rather than a 500 error so the frontend can still display bank options.
     if (banksError) {
-      console.error('Failed to fetch bank details:', banksError)
+      console.warn('moroccan_banks table unavailable, returning fallback bank details:', banksError.message)
+    }
+
+    // If a specific bank was requested and the table is unavailable, return error.
+    if (bankCode && banksError) {
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch bank details', details: banksError.message }),
+        JSON.stringify({ error: `Bank lookup failed: ${bankCode}`, details: banksError.message }),
         {
-          status: 500,
+          status: 503,
           headers: { 'Content-Type': 'application/json', ...corsHeaders(req) },
         }
       )
     }
 
-    // If a specific bank was requested but not found, return error
+    // If a specific bank was requested but not found in the database, return error
     if (bankCode && (!banks || banks.length === 0)) {
       return new Response(
         JSON.stringify({ error: `Bank not found: ${bankCode}` }),

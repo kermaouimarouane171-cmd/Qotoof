@@ -18,7 +18,37 @@ import {
 
 type SupabaseClient = ReturnType<typeof createClient>
 
-const DEFAULT_COMMISSION_RATE = 2.0
+const DEFAULT_COMMISSION_RATE = 3.0
+
+/**
+ * Get the commission rate for a vendor based on their subscription plan.
+ * Falls back to DEFAULT_COMMISSION_RATE (3%) if the plan can't be determined.
+ */
+const getVendorCommissionRate = async (supabase: SupabaseClient, vendorId: string): Promise<number> => {
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_plan')
+      .eq('id', vendorId)
+      .single()
+
+    if (!profileError && profile?.subscription_plan) {
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('commission_rate')
+        .eq('id', profile.subscription_plan)
+        .eq('is_active', true)
+        .single()
+
+      if (!planError && plan?.commission_rate != null) {
+        return Number(plan.commission_rate)
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  return DEFAULT_COMMISSION_RATE
+}
 
 const buildDeliveryScheduleSnapshot = ({ requestedDate, slot }: { requestedDate: string | null; slot: Record<string, unknown> | null }) => {
   if (!slot || !requestedDate) return {}
@@ -383,7 +413,7 @@ export const buildAuthoritativeCheckout = async ({
   }
 
   const [settingsResult, bulkCouponsResult, codEligibility, selectedSlot] = await Promise.all([
-    supabase.from('platform_settings').select('commission_rate').maybeSingle(),
+    supabase.from('platform_settings').select('key, value').eq('key', 'commission_rate').maybeSingle(),
     supabase
       .from('coupons')
       .select('id, code, title, description, vendor_id, discount_type, discount_value, min_order_amount, minimum_quantity, applies_to, starts_at, expires_at, is_active, metadata')
@@ -394,10 +424,18 @@ export const buildAuthoritativeCheckout = async ({
     loadSelectedSlot({ supabase, vendorId: vendorIds[0], selectedDeliverySlotId: selectedSlotId }),
   ])
 
-  if (settingsResult.error) throw settingsResult.error
   if (bulkCouponsResult.error) throw bulkCouponsResult.error
 
-  const platformCommissionRate = Number(settingsResult.data?.commission_rate ?? DEFAULT_COMMISSION_RATE)
+  // Commission rate is determined by the vendor's subscription plan.
+  // For multi-vendor carts, we use the primary vendor's plan.
+  // Falls back to platform_settings or DEFAULT_COMMISSION_RATE if the plan can't be determined.
+  let platformCommissionRate = DEFAULT_COMMISSION_RATE
+  const primaryVendorId = vendorIds[0]
+  if (primaryVendorId) {
+    platformCommissionRate = await getVendorCommissionRate(supabase, primaryVendorId)
+  } else if (!settingsResult.error && settingsResult.data?.value) {
+    platformCommissionRate = Number(settingsResult.data.value)
+  }
   const vendorPolicies = (vendorProfiles || []).map((vendor) => ({
     id: vendor.id,
     storeName: vendor.store_name || 'Vendor',
@@ -411,10 +449,10 @@ export const buildAuthoritativeCheckout = async ({
     if (!availablePaymentTypes.hasAny) {
       throw new Error('لا توجد طريقة دفع مشتركة متاحة لهذه السلة حالياً.')
     }
-    if (!(paymentType in availablePaymentTypes) || !Boolean((availablePaymentTypes as Record<string, unknown>)[paymentType])) {
+    if (!(paymentType in availablePaymentTypes) || !(availablePaymentTypes as Record<string, unknown>)[paymentType]) {
       throw new Error('نوع الدفع المحدد غير متاح لهذه السلة.')
     }
-    if (paymentType !== 'cod' && !['paypal', 'bank'].includes(selectedPaymentMethod)) {
+    if (paymentType !== 'cod' && !['paypal', 'bank', 'stripe'].includes(selectedPaymentMethod)) {
       throw new Error('وسيلة الدفع المحددة غير صالحة.')
     }
   }

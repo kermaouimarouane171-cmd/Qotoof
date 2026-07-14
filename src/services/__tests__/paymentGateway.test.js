@@ -102,24 +102,21 @@ jest.mock('@/services/supabase', () => {
   return { supabase }
 })
 
-import paymentGateway, {
-  confirmPayment,
-  createPaymentIntent,
-} from '@/services/paymentGateway'
 import {
+  paymentGateway,
+  confirmPayment,
+  createGatewayPaymentIntent as createPaymentIntent,
   getLatestPaymentRecordForOrder,
   getPaymentRecordById,
   insertPaymentRecord,
   normalizePaymentMethod,
   resolvePaymentMethod,
   updatePaymentRecordById,
-} from '@/services/paymentRecords'
-import { confirmOrderPayment } from '@/services/paymentService'
-import {
+  confirmOrderPayment,
   getCMIStatus,
   initCMIPayment,
   verifyCMICallback,
-} from '@/services/cmiPayment'
+} from '@/modules/payments'
 
 const mockSupabase = globalThis.__paymentSupabase
 const tableResponses = globalThis.__paymentTableResponses
@@ -171,11 +168,12 @@ describe('payment gateway and related services', () => {
       }
 
       const first = await createPaymentIntent(params)
+      const callsAfterFirst = mockSupabase.from.mock.calls.length
       const second = await createPaymentIntent(params)
 
       expect(first.error).toBeNull()
       expect(second.error).toBeNull()
-      expect(mockSupabase.from).toHaveBeenCalledTimes(1)
+      expect(mockSupabase.from.mock.calls.length).toBe(callsAfterFirst)
     })
   })
 

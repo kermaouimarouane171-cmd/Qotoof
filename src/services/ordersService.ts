@@ -18,7 +18,7 @@ import type { Database } from '@/types/database'
 import {
   isProductImagesRelationError,
   hydrateRowsWithProductItems,
-} from '@/services/productImages'
+} from '@/modules/catalog'
 import { sanitizePostgRESTFilter } from '@/utils/sanitization.jsx'
 import {
   buildOrderStatusUpdatePayload,
@@ -139,7 +139,6 @@ const BUYER_ORDER_COLUMNS = `
   payment_method,
   payment_type,
   total,
-  total_amount,
   subtotal,
   shipping_cost,
   created_at,
@@ -398,9 +397,9 @@ export const fetchBuyerOrdersAll = async (buyerId: string): Promise<Order[]> => 
     .from('orders')
     .select(
       'id, order_number, status, created_at, updated_at, buyer_id, vendor_id, driver_id, ' +
-      'subtotal, shipping_cost, total_amount, payment_type, payment_method, delivery_option, ' +
-      'delivery_address, delivery_city, delivery_latitude, delivery_longitude, ' +
-      'accepted_at, delivered_at, cancelled_at, cancellation_reason, notes',
+      'subtotal, shipping_cost, total, payment_type, payment_method, delivery_option, ' +
+      'shipping_address, shipping_city, shipping_latitude, shipping_longitude, ' +
+      'accepted_at, delivered_at, cancelled_at, cancellation_reason, buyer_notes, vendor_notes',
     )
     .eq('buyer_id', buyerId)
 

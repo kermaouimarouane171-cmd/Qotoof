@@ -282,30 +282,30 @@ const VendorSchedules = () => {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{t('vendor.schedules.title', 'Schedules & Availability')}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('vendor.schedules.title', 'Schedules & Availability')}</h1>
           <p className="text-sm text-gray-500 mt-1">
             {t('vendor.schedules.subtitle', "Set your working hours so customers know when you're available")}
           </p>
         </div>
         <button
           onClick={loadSchedules}
-          className="btn-outline text-sm py-2 px-3 flex items-center gap-2"
+          className="btn-outline text-sm py-2 px-3 flex items-center gap-2 self-start sm:self-auto"
         >
-          <ArrowPathIcon className="w-4 h-4" />
+          <ArrowPathIcon className="w-4 h-4 flex-shrink-0" />
           {t('vendor.schedules.refresh', 'Refresh')}
         </button>
       </div>
 
       {/* Quick Actions */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <button onClick={handleSetAllOpen} className="btn-outline text-sm py-2 px-4">
-          <CheckCircleIcon className="w-4 h-4 mr-1" />
+          <CheckCircleIcon className="w-4 h-4 mr-1 flex-shrink-0" />
           {t('vendor.schedules.openAllDays', 'Open All Days')}
         </button>
         <button onClick={handleSetAllClosed} className="btn-outline text-sm py-2 px-4">
-          <XCircleIcon className="w-4 h-4 mr-1" />
+          <XCircleIcon className="w-4 h-4 mr-1 flex-shrink-0" />
           {t('vendor.schedules.closeAllDays', 'Close All Days')}
         </button>
       </div>
@@ -320,7 +320,7 @@ const VendorSchedules = () => {
             return (
               <div
                 key={schedule.day_of_week}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border-2 transition-colors ${
                   isToday
                     ? 'border-green-300 bg-green-50'
                     : schedule.is_open
@@ -328,54 +328,56 @@ const VendorSchedules = () => {
                       : 'border-red-200 bg-red-50'
                 }`}
               >
-                {/* Day Name */}
-                <div className="flex items-center gap-3 min-w-[160px]">
-                  {isToday && (
-                    <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-bold rounded-full">
-                      {t('vendor.schedules.today', 'Today')}
+                {/* Day Name + Toggle (stack on mobile, row on desktop) */}
+                <div className="flex items-center justify-between gap-3 sm:min-w-[180px]">
+                  <div className="flex items-center gap-2">
+                    {isToday && (
+                      <span className="px-2 py-0.5 bg-green-600 text-white text-xs font-bold rounded-full whitespace-nowrap">
+                        {t('vendor.schedules.today', 'Today')}
+                      </span>
+                    )}
+                    <span className={`font-semibold ${isToday ? 'text-green-800' : 'text-gray-900'}`}>
+                      {dayInfo?.name}
                     </span>
-                  )}
-                  <span className={`font-semibold ${isToday ? 'text-green-800' : 'text-gray-900'}`}>
-                    {dayInfo?.name}
-                  </span>
-                </div>
+                  </div>
 
-                {/* Toggle */}
-                <button
-                  onClick={() => handleToggleDay(schedule.day_of_week)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                    schedule.is_open
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                      : 'bg-red-100 text-red-700 hover:bg-red-200'
-                  }`}
-                >
-                  {schedule.is_open ? (
-                    <CheckCircleIcon className="w-4 h-4" />
-                  ) : (
-                    <XCircleIcon className="w-4 h-4" />
-                  )}
-                  {schedule.is_open ? t('vendor.schedules.open', 'Open') : t('vendor.schedules.closed', 'Closed')}
-                </button>
+                  {/* Toggle */}
+                  <button
+                    onClick={() => handleToggleDay(schedule.day_of_week)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                      schedule.is_open
+                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-red-100 text-red-700 hover:bg-red-200'
+                    }`}
+                  >
+                    {schedule.is_open ? (
+                      <CheckCircleIcon className="w-4 h-4 flex-shrink-0" />
+                    ) : (
+                      <XCircleIcon className="w-4 h-4 flex-shrink-0" />
+                    )}
+                    {schedule.is_open ? t('vendor.schedules.open', 'Open') : t('vendor.schedules.closed', 'Closed')}
+                  </button>
+                </div>
 
                 {/* Time Inputs */}
                 {schedule.is_open ? (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <input
                       type="time"
                       value={schedule.open_time}
                       onChange={(e) => handleTimeChange(schedule.day_of_week, 'open_time', e.target.value)}
-                      className="input py-1.5 px-3 text-sm"
+                      className="input py-1.5 px-3 text-sm w-full sm:w-auto"
                     />
                     <span className="text-gray-400 text-sm">{t('vendor.schedules.to', 'to')}</span>
                     <input
                       type="time"
                       value={schedule.close_time}
                       onChange={(e) => handleTimeChange(schedule.day_of_week, 'close_time', e.target.value)}
-                      className="input py-1.5 px-3 text-sm"
+                      className="input py-1.5 px-3 text-sm w-full sm:w-auto"
                     />
                   </div>
                 ) : (
-                  <span className="text-sm text-red-500 font-medium min-w-[200px] text-center">
+                  <span className="text-sm text-red-500 font-medium sm:text-right">
                     {t('vendor.schedules.closedAllDay', 'Closed all day')}
                   </span>
                 )}
@@ -385,14 +387,14 @@ const VendorSchedules = () => {
         </div>
 
         {/* Save Button */}
-        <div className="mt-6 pt-6 border-t border-gray-200 flex items-center justify-between">
+        <div className="mt-6 pt-6 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm text-gray-500">
             {hasChanges ? t('vendor.schedules.unsavedChanges', 'You have unsaved changes') : t('vendor.schedules.allSaved', 'All changes saved')}
           </p>
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             {saving ? (
               <>
@@ -406,7 +408,7 @@ const VendorSchedules = () => {
       </Card>
 
       <Card className="p-6 mt-8">
-        <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{t('vendor.schedules.deliverySlotsTitle', 'Delivery Slots')}</h2>
             <p className="text-sm text-gray-500 mt-1">
@@ -516,7 +518,7 @@ const VendorSchedules = () => {
           })}
         </div>
 
-        <div className="mt-6 pt-6 border-t border-gray-200 flex items-center justify-between">
+        <div className="mt-6 pt-6 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <p className="text-sm text-gray-500">
             {hasSlotChanges
               ? t('vendor.schedules.unsavedSlotChanges', 'You have unsaved delivery slot changes')
@@ -525,7 +527,7 @@ const VendorSchedules = () => {
           <button
             onClick={handleSaveDeliverySlots}
             disabled={savingSlots || !hasSlotChanges}
-            className="btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary px-8 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             {savingSlots ? t('vendor.schedules.saving', 'Saving...') : t('vendor.schedules.saveDeliverySlots', 'Save delivery slots')}
           </button>

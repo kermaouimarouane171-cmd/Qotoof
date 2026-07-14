@@ -13,7 +13,6 @@ import {
 import { formatPrice } from '@/utils/currency'
 import {
   ResponsiveContainer,
-  LineChart,
   Line,
   CartesianGrid,
   XAxis,
@@ -27,7 +26,6 @@ import {
   CalendarDaysIcon,
   ChartBarIcon,
   ClockIcon,
-  TruckIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline'
 import { logger } from '@/utils/logger'

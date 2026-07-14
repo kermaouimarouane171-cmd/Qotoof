@@ -86,7 +86,7 @@ jest.mock('react-router-dom', () => ({
   useNavigate: () => jest.fn(),
 }))
 
-jest.mock('@/store/cartStore', () => {
+jest.mock('@/modules/cart', () => {
   const useCartStore = Object.assign(
     jest.fn(() => ({ items: [], clearCart: jest.fn() })),
     {
@@ -157,7 +157,7 @@ jest.mock('@/services/supabase', () => {
   }
 })
 
-jest.mock('@/services/paymentService', () => ({
+jest.mock('@/modules/payments', () => ({
   createOrderPaymentRecord: jest.fn().mockResolvedValue({}),
 }))
 
@@ -322,7 +322,7 @@ describe('calculateOrderTotals', () => {
   let calculateOrderTotals
 
   beforeAll(() => {
-    ;({ calculateOrderTotals } = require('@/services/checkoutService'))
+    ;({ calculateOrderTotals } = require('@/modules/checkout'))
   })
 
   const DEFAULT_SHIPPING = 30
@@ -400,7 +400,7 @@ describe('calculateOrderTotals', () => {
 
 describe('createCheckoutOrder – edge function path', () => {
   let createCheckoutOrder
-  const { useCartStore } = require('@/store/cartStore')
+  const { useCartStore } = require('@/modules/cart')
   const { useAuthStore } = require('@/store/authStore')
 
   const defaultParams = {
@@ -415,7 +415,7 @@ describe('createCheckoutOrder – edge function path', () => {
   }
 
   beforeAll(() => {
-    ;({ createCheckoutOrder } = require('@/services/checkoutService'))
+    ;({ createCheckoutOrder } = require('@/modules/checkout'))
   })
 
   beforeEach(() => {
@@ -487,7 +487,7 @@ describe('createCheckoutOrder – edge function path', () => {
 
 describe('createCheckoutOrder – direct DB path', () => {
   let createCheckoutOrder
-  const { useCartStore } = require('@/store/cartStore')
+  const { useCartStore } = require('@/modules/cart')
   const { useAuthStore } = require('@/store/authStore')
 
   const directParams = {
@@ -500,7 +500,7 @@ describe('createCheckoutOrder – direct DB path', () => {
   }
 
   beforeAll(() => {
-    ;({ createCheckoutOrder } = require('@/services/checkoutService'))
+    ;({ createCheckoutOrder } = require('@/modules/checkout'))
   })
 
   beforeEach(() => {

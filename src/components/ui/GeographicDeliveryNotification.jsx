@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { findNearestDrivers, calculateDistance, calculateTieredDeliveryFee, createDeliveryRequest, getRegionFromCoords } from '@/services/deliveryMatchingService'
+import { findNearestDrivers, calculateDistance, calculateTieredDeliveryFee, createDeliveryRequest, getRegionFromCoords } from '@/modules/delivery'
 import Card from './Card'
 import LoadingSpinner from './LoadingSpinner'
 import { formatPrice } from '@/utils/currency'

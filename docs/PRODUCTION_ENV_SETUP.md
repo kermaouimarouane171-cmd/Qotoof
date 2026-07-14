@@ -59,7 +59,7 @@ supabase secrets set PAYMENT_MODE="production"
 supabase secrets set PAYPAL_API_BASE="https://api-m.paypal.com"
 supabase secrets set PAYPAL_SETTLEMENT_CURRENCY="EUR"
 supabase secrets set PAYPAL_MAD_EXCHANGE_RATE="0.092"
-supabase secrets set ALLOWED_ORIGINS="https://qotoof.ma,https://YOUR_HOSTING_DOMAIN"
+supabase secrets set ALLOWED_ORIGINS="https://greenmarket-marketplace.web.app"
 ```
 
 ## Audit Notes (workspace)

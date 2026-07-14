@@ -1,10 +1,11 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { useCartStore } from '@/store/cartStore'
+import { useCartStore } from '@/modules/cart'
 import { useLanguageStore } from '@/store/languageStore'
 import { useDarkMode } from '@/hooks/useDarkMode'
 import { useTranslation } from 'react-i18next'
+import { Logo } from '@/components/ui'
 import {
   Bars3Icon,
   XMarkIcon,
@@ -23,11 +24,18 @@ import {
   MapPinIcon,
   SunIcon,
   MoonIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
+  StarIcon,
+  ShieldCheckIcon,
+  Cog6ToothIcon,
+  DocumentChartBarIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline'
 import { MoroccoNotice } from '@/components/ui'
 import CookieConsent from '@/components/CookieConsent'
 import ErrorBoundary from '@/components/ErrorBoundary'
-import { useFavoritesStore } from '@/store/favoritesStore'
+import { useFavoritesStore } from '@/modules/cart'
 import { APP_CONFIG } from '@/config/appConfig'
 
 const MainLayout = () => {
@@ -73,14 +81,7 @@ const MainLayout = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-18">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/20">
-                <span className="text-white font-bold text-lg">Q</span>
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent dark:from-green-400 dark:to-emerald-400 hidden sm:block">
-                Qotoof
-              </span>
-            </Link>
+            <Logo size="md" textClass="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent dark:from-green-400 dark:to-emerald-400 hidden sm:block" />
             
             {/* Search Bar - Centered */}
             <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl mx-8">
@@ -221,14 +222,48 @@ const MainLayout = () => {
                         </Link>
 
                         {profile?.role === 'buyer' && (
-                          <Link
-                            to="/buyer/dashboard"
-                            className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <ChartBarSquareIcon className="w-4 h-4" />
-                            {t('layout.main.buyerDashboard', 'Buyer Dashboard')}
-                          </Link>
+                          <>
+                            <Link
+                              to="/buyer/orders"
+                              className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <ClipboardDocumentListIcon className="w-4 h-4" />
+                              {t('layout.buyer.links.orders', 'طلباتي')}
+                            </Link>
+                            <Link
+                              to="/buyer/addresses"
+                              className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <MapPinIcon className="w-4 h-4" />
+                              {t('layout.buyer.links.addresses', 'العناوين')}
+                            </Link>
+                            <Link
+                              to="/buyer/coupons"
+                              className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <CurrencyDollarIcon className="w-4 h-4" />
+                              {t('layout.buyer.links.coupons', 'الكوبونات')}
+                            </Link>
+                            <Link
+                              to="/buyer/loyalty"
+                              className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <StarIcon className="w-4 h-4" />
+                              {t('layout.buyer.links.loyalty', 'نقاط الولاء')}
+                            </Link>
+                            <Link
+                              to="/buyer/settings"
+                              className="flex items-center rtl:flex-row-reverse gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <Cog6ToothIcon className="w-4 h-4" />
+                              {t('layout.buyer.links.settings', 'الإعدادات')}
+                            </Link>
+                          </>
                         )}
 
                         {profile?.role === 'vendor' && (
@@ -356,14 +391,16 @@ const MainLayout = () => {
                 <BuildingStorefrontIcon className="w-5 h-5" />
                 {t('layout.main.stores', 'Stores')}
               </Link>
-              <Link
-                to="/tracking"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                <ShoppingBagIcon className="w-5 h-5" />
-                {t('layout.main.trackOrder', 'Track Order')}
-              </Link>
+              {!user && (
+                <Link
+                  to="/tracking"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+                >
+                  <ShoppingBagIcon className="w-5 h-5" />
+                  {t('layout.main.trackOrder', 'Track Order')}
+                </Link>
+              )}
               
               {/* Mobile Language Selector */}
               <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
@@ -396,14 +433,121 @@ const MainLayout = () => {
                     <UserIcon className="w-5 h-5" />
                     {t('nav.profile', 'Profile')}
                   </Link>
-                  <Link
-                    to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/dashboard'}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
-                  >
-                    <ChartBarSquareIcon className="w-5 h-5" />
-                    {t('nav.dashboard', 'Dashboard')}
-                  </Link>
+
+                  {/* Buyer functional pages */}
+                  {profile?.role === 'buyer' && (
+                    <>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 px-4 pt-2">{t('layout.buyer.panelTitle', 'حسابي')}</p>
+                      <Link
+                        to="/buyer/orders"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/orders')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <ClipboardDocumentListIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.orders', 'طلباتي')}
+                      </Link>
+                      <Link
+                        to="/buyer/addresses"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/addresses')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <MapPinIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.addresses', 'العناوين')}
+                      </Link>
+                      <Link
+                        to="/buyer/coupons"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/coupons')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <CurrencyDollarIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.coupons', 'الكوبونات')}
+                      </Link>
+                      <Link
+                        to="/buyer/loyalty"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/loyalty')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <StarIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.loyalty', 'نقاط الولاء')}
+                      </Link>
+                      <Link
+                        to="/buyer/shopping-lists"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/shopping-lists')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <ShoppingBagIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.shoppingLists', 'قوائم التسوق')}
+                      </Link>
+                      <Link
+                        to="/buyer/rfq"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/rfq')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <DocumentChartBarIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.rfq', 'طلب عروض')}
+                      </Link>
+                      <Link
+                        to="/buyer/security"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/security')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <ShieldCheckIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.security', 'الأمان')}
+                      </Link>
+                      <Link
+                        to="/buyer/settings"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
+                          isActive('/buyer/settings')
+                            ? 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30'
+                            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <Cog6ToothIcon className="w-5 h-5" />
+                        {t('layout.buyer.links.settings', 'الإعدادات')}
+                      </Link>
+                    </>
+                  )}
+
+                  {/* Non-buyer dashboard link */}
+                  {profile?.role !== 'buyer' && (
+                    <Link
+                      to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/marketplace'}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
+                    >
+                      <ChartBarSquareIcon className="w-5 h-5" />
+                      {t('nav.dashboard', 'Dashboard')}
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       signOut()
@@ -447,12 +591,7 @@ const MainLayout = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8">
             {/* Brand */}
             <div className="col-span-2 md:col-span-1">
-              <Link to="/" className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">Q</span>
-                </div>
-                <span className="text-xl font-bold">Qotoof</span>
-              </Link>
+              <Logo size="md" showText={true} className="mb-4" />
               <p className="text-gray-400 text-sm mb-4">
                 {t('home.footer.description', "Morocco's premier B2B wholesale marketplace for fresh produce.")}
               </p>
@@ -489,8 +628,8 @@ const MainLayout = () => {
               <h4 className="font-semibold mb-4 text-white">{t('layout.main.forBuyers', 'For Buyers')}</h4>
               <ul className="space-y-2.5 text-sm text-gray-400">
                 <li><Link to="/cart" className="hover:text-green-400 transition-colors">{t('nav.cart', 'Shopping Cart')}</Link></li>
-                <li><Link to="/checkout" className="hover:text-green-400 transition-colors">{t('cart.checkout', 'Checkout')}</Link></li>
-                <li><Link to="/tracking" className="hover:text-green-400 transition-colors">{t('layout.main.trackOrder', 'Track Order')}</Link></li>
+                <li><Link to="/checkout" className="hover:text-green-400 transition-colors">{t('cart.checkoutLabel', 'Checkout')}</Link></li>
+                <li><Link to="/buyer/orders" className="hover:text-green-400 transition-colors">{t('layout.main.trackOrder', 'Track Order')}</Link></li>
                 <li><Link to="/returns" className="hover:text-green-400 transition-colors">{t('layout.main.returns', 'Returns')}</Link></li>
                 <li><Link to="/shipping" className="hover:text-green-400 transition-colors">{t('layout.main.shippingInfo', 'Shipping Info')}</Link></li>
               </ul>
@@ -566,15 +705,15 @@ const MainLayout = () => {
           </Link>
           {user ? (
             <Link
-                    to={profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/buyer/dashboard'}
+              to={profile?.role === 'buyer' ? '/buyer/orders' : profile?.role === 'admin' ? '/admin/dashboard' : profile?.role === 'vendor' ? '/vendor/dashboard' : profile?.role === 'driver' ? '/driver/dashboard' : '/marketplace'}
               className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-colors ${
                 location.pathname.includes('/dashboard') || location.pathname.includes('/vendor') || location.pathname.includes('/admin') || location.pathname.includes('/driver') || location.pathname.includes('/buyer')
                   ? 'text-green-600 dark:text-green-400'
                   : 'text-gray-400 dark:text-gray-500'
               }`}
             >
-              <ChartBarSquareIcon className="w-6 h-6" />
-              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{t('nav.dashboard', 'Dashboard')}</span>
+              {profile?.role === 'buyer' ? <ClipboardDocumentListIcon className="w-6 h-6" /> : <ChartBarSquareIcon className="w-6 h-6" />}
+              <span className="text-[10px] font-medium mt-0.5 text-gray-600 dark:text-gray-400">{profile?.role === 'buyer' ? t('layout.buyer.links.orders', 'طلباتي') : t('nav.dashboard', 'Dashboard')}</span>
             </Link>
           ) : (
             <Link to="/login" className="flex flex-col items-center py-1.5 px-3 rounded-xl text-gray-400 dark:text-gray-500">

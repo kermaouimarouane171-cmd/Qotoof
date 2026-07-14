@@ -40,7 +40,7 @@ export default function OrderFilters({
           <button
             onClick={onClearSearch}
             className="absolute right-4 top-1/2 -translate-y-1/2"
-            aria-label="Clear search"
+            aria-label={t('buyer.orders.clearSearchAria', 'Clear search')}
           >
             <XMarkIcon className="w-4 h-4 text-gray-400 hover:text-gray-600" />
           </button>

@@ -10,7 +10,7 @@ import {
   notificationEvents,
   notificationsApi,
   shouldMuteNotificationPreview,
-} from '@/services/notifications'
+} from '@/modules/notifications'
 
 const DEFAULT_LINK_CLASSNAME = 'relative p-2 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
 const DEFAULT_BADGE_CLASSNAME = 'absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1'

@@ -1,12 +1,14 @@
 import { supabase } from '@/services/supabase'
 import toast from 'react-hot-toast'
-import { mfaService, sessionService, autoLogoutService } from '@/services/authServices'
+import { sessionService, autoLogoutService } from '@/modules/auth'
 import { auditLogger } from '@/services/auditLogger'
-import { useCartStore } from '@/store/cartStore'
-import { useFavoritesStore } from '@/store/favoritesStore'
+import { useCartStore } from '@/modules/cart'
+import { useFavoritesStore } from '@/modules/cart'
 import { generateDeviceFingerprint, secureStorage, clearSupabaseLocalStorage } from '@/utils/encryption'
 import { clearPendingAuthRedirect } from '@/utils/authRedirects'
 import { logger } from '../utils/logger.js'
+import queryClient from '@/services/queryClient'
+import { USER_ROLES } from '@/constants/roles'
 
 export const sessionInitialState = {
   mfaRequired: false,
@@ -18,6 +20,7 @@ export const sessionInitialState = {
 }
 
 let autoLogoutWarningTimerId = null
+const _inFlightReferralAttachments = new Set()
 
 const _redirectToLogin = (path = '/login') => {
   // Use window.location.href to ensure full app reload and session clear
@@ -133,17 +136,25 @@ export function createSessionActions(set, get) {
         const deviceFingerprint = await generateDeviceFingerprint()
         set({ deviceFingerprint })
 
-        // Register session (with safety check)
-        if (sessionService?.registerSession) {
+        // Register session only if profile exists (active_sessions has FK to profiles)
+        if (profile && sessionService?.registerSession) {
           await sessionService.registerSession()
+        } else if (!profile) {
+          logger.warn('Skipping session registration — profile creation failed')
         }
 
-        // Check if MFA is required
-        let mfaSettings = null
-        if (mfaService?.getSettings) {
-          mfaSettings = await mfaService.getSettings()
+        // Check if MFA is required using Supabase AAL
+        let mfaRequired = false
+        try {
+          const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+          if (aalData && aalData.currentLevel !== aalData.nextLevel) {
+            mfaRequired = true
+          }
+        } catch (aalErr) {
+          logger.warn('AAL check failed during init:', aalErr?.message || aalErr)
         }
-        if (mfaSettings?.is_enabled) {
+
+        if (mfaRequired) {
           set({
             user,
             session,
@@ -200,13 +211,20 @@ export function createSessionActions(set, get) {
     setupAuthListener: () => {
       let lastEvent = null
       let lastEventTime = 0
+      let lastSessionUserId = null
       let hasHandledInitialSession = false
 
       const authListener = supabase.auth.onAuthStateChange(async (event, session) => {
         const now = Date.now()
+        const sessionUserId = session?.user?.id ?? null
 
-        // Skip duplicate events within 100ms window
-        if (event === lastEvent && (now - lastEventTime) < 100) {
+        // Skip duplicate events: same event type + same user within 2000ms window
+        if (
+          event === lastEvent &&
+          sessionUserId === lastSessionUserId &&
+          (now - lastEventTime) < 2000
+        ) {
+          logger.debug('Skipping duplicate auth event:', event, 'within dedup window')
           return
         }
 
@@ -216,6 +234,7 @@ export function createSessionActions(set, get) {
 
         lastEvent = event
         lastEventTime = now
+        lastSessionUserId = sessionUserId
 
         // Mark INITIAL_SESSION as handled
         if (event === 'INITIAL_SESSION') {
@@ -233,7 +252,12 @@ export function createSessionActions(set, get) {
               if (existingState.isSigningIn) {
                 break
               }
-              if (existingState.user && existingState.user.id === session.user?.id && existingState.profile) {
+              // If initialize() is still running, skip — it will set all state
+              // and avoid concurrent supabase.auth.getUser() lock contention.
+              if (!existingState.initialized && existingState.loading) {
+                break
+              }
+              if (existingState.user && existingState.user.id === session.user?.id && (existingState.profile || existingState.profileError)) {
                 // Already handled by signIn() — just refresh device fingerprint silently
                 generateDeviceFingerprint().then(fp => set({ deviceFingerprint: fp })).catch(() => {})
                 break
@@ -257,12 +281,21 @@ export function createSessionActions(set, get) {
                 profile = await get().fetchProfile(user.id)
               }
 
-              const mfaSettings = mfaService?.getSettings ? await mfaService.getSettings() : null
+              // Check AAL to determine if MFA is required
+              let mfaRequired = false
+              try {
+                const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+                if (aalData && aalData.currentLevel !== aalData.nextLevel) {
+                  mfaRequired = true
+                }
+              } catch (aalErr) {
+                logger.warn('AAL check failed in SIGNED_IN:', aalErr?.message || aalErr)
+              }
 
-              if (mfaSettings?.is_enabled) {
-                set({ 
-                  user, 
-                  session, 
+              if (mfaRequired) {
+                set({
+                  user,
+                  session,
                   profile: profile || null,
                   loading: false,
                   mfaRequired: true,
@@ -275,9 +308,9 @@ export function createSessionActions(set, get) {
               // Start auto logout
               get().startAutoLogout()
 
-              set({ 
-                user, 
-                session, 
+              set({
+                user,
+                session,
                 profile: profile || null,
                 loading: false,
                 mfaRequired: false,
@@ -320,6 +353,9 @@ export function createSessionActions(set, get) {
             // Clear persisted cart/favorites to prevent cross-user data leak
             useCartStore.setState({ items: [], lastValidated: null, checkoutVendorId: null })
             useFavoritesStore.setState({ favorites: [], favoriteIds: new Set(), userId: null, error: null })
+            // Clear TanStack Query cache to prevent stale user-specific data
+            // (orders, profile, notifications, etc.) from leaking to the next user
+            queryClient.clear()
             break
 
           case 'TOKEN_REFRESHED':
@@ -350,6 +386,20 @@ export function createSessionActions(set, get) {
 
           case 'PASSWORD_RECOVERY':
             if (session?.user) {
+              // SECURITY: Check if the recovery link is expired
+              // Supabase sets recovery_sent_at on the user object; if it's older
+              // than 1 hour, the link may be stale and should be rejected.
+              const recoverySentAt = session.user?.recovery_sent_at
+                ? new Date(session.user.recovery_sent_at).getTime()
+                : null
+              const RECOVERY_MAX_AGE_MS = 60 * 60 * 1000 // 1 hour
+
+              if (recoverySentAt && (Date.now() - recoverySentAt) > RECOVERY_MAX_AGE_MS) {
+                logger.warn('Password recovery link expired — ignoring PASSWORD_RECOVERY event')
+                set({ passwordRecoveryMode: false, loading: false })
+                break
+              }
+
               autoLogoutService.stop()
               if (autoLogoutWarningTimerId) {
                 clearTimeout(autoLogoutWarningTimerId)
@@ -385,6 +435,8 @@ export function createSessionActions(set, get) {
             // Clear persisted cart/favorites to prevent cross-user data leak
             useCartStore.setState({ items: [], lastValidated: null, checkoutVendorId: null })
             useFavoritesStore.setState({ favorites: [], favoriteIds: new Set(), userId: null, error: null })
+            // Clear TanStack Query cache (same reason as SIGNED_OUT)
+            queryClient.clear()
 
             // Navigate to login without a full page reload — React Router handles it
             window.dispatchEvent(new CustomEvent('auth:sessionExpired'))
@@ -407,7 +459,7 @@ export function createSessionActions(set, get) {
     },
 
     // ============================================
-    // FETCH USER PROFILE
+    // FETCH USER PROFILE (with self-heal via ensure_profile RPC)
     // ============================================
     fetchProfile: async (userId) => {
       if (!userId) {
@@ -417,6 +469,10 @@ export function createSessionActions(set, get) {
 
       set({ profileLoading: true, profileError: false })
 
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+      // ── Step 1: Try to SELECT the profile ──────────────────────────────
+      // Use maybeSingle() to avoid throwing when the row doesn't exist.
       try {
         const profileQuery = supabase
           .from('profiles')
@@ -431,33 +487,81 @@ export function createSessionActions(set, get) {
           throw error
         }
 
-        if (!data) {
-          set({ profile: null, profileError: true })
-          return null
+        if (data) {
+          const resolvedProfile = data
+          set({ profile: resolvedProfile, profileError: false, profileLoading: false })
+
+          if (resolvedProfile.role === USER_ROLES.BUYER) {
+            get()._attachBuyerReferralAsync(userId, resolvedProfile)
+          }
+
+          return resolvedProfile
         }
-
-        const resolvedProfile = data
-
-        // Resolve profile immediately so auth loading isn't held up by
-        // non-critical buyer referral logic.
-        set({ profile: resolvedProfile, profileError: false })
-
-        if (resolvedProfile.role === 'buyer') {
-          // Fire-and-forget: referral attachment must not block initialization.
-          get()._attachBuyerReferralAsync(userId, resolvedProfile)
-        }
-
-        return resolvedProfile
       } catch (error) {
-        logger.error('Error fetching profile:', error)
-        set({ profile: null, profileError: true })
-        return null
-      } finally {
-        set({ profileLoading: false })
+        logger.error('Profile SELECT failed:', error)
+        // Continue to self-heal below
       }
+
+      // ── Step 2: Profile row is missing — try self-heal via RPC ─────────
+      // Only try the RPC once (not 3 times). If it fails, move to direct INSERT.
+      logger.info('Profile not found, attempting self-heal via ensure_profile RPC')
+
+      const { data: rpcData, error: rpcError } = await supabase
+        .rpc('ensure_profile')
+
+      if (!rpcError && rpcData) {
+        const healedProfile = rpcData
+        set({ profile: healedProfile, profileError: false, profileLoading: false })
+
+        if (healedProfile.role === USER_ROLES.BUYER) {
+          get()._attachBuyerReferralAsync(userId, healedProfile)
+        }
+
+        return healedProfile
+      }
+
+      // ── Step 3: RPC failed — try direct INSERT as fallback ─────────────
+      // This works if the RLS policy "profiles_insert_authenticated_self" exists.
+      logger.warn('ensure_profile RPC failed, trying direct INSERT fallback. RPC error:', rpcError)
+
+      try {
+        const { data: authData } = await supabase.auth.getUser()
+        const userMeta = authData?.user?.user_metadata || {}
+        const { data: insertedProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: userId,
+            email: authData?.user?.email || '',
+            first_name: userMeta.first_name || '',
+            last_name: userMeta.last_name || '',
+            phone: userMeta.phone || '',
+            role: userMeta.role || 'buyer',
+            onboarding_completed: false,
+          })
+          .select('*')
+          .single()
+
+        if (!insertError && insertedProfile) {
+          set({ profile: insertedProfile, profileError: false, profileLoading: false })
+          return insertedProfile
+        }
+
+        logger.error('Direct INSERT fallback also failed:', insertError)
+      } catch (insertCatchError) {
+        logger.error('Direct INSERT fallback threw:', insertCatchError)
+      }
+
+      // ── Step 4: All self-heal attempts failed ───────────────────────────
+      // Set profileError so ProtectedRoute shows ProfileErrorFallback
+      // instead of an infinite loading spinner.
+      logger.error('All profile creation attempts failed — setting profileError')
+      set({ profile: null, profileError: true, profileLoading: false })
+      return null
     },
 
     _attachBuyerReferralAsync: async (userId, currentProfile) => {
+      if (_inFlightReferralAttachments.has(userId)) return
+      _inFlightReferralAttachments.add(userId)
       try {
         const { data: authUserData } = await supabase.auth.getUser()
         const pendingReferralCode = authUserData?.user?.id === userId
@@ -465,7 +569,7 @@ export function createSessionActions(set, get) {
           : null
 
         if (pendingReferralCode && !currentProfile.referred_by) {
-          const { default: loyaltyApi } = await import('@/services/loyalty')
+          const { default: loyaltyApi } = await import('@/modules/loyalty')
           await loyaltyApi.attachReferralCode({
             userId,
             referralCode: pendingReferralCode,
@@ -483,6 +587,8 @@ export function createSessionActions(set, get) {
         }
       } catch (referralError) {
         logger.warn('Automatic referral attachment skipped:', referralError)
+      } finally {
+        _inFlightReferralAttachments.delete(userId)
       }
     },
 
@@ -517,14 +623,14 @@ export function createSessionActions(set, get) {
     // GET REDIRECT PATH (unchanged)
     // ============================================
     getRedirectPath: (role, profile = get().profile) => {
-      if (role === 'buyer' && profile && profile.onboarding_completed === false) {
+      if (role === USER_ROLES.BUYER && profile && profile.onboarding_completed === false) {
         return '/onboarding/buyer'
       }
 
       const paths = {
         admin: '/admin/dashboard',
         vendor: '/vendor/dashboard',
-        buyer: '/buyer/dashboard',
+        buyer: '/marketplace',
         driver: '/driver/dashboard',
       }
       return paths[role] || '/marketplace'

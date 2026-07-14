@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import Map from './Map'
 import { getCityCoordinates } from '@/utils/cityCoordinates'
+import { useMapCenter } from '@/hooks/useMapCenter'
 import { logger } from '@/utils/logger'
 
 async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 10000) {
@@ -63,11 +64,15 @@ const LocationPicker = ({
   className = '',
   required = true,
   autoDetect = false,
-  showGpsButton = true,
 }) => {
   const [detecting, setDetecting] = useState(false)
   const [detectError, setDetectError] = useState(null)
   const [locationSelected, setLocationSelected] = useState(!!value?.lat && !!value?.lng)
+  const pickerMapCenter = useMapCenter({
+    lat: locationSelected ? value?.lat : null,
+    lng: locationSelected ? value?.lng : null,
+    city,
+  })
   const [showMapPrompt, setShowMapPrompt] = useState(false)
   const autoDetectCalledRef = useRef(false)
   const cityAutoSetRef = useRef('')
@@ -298,41 +303,40 @@ const LocationPicker = ({
         )}
       </div>
 
-      {showGpsButton && (
-        <button
-          type="button"
-          onClick={detectMyLocation}
-          disabled={detecting}
-          data-testid="location-detect-btn"
-          className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
-            detecting
-              ? 'border-green-300 bg-green-50 text-green-600 cursor-not-allowed'
-              : locationSelected && value?.source === 'gps'
-                ? 'border-green-400 bg-green-50 text-green-700'
-                : 'border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:border-green-500 hover:bg-green-50 hover:text-green-700'
-          }`}
-        >
-          {detecting ? (
-            <>
-              <ArrowPathIcon className="w-5 h-5 animate-spin" />
-              <span>جاري تحديد موقعك بواسطة GPS...</span>
-            </>
-          ) : locationSelected && value?.source === 'gps' ? (
-            <>
-              <CheckCircleIcon className="w-5 h-5 text-green-600" />
-              <span>تم تحديد موقعك تلقائياً</span>
-              {value?.accuracy && (
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">دقة ±{value.accuracy}م</span>
-              )}
-            </>
-          ) : (
-            <>
-              <MapPinIcon className="w-5 h-5" />
-              <span>تحديد موقعي تلقائياً (GPS)</span>
-            </>
-          )}
-        </button>
-      )}
+      {/* Auto-detect GPS button */}
+      <button
+        type="button"
+        onClick={detectMyLocation}
+        disabled={detecting}
+        data-testid="location-detect-btn"
+        className={`w-full flex items-center justify-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+          detecting
+            ? 'border-green-300 bg-green-50 text-green-600 cursor-not-allowed'
+            : locationSelected && value?.source === 'gps'
+              ? 'border-green-400 bg-green-50 text-green-700'
+              : 'border-dashed border-gray-300 bg-gray-50 text-gray-600 hover:border-green-500 hover:bg-green-50 hover:text-green-700'
+        }`}
+      >
+        {detecting ? (
+          <>
+            <ArrowPathIcon className="w-5 h-5 animate-spin" />
+            <span>جاري تحديد موقعك بواسطة GPS...</span>
+          </>
+        ) : locationSelected && value?.source === 'gps' ? (
+          <>
+            <CheckCircleIcon className="w-5 h-5 text-green-600" />
+            <span>تم تحديد موقعك تلقائياً</span>
+            {value?.accuracy && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">دقة ±{value.accuracy}م</span>
+            )}
+          </>
+        ) : (
+          <>
+            <MapPinIcon className="w-5 h-5" />
+            <span>تحديد موقعي تلقائياً (GPS)</span>
+          </>
+        )}
+      </button>
 
       {/* Error messages */}
       {detectError && (
@@ -371,16 +375,7 @@ const LocationPicker = ({
           </div>
         )}
         <Map
-          center={
-            locationSelected
-              ? [value.lat, value.lng]
-              : city
-                ? (() => {
-                    const coords = getCityCoordinates(city)
-                    return coords ? [coords.lat, coords.lng] : [33.5731, -7.5898]
-                  })()
-                : [33.5731, -7.5898]
-          }
+          center={pickerMapCenter}
           zoom={locationSelected ? 16 : city ? 13 : 12}
           markers={[]}
           onLocationSelect={handleMapLocationSelect}

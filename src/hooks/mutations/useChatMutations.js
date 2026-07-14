@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
-import { chatService } from '@/services/chatService'
+import { chatService } from '@/modules/chat'
 
 /**
  * Send a message in a conversation

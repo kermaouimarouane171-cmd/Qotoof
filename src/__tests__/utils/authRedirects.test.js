@@ -5,7 +5,7 @@ import {
   getPendingAuthRedirect,
   resolveSafeAuthRedirect,
   setPendingAuthRedirect,
-} from '@/utils/authRedirects'
+} from '@/modules/auth'
 
 describe('authRedirects', () => {
   beforeEach(() => {

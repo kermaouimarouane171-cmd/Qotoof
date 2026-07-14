@@ -16,25 +16,24 @@ export const returnsApi = {
   createReturnRequest: withRetry(async (returnData) => {
     // Validate required fields
     if (!returnData.order_id) throw new Error('Order ID is required')
-    if (!returnData.product_id) throw new Error('Product ID is required')
     if (!returnData.reason || !['defective', 'wrong_item', 'not_as_described', 'changed_mind', 'other'].includes(returnData.reason)) {
       throw new Error('Valid reason is required')
     }
 
     const requestData = {
       buyer_id: returnData.buyer_id,
+      user_id: returnData.buyer_id,
       order_id: returnData.order_id,
-      product_id: returnData.product_id,
       reason: returnData.reason,
       description: returnData.description || '',
-      quantity: returnData.quantity || 1,
+      items: returnData.itemIds || [],
       status: 'pending',
       created_at: new Date().toISOString(),
     }
 
     // Add photo URLs if uploaded
     if (returnData.photoUrls && returnData.photoUrls.length > 0) {
-      requestData.photo_urls = returnData.photoUrls
+      requestData.image_urls = returnData.photoUrls
     }
 
     const { data, error } = await supabase
@@ -58,10 +57,9 @@ export const returnsApi = {
     let query = supabase
       .from('return_requests')
       .select(`
-        id, order_id, product_id, reason, description, quantity,
+        id, order_id, reason, description, items, image_urls,
         status, created_at, updated_at,
         order:orders(order_number, total, created_at, vendor_id),
-        product:products(name, images:product_images!is_primary(url)),
         vendor:profiles!return_requests_vendor_id_fkey(store_name)
       `, { count: 'exact' })
       .eq('buyer_id', userId)
@@ -85,17 +83,14 @@ export const returnsApi = {
     const { data, error } = await supabase
       .from('return_requests')
       .select(`
-        id, order_id, product_id, buyer_id, vendor_id,
-        reason, description, quantity, status,
-        photo_urls, vendor_response, vendor_response_at,
-        admin_notes, processed_by, processed_at,
+        id, order_id, buyer_id, vendor_id,
+        reason, description, items, image_urls, status,
+        notes, admin_response,
         created_at, updated_at,
         order:orders(id, order_number, total, status, created_at,
           buyer:profiles!orders_buyer_id_fkey(id, first_name, last_name, email, phone),
           vendor:profiles!orders_vendor_id_fkey(id, first_name, last_name, store_name)
-        ),
-        product:products(id, name, price_per_unit, images:product_images!is_primary(url)),
-        admin_notes_data:return_notes(id, note, created_at, created_by)
+        )
       `)
       .eq('id', returnId)
       .single()
@@ -139,11 +134,10 @@ export const returnsApi = {
     let query = supabase
       .from('return_requests')
       .select(`
-        id, order_id, product_id, buyer_id, reason, description, quantity,
-        status, created_at,
+        id, order_id, buyer_id, reason, description, items, image_urls,
+        status, created_at, notes, admin_response,
         buyer:profiles!return_requests_buyer_id_fkey(first_name, last_name, phone),
-        order:orders(order_number, total),
-        product:products(name, images:product_images!is_primary(url))
+        order:orders(order_number, total)
       `, { count: 'exact' })
       .eq('vendor_id', vendorId)
       .range(offset, offset + limit - 1)
@@ -171,8 +165,7 @@ export const returnsApi = {
       .from('return_requests')
       .update({
         status: action === 'approved' ? 'vendor_approved' : 'vendor_rejected',
-        vendor_response: responseNotes || '',
-        vendor_response_at: new Date().toISOString(),
+        admin_response: responseNotes || '',
         updated_at: new Date().toISOString(),
       })
       .eq('id', returnId)
@@ -221,12 +214,11 @@ export const returnsApi = {
     let query = supabase
       .from('return_requests')
       .select(`
-        id, order_id, product_id, buyer_id, vendor_id,
+        id, order_id, buyer_id, vendor_id,
         reason, status, created_at,
         buyer:profiles!return_requests_buyer_id_fkey(first_name, last_name, email),
         vendor:profiles!return_requests_vendor_id_fkey(first_name, last_name, store_name),
-        order:orders(order_number, total),
-        product:products(name)
+        order:orders(order_number, total)
       `, { count: 'exact' })
       .range(offset, offset + limit - 1)
 

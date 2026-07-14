@@ -1,7 +1,42 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { enforceServerRateLimit, getClientIp, getClientUserAgent } from '../_shared/serverRateLimit.ts'
+import { isIpBlocked, logSecurityAlert } from '../_shared/ipBlocking.ts'
 import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
+
+const logAuthEvent = async (
+  adminClient: any,
+  userId: string | null,
+  action: string,
+  metadata: Record<string, unknown> = {},
+) => {
+  try {
+    await adminClient.rpc('log_audit', {
+      p_user_id: userId,
+      p_action: action,
+      p_entity_type: 'auth',
+      p_entity_id: userId,
+      p_new_values: metadata,
+    })
+  } catch (err) {
+    console.error('Failed to log auth audit event:', err)
+  }
+}
+
+const getUserRole = async (adminClient: any, userId: string): Promise<string | null> => {
+  try {
+    const { data, error } = await adminClient
+      .from('profiles')
+      .select('role')
+      .eq('id', userId)
+      .maybeSingle()
+    if (error || !data) return null
+    return data.role || null
+  } catch (err) {
+    console.error('Failed to fetch user role for audit log:', err)
+    return null
+  }
+}
 
 const PUBLIC_REQUEST_LIMIT = {
   maxAttempts: 60,
@@ -61,6 +96,23 @@ serve(async (req) => {
     const userAgent = getClientUserAgent(req)
     const adminClient = createClient(supabaseUrl, serviceRoleKey)
 
+    const ipBlocked = await isIpBlocked(adminClient, clientIp)
+
+    if (ipBlocked) {
+      await logSecurityAlert(adminClient, {
+        alertType: 'unauthorized_access',
+        severity: 'high',
+        title: `Blocked IP attempted login: ${clientIp}`,
+        description: 'Request rejected because the source IP is on the block list.',
+        sourceIp: clientIp,
+        userAgent,
+        requestPath: '/secure-login',
+        requestMethod: 'POST',
+      })
+
+      return json({ success: false, error: 'Invalid login credentials' }, 403, req)
+    }
+
     const publicRequestResult = await enforceServerRateLimit({
       supabase: adminClient,
       scope: 'public_request',
@@ -71,6 +123,18 @@ serve(async (req) => {
     })
 
     if (!publicRequestResult.allowed) {
+      await logSecurityAlert(adminClient, {
+        alertType: 'rate_limit_exceeded',
+        severity: 'medium',
+        title: `Public request limit exceeded: ${clientIp}`,
+        description: 'Too many requests to the secure-login endpoint.',
+        sourceIp: clientIp,
+        userAgent,
+        requestPath: '/secure-login',
+        requestMethod: 'POST',
+        metadata: { retry_after_seconds: publicRequestResult.retry_after_seconds },
+      })
+
       return json(
         { success: false, error: 'Too many requests. Please try again later.' },
         429,
@@ -89,6 +153,18 @@ serve(async (req) => {
     })
 
     if (!loginResult.allowed) {
+      await logSecurityAlert(adminClient, {
+        alertType: 'brute_force_login',
+        severity: 'high',
+        title: `Login rate limit exceeded: ${clientIp}`,
+        description: `Repeated login attempts for ${email}`,
+        sourceIp: clientIp,
+        userAgent,
+        requestPath: '/secure-login',
+        requestMethod: 'POST',
+        metadata: { retry_after_seconds: loginResult.retry_after_seconds },
+      })
+
       return json(
         { success: false, error: 'Too many login attempts. Please try again later.' },
         429,
@@ -111,8 +187,20 @@ serve(async (req) => {
     })
 
     if (error || !data?.session || !data?.user) {
+      await logAuthEvent(adminClient, null, 'LOGIN_FAILED', {
+        source_ip: clientIp,
+        user_agent: userAgent,
+        reason: 'Invalid credentials',
+      })
       return json({ success: false, error: 'Invalid login credentials' }, 400, req)
     }
+
+    const profileRole = await getUserRole(adminClient, data.user.id)
+    await logAuthEvent(adminClient, data.user.id, 'SIGNED_IN', {
+      role: profileRole,
+      source_ip: clientIp,
+      user_agent: userAgent,
+    })
 
     return json({
       success: true,
@@ -130,6 +218,6 @@ serve(async (req) => {
     return json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to sign in',
-    }, 500)
+    }, 500, req)
   }
 })

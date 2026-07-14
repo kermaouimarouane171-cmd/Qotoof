@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ScaleIcon,
   ClockIcon,
@@ -9,76 +10,77 @@ import {
 } from '@heroicons/react/24/outline'
 
 const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
+  const { t } = useTranslation()
   const [agreed, setAgreed] = useState(false)
   const [showFull, setShowFull] = useState(false)
 
   const guidelines = [
     {
       icon: ScaleIcon,
-      title: '1. Accurate Product Descriptions & Pricing',
+      title: t('vendor.guidelines.section1.title', '1. أوصاف وأسعار المنتجات الدقيقة'),
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       items: [
-        'Provide truthful and accurate descriptions for all products listed',
-        'Display prices in Moroccan Dirham (MAD) including all applicable taxes',
-        'Update prices promptly when costs change',
-        'Do not engage in misleading pricing practices (Law 31-08 on Consumer Protection)',
-        'Clearly state unit type, minimum order quantity, and product origin',
-        'Include clear, actual product photos (not stock images)',
+        t('vendor.guidelines.section1.item1', 'تقديم أوصاف صادقة ودقيقة لجميع المنتجات المدرجة'),
+        t('vendor.guidelines.section1.item2', 'عرض الأسعار بالدرهم المغربي (د.م) شاملة جميع الضرائب المطبقة'),
+        t('vendor.guidelines.section1.item3', 'تحديث الأسعار فور تغير التكاليف'),
+        t('vendor.guidelines.section1.item4', 'عدم الانخراط في ممارسات تسعير مضللة (القانون 31-08 لحماية المستهلك)'),
+        t('vendor.guidelines.section1.item5', 'بيان نوع الوحدة والحد الأدنى لكمية الطلب ومنشأ المنتج بوضوح'),
+        t('vendor.guidelines.section1.item6', 'تضمين صور حقيقية وواضحة للمنتجات (وليست صوراً جاهزة)'),
       ],
     },
     {
       icon: CubeIcon,
-      title: '2. Stock Management',
+      title: t('vendor.guidelines.section2.title', '2. إدارة المخزون'),
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       items: [
-        'Maintain sufficient stock levels for all listed products',
-        'Update inventory quantities in real-time',
-        'Promptly mark products as "Out of Stock" when unavailable',
-        'Do not list products you cannot fulfill',
-        'Notify buyers immediately if stock becomes unavailable after order placement',
-        'Regular inventory audits are recommended (minimum weekly)',
+        t('vendor.guidelines.section2.item1', 'الحفاظ على مستويات مخزون كافية لجميع المنتجات المدرجة'),
+        t('vendor.guidelines.section2.item2', 'تحديث كميات المخزون في الوقت الفعلي'),
+        t('vendor.guidelines.section2.item3', 'وضع علامة "نفد المخزون" فور عدم توفر المنتج'),
+        t('vendor.guidelines.section2.item4', 'عدم إدراج منتجات لا يمكن توفيرها'),
+        t('vendor.guidelines.section2.item5', 'إخطار المشترين فوراً إذا نفد المخزون بعد تقديم الطلب'),
+        t('vendor.guidelines.section2.item6', 'يُوصى بإجراء جرد دوري للمخزون (أسبوعياً على الأقل)'),
       ],
     },
     {
       icon: ClockIcon,
-      title: '3. Order Fulfillment Timelines',
+      title: t('vendor.guidelines.section3.title', '3. المواعيد الزمنية لتنفيذ الطلبات'),
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       items: [
-        'Confirm or reject orders within 24 hours of receipt',
-        'Prepare orders within the agreed timeframe (default: 48 hours)',
-        'Communicate delays proactively to buyers',
-        'Accept delivery driver assignments or provide alternative arrangements',
-        'Repeated order cancellations may result in account suspension',
-        'Maintain a fulfillment rate of at least 95%',
+        t('vendor.guidelines.section3.item1', 'تأكيد أو رفض الطلبات خلال 24 ساعة من الاستلام'),
+        t('vendor.guidelines.section3.item2', 'تجهيز الطلبات خلال الإطار الزمني المتفق عليه (افتراضياً: 48 ساعة)'),
+        t('vendor.guidelines.section3.item3', 'التواصل الاستباقي مع المشترين بشأن التأخيرات'),
+        t('vendor.guidelines.section3.item4', 'قبول تعيين سائق التوصيل أو توفير ترتيبات بديلة'),
+        t('vendor.guidelines.section3.item5', 'قد يؤدي تكرار إلغاء الطلبات إلى إيقاف الحساب'),
+        t('vendor.guidelines.section3.item6', 'الحفاظ على معدل تنفيذ لا يقل عن 95%'),
       ],
     },
     {
       icon: DocumentCheckIcon,
-      title: '4. Moroccan Legal Compliance',
+      title: t('vendor.guidelines.section4.title', '4. الامتثال القانوني المغربي'),
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       items: [
-        'Comply with Law 31-08 on Consumer Protection',
-        'Follow Law 13-03 on Combating Fraud and Commercial Deception',
-        'Adhere to food safety regulations (ONSSA standards)',
-        'Maintain valid business registration and tax identification',
-        'Issue proper invoices/receipts for all transactions',
-        'Comply with data protection Law 09-08 on Personal Data',
-        'Respect intellectual property and trademark laws',
-        'Follow environmental regulations for packaging and waste',
+        t('vendor.guidelines.section4.item1', 'الامتثال للقانون 31-08 لحماية المستهلك'),
+        t('vendor.guidelines.section4.item2', 'اتباع القانون 13-03 لمكافحة الغش والتدليس التجاري'),
+        t('vendor.guidelines.section4.item3', 'الالتزام بمعايير سلامة الأغذية (معايير المكتب الوطني للسلامة الصحية للمنتجات الغذائية)'),
+        t('vendor.guidelines.section4.item4', 'الحفاظ على تسجيل تجاري ساري المفعول وبطاقة ضريبية'),
+        t('vendor.guidelines.section4.item5', 'إصدار فواتير/إيصالات صحيحة لجميع المعاملات'),
+        t('vendor.guidelines.section4.item6', 'الامتثال لقانون حماية البيانات 09-08 المتعلق بالبيانات الشخصية'),
+        t('vendor.guidelines.section4.item7', 'احترام حقوق الملكية الفكرية وقوانين العلامات التجارية'),
+        t('vendor.guidelines.section4.item8', 'اتباع اللوائح البيئية المتعلقة بالتغليف والنفايات'),
       ],
     },
   ]
 
   const penalties = [
-    'Warning notice for first violation',
-    'Temporary suspension (7 days) for repeated violations',
-    'Permanent account termination for serious or ongoing violations',
-    'Legal action may be taken for violations of Moroccan law',
-    'Financial penalties may apply for fraudulent activities',
+    t('vendor.guidelines.penalties.item1', 'إنذار كتابي للمخالفة الأولى'),
+    t('vendor.guidelines.penalties.item2', 'إيقاف مؤقت (7 أيام) للمخالفات المتكررة'),
+    t('vendor.guidelines.penalties.item3', 'إنهاء دائم للحساب في حالة المخالفات الخطيرة أو المستمرة'),
+    t('vendor.guidelines.penalties.item4', 'قد يتم اتخاذ إجراء قانوني لانتهاكات القانون المغربي'),
+    t('vendor.guidelines.penalties.item5', 'قد تُطبق عقوبات مالية في حالة الأنشطة الاحتيالية'),
   ]
 
   if (alreadyAccepted) {
@@ -87,10 +89,10 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
         <div className="bg-gradient-to-r from-green-600 to-emerald-600 p-6 text-white">
           <div className="flex items-center gap-3 mb-2">
             <CheckCircleIcon className="w-8 h-8" />
-            <h2 className="text-xl font-bold">Vendor Agreement Accepted ✓</h2>
+            <h2 className="text-xl font-bold">{t('vendor.guidelines.accepted', 'تم قبول اتفاقية البائع ✓')}</h2>
           </div>
           <p className="text-green-100 text-sm">
-            You have agreed to the vendor guidelines and Moroccan legal compliance requirements.
+            {t('vendor.guidelines.acceptedDesc', 'لقد وافقت على إرشادات البائع ومتطلبات الامتثال القانوني المغربي.')}
           </p>
         </div>
 
@@ -99,7 +101,9 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
             onClick={() => setShowFull(!showFull)}
             className="text-green-600 font-medium hover:underline text-sm"
           >
-            {showFull ? 'Hide' : 'View'} Full Guidelines
+            {showFull
+              ? t('vendor.guidelines.hide', 'إخفاء')
+              : t('vendor.guidelines.view', 'عرض')} {t('vendor.guidelines.fullGuidelines', 'الإرشادات الكاملة')}
           </button>
 
           {showFull && (
@@ -133,11 +137,10 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
       <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white">
         <div className="flex items-center gap-3 mb-2">
           <ExclamationTriangleIcon className="w-8 h-8" />
-          <h2 className="text-xl font-bold">Vendor Guidelines & Legal Agreement</h2>
+          <h2 className="text-xl font-bold">{t('vendor.guidelines.title', 'إرشادات البائع والاتفاقية القانونية')}</h2>
         </div>
         <p className="text-amber-100 text-sm">
-          Please read and accept these guidelines to continue selling on Qotoof.
-          These guidelines are based on Moroccan commercial law and platform policies.
+          {t('vendor.guidelines.subtitle', 'يرجى قراءة وقبول هذه الإرشادات لمتابعة البيع على قطوف. هذه الإرشادات مبنية على القانون التجاري المغربي وسياسات المنصة.')}
         </p>
       </div>
 
@@ -166,7 +169,7 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
           <h3 className="font-semibold text-red-800 mb-2 flex items-center gap-2">
             <ExclamationTriangleIcon className="w-5 h-5" />
-            Non-Compliance Penalties
+            {t('vendor.guidelines.penaltiesTitle', 'عقوبات عدم الامتثال')}
           </h3>
           <ul className="space-y-1.5">
             {penalties.map((penalty, i) => (
@@ -192,12 +195,10 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
           />
           <div className="text-sm text-gray-700">
             <p className="font-medium text-gray-900 mb-1">
-              I have read and agree to the Vendor Guidelines
+              {t('vendor.guidelines.agreeLabel', 'لقد قرأت وأوافق على إرشادات البائع')}
             </p>
             <p className="text-gray-500">
-              I commit to providing accurate product information, maintaining stock levels, 
-              fulfilling orders on time, and complying with all Moroccan laws and regulations 
-              including Law 31-08 (Consumer Protection), Law 13-03 (Anti-Fraud), and ONSSA standards.
+              {t('vendor.guidelines.agreeDesc', 'ألتزم بتقديم معلومات دقيقة عن المنتجات، والحفاظ على مستويات المخزون، وتنفيذ الطلبات في الوقت المحدد، والامتثال لجميع القوانين واللوائح المغربية بما في ذلك القانون 31-08 (حماية المستهلك)، والقانون 13-03 (مكافحة الغش)، ومعايير المكتب الوطني للسلامة الصحية للمنتجات الغذائية.')}
             </p>
           </div>
         </label>
@@ -211,7 +212,9 @@ const VendorGuidelines = ({ onAccept, alreadyAccepted = false }) => {
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
-          {agreed ? 'Accept & Continue' : 'Please accept the guidelines to continue'}
+          {agreed
+            ? t('vendor.guidelines.acceptAndContinue', 'قبول ومتابعة')
+            : t('vendor.guidelines.mustAccept', 'يرجى قبول الإرشادات للمتابعة')}
         </button>
       </div>
     </div>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
 import { Card, LoadingSpinner } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import LiveDriverMap from '@/components/maps/LiveDriverMap'
@@ -40,6 +40,9 @@ const DriverDeliveryTracking = () => {
   const [signalQuality, setSignalQuality] = useState(null) // 'good' | 'medium' | 'poor' | null
   const [lastSyncTime, setLastSyncTime] = useState(null)
   const [syncFailed, setSyncFailed] = useState(false)
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [cancelReason, setCancelReason] = useState('')
+  const [cancelling, setCancelling] = useState(false)
   const watchIdRef = useRef(null)
   const intervalIdRef = useRef(null)
   const retryTimeoutRef = useRef(null)
@@ -65,6 +68,19 @@ const DriverDeliveryTracking = () => {
     return () => stopTracking()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, loadDelivery])
+
+  // Auto-start GPS tracking when delivery is loaded and in an active state
+  useEffect(() => {
+    if (
+      delivery &&
+      !tracking &&
+      ['accepted', 'picked_up', 'on_the_way'].includes(delivery.status) &&
+      navigator.geolocation
+    ) {
+      startTracking()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [delivery?.id, delivery?.status])
 
   const sendLocationToBackend = useCallback(async (location, retryCount = 0) => {
     try {
@@ -288,8 +304,7 @@ const DriverDeliveryTracking = () => {
       if (newStatus === 'delivered' || newStatus === 'cancelled') {
         stopTracking(newStatus === 'delivered' ? 'completed' : 'stopped')
         if (newStatus === 'delivered') {
-          toast.success(t('driver.tracking.deliveryCompleted', 'Delivery completed! Redirecting to history...'))
-          navigate('/driver/history')
+          navigate(`/driver/delivery/${id}/summary`)
         }
       }
     } catch (error) {
@@ -302,7 +317,21 @@ const DriverDeliveryTracking = () => {
 
   const callCustomer = () => {
     if (delivery?.customer?.phone) {
-      window.open(`tel:${delivery.customer.phone}`, '_self')
+      const a = document.createElement('a')
+      a.href = `tel:${delivery.customer.phone}`
+      a.click()
+    }
+  }
+
+  const handleCancelDelivery = async () => {
+    if (!cancelReason.trim()) return
+    setCancelling(true)
+    try {
+      await updateStatus('cancelled')
+      setShowCancelModal(false)
+      setCancelReason('')
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -451,7 +480,7 @@ const DriverDeliveryTracking = () => {
               📞 {t('driver.tracking.callCustomer', 'Call Customer')}
             </button>
             <button
-              onClick={() => updateStatus('cancelled')}
+              onClick={() => setShowCancelModal(true)}
               disabled={updatingStatus}
               className="btn-outline text-red-600 border-red-200 hover:bg-red-50 disabled:opacity-50"
             >
@@ -596,16 +625,61 @@ const DriverDeliveryTracking = () => {
                 </div>
               )}
 
-              {currentLocation && (
-                <p className="text-xs text-gray-500 mt-2 font-mono">
-                  {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
-                  {currentLocation.accuracy && ` (±${Math.round(currentLocation.accuracy)}m)`}
+              {currentLocation?.accuracy && (
+                <p className="text-xs text-gray-500 mt-2">
+                  ±{Math.round(currentLocation.accuracy)}m
                 </p>
               )}
             </div>
           </Card>
         </div>
       </div>
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {t('driver.tracking.cancelTitle', 'Cancel Delivery?')}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {t('driver.tracking.cancelWarning', 'This will cancel the active delivery. Please select a reason.')}
+            </p>
+            <select
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              className="input w-full mb-4"
+            >
+              <option value="">{t('driver.tracking.cancelReasonPlaceholder', 'Select a reason...')}</option>
+              <option value="vehicle_breakdown">{t('driver.tracking.cancelReasons.vehicleBreakdown', 'Vehicle breakdown')}</option>
+              <option value="customer_unreachable">{t('driver.tracking.cancelReasons.customerUnreachable', 'Customer unreachable')}</option>
+              <option value="wrong_address">{t('driver.tracking.cancelReasons.wrongAddress', 'Wrong address')}</option>
+              <option value="vendor_not_ready">{t('driver.tracking.cancelReasons.vendorNotReady', 'Vendor not ready')}</option>
+              <option value="emergency">{t('driver.tracking.cancelReasons.emergency', 'Personal emergency')}</option>
+              <option value="other">{t('driver.tracking.cancelReasons.other', 'Other')}</option>
+            </select>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowCancelModal(false); setCancelReason('') }}
+                className="flex-1 btn-outline"
+                disabled={cancelling}
+              >
+                {t('common.back', 'Back')}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelDelivery}
+                disabled={!cancelReason.trim() || cancelling}
+                className="flex-1 rounded-xl bg-red-600 text-white py-2.5 text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+              >
+                {cancelling
+                  ? t('driver.tracking.cancelling', 'Cancelling...')
+                  : t('driver.tracking.confirmCancel', 'Confirm Cancellation')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

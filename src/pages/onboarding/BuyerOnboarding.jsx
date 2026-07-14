@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next'
 import OnboardingFlow from '@/components/onboarding/OnboardingFlow'
 
-const BUYER_SLIDES = [
+const FALLBACK_SLIDES = [
   {
     icon: '🛒',
     title: 'مرحباً في Qotoof',
@@ -37,14 +38,29 @@ const BUYER_SLIDES = [
 ]
 
 const BuyerOnboarding = () => {
+  const { t } = useTranslation()
+
+  const slides = FALLBACK_SLIDES.map((slide, idx) => {
+    const n = idx + 1
+    const titleKey = `onboarding.buyer.slides.s${n}.title`
+    const linesKey = `onboarding.buyer.slides.s${n}.lines`
+    const translatedTitle = t(titleKey, slide.title)
+    const translatedLines = t(linesKey, { returnObjects: true })
+    return {
+      ...slide,
+      title: translatedTitle,
+      lines: Array.isArray(translatedLines) ? translatedLines : slide.lines,
+    }
+  })
+
   return (
     <OnboardingFlow
       // eslint-disable-next-line jsx-a11y/aria-role
       role="buyer"
-      roleLabel="تهيئة المشتري"
-      slides={BUYER_SLIDES}
-      completeLabel="ابدأ التسوق الآن 🚀"
-      completePath="/buyer/dashboard"
+      roleLabel={t('onboarding.buyer.roleLabel', 'تهيئة المشتري')}
+      slides={slides}
+      completeLabel={t('onboarding.buyer.completeLabel', 'ابدأ التسوق الآن 🚀')}
+      completePath="/marketplace"
     />
   )
 }

@@ -466,7 +466,8 @@ export const buildPaymentPlan = ({
   paymentMethod?: string
 }) => {
   const totalAmount = toAmount(payableAmount)
-  const selectedMethod = paymentMethod === 'paypal' ? 'paypal' : 'bank'
+  const validMethods = ['paypal', 'bank', 'stripe']
+  const selectedMethod = validMethods.includes(paymentMethod) ? paymentMethod : 'bank'
 
   if (paymentType === 'split') {
     const firstPaymentAmount = toAmount(totalAmount / 2)

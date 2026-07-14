@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Card } from '@/components/ui'
-import storeTypeService from '@/services/storeTypeService'
+import { storeTypeService } from '@/modules/marketplace'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import {
@@ -49,6 +50,7 @@ const getEventTone = (event) => {
 }
 
 const StoreEvolutionNotification = ({ vendorId }) => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [acknowledging, setAcknowledging] = useState(false)
@@ -82,7 +84,7 @@ const StoreEvolutionNotification = ({ vendorId }) => {
             : state.profile,
         }))
       } catch (error) {
-        toast.error(error.message || 'تعذر تحميل حالة تطور المتجر')
+        toast.error(error.message || t('vendor.storeEvolution.errors.loadFailed', 'تعذر تحميل حالة تطور المتجر'))
       } finally {
         setLoading(false)
       }
@@ -98,9 +100,9 @@ const StoreEvolutionNotification = ({ vendorId }) => {
     try {
       await storeTypeService.acknowledgeStoreEvolutionEvent(evolutionEvent.id, vendorId)
       setEvolutionEvent(null)
-      toast.success('تم تأكيد الاطلاع على تحديث المتجر')
+      toast.success(t('vendor.storeEvolution.success.acknowledged', 'تم تأكيد الاطلاع على تحديث المتجر'))
     } catch (error) {
-      toast.error(error.message || 'تعذر تأكيد الإشعار حالياً')
+      toast.error(error.message || t('vendor.storeEvolution.errors.acknowledgeFailed', 'تعذر تأكيد الإشعار حالياً'))
     } finally {
       setAcknowledging(false)
     }

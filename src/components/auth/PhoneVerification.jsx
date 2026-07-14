@@ -104,7 +104,7 @@ const PhoneVerification = ({
 
   if (loading && !resolvedUserId) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
         <LoadingSpinner size="lg" />
       </div>
     )
@@ -185,7 +185,7 @@ const PhoneVerification = ({
   }
 
   return (
-    <div className="w-full rounded-[2rem] border border-slate-200 bg-white p-6 shadow-[0_24px_60px_rgba(15,23,42,0.12)] sm:p-8">
+    <div className="w-full rounded-3xl border border-white/60 bg-white/80 backdrop-blur-xl p-6 shadow-[0_8px_40px_rgba(0,0,0,0.08)] sm:p-8 auth-fade-in">
       <div className="text-center">
         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.5rem] bg-emerald-50 text-4xl">
           <span aria-hidden="true">📱</span>
@@ -210,7 +210,7 @@ const PhoneVerification = ({
             value={digit}
             onChange={(event) => handleDigitChange(index, event.target.value)}
             onKeyDown={(event) => handleKeyDown(index, event)}
-            className="h-14 w-12 rounded-2xl border border-slate-200 text-center text-2xl font-bold text-slate-900 shadow-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 sm:h-16 sm:w-14"
+            className="h-14 w-12 rounded-2xl border border-gray-200 bg-gray-50/50 text-center text-2xl font-bold text-gray-900 outline-none transition-all duration-200 focus:ring-4 focus:ring-green-500/10 focus:border-green-500 focus:bg-white hover:border-gray-300 sm:h-16 sm:w-14"
           />
         ))}
       </div>
@@ -254,7 +254,7 @@ const PhoneVerification = ({
           type="button"
           onClick={handleVerify}
           disabled={verifying || sending}
-          className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-6 py-3 text-base font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-lg shadow-green-600/20 transition-all duration-200 hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:shadow-green-600/30 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {verifying ? 'جارٍ التحقق...' : 'تأكيد'}
         </button>
@@ -269,7 +269,7 @@ export const PhoneVerificationDialog = ({ open, onClose, ...props }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 backdrop-blur-sm p-4">
       <button type="button" className="absolute inset-0" aria-label="Close" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg">
         {onClose ? (

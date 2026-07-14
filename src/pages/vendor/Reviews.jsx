@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
-import reviewService from '@/services/reviewService'
+import { reviewService } from '@/modules/reviews'
 import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
@@ -59,7 +59,7 @@ const VendorReviews = () => {
       setAverageRating(result.summary?.averageRating || 0)
     } catch (error) {
       logger.error('Error loading reviews:', error)
-      toast.error('تعذر تحميل التقييمات')
+      toast.error(t('vendor.reviews.loadFailed', 'تعذر تحميل التقييمات'))
     } finally {
       setLoading(false)
     }
@@ -75,12 +75,12 @@ const VendorReviews = () => {
 
   const handleReply = async (reviewId) => {
     if (!user?.id) {
-      toast.error('تعذر تحديد حساب البائع الحالي')
+      toast.error(t('vendor.reviews.vendorNotFound', 'تعذر تحديد حساب البائع الحالي'))
       return
     }
 
     if (!replyText.trim()) {
-      toast.error('يرجى كتابة رد قبل الإرسال')
+      toast.error(t('vendor.reviews.replyEmpty', 'يرجى كتابة رد قبل الإرسال'))
       return
     }
 
@@ -90,7 +90,7 @@ const VendorReviews = () => {
       // Check if already replied (prevent double reply)
       const existingReview = reviews.find(r => r.id === reviewId)
       if (existingReview?.vendor_reply) {
-        toast.error('تم إرسال رد على هذا التقييم مسبقاً')
+        toast.error(t('vendor.reviews.alreadyReplied', 'تم إرسال رد على هذا التقييم مسبقاً'))
         setReplyingTo(null)
         setReplyText('')
         return
@@ -111,12 +111,12 @@ const VendorReviews = () => {
         )
       )
 
-      toast.success('تم إرسال الرد بنجاح')
+      toast.success(t('vendor.reviews.replySuccess', 'تم إرسال الرد بنجاح'))
       setReplyingTo(null)
       setReplyText('')
     } catch (error) {
       logger.error('Error posting reply:', error)
-      toast.error(error?.message || 'تعذر إرسال الرد')
+      toast.error(error?.message || t('vendor.reviews.replyFailed', 'تعذر إرسال الرد'))
     } finally {
       setReplySubmitting(false)
     }

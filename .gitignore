@@ -70,3 +70,4 @@ firebase-adminsdk*.json
 
 # UI design assets / screenshots that should not be committed
 photos-vendor-ui/
+test-output.log

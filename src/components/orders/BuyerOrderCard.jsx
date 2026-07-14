@@ -8,7 +8,7 @@
 import React, { useMemo } from 'react'
 import { Card } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
-import { getOrderStatusColors, getOrderStatusLabel } from '@/constants/orderStatuses'
+import { getOrderStatusColors, getOrderStatusLabel } from '@/modules/orders'
 import toast from 'react-hot-toast'
 import {
   TruckIcon,
@@ -75,9 +75,9 @@ const canRequestReturn = (order) => {
   return diffHours <= 24
 }
 
-const formatAddress = (address, city) => {
+const formatAddress = (address, city, t) => {
   const parts = [address, city].filter(Boolean)
-  return parts.length > 0 ? parts.join(', ') : 'No address provided'
+  return parts.length > 0 ? parts.join(', ') : t('buyer.orders.noAddress', 'No address provided')
 }
 
 const timeAgo = (dateString, t) => {
@@ -223,14 +223,14 @@ const BuyerOrderCard = React.memo(({ order, onReorder, onReview, onReturn, onVie
         {order.shipping_address && (
           <div className="flex items-start gap-2 text-xs text-gray-500 mb-3">
             <MapPinIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>{formatAddress(order.shipping_address, order.shipping_city)}</span>
+            <span>{formatAddress(order.shipping_address, order.shipping_city, t)}</span>
           </div>
         )}
 
         {order.requested_delivery_date && order.requested_delivery_slot_label && (
           <div className="flex items-start gap-2 text-xs text-indigo-700 mb-3 bg-indigo-50 rounded-lg p-3">
             <ClockIcon className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>موعد التسليم: {order.requested_delivery_date} • {order.requested_delivery_slot_label}</span>
+            <span>{t('buyer.orders.deliverySlot', 'موعد التسليم')}: {order.requested_delivery_date} • {order.requested_delivery_slot_label}</span>
           </div>
         )}
 

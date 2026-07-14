@@ -3,7 +3,7 @@ import {
   decoratePaymentRecord,
   getPaymentMethodCandidates,
   normalizePaymentMethod,
-} from '@/services/paymentRecords'
+} from '@/modules/payments'
 
 describe('paymentRecords helpers', () => {
   test('normalizes legacy payment aliases to canonical ids', () => {

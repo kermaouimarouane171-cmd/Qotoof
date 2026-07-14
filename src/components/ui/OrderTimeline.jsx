@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { CheckCircleIcon, ClockIcon, TruckIcon, XCircleIcon } from '@heroicons/react/24/solid'
-import { orderTimelineApi } from '@/services/favorites'
+import { orderTimelineApi } from '@/modules/orders'
 import { logger } from '@/utils/logger'
 
 const OrderTimeline = ({ orderId }) => {

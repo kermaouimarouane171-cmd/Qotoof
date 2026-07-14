@@ -14,12 +14,12 @@ import {
   DocumentIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
-import { supabase } from '@/services/supabase'
+import { getAdminPayouts, getPayoutFinancialAuditLogs, updateAdminPayoutStatus } from '@/modules/commissions'
 import { useAuthStore } from '@/store/authStore'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 // @react-pdf/renderer is loaded dynamically inside handleExportPDF — see below
-import { subDays, format } from 'date-fns'
+import { format } from 'date-fns'
 
 // ============================================
 // Constants
@@ -67,32 +67,7 @@ const AdminPayouts = () => {
     try {
       setLoading(true)
 
-      // Determine date range
-      const now = new Date()
-      let startDate = null
-      if (selectedRange !== 'all') {
-        const range = DATE_RANGES.find(r => r.id === selectedRange) || DATE_RANGES[1]
-        startDate = subDays(now, range.days)
-      }
-
-      // Fetch payouts
-      let query = supabase
-        .from('payouts')
-        .select(`
-          *,
-          user:profiles!payouts_user_id_fkey(id, first_name, last_name, email, store_name, phone)
-        `)
-        .order('created_at', { ascending: false })
-
-      if (startDate) {
-        query = query.gte('created_at', startDate.toISOString())
-      }
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter)
-      }
-
-      const { data, error } = await query
+      const { data, error } = await getAdminPayouts({ dateRange: selectedRange, statusFilter: filter })
 
       if (error) throw error
 
@@ -111,7 +86,7 @@ const AdminPayouts = () => {
 
       setLoading(false)
     } catch (error) {
-      logger.error('Error loading payouts:', error)
+      logger.error('Error loading payouts:', JSON.stringify(error, null, 2))
       toast.error(t('admin.payouts.errors.loadFailed', 'Failed to load payouts'))
       setLoading(false)
     }
@@ -126,15 +101,7 @@ const AdminPayouts = () => {
   // ============================================
   const loadAuditLogs = async (payoutId) => {
     try {
-      const { data, error } = await supabase
-        .from('financial_audit_log')
-        .select(`
-          *,
-          performed_by_profile:profiles!financial_audit_log_performed_by_fkey(first_name, last_name, role)
-        `)
-        .eq('entity_type', 'payout')
-        .eq('entity_id', payoutId)
-        .order('created_at', { ascending: true })
+      const { data, error } = await getPayoutFinancialAuditLogs({ payoutId })
 
       if (error) throw error
       setAuditLogs(data || [])
@@ -150,37 +117,15 @@ const AdminPayouts = () => {
     setProcessing(payoutId)
     try {
       const payout = payouts.find(p => p.id === payoutId)
-      const previousStatus = payout?.status || 'unknown'
 
-      const { error } = await supabase
-        .from('payouts')
-        .update({ status: newStatus })
-        .eq('id', payoutId)
-
-      if (error) throw error
-
-      // Log audit
-      await supabase.rpc('log_financial_audit', {
-        p_entity_type: 'payout',
-        p_entity_id: payoutId,
-        p_action: 'status_updated',
-        p_previous_status: previousStatus,
-        p_new_status: newStatus,
-        p_amount: payout?.amount || 0,
-        p_details: { updated_by: currentUser?.id, new_status: newStatus },
-        p_reason: null,
+      const { error } = await updateAdminPayoutStatus({
+        payoutId,
+        newStatus,
+        payout,
+        currentUser,
       })
 
-      // Notify user
-      if (payout?.user_id) {
-        await supabase.from('notifications').insert({
-          user_id: payout.user_id,
-          title: `Payout ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
-          message: `Your payout of ${formatPrice(payout.amount)} has been updated to ${newStatus}.`,
-          type: 'payout',
-          data: { payout_id: payoutId, amount: payout.amount, status: newStatus },
-        })
-      }
+      if (error) throw error
 
       toast.success(t('admin.payouts.toast.statusUpdated', 'Status updated'))
       loadPayouts()
@@ -230,8 +175,8 @@ const AdminPayouts = () => {
 
       const rows = payouts.map(p => [
         p.reference || p.id.slice(0, 8),
-        p.user?.store_name || `${p.user?.first_name || ''} ${p.user?.last_name || ''}`,
-        p.user?.email || '',
+        p.vendor?.store_name || `${p.vendor?.first_name || ''} ${p.vendor?.last_name || ''}`,
+        p.vendor?.email || '',
         parseFloat(p.amount).toFixed(2),
         p.status,
         p.payment_method,
@@ -335,7 +280,7 @@ const AdminPayouts = () => {
                 {p.slice(0, 50).map((payout, i) => (
                   <View key={i} style={pdfStyles.tableRow}>
                     <Text style={pdfStyles.col1}>{payout.reference || payout.id.slice(0, 8)}</Text>
-                    <Text style={pdfStyles.col2}>{payout.user?.store_name || 'N/A'}</Text>
+                    <Text style={pdfStyles.col2}>{payout.vendor?.store_name || 'N/A'}</Text>
                     <Text style={pdfStyles.col3}>{formatPrice(payout.amount)}</Text>
                     <Text style={pdfStyles.col4}>{payout.status}</Text>
                     <Text style={pdfStyles.col5}>{format(new Date(payout.created_at), 'dd/MM/yyyy')}</Text>
@@ -501,7 +446,7 @@ const AdminPayouts = () => {
                     <div className="flex items-center gap-3 mb-3">
                       <BanknotesIcon className="w-5 h-5 text-green-600" />
                       <h3 className="font-semibold text-gray-900">
-                        {payout.user?.store_name || `${payout.user?.first_name || ''} ${payout.user?.last_name || ''}`}
+                        {payout.vendor?.store_name || `${payout.vendor?.first_name || ''} ${payout.vendor?.last_name || ''}`}
                       </h3>
                       {getStatusBadge(payout.status)}
                     </div>
@@ -525,8 +470,8 @@ const AdminPayouts = () => {
                       </div>
                     </div>
 
-                    {payout.user?.email && (
-                      <p className="text-xs text-gray-500 mt-2">{payout.user.email}</p>
+                    {payout.vendor?.email && (
+                      <p className="text-xs text-gray-500 mt-2">{payout.vendor.email}</p>
                     )}
 
                     {payout.reference && (
@@ -598,7 +543,7 @@ const AdminPayouts = () => {
               <p className="text-sm font-medium text-gray-900">
                 {t('admin.payouts.auditModal.payoutInfo', 'Payout: {{amount}} | {{vendor}}', {
                   amount: formatPrice(selectedPayout.amount),
-                  vendor: selectedPayout.user?.store_name || 'N/A'
+                  vendor: selectedPayout.vendor?.store_name || 'N/A'
                 })}
               </p>
               <p className="text-xs text-gray-500">{t('admin.payouts.auditModal.ref', 'Ref: {{ref}}', { ref: selectedPayout.reference || selectedPayout.id.slice(0, 8) })}</p>

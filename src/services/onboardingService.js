@@ -1,4 +1,4 @@
-import { USER_ROLES } from '@/constants/roles'
+import { USER_ROLES } from '@/modules/auth'
 import { supabase } from '@/services/supabase'
 
 const ONBOARDING_PATHS = {
@@ -8,7 +8,7 @@ const ONBOARDING_PATHS = {
 }
 
 const POST_ONBOARDING_PATHS = {
-  [USER_ROLES.BUYER]: '/buyer/dashboard',
+  [USER_ROLES.BUYER]: '/marketplace',
   [USER_ROLES.VENDOR]: '/vendor/digital-contract',
   [USER_ROLES.DRIVER]: '/driver/settings',
 }

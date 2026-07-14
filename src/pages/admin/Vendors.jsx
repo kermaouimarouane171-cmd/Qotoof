@@ -33,9 +33,13 @@ const suspensionReasons = [
   { value: 'other', label: 'Other', labelAr: 'أخرى' },
 ]
 
+const PAGE_SIZE = 20
+
 const AdminVendors = () => {
   const { t } = useTranslation()
   const [statusFilter, setStatusFilter] = useState('all')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [vendors, setVendors] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -156,9 +160,18 @@ const AdminVendors = () => {
     }
   }
 
-  const filteredVendors = statusFilter === 'all'
-    ? vendors
-    : vendors.filter(v => v.status === statusFilter)
+  const filteredVendors = vendors.filter((v) => {
+    const matchesStatus = statusFilter === 'all' || v.status === statusFilter
+    const q = search.trim().toLowerCase()
+    const matchesSearch = !q ||
+      v.store_name?.toLowerCase().includes(q) ||
+      v.owner?.toLowerCase().includes(q) ||
+      v.email?.toLowerCase().includes(q)
+    return matchesStatus && matchesSearch
+  })
+
+  const totalPages = Math.max(1, Math.ceil(filteredVendors.length / PAGE_SIZE))
+  const pagedVendors = filteredVendors.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   // Send notification to vendor
   const sendVendorNotification = async (vendorId, title, message, type = 'system') => {
@@ -401,6 +414,16 @@ const AdminVendors = () => {
     return <Badge variant="warning">{t('admin.vendors.pending', 'Pending')}</Badge>
   }
 
+  const handleFilterChange = (key) => {
+    setStatusFilter(key)
+    setPage(1)
+  }
+
+  const handleSearch = (e) => {
+    setSearch(e.target.value)
+    setPage(1)
+  }
+
   if (loading) {
     return <LoadingSpinner size="lg" />
   }
@@ -408,6 +431,17 @@ const AdminVendors = () => {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-8">{t('admin.vendors.title')}</h1>
+
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="text"
+          value={search}
+          onChange={handleSearch}
+          placeholder={t('admin.vendors.searchPlaceholder', 'Search by store name, owner, or email…')}
+          className="input w-full max-w-sm"
+        />
+      </div>
 
       {/* Status Filter */}
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -420,7 +454,7 @@ const AdminVendors = () => {
         ].map((status) => (
           <button
             key={status.key}
-            onClick={() => setStatusFilter(status.key)}
+            onClick={() => handleFilterChange(status.key)}
             className={`px-4 py-2 rounded-lg text-sm font-medium ${
               statusFilter === status.key
                 ? 'bg-primary-600 text-white'
@@ -436,10 +470,10 @@ const AdminVendors = () => {
       <div className="space-y-4">
         {filteredVendors.length === 0 && (
           <Card className="p-6 text-center text-gray-500">
-            {t('admin.vendors.empty', 'لا يوجد باعة مطابقون للفلاتر الحالية')}
+            {t('admin.vendors.empty', 'No vendors match the current filters.')}
           </Card>
         )}
-        {filteredVendors.map((vendor) => (
+        {pagedVendors.map((vendor) => (
           <Card key={vendor.id} className="p-6">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
@@ -552,6 +586,31 @@ const AdminVendors = () => {
           </Card>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t('common.prev', 'Prev')}
+          </button>
+          <span className="text-sm text-gray-600">
+            {t('common.pageOf', 'Page {{page}} of {{total}}', { page, total: totalPages })}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40"
+          >
+            {t('common.next', 'Next')}
+          </button>
+        </div>
+      )}
 
       {/* Rejection Modal */}
       <Modal

@@ -9,7 +9,7 @@ jest.mock('@/utils/withRetry', () => ({
 import {
   calculateBulkDiscountBreakdown,
   calculateCouponDiscountAmount,
-} from '@/services/coupons'
+} from '@/modules/coupons'
 
 describe('coupons service helpers', () => {
   it('calculates percentage and fixed coupon discounts', () => {

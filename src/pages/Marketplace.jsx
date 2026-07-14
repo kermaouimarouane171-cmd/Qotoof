@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ProductCard, EmptyState, StateSkeleton as Skeleton } from '@/components/ui'
+import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories, useAvailableRegions, useProducts } from '@/modules/catalog'
+import { EmptyState, StateSkeleton as Skeleton, Breadcrumbs } from '@/components/ui'
+import ProductCard from '@/components/ui/ProductCard'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import SearchBar from '@/components/Search/SearchBar'
-import { PRODUCT_CATEGORIES, getCategoryLabel, getSuggestedSubcategories } from '@/constants/categories'
 import { getDisplayErrorMessage } from '@/utils/errorHandler'
-import { useAvailableRegions, useProducts } from '@/hooks/useProducts'
 import { FunnelIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
 const ITEMS_PER_PAGE = 12
 
-const _SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'rating_desc', 'name_asc']
+const _SORT_OPTION_VALUES = ['newest', 'price_asc', 'price_desc', 'name_asc']
 
 const MarketplacePage = () => {
   const { t, i18n } = useTranslation()
@@ -27,24 +27,18 @@ const MarketplacePage = () => {
     region: searchParams.get('region') || 'all',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
-    rating: searchParams.get('rating') || '',
     inStock: searchParams.get('inStock') === 'true',
     sortBy: searchParams.get('sortBy') || 'newest',
     page: Math.max(Number(searchParams.get('page') || '1') || 1, 1),
   }
 
-  const subcategoryOptions = filters.category !== 'all' ? getSuggestedSubcategories(filters.category) : []
+  const currentLang = i18n.resolvedLanguage || i18n.language || 'en'
+  const subcategoryOptions = filters.category !== 'all' ? getSuggestedSubcategories(filters.category, currentLang) : []
   const sortOptions = [
     { value: 'newest', label: t('marketplace.sortBy.newest', 'Newest First') },
     { value: 'price_asc', label: t('marketplace.sortBy.priceLow', 'Price: Low to High') },
     { value: 'price_desc', label: t('marketplace.sortBy.priceHigh', 'Price: High to Low') },
-    { value: 'rating_desc', label: t('marketplace.sortBy.rating', 'Highest Rated') },
     { value: 'name_asc', label: t('marketplace.sortBy.name', 'Name: A to Z') },
-  ]
-  const ratingOptions = [
-    { value: '4', label: t('marketplace.ratingOptions.4', '4+ stars') },
-    { value: '3', label: t('marketplace.ratingOptions.3', '3+ stars') },
-    { value: '2', label: t('marketplace.ratingOptions.2', '2+ stars') },
   ]
 
   const productsQuery = useProducts({
@@ -54,7 +48,6 @@ const MarketplacePage = () => {
     region: filters.region,
     minPrice: filters.minPrice,
     maxPrice: filters.maxPrice,
-    rating: filters.rating,
     inStock: filters.inStock,
     sortBy: filters.sortBy,
     page: filters.page - 1,
@@ -74,12 +67,12 @@ const MarketplacePage = () => {
 
     logger.error('Marketplace: failed to load products', productsQuery.error)
     toast.error(getDisplayErrorMessage(productsQuery.error, {
-      network_error: 'تعذر تحميل المنتجات بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.',
-      server_error: 'الخدمة مشغولة حالياً. حاول مرة أخرى بعد قليل.',
-      not_found: 'لم نتمكن من العثور على المنتجات المطلوبة. جرّب تعديل الفلاتر أو البحث.',
-      default: 'تعذر تحميل المنتجات حالياً. أعد المحاولة بعد قليل.',
+      network_error: t('marketplace.errors.network', 'تعذر تحميل المنتجات بسبب الاتصال. تحقق من الشبكة ثم أعد المحاولة.'),
+      server_error: t('marketplace.errors.server', 'الخدمة مشغولة حالياً. حاول مرة أخرى بعد قليل.'),
+      not_found: t('marketplace.errors.notFound', 'لم نتمكن من العثور على المنتجات المطلوبة. جرّب تعديل الفلاتر أو البحث.'),
+      default: t('marketplace.errors.default', 'تعذر تحميل المنتجات حالياً. أعد المحاولة بعد قليل.'),
     }))
-  }, [productsQuery.error, productsQuery.isError])
+  }, [productsQuery.error, productsQuery.isError, t])
 
   const updateParams = (updates, { resetPage = true } = {}) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -128,6 +121,7 @@ const MarketplacePage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Breadcrumbs />
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           {t('marketplace.title', 'السوق')}
@@ -239,21 +233,6 @@ const MarketplacePage = () => {
               </div>
             </div>
 
-            <div>
-              <label htmlFor="rating-select" className="input-label">{t('marketplace.rating', 'الحد الأدنى للتقييم')}</label>
-              <select
-                id="rating-select"
-                value={filters.rating}
-                onChange={(event) => updateParams({ rating: event.target.value })}
-                className="input"
-              >
-                <option value="">{t('marketplace.anyRating', 'أي تقييم')}</option>
-                {ratingOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </div>
-
             <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
@@ -283,7 +262,7 @@ const MarketplacePage = () => {
 
         <button
           onClick={() => setFiltersOpen(!filtersOpen)}
-          className="lg:hidden fixed bottom-20 right-4 rtl:left-4 rtl:right-auto z-30 p-3 bg-emerald-600 text-white rounded-full shadow-lg"
+          className="lg:hidden fixed bottom-24 right-4 rtl:left-4 rtl:right-auto z-30 p-3 bg-emerald-600 text-white rounded-full shadow-lg"
           aria-label={t('marketplace.openFilters', 'فتح الفلاتر')}
           aria-expanded={filtersOpen}
           aria-controls="mobile-filters-panel"
@@ -339,15 +318,6 @@ const MarketplacePage = () => {
                     <input type="number" placeholder={t('marketplace.max', 'إلى')} value={filters.maxPrice} onChange={(event) => updateParams({ maxPrice: event.target.value })} min="0" className="input" />
                   </div>
                 </div>
-                <div>
-                  <label className="input-label">{t('marketplace.rating', 'الحد الأدنى للتقييم')}</label>
-                  <select value={filters.rating} onChange={(event) => updateParams({ rating: event.target.value })} className="input">
-                    <option value="">{t('marketplace.anyRating', 'أي تقييم')}</option>
-                    {ratingOptions.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                   <input type="checkbox" checked={filters.inStock} onChange={(event) => updateParams({ inStock: event.target.checked })} className="accent-emerald-500" />
                   {t('marketplace.inStockOnly', 'متوفر حالياً فقط')}
@@ -370,14 +340,14 @@ const MarketplacePage = () => {
 
         <div className="flex-1">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="products-grid" role="tabpanel" aria-label={t('marketplace.productsGrid', 'قائمة المنتجات')}>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6" id="products-grid" role="tabpanel" aria-label={t('marketplace.productsGrid', 'قائمة المنتجات')}>
               {Array.from({ length: 8 }).map((_, index) => (
                 <div key={index} className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                  <Skeleton className="h-56 w-full rounded-b-none" />
-                  <div className="space-y-3 p-4">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                    <Skeleton className="h-6 w-1/3" />
+                  <Skeleton className="aspect-square w-full rounded-b-none animate-pulse" />
+                  <div className="space-y-3 p-3 sm:p-4">
+                    <Skeleton className="h-4 w-3/4 animate-pulse" />
+                    <Skeleton className="h-3 w-1/2 animate-pulse" />
+                    <Skeleton className="h-6 w-1/3 animate-pulse" />
                   </div>
                 </div>
               ))}
@@ -390,7 +360,7 @@ const MarketplacePage = () => {
                   total: totalCount,
                 })}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="products-grid" role="tabpanel" aria-label={t('marketplace.productsGrid', 'قائمة المنتجات')}>
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6" id="products-grid" role="tabpanel" aria-label={t('marketplace.productsGrid', 'قائمة المنتجات')}>
                 {products.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}

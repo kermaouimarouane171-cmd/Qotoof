@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { deliveriesApi } from '@/services/deliveries'
+import { deliveriesApi } from '@/modules/delivery'
+import { supabase } from '@/services/supabase'
 import { Card, LoadingSpinner } from '@/components/ui'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { TruckIcon, MapPinIcon, PhoneIcon, ClockIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline'
 import { formatPrice } from '@/utils/currency'
+import { DELIVERY_STATUS_COLORS, DELIVERY_STATUS_DEFAULT_LABELS, ACTIVE_DELIVERY_STATUSES } from '@/constants/deliveryStatus'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
 
@@ -16,13 +18,9 @@ const DriverActive = () => {
   const { user } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [activeDeliveries, setActiveDeliveries] = useState([])
+  const channelRef = useRef(null)
 
-  useEffect(() => {
-    loadActiveDeliveries()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
-
-  const loadActiveDeliveries = async () => {
+  const loadActiveDeliveries = useCallback(async () => {
     if (!user) return
 
     try {
@@ -30,10 +28,7 @@ const DriverActive = () => {
       const response = await deliveriesApi.getDriverDeliveries(user.id)
       const deliveries = Array.isArray(response) ? response : (response?.data || [])
 
-      // Filter for active deliveries (not delivered/cancelled)
-      const active = deliveries.filter(d =>
-        ['assigned', 'accepted', 'picked_up', 'on_the_way'].includes(d.status)
-      )
+      const active = deliveries.filter(d => ACTIVE_DELIVERY_STATUSES.includes(d.status))
       setActiveDeliveries(active)
     } catch (error) {
       logger.error('Error loading active deliveries:', error)
@@ -41,7 +36,24 @@ const DriverActive = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, t])
+
+  useEffect(() => {
+    if (!user?.id) return
+    loadActiveDeliveries()
+
+    const channel = supabase
+      .channel(`driver-active-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'deliveries', filter: `driver_id=eq.${user.id}` },
+        () => { loadActiveDeliveries() }
+      )
+      .subscribe()
+
+    channelRef.current = channel
+    return () => { supabase.removeChannel(channel) }
+  }, [user?.id, loadActiveDeliveries])
 
   if (loading) {
     return (
@@ -84,25 +96,11 @@ const DriverActive = () => {
 
       <div className="space-y-4">
         {activeDeliveries.map((delivery) => {
-          const statusColors = {
-            assigned: 'bg-yellow-100 text-yellow-700',
-            accepted: 'bg-green-100 text-green-700',
-            picked_up: 'bg-purple-100 text-purple-700',
-            on_the_way: 'bg-blue-100 text-blue-700',
-          }
-
-          const statusLabels = {
-            assigned: 'Assigned',
-            accepted: 'Accepted',
-            picked_up: 'Picked Up',
-            on_the_way: 'On the Way',
-          }
-
           return (
             <Card
               key={delivery.id}
               className="p-6 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => navigate(`/driver/delivery/${delivery.id}/tracking`)}
+              onClick={() => navigate(`/driver/delivery/${delivery.id}/deliver`)}
             >
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -113,8 +111,8 @@ const DriverActive = () => {
                     {delivery.order?.vendor?.store_name || 'Vendor'} → {delivery.order?.buyer?.first_name}
                   </p>
                 </div>
-                <span className={`px-3 py-1 text-xs font-medium rounded-full ${statusColors[delivery.status] || 'bg-gray-100 text-gray-700'}`}>
-                  {statusLabels[delivery.status] || delivery.status}
+                <span className={`px-3 py-1 text-xs font-medium rounded-full ${DELIVERY_STATUS_COLORS[delivery.status] || 'bg-gray-100 text-gray-700'}`}>
+                  {DELIVERY_STATUS_DEFAULT_LABELS[delivery.status] || delivery.status}
                 </span>
               </div>
 
@@ -153,7 +151,7 @@ const DriverActive = () => {
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    navigate(`/driver/delivery/${delivery.id}/tracking`)
+                    navigate(`/driver/delivery/${delivery.id}/deliver`)
                   }}
                   className="btn-primary w-full"
                 >

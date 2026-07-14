@@ -15,6 +15,7 @@ describe('bundle: no @react-pdf/renderer in initial imports', () => {
   it('index chunk does not import from vendor-polyfills', () => {
     if (!fs.existsSync(distDir)) return // skip if no build
     const jsDir = path.join(distDir, 'assets/js')
+    if (!fs.existsSync(jsDir)) return // skip if no assets/js
     const idxFile = fs.readdirSync(jsDir).find(f => f.startsWith('index-') && f.endsWith('.js') && !f.endsWith('.js.map'))
     if (!idxFile) return
     const code = fs.readFileSync(path.join(jsDir, idxFile), 'utf8')

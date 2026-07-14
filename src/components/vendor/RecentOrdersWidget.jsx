@@ -1,6 +1,6 @@
 import { Card } from '@/components/ui'
 import { ClockIcon, CheckIcon, XMarkIcon, TruckIcon } from '@heroicons/react/24/outline'
-import { getOrderStatusColors, STATUS_I18N_KEYS, getOrderStatusLabel } from '@/constants/orderStatuses'
+import { getOrderStatusColors, STATUS_I18N_KEYS, getOrderStatusLabel } from '@/modules/orders'
 
 const STATUS_ICONS_VENDOR = {
   pending: ClockIcon,

@@ -9,33 +9,43 @@ import {
   CANCELLATION_CUTOFF_OPTIONS,
   normalizeCancellationPolicy,
 } from '@/services/cancellationService'
-
-const FEE_TYPE_OPTIONS = [
-  { value: 'none', label: 'بدون رسوم إلغاء' },
-  { value: 'fixed', label: 'رسوم ثابتة بالدرهم' },
-  { value: 'percentage', label: 'رسوم بنسبة مئوية من قيمة الطلب' },
-]
+import { useTranslation } from 'react-i18next'
 
 const formatMad = (value) => `${Number(value || 0).toFixed(2)} درهم`
 
 const CancellationPolicy = ({ value, onChange, disabled = false, error }) => {
+  const { t } = useTranslation()
+  const FEE_TYPE_OPTIONS = [
+    { value: 'none', label: t('vendor.cancellationPolicy.feeType.none', 'بدون رسوم إلغاء') },
+    { value: 'fixed', label: t('vendor.cancellationPolicy.feeType.fixed', 'رسوم ثابتة بالدرهم') },
+    { value: 'percentage', label: t('vendor.cancellationPolicy.feeType.percentage', 'رسوم بنسبة مئوية من قيمة الطلب') },
+  ]
   const policy = useMemo(() => normalizeCancellationPolicy(value), [value])
 
   const summary = useMemo(() => {
     if (!policy.allow_cancellation) {
-      return 'سيتم منع الإلغاء الذاتي من طرف المشتري، وسيتوجب عليه التواصل مع البائع أو الدعم.'
+      return t('vendor.cancellationPolicy.summary.disabled', { defaultValue: 'سيتم منع الإلغاء الذاتي من طرف المشتري، وسيتوجب عليه التواصل مع البائع أو الدعم.' })
     }
 
     if (policy.cancellation_fee_type === 'none') {
-      return `الإلغاء متاح مجاناً خلال أول ${policy.free_cancellation_window_minutes} دقيقة، وبعدها يبقى الاسترداد ${policy.refund_percentage.toFixed(2)}% بدون رسوم إضافية.`
+      return t('vendor.cancellationPolicy.summary.free', {
+        defaultValue: 'الإلغاء متاح مجاناً خلال أول {{minutes}} دقيقة، وبعدها يبقى الاسترداد {{refund}}% بدون رسوم إضافية.',
+        minutes: policy.free_cancellation_window_minutes,
+        refund: policy.refund_percentage.toFixed(2),
+      })
     }
 
     const feeText = policy.cancellation_fee_type === 'percentage'
       ? `${Number(policy.cancellation_fee_value || 0).toFixed(2)}%`
       : formatMad(policy.cancellation_fee_value)
 
-    return `الإلغاء مجاني خلال أول ${policy.free_cancellation_window_minutes} دقيقة، وبعدها تطبق رسوم ${feeText} مع استرداد ${policy.refund_percentage.toFixed(2)}% من قيمة الطلب.`
-  }, [policy])
+    return t('vendor.cancellationPolicy.summary.withFee', {
+      defaultValue: 'الإلغاء مجاني خلال أول {{minutes}} دقيقة، وبعدها تطبق رسوم {{fee}} مع استرداد {{refund}}% من قيمة الطلب.',
+      minutes: policy.free_cancellation_window_minutes,
+      fee: feeText,
+      refund: policy.refund_percentage.toFixed(2),
+    })
+  }, [policy, t])
 
   const updateField = (field, nextValue) => {
     onChange({
@@ -50,10 +60,10 @@ const CancellationPolicy = ({ value, onChange, disabled = false, error }) => {
         <div>
           <h2 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
             <ArrowPathIcon className="w-5 h-5 text-gray-600" />
-            سياسة إلغاء الطلبات
+            {t('vendor.cancellationPolicy.title', 'سياسة إلغاء الطلبات')}
           </h2>
           <p className="text-sm text-gray-500 leading-6 max-w-3xl">
-            حدّد متى يُسمح للمشتري بإلغاء الطلب، وما إذا كانت هناك رسوم أو نسبة استرداد بعد انتهاء النافذة المجانية.
+            {t('vendor.cancellationPolicy.description', 'حدّد متى يُسمح للمشتري بإلغاء الطلب، وما إذا كانت هناك رسوم أو نسبة استرداد بعد انتهاء النافذة المجانية.')}
           </p>
         </div>
 

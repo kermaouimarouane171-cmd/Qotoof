@@ -7,9 +7,9 @@ const formatDisplayPhone = (phone) => {
 
 export const APP_CONFIG = {
   name: import.meta.env.VITE_APP_NAME || 'Qotoof',
-  domain: 'qotoof.ma',
-  siteUrl: import.meta.env.VITE_APP_URL || 'https://qotoof.ma',
-  supportEmail: import.meta.env.VITE_SUPPORT_EMAIL || 'support@qotoof.ma',
+  domain: 'greenmarket-marketplace.web.app',
+  siteUrl: import.meta.env.VITE_APP_URL || 'https://greenmarket-marketplace.web.app',
+  supportEmail: import.meta.env.VITE_SUPPORT_EMAIL || 'support@greenmarket-marketplace.web.app',
   supportPhone,
   supportPhoneDisplay: formatDisplayPhone(supportPhone),
   supportWhatsapp: supportPhone,

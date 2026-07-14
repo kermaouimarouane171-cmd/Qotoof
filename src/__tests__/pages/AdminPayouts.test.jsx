@@ -100,7 +100,7 @@ describe('AdminPayouts – schema compatibility', () => {
     mockPayouts = [
       {
         id: 'payout-1',
-        user_id: 'vendor-1',
+        vendor_id: 'vendor-1',
         amount: 5000,
         status: 'pending',
         payment_method: 'bank_transfer',
@@ -108,7 +108,7 @@ describe('AdminPayouts – schema compatibility', () => {
         notes: 'Monthly payout',
         created_at: '2026-06-01T00:00:00.000Z',
         updated_at: '2026-06-01T00:00:00.000Z',
-        user: {
+        vendor: {
           id: 'vendor-1',
           first_name: 'Hassan',
           last_name: 'Benali',
@@ -119,7 +119,7 @@ describe('AdminPayouts – schema compatibility', () => {
       },
       {
         id: 'payout-2',
-        user_id: 'vendor-2',
+        vendor_id: 'vendor-2',
         amount: 12000,
         status: 'processing',
         payment_method: 'bank_transfer',
@@ -127,7 +127,7 @@ describe('AdminPayouts – schema compatibility', () => {
         notes: '',
         created_at: '2026-06-02T00:00:00.000Z',
         updated_at: '2026-06-02T00:00:00.000Z',
-        user: {
+        vendor: {
           id: 'vendor-2',
           first_name: 'Salma',
           last_name: 'Alaoui',
@@ -138,7 +138,7 @@ describe('AdminPayouts – schema compatibility', () => {
       },
       {
         id: 'payout-3',
-        user_id: 'vendor-3',
+        vendor_id: 'vendor-3',
         amount: 3000,
         status: 'completed',
         payment_method: 'cmi',
@@ -146,7 +146,7 @@ describe('AdminPayouts – schema compatibility', () => {
         notes: '',
         created_at: '2026-06-03T00:00:00.000Z',
         updated_at: '2026-06-03T00:00:00.000Z',
-        user: {
+        vendor: {
           id: 'vendor-3',
           first_name: 'Karim',
           last_name: 'Fassi',
@@ -158,7 +158,7 @@ describe('AdminPayouts – schema compatibility', () => {
     ]
   })
 
-  it('renders payouts list and uses user_id schema', async () => {
+  it('renders payouts list and uses vendor_id schema', async () => {
     render(<AdminPayouts />)
 
     await waitFor(() => {
@@ -202,13 +202,20 @@ describe('AdminPayouts – schema compatibility', () => {
     const sourcePath = path.resolve(__dirname, '../../pages/admin/Payouts.jsx')
     const source = fs.readFileSync(sourcePath, 'utf8')
 
-    // Verify audit logging RPC is present
-    expect(source).toContain("await supabase.rpc('log_financial_audit'")
-    expect(source).toContain("p_action: 'status_updated'")
+    // Verify updateAdminPayoutStatus is called (write flow extracted in Phase 7.45)
+    expect(source).toContain('updateAdminPayoutStatus')
 
-    // Verify user notification insert is present and uses user_id
-    expect(source).toContain("await supabase.from('notifications').insert")
-    expect(source).toContain('payout.user_id')
+    // Verify the API file contains the audit logging RPC and notification insert
+    const apiPath = path.resolve(__dirname, '../../modules/commissions/api/adminPayouts.js')
+    const apiSource = fs.readFileSync(apiPath, 'utf8')
+
+    // Verify transactional RPC is present in the API (Phase 8.6: R-002 fix)
+    expect(apiSource).toContain("supabase.rpc('update_payout_status_transactional'")
+    expect(apiSource).not.toContain("supabase.rpc('log_financial_audit'")
+
+    // Verify notification insert is present and uses vendor_id in the API
+    expect(apiSource).toContain("supabase.from('notifications').insert")
+    expect(apiSource).toContain('vendorId')
 
     // Verify no deprecated approval columns are referenced
     expect(source).not.toMatch(/first_approved_by|second_approved_by|rejection_reason|requires_second_approval/)

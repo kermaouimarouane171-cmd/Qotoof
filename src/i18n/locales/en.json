@@ -1,6 +1,7 @@
 {
   "common": {
     "loading": "Loading...",
+    "loginRequired": "Please sign in to continue.",
     "error": "An error occurred",
     "success": "Success",
     "save": "Save",
@@ -47,7 +48,13 @@
     "orders": "Orders",
     "analytics": "Analytics",
     "users": "Users",
-    "vendors": "Vendors"
+    "vendors": "Vendors",
+    "mainNavigation": "Main navigation",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode",
+    "openUserMenu": "Open user menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "home": {
     "meta": {
@@ -63,7 +70,8 @@
       "subtitle": "farm to business",
       "description": "Connect directly with farmers. Buy plants, vegetables & fruits in bulk at wholesale prices.",
       "cta": "Browse Marketplace",
-      "sellCta": "Start Selling"
+      "sellCta": "Start Selling",
+      "badge": "Qotoof B2B Marketplace"
     },
     "features": {
       "title": "Why Choose Qotoof?",
@@ -86,13 +94,16 @@
       }
     },
     "categories": {
-      "title": "Browse Categories",
-      "subtitle": "Find exactly what you need",
-      "plants": "Plants & Trees",
+      "title": "Categories",
+      "subtitle": "Choose the right category to start shopping quickly",
+      "wholesaleItems": "Wholesale products",
+      "viewAll": "View all",
+      "plants": "Plants",
       "vegetables": "Vegetables",
       "fruits": "Fruits",
-      "herbs": "Herbs & Spices",
-      "seeds": "Seeds & Bulbs",
+      "herbs": "Herbs",
+      "spices": "Spices",
+      "seeds": "Seeds",
       "items": "{{count}} items"
     },
     "cta": {
@@ -101,7 +112,9 @@
       "readyToGrow": "Ready to grow your business?",
       "joinThousands": "Join thousands of vendors and buyers on Morocco's leading wholesale marketplace.",
       "becomeVendor": "Become a Vendor",
-      "startBuying": "Start Buying"
+      "startBuying": "Start Buying",
+      "startNow": "Start Now",
+      "browseMarketplace": "Browse Marketplace"
     },
     "products": {
       "featured": "Featured Products",
@@ -109,6 +122,25 @@
       "seeAll": "See All",
       "noProducts": "No products available yet",
       "browseMarketplace": "Browse Marketplace"
+    },
+    "featuredProducts": {
+      "title": "Featured Products",
+      "subtitle": "Best offers of the day from verified suppliers",
+      "viewAll": "More",
+      "noProducts": "No featured products available right now. Browse the marketplace to see all offers.",
+      "noImage": "Image not available",
+      "freshProduct": "Fresh product",
+      "minOrder": "Min: {{min}} {{unit}}"
+    },
+    "trustedVendors": {
+      "title": "Trusted Vendors",
+      "subtitle": "Active stores with positive buyer reviews",
+      "viewAll": "All Stores",
+      "noVendors": "No stores available right now.",
+      "unknownVendor": "Store",
+      "morocco": "Morocco",
+      "verifiedBadge": "Verified supplier",
+      "verified": "Verified"
     },
     "stats": {
       "products": "Products",
@@ -128,12 +160,95 @@
       "company": "Company",
       "aboutUs": "About Us",
       "becomeVendor": "Become a Vendor",
+      "becomeDriver": "Become a Driver",
       "contact": "Contact",
       "support": "Support",
       "helpCenter": "Help Center",
       "terms": "Terms of Service",
       "privacy": "Privacy Policy",
+      "forBuyers": "For Buyers",
+      "browseMarketplace": "Browse Marketplace",
+      "registerAsBuyer": "Register as Buyer",
+      "forDrivers": "For Drivers",
+      "registerAsDriver": "Register as Driver",
       "copyright": "© {{year}} Qotoof - قطوف. All rights reserved."
+    },
+    "title": "Wholesale marketplace for fresh produce in Morocco",
+    "subtitle": "Qotoof connects professional buyers with trusted suppliers through a fast purchasing experience, clear wholesale prices, and complete order tracking.",
+    "searchPlaceholder": "Search for vegetables, fruits, suppliers...",
+    "searchAria": "Search the marketplace",
+    "searchButton": "Search",
+    "buyer": {
+      "welcomeBadge": "Welcome back",
+      "welcome": "Hello {{name}}",
+      "guestName": "buyer",
+      "subtitle": "Track your orders, discover today's offers, and start a new purchase quickly.",
+      "stats": {
+        "orders": "My Orders",
+        "favorites": "Favorites",
+        "loyalty": "Points",
+        "addresses": "Addresses"
+      },
+      "recentOrders": "Your recent orders",
+      "recentOrdersSubtitle": "Track the status of your latest orders",
+      "viewAllOrders": "View all",
+      "noOrders": "No orders yet. Start browsing the marketplace and create your first order.",
+      "browseMarket": "Browse Marketplace",
+      "unknownVendor": "Vendor"
+    },
+    "howItWorks": {
+      "title": "How does the platform work for buyers?",
+      "subtitle": "Just 4 steps from search to delivery",
+      "step": "Step {{number}}",
+      "steps": {
+        "searchProduct": {
+          "title": "Search for the product",
+          "description": "Use search or categories to quickly reach the right supplier."
+        },
+        "chooseQuantity": {
+          "title": "Choose quantity and price",
+          "description": "Review wholesale details, minimum order quantity, and payment options."
+        },
+        "confirmOrder": {
+          "title": "Confirm order securely",
+          "description": "Complete the order through a clear purchase flow with accurate shipping information."
+        },
+        "trackDelivery": {
+          "title": "Receive and track delivery",
+          "description": "Track order status until final delivery within the platform."
+        }
+      }
+    },
+    "roles": {
+      "title": "Find Your Role",
+      "subtitle": "Join Qotoof in the role that suits you",
+      "buyer": {
+        "title": "Buyer",
+        "description": "Buy fresh produce in bulk directly from suppliers",
+        "feature1": "Wholesale prices",
+        "feature2": "Real-time order tracking",
+        "feature3": "Loyalty points and rewards",
+        "feature4": "Custom quote requests",
+        "cta": "Register as Buyer"
+      },
+      "vendor": {
+        "title": "Vendor",
+        "description": "List your products and manage your store on a national platform",
+        "feature1": "Store and product management",
+        "feature2": "Sales analytics and reports",
+        "feature3": "Direct buyer communication",
+        "feature4": "Integrated shipping",
+        "cta": "Register as Vendor"
+      },
+      "driver": {
+        "title": "Driver",
+        "description": "Deliver orders and earn income with full flexibility",
+        "feature1": "Flexible schedule",
+        "feature2": "Competitive earnings",
+        "feature3": "Delivery tracking",
+        "feature4": "Ratings and reputation",
+        "cta": "Register as Driver"
+      }
     }
   },
   "authLayout": {
@@ -215,7 +330,13 @@
     "viewDetails": "View Details",
     "vendor": "Vendor",
     "location": "Location",
-    "minOrder": "Min Order"
+    "minOrder": "Min Order",
+    "errors": {
+      "network": "Unable to load products due to connection. Check your network and try again.",
+      "server": "The service is currently busy. Please try again later.",
+      "notFound": "We couldn't find the requested products. Try adjusting filters or search.",
+      "default": "Unable to load products at this time. Please try again later."
+    }
   },
   "search": {
     "filters": "Filters",
@@ -427,7 +548,6 @@
       "emptyTitle": "No reviews yet",
       "emptyDescription": "Be the first to review this store",
       "anonymousUser": "User",
-      "loginRequired": "Please login to add a review",
       "selectRating": "Please select a rating",
       "submitSuccess": "Review submitted successfully!"
     }
@@ -457,6 +577,20 @@
       "title": "Product not found",
       "description": "The product you're looking for doesn't exist or has been removed.",
       "backToMarketplace": "Back to Marketplace"
+    },
+    "card": {
+      "report": "Report this product",
+      "reportAria": "Report product",
+      "addToCart": "Add {{name}} to cart",
+      "outOfStock": "Out of Stock",
+      "verified": "Verified vendor",
+      "paidVendor": "Verified",
+      "contactAfterOrder": "Contact details shown after order confirmation",
+      "viewVendor": "View vendor",
+      "noRating": "No rating",
+      "price": "Price: {{price}}",
+      "minOrder": "Min order: {{quantity}} {{unit}}",
+      "freeShipping": "Free shipping"
     }
   },
   "productDetail": {
@@ -486,7 +620,6 @@
       "count": "Current waitlist: {{count}}",
       "alreadyJoined": "You are already on the waitlist",
       "join": "Join the waitlist",
-      "loginRequired": "Please login first to join the waitlist",
       "joinSuccess": "You have been added to the waitlist successfully",
       "joinFailed": "Unable to add you to the waitlist"
     },
@@ -532,7 +665,6 @@
       "anonymousInitial": "U",
       "anonymousUser": "User",
       "vendorReply": "Vendor reply",
-      "loginRequired": "Please login to add a review",
       "selectRating": "Please select a rating",
       "submitSuccess": "Review submitted successfully!",
       "submitFailed": "Failed to submit review"
@@ -548,7 +680,7 @@
     "total": "Total",
     "quantity": "Quantity",
     "remove": "Remove",
-    "checkout": "Proceed to Checkout",
+    "checkoutLabel": "Proceed to Checkout",
     "continueShopping": "Continue Shopping",
     "item": "item",
     "items": "items",
@@ -556,6 +688,9 @@
     "clearCart": "Clear Cart",
     "orderSummary": "Order Summary",
     "removeItemAria": "Remove {{name}}",
+    "negotiatedPrice": "Agreed Price",
+    "viewNegotiation": "Details",
+    "negotiateInstead": "Negotiate price instead",
     "messages": {
       "singleVendorCheckout": "You can only checkout from one store at a time. Split your cart by vendor and try again.",
       "cartCleared": "Cart cleared successfully"
@@ -594,8 +729,11 @@
       "vendorCount": "{{count}} vendors",
       "minimumOrderStatus": "Minimum {{minAmount}} and {{shortfall}} remaining",
       "totalWithCount": "Total ({{count}} item)",
-      "taxIncluded": "Including tax {{amount}}"
+      "taxIncluded": "Including tax {{amount}}",
+      "deliveryRulesNotice": "Delivery availability depends on the distance between your location and each vendor, as well as order value. Delivery terms will be reviewed before completing the order."
     },
+    "guestNotice": "Your cart is saved on this device. Sign in to complete checkout and access it from any device.",
+    "multiVendorWarning": "You already have items from another vendor in your cart. Checkout supports one vendor at a time.",
     "checkout": {
       "itemUnavailable": "{{name}} is no longer available",
       "priceChanged": "{{name}}: price changed from {{oldPrice}} to {{newPrice}}",
@@ -627,6 +765,16 @@
       "title": "Clear cart completely?",
       "description": "This will remove all {{count}} item(s) from your cart. This action cannot be undone.",
       "confirm": "Clear all"
+    },
+    "guestCheckout": {
+      "title": "Login Required",
+      "message": "You must sign in to complete your order. Your cart is saved.",
+      "signIn": "Sign In",
+      "createAccount": "Create Account"
+    },
+    "aria": {
+      "decrease": "Decrease quantity",
+      "increase": "Increase quantity"
     }
   },
   "checkout": {
@@ -643,6 +791,25 @@
       "shipping": "Shipping",
       "delivery": "Delivery",
       "payment": "Payment"
+    },
+    "addressStep": {
+      "title": "Address Selection",
+      "saved": "Saved addresses",
+      "newAddress": "New address",
+      "placeholder": "Street, building, apartment...",
+      "default": "Default"
+    },
+    "trust": {
+      "secure": "Secure Checkout",
+      "encrypted": "Encrypted Payment",
+      "refundable": "48h Refund Policy"
+    },
+    "guest": {
+      "title": "Almost there!",
+      "description": "Sign in or create an account to complete your purchase. Your cart will be preserved.",
+      "signIn": "Sign In",
+      "createAccount": "Create Account",
+      "backToCart": "Back to Cart"
     },
     "deliveryPayment": {
       "cash": "Cash on delivery",
@@ -669,6 +836,7 @@
       "paypalCreateFailed": "Could not create PayPal transaction.",
       "paypalNoOrderId": "PayPal order ID was not received from server.",
       "paypalRecordNotFound": "Could not find PayPal payment record to update.",
+      "sessionExpired": "Your session has expired. Please log in again to continue.",
       "genericFailed": "Could not complete the order. Please try again.",
       "paypalIncomplete": "Could not complete payment: PayPal order data is incomplete.",
       "paypalConfirmFailed": "Could not confirm PayPal payment.",
@@ -697,6 +865,9 @@
     },
     "multiVendorDisabled": {
       "title": "Multi-vendor checkout is temporarily disabled",
+      "description": "Checkout is currently limited to one store per order. Split your cart by vendor and try again.",
+      "vendorsInCart": "Vendors in your cart:",
+      "splitHint": "Go back to your cart and checkout one vendor at a time.",
       "backToCart": "Back to Cart"
     },
     "delivery": {
@@ -778,6 +949,10 @@
       "applied": "Coupon {{code}} applied with {{discount}} discount",
       "percentage": "{{value}}%",
       "fixed": "{{value}} MAD"
+    },
+    "aria": {
+      "page": "Checkout page",
+      "form": "Checkout form"
     }
   },
   "vendor": {
@@ -796,7 +971,22 @@
       "allSaved": "All changes saved",
       "saveSchedule": "Save Schedule",
       "savedSuccess": "Schedule saved successfully!",
-      "saveFailed": "Failed to save schedule"
+      "saveFailed": "Failed to save schedule",
+      "saving": "Saving...",
+      "deliverySlotsTitle": "Delivery Slots",
+      "deliverySlotsSubtitle": "Define bookable delivery windows, daily cutoff times, and per-slot capacity.",
+      "deliverySlotsLoadFailed": "Failed to load delivery slots",
+      "deliverySlotsSaved": "Delivery slots saved successfully!",
+      "deliverySlotsSaveFailed": "Failed to save delivery slots",
+      "addSlot": "Add slot",
+      "noSlotsForDay": "No delivery slots configured for this day.",
+      "slotLabel": "Slot name",
+      "cutoffHours": "Cutoff hours",
+      "maxOrders": "Max orders",
+      "removeSlot": "Remove",
+      "unsavedSlotChanges": "You have unsaved delivery slot changes",
+      "allSlotsSaved": "All delivery slots saved",
+      "saveDeliverySlots": "Save delivery slots"
     },
     "locationSetup": {
       "title": "Set Your Store Location",
@@ -819,9 +1009,267 @@
       "selectedCoordinates": "Selected coordinates:",
       "saveButton": "Save Store Location",
       "selectLocationError": "Please select your store location on the map",
+      "moroccoBoundsError": "Please select a location within Morocco's borders",
       "enterCityError": "Please enter your city",
       "savedSuccess": "Store location saved successfully!",
       "saveFailed": "Failed to save location"
+    },
+    "returns": {
+      "title": "Return Requests",
+      "subtitle": "Manage return and refund requests from buyers",
+      "unknownBuyer": "Buyer",
+      "units": "units",
+      "buyerDescription": "Buyer Description",
+      "yourResponse": "Your Response",
+      "photoAlt": "Return photo {{n}}",
+      "pendingAlert": "You have {{count}} return request(s) awaiting your response",
+      "empty": "No return requests",
+      "emptyHint": "Return requests from buyers will appear here",
+      "reason": {
+        "defective": "Defective product",
+        "wrong_item": "Wrong item received",
+        "not_as_described": "Not as described",
+        "changed_mind": "Changed mind",
+        "other": "Other"
+      },
+      "status": {
+        "pending": "Pending",
+        "vendor_approved": "Approved",
+        "vendor_rejected": "Rejected",
+        "refund_issued": "Refunded",
+        "escalated": "Escalated",
+        "closed": "Closed",
+        "cancelled_by_buyer": "Cancelled by buyer"
+      },
+      "filters": {
+        "all": "All",
+        "pending": "Awaiting Response",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "refunded": "Refunded",
+        "closed": "Closed"
+      },
+      "actions": {
+        "approve": "Approve Return",
+        "reject": "Reject Return"
+      },
+      "modal": {
+        "approveTitle": "Approve Return Request",
+        "rejectTitle": "Reject Return Request",
+        "notesLabel": "Message to Buyer (optional)",
+        "approveNotesPlaceholder": "e.g. Please return the item within 3 days...",
+        "rejectNotesPlaceholder": "e.g. The returned item does not meet return conditions...",
+        "confirmApprove": "Confirm Approval",
+        "confirmReject": "Confirm Rejection"
+      },
+      "notifications": {
+        "approved": "Return request approved",
+        "rejected": "Return request rejected"
+      },
+      "errors": {
+        "loadFailed": "Failed to load return requests",
+        "respondFailed": "Failed to send response"
+      }
+    },
+    "wallet": {
+      "title": "Wallet & Earnings",
+      "subtitle": "Track your earnings and outstanding commissions",
+      "overdueAlert": {
+        "title": "Overdue Commission",
+        "description": "You have an overdue commission invoice. Please pay to avoid account suspension."
+      },
+      "stats": {
+        "totalNet": "Net Earnings (Delivered)",
+        "pendingRevenue": "Pending Revenue (In Transit)",
+        "commissionOwed": "Commission Owed This Month",
+        "totalSales": "Total Sales (Delivered)"
+      },
+      "commission": {
+        "title": "Monthly Commission",
+        "period": "Period",
+        "sales": "Sales",
+        "due": "Commission Due",
+        "paid": "Paid",
+        "dueDate": "Due Date",
+        "status": {
+          "active": "Active",
+          "pending": "Awaiting Confirmation",
+          "overdue": "Overdue",
+          "paid": "Paid"
+        }
+      },
+      "history": {
+        "title": "Commission History",
+        "period": "Period",
+        "sales": "Sales",
+        "due": "Due",
+        "paid": "Paid",
+        "status": "Status"
+      },
+      "ledger": {
+        "title": "Revenue Ledger",
+        "count": "Last {{count}} orders",
+        "gross": "Order Gross",
+        "commission": "Platform Commission (3%)",
+        "net": "Net Earnings",
+        "empty": "No completed orders yet",
+        "emptyHint": "Your earnings will appear here once orders are delivered"
+      },
+      "errors": {
+        "loadFailed": "Failed to load wallet data"
+      }
+    },
+    "rfqs": {
+      "title": "Buyer Request Board",
+      "subtitle": "Browse bulk requests from buyers and submit your competitive price offers.",
+      "tabs": {
+        "board": "Request Board",
+        "offers": "My Offers"
+      },
+      "stats": {
+        "openRequests": "Open Requests",
+        "pendingOffers": "My Pending Offers",
+        "acceptedOffers": "Accepted Offers"
+      },
+      "offerStatus": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "board": {
+        "buyer": "Buyer",
+        "by": "By",
+        "budget": "Budget",
+        "deadline": "Deadline",
+        "offers": "offers",
+        "expiringSoon": "Expiring Soon",
+        "alreadyOffered": "You already submitted an offer",
+        "submitOffer": "Submit Price Offer",
+        "empty": "No open requests at the moment",
+        "emptyHint": "Check back later or change your search criteria."
+      },
+      "offers": {
+        "title": "My Submitted Offers",
+        "requestLabel": "Request",
+        "perUnit": "unit",
+        "withdraw": "Withdraw Offer",
+        "empty": "No offers submitted yet. Browse the board and start selling."
+      },
+      "offerModal": {
+        "title": "Submit Price Offer",
+        "quantity": "Quantity",
+        "maxBudget": "Max Budget",
+        "city": "City",
+        "deadline": "Deadline",
+        "priceLabel": "Unit Price",
+        "currency": "MAD",
+        "pricePlaceholder": "Price per unit",
+        "estimatedTotal": "Estimated Total",
+        "messageLabel": "Message to Buyer (optional)",
+        "messagePlaceholder": "Your offer specs, delivery details...",
+        "submit": "Send Offer"
+      },
+      "withdrawModal": {
+        "title": "Withdraw Offer",
+        "description": "Are you sure you want to withdraw this offer? This cannot be undone.",
+        "confirm": "Confirm Withdrawal"
+      },
+      "filters": {
+        "searchPlaceholder": "Search...",
+        "allCategories": "All Categories",
+        "cityPlaceholder": "City",
+        "apply": "Apply",
+        "reset": "Reset"
+      },
+      "notifications": {
+        "offerSubmitted": "Your offer was submitted successfully",
+        "offerWithdrawn": "Offer withdrawn"
+      },
+      "errors": {
+        "loadFailed": "Failed to load requests",
+        "loadOffersFailed": "Failed to load your offers",
+        "invalidPrice": "Please enter a valid price",
+        "submitFailed": "Failed to submit offer",
+        "withdrawFailed": "Failed to withdraw offer"
+      }
+    },
+    "orders": {
+      "title": "Order Management",
+      "orderLabel": "Order",
+      "accepting": "Accepting...",
+      "rejecting": "Rejecting...",
+      "rejectReasonDefault": "Not available",
+      "actions": {
+        "reject": "Reject",
+        "accept": "Accept",
+        "prepared": "Ready for Pickup",
+        "trackDelivery": "Track Delivery",
+        "noAction": "No action needed"
+      },
+      "filters": {
+        "all": "All",
+        "pending": "New",
+        "preparing": "Preparing",
+        "readyForDelivery": "Ready for Delivery",
+        "onTheWay": "On the Way",
+        "delivered": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "status": {
+        "pending": "New",
+        "preparing": "Preparing",
+        "rejected": "Rejected",
+        "readyForDelivery": "Ready for Delivery",
+        "onTheWay": "On the Way",
+        "delivered": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "card": {
+        "itemCount": "Items",
+        "paymentMethod": "Payment Method",
+        "paymentStatus": "Payment Status",
+        "orderStatus": "Order Status",
+        "nextAction": "Next Action"
+      },
+      "assignDriver": {
+        "title": "Assign Driver",
+        "subtitle": "Select a driver to deliver order",
+        "noDrivers": "No drivers available nearby",
+        "confirm": "Assign Driver"
+      },
+      "tracking": {
+        "title": "Track Order",
+        "status": "Status",
+        "callDriver": "Call Driver"
+      },
+      "chat": {
+        "title": "Chat with",
+        "driver": "Driver"
+      },
+      "timeline": {
+        "title": "Order History"
+      },
+      "rejectModal": {
+        "title": "Reject Order",
+        "description": "Are you sure you want to reject this order? The customer will be notified.",
+        "reasonLabel": "Rejection Reason (optional)",
+        "reasonPlaceholder": "e.g. Product not available at the moment",
+        "confirm": "Confirm Rejection"
+      },
+      "notifications": {
+        "orderAccepted": "Order accepted!",
+        "orderRejected": "Order rejected",
+        "newOrderReceived": "🛒 New order received: {{orderNumber}}"
+      },
+      "errors": {
+        "acceptFailed": "Failed to accept order",
+        "rejectFailed": "Failed to reject order",
+        "driverAssignFailed": "Failed to assign driver"
+      },
+      "success": {
+        "driverAssigned": "Driver assigned successfully!"
+      }
     },
     "coupons": {
       "title": "Coupon Manager",
@@ -871,7 +1319,495 @@
       "activated": "Coupon activated",
       "updateFailed": "Failed to update coupon",
       "deleted": "Coupon deleted",
-      "deleteFailed": "Failed to delete coupon"
+      "deleteFailed": "Failed to delete coupon",
+      "upgradeRequired": "Upgrade Required",
+      "upgradeMessage": "Coupons and discounts are only available for vendors on the Basic plan or higher. Upgrade your plan to create and manage coupons.",
+      "upgradeNow": "Upgrade Now",
+      "aria": {
+        "back": "Back to dashboard"
+      }
+    },
+    "reviews": {
+      "loadFailed": "Failed to load reviews",
+      "vendorNotFound": "Could not identify current vendor account",
+      "replyEmpty": "Please write a reply before submitting",
+      "alreadyReplied": "A reply has already been sent for this review",
+      "replySuccess": "Reply sent successfully",
+      "replyFailed": "Failed to send reply"
+    },
+    "deliveryOptionSetup": {
+      "loadFailed": "Failed to load delivery settings",
+      "selectFirst": "Please select a delivery option first",
+      "ownDriverSaved": "Option saved. Now link a driver before accepting new orders.",
+      "findDriverActivated": "Find-a-driver option activated for new orders.",
+      "selfActivated": "Self-delivery activated for new orders.",
+      "saved": "Delivery setting saved successfully.",
+      "saveFailed": "Failed to save delivery option"
+    },
+    "driverPreferenceSetup": {
+      "selectChoice": "Please select whether you want a preferred driver or not",
+      "vendorNotFound": "Could not identify current vendor account",
+      "saveFailed": "Failed to save driver preferences"
+    },
+    "profile": {
+      "tabs": {
+        "storeInfo": "Store Info",
+        "location": "Location",
+        "hours": "Hours",
+        "security": "Security",
+        "preferences": "Preferences"
+      },
+      "bannerAlt": "Store banner",
+      "logoAlt": "Store logo"
+    },
+    "productForm": {
+      "maxImagesError": "Maximum is {{max}} images per product",
+      "unsupportedFormatError": "Unsupported format: {{fileName}}. Only JPG/PNG/WebP allowed",
+      "fileTooLargeError": "Image too large: {{fileName}}. Maximum 5MB"
+    },
+    "inventory": {
+      "filters": {
+        "all": "All",
+        "lowStock": "Low stock",
+        "outOfStock": "Out of stock"
+      },
+      "loadFailed": "Failed to load inventory data",
+      "invalidQuantity": "Enter a valid stock quantity",
+      "updateSuccess": "Inventory updated successfully",
+      "updateFailed": "Failed to update inventory"
+    },
+    "products": {
+      "errors": {
+        "maxImages": "Maximum is 5 images per product",
+        "unsupportedImageType": "\"{{filename}}\": file type not allowed. Use JPG, PNG, or WebP only",
+        "unsupportedImageExtension": "\"{{filename}}\": file extension not allowed",
+        "imageTooLarge": "\"{{filename}}\": file size exceeds 5MB",
+        "paypalRequired": "You must complete and verify PayPal setup before adding products",
+        "unsupportedFileType": "Unsupported file type. Use DOCX, CSV, or TXT",
+        "noProductsFound": "No products found. Please check the file format",
+        "fileProcessingError": "An error occurred while processing the file",
+        "bulkInvalidPrice": "Product \"{{name}}\": invalid price — skipped",
+        "bulkInvalidQuantity": "Product \"{{name}}\": invalid quantity — skipped",
+        "productRejected": "Product \"{{name}}\" was rejected — click to see why",
+        "productNameRequired": "Product name is required",
+        "productNameTooShort": "Product name must be at least 3 characters",
+        "descriptionRequired": "Please add a description including quality, origin, and packaging type",
+        "descriptionTooShort": "Description is too short — please provide a detailed description (at least 10 characters)",
+        "invalidPrice": "Please enter a valid price in Moroccan Dirham",
+        "priceTooHigh": "The price seems too high. Please ensure it aligns with fair trade practices.",
+        "invalidQuantity": "Please enter a valid quantity",
+        "saveFailed": "An error occurred while saving the product",
+        "deleteFailed": "An error occurred while deleting the product",
+        "loadFailed": "Failed to load products",
+        "imageRemoveFailed": "Failed to remove image"
+      },
+      "success": {
+        "imageRemoved": "Image removed",
+        "bulkUploaded": "{{success}} products uploaded successfully. {{failed}} products failed.",
+        "productUpdated": "Product updated successfully!",
+        "productSubmitted": "Product submitted for review. It will appear after admin approval within 24 hours.",
+        "productDeleted": "Product deleted successfully"
+      },
+      "warnings": {
+        "lowStock": "⚠️ Warning: Stock is low, only {{quantity}} {{unit}} left. This may disappoint buyers if stock runs out.",
+        "outOfStock": "⚠️ Setting quantity to 0 will make this product unavailable.",
+        "productSuspended": "Product \"{{name}}\" has been temporarily suspended by the admin"
+      }
+    },
+    "paymentPolicy": {
+      "options": {
+        "full": {
+          "title": "Full payment before fulfillment",
+          "desc": "The buyer pays the full order value before preparation or shipping begins."
+        },
+        "split": {
+          "title": "Split payment 50% + 50%",
+          "desc": "50% on order confirmation and 50% after delivery confirmation or before final handover."
+        },
+        "cod": {
+          "title": "Cash on delivery",
+          "desc": "Available only for eligible buyers based on trust score and prior commitment history."
+        }
+      }
+    },
+    "cancellationPolicy": {
+      "feeType": {
+        "none": "No cancellation fee",
+        "fixed": "Fixed fee in dirhams",
+        "percentage": "Percentage fee of order value"
+      },
+      "summary": {
+        "disabled": "Self-cancellation by the buyer will be blocked, and they will need to contact the seller or support.",
+        "free": "Cancellation is free within the first {{minutes}} minutes, after which the refund remains {{refund}}% with no additional fees.",
+        "withFee": "Cancellation is free within the first {{minutes}} minutes, after which a {{fee}} fee applies with a {{refund}}% refund of the order value."
+      },
+      "title": "Order cancellation policy",
+      "description": "Define when the buyer is allowed to cancel the order, and whether there are fees or a refund percentage after the free window expires."
+    },
+    "refundPolicy": {
+      "shipping": {
+        "buyer": "Buyer pays shipping",
+        "vendor": "Seller pays shipping",
+        "shared": "Costs shared between both parties"
+      },
+      "title": "Return and refund policy",
+      "description": "Set the return conditions that will be shown to the buyer on the product page before purchase.",
+      "returnWindowLabel": "Return window (days)",
+      "shippingCostLabel": "Return shipping cost"
+    },
+    "digitalContract": {
+      "title": "Activate Vendor Account",
+      "back": "Back",
+      "setupSteps": "Store setup steps",
+      "defaultStoreName": "My store on Qotoof",
+      "defaultName": "[Vendor name]",
+      "notAvailable": "Unavailable",
+      "retry": "Retry",
+      "viewFullContract": "View full contract",
+      "signing": "Signing...",
+      "signContract": "Sign contract",
+      "logoutLater": "Log out and continue later",
+      "reviewWarning": "After signing, your store will be activated after admin review if needed.",
+      "steps": {
+        "yourInfo": "Your info",
+        "bankData": "Bank details",
+        "approvals": "Approvals"
+      },
+      "whyRequired": {
+        "title": "Why is this step required?",
+        "reason1": "This step is mandatory to activate your vendor account before accessing the vendor dashboard, products, and orders.",
+        "reason2": "Signing the digital contract protects your rights and ensures a safe and reliable experience for you and your customers.",
+        "reason3": "Right after signing, you'll be able to add products, receive orders, and collect your earnings.",
+        "reason4": "Bank details and PayPal email are required to receive your sales earnings."
+      },
+      "vendorInfo": {
+        "title": "Vendor information"
+      },
+      "bankInfo": {
+        "title": "Identity & bank details",
+        "subtitle": "These details are required to activate your account and receive your sales earnings."
+      },
+      "terms": {
+        "title": "Key contract terms"
+      },
+      "summary": {
+        "commission": {
+          "title": "Commission",
+          "description": "The platform deducts a commission at the rate determined by the vendor's chosen subscription plan from the value of each completed order within the app."
+        },
+        "payment": {
+          "title": "Payment deadline",
+          "description": "The commission must be paid within 7 days of the end of each calendar month."
+        },
+        "freeze": {
+          "title": "Consequences of non-payment",
+          "description": "If payment is not made within the deadline, the app reserves the right to freeze the account until payment is completed."
+        },
+        "transfer": {
+          "title": "Transfer timeframe",
+          "description": "Earnings are transferred to your PayPal account within 7 business days after order confirmation."
+        },
+        "shipping": {
+          "title": "Shipping terms",
+          "description": "The vendor commits to shipping orders within the specified timeframe and providing tracking information when needed."
+        }
+      },
+      "fullText": "I, {{fullName}}, agree to the following terms:\n\n1. App commission: The platform deducts a commission at the rate determined by my chosen subscription plan from my total confirmed sales within the app during each calendar month.\n\n2. Payment deadline: The commission must be paid within 7 days of the end of each month.\n\n3. Consequences of non-payment: If payment is not made within the specified deadline, the app reserves the right to freeze my account immediately until payment is completed.\n\n4. Accumulated debts: Deleting the account does not cancel outstanding commissions. Data remains stored by the app for legal collection purposes.\n\n5. Counted transactions: The commission is calculated only on transactions that have been confirmed within the app by clicking the \"Payment received\" button.\n\n6. Earnings transfer channels: I agree that all my earnings transfers from the platform are made via PayPal only, and I undertake to keep a valid and active PayPal email.\n\n7. Monthly reset: The commission counter resets to zero at the beginning of each new calendar month after paying the previous commission.",
+      "fields": {
+        "storeName": "Store name",
+        "fullName": "Full name",
+        "email": "Email",
+        "phone": "Phone number",
+        "paypalEmail": "PayPal email (required)",
+        "paypalEmailAria": "PayPal email",
+        "paypalEmailConfirm": "Confirm PayPal email",
+        "paypalEmailConfirmAria": "Confirm PayPal email",
+        "cin": "National ID card number (CIN)",
+        "cinAria": "National ID card number",
+        "bankName": "Bank name",
+        "selectBank": "Select bank",
+        "iban": "IBAN number",
+        "accountHolder": "Account holder name"
+      },
+      "paypal": {
+        "warning": "Make sure this email is exactly correct. Your earnings will be sent directly to it via PayPal, and funds cannot be automatically recovered if the email is wrong.",
+        "openPaypal": "Open PayPal to verify your email",
+        "tooltip": "PayPal is a global electronic payment service that allows you to receive your sales earnings. Make sure to enter the email associated with your PayPal account. No amount will be deducted from your account.",
+        "tooltipApproval": "PayPal does not deduct any amount from your account upon registration. Your email is only used to send your sales earnings after they are confirmed. The app does not have access to your PayPal account.",
+        "emailMismatch": "The two emails do not match, make sure you type the same email in both fields",
+        "invalidEmail": "Please enter a valid email address",
+        "emailsMatch": "Emails match ✓"
+      },
+      "approvals": {
+        "title": "Approvals",
+        "confirmData": "I confirm that the entered information is correct",
+        "agreeTermsPrefix": "I agree to the",
+        "termsLink": "platform terms and conditions",
+        "agreePaypal": "I agree to use my PayPal email for transfers"
+      },
+      "confirm": {
+        "cancel": "Do you want to cancel signing and log out?",
+        "sign": "Are you sure you want to sign the digital contract? This cannot be undone after signing."
+      },
+      "errors": {
+        "loadTitle": "Failed to load contract",
+        "loadDescription": "An error occurred while fetching contract data. Please try again.",
+        "saveFailed": "Failed to save contract: {{message}}",
+        "unexpectedError": "An unexpected error occurred",
+        "invalidPaypal": "Please enter a valid PayPal email before signing."
+      },
+      "success": {
+        "existingContractFound": "An existing contract was found and your account has been activated",
+        "signed": "Contract signed successfully, you can now start selling"
+      },
+      "help": {
+        "title": "Need help? Contact support",
+        "whatsappMessage": "Hello, I need help regarding the vendor digital contract"
+      }
+    },
+    "subscription": {
+      "paymentCompleted": "Payment completed. We are refreshing your subscription status...",
+      "paymentCanceled": "Payment canceled. You can choose another plan anytime.",
+      "loadFailed": "Unable to load subscription data right now",
+      "checkoutFailed": "Unable to start checkout session",
+      "title": "Vendor Premium",
+      "subtitle": "Upgrade your store, unlock advanced growth tools, and reduce commission.",
+      "refresh": "Refresh",
+      "status": {
+        "active": "Active",
+        "past_due": "Past Due",
+        "grace_period": "Grace Period",
+        "canceled": "Canceled"
+      },
+      "currentPlan": "Current Plan",
+      "subscriptionEnds": "Subscription ends:",
+      "gracePeriodUntil": "Grace period until:",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "currentBadge": "Current",
+      "perMonth": "per month",
+      "perYear": "per year",
+      "monthlyEquivalent": "~{{price}}/month",
+      "maxProducts": "Max products:",
+      "unlimited": "Unlimited",
+      "commission": "Commission:",
+      "currentPlanButton": "Current Plan",
+      "includedButton": "Included",
+      "upgradeButton": "Upgrade",
+      "recentBilling": "Recent Billing",
+      "noInvoices": "No invoices yet.",
+      "planActivity": "Plan Activity",
+      "noActivity": "No subscription activity yet.",
+      "trialStarted": "Your 14-day Pro trial has been activated",
+      "trialActive": "Free trial active until:",
+      "trialEnded": "Free trial ended. Upgrade to continue enjoying premium features."
+    },
+    "analytics": {
+      "forecast": {
+        "title": "Sales Forecast",
+        "subtitle": "Projected revenue and orders for the next period based on current performance",
+        "expectedRevenue": "Expected Revenue",
+        "expectedOrders": "Expected Orders",
+        "growthRate": "Expected Growth Rate",
+        "nextPeriod": "Next period",
+        "basedOn": "Based on",
+        "pastOrders": "past orders",
+        "confidence": "Confidence",
+        "chartTitle": "Current Performance vs Forecast",
+        "projected": "Forecast",
+        "insufficientData": "At least 3 orders are needed to generate accurate forecasts",
+        "currentOrders": "Current orders"
+      }
+    },
+    "tax": {
+      "title": "Tax Management",
+      "subtitle": "VAT reports and tax handling for your sales",
+      "export": "Export",
+      "exportSuccess": "Tax report exported successfully",
+      "exportFailed": "Failed to export report",
+      "totalRevenue": "Total Revenue",
+      "exemptRevenue": "Exempt Revenue",
+      "taxableRevenue": "Taxable Revenue",
+      "tvaCollected": "VAT Collected",
+      "effectiveRate": "Effective rate",
+      "orders": "orders",
+      "exemptOrders": "exempt orders",
+      "taxableOrders": "taxable orders",
+      "exempt": "Exempt",
+      "taxable": "Taxable",
+      "breakdownTitle": "Tax Breakdown by Order",
+      "noData": "No tax data for the selected period",
+      "showingFirst": "Showing first 20 of",
+      "periods": {
+        "last30": "Last 30 days",
+        "last90": "Last 90 days",
+        "ytd": "Year to date",
+        "last365": "Last year"
+      },
+      "table": {
+        "orderId": "Order ID",
+        "date": "Date",
+        "total": "Amount",
+        "type": "Type",
+        "tva": "VAT"
+      },
+      "info": {
+        "title": "Important Tax Information",
+        "description": "Agricultural products are exempt from VAT under Moroccan law. Processed or packaged products are subject to 20% VAT. This page helps you track and classify your sales for tax purposes."
+      },
+      "disclaimer": "Disclaimer: These reports are for guidance only. Please consult a certified accountant or tax advisor for official tax filing. Tax laws in Morocco may change, and you should verify current rates with the Direction Générale des Impôts.",
+      "errors": {
+        "loadFailed": "Failed to load tax data"
+      },
+      "aria": {
+        "back": "Back to dashboard"
+      }
+    },
+    "guidelines": {
+      "section1": {
+        "title": "1. Accurate Product Descriptions & Pricing",
+        "item1": "Provide truthful and accurate descriptions for all products listed",
+        "item2": "Display prices in Moroccan Dirham (MAD) including all applicable taxes",
+        "item3": "Update prices promptly when costs change",
+        "item4": "Do not engage in misleading pricing practices (Law 31-08 on Consumer Protection)",
+        "item5": "Clearly state unit type, minimum order quantity, and product origin",
+        "item6": "Include clear, actual product photos (not stock images)"
+      },
+      "section2": {
+        "title": "2. Stock Management",
+        "item1": "Maintain sufficient stock levels for all listed products",
+        "item2": "Update inventory quantities in real-time",
+        "item3": "Promptly mark products as \"Out of Stock\" when unavailable",
+        "item4": "Do not list products you cannot fulfill",
+        "item5": "Notify buyers immediately if stock becomes unavailable after order placement",
+        "item6": "Regular inventory audits are recommended (minimum weekly)"
+      },
+      "section3": {
+        "title": "3. Order Fulfillment Timelines",
+        "item1": "Confirm or reject orders within 24 hours of receipt",
+        "item2": "Prepare orders within the agreed timeframe (default: 48 hours)",
+        "item3": "Communicate delays proactively to buyers",
+        "item4": "Accept delivery driver assignments or provide alternative arrangements",
+        "item5": "Repeated order cancellations may result in account suspension",
+        "item6": "Maintain a fulfillment rate of at least 95%"
+      },
+      "section4": {
+        "title": "4. Moroccan Legal Compliance",
+        "item1": "Comply with Law 31-08 on Consumer Protection",
+        "item2": "Follow Law 13-03 on Combating Fraud and Commercial Deception",
+        "item3": "Adhere to food safety regulations (ONSSA standards)",
+        "item4": "Maintain valid business registration and tax identification",
+        "item5": "Issue proper invoices/receipts for all transactions",
+        "item6": "Comply with data protection Law 09-08 on Personal Data",
+        "item7": "Respect intellectual property and trademark laws",
+        "item8": "Follow environmental regulations for packaging and waste"
+      },
+      "penalties": {
+        "item1": "Warning notice for first violation",
+        "item2": "Temporary suspension (7 days) for repeated violations",
+        "item3": "Permanent account termination for serious or ongoing violations",
+        "item4": "Legal action may be taken for violations of Moroccan law",
+        "item5": "Financial penalties may apply for fraudulent activities"
+      },
+      "title": "Vendor Guidelines & Legal Agreement",
+      "subtitle": "Please read and accept these guidelines to continue selling on Qotoof. These guidelines are based on Moroccan commercial law and platform policies.",
+      "accepted": "Vendor Agreement Accepted ✓",
+      "acceptedDesc": "You have agreed to the vendor guidelines and Moroccan legal compliance requirements.",
+      "hide": "Hide",
+      "view": "View",
+      "fullGuidelines": "Full Guidelines",
+      "penaltiesTitle": "Non-Compliance Penalties",
+      "agreeLabel": "I have read and agree to the Vendor Guidelines",
+      "agreeDesc": "I commit to providing accurate product information, maintaining stock levels, fulfilling orders on time, and complying with all Moroccan laws and regulations including Law 31-08 (Consumer Protection), Law 13-03 (Anti-Fraud), and ONSSA standards.",
+      "acceptAndContinue": "Accept & Continue",
+      "mustAccept": "Please accept the guidelines to continue"
+    },
+    "security": {
+      "title": "Security Settings",
+      "subtitle": "Manage your account security and privacy",
+      "loading": "Loading security settings...",
+      "personalInfo": "Personal Information",
+      "name": "Name",
+      "phone": "Phone",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "currentPasswordPlaceholder": "Enter current password",
+      "newPassword": "New Password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "confirmPassword": "Confirm New Password",
+      "confirmPasswordPlaceholder": "Re-enter new password",
+      "strength": {
+        "minLength": "8+ characters",
+        "uppercase": "Uppercase letter",
+        "lowercase": "Lowercase letter",
+        "number": "Number",
+        "special": "Special character"
+      },
+      "updatePassword": "Update Password",
+      "updating": "Updating...",
+      "goToProfile": "Go to Profile →",
+      "trustScore": "Trust Score",
+      "outOf100": "out of 100",
+      "rating": "Rating",
+      "reviews": "Reviews",
+      "orders": "Orders",
+      "member": "Member",
+      "months": "months",
+      "verified": "Verified",
+      "approved": "Approved",
+      "notVerified": "Not Verified",
+      "noTrustScore": "No trust score available",
+      "twoFactorAuth": "Two-Factor Authentication",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "accountProtected": "Your account is protected",
+      "usingMethod": "Using {{method}} verification",
+      "authenticatorApp": "Authenticator App",
+      "disable2FA": "Disable 2FA",
+      "disabling": "Disabling...",
+      "enable2FA": "Enable 2FA for better security",
+      "enable2FADesc": "Protect your account with an additional verification step",
+      "enableTwoFactor": "Enable Two-Factor Authentication",
+      "mfaDisabled": "Two-factor authentication disabled",
+      "enterPasswordDisableMFA": "Please enter your password to disable two-factor authentication:",
+      "activeSessions": "Active Sessions",
+      "manageSessions": "Manage your active sessions",
+      "viewAll": "View All",
+      "activeSessionsCount": "You have {{count}} active session(s) across devices",
+      "signOutOtherDevices": "Sign Out All Other Devices",
+      "confirmRevokeSessions": "Sign out all other devices?",
+      "sessionsRevoked": "All other sessions revoked",
+      "recentActivity": "Recent Activity",
+      "noActivity": "No activity found",
+      "viewFullActivity": "View Full Activity Log",
+      "mfaRequired": {
+        "enforced": "Two-Factor Authentication is Now Required",
+        "warning": "Two-Factor Authentication Will Be Required Soon",
+        "enforcedMessage": "You must enable two-factor authentication to continue accessing your vendor account. It protects your shop from unauthorized access.",
+        "gracePeriodMessage": "Two-factor authentication will be mandatory for all vendors. You have {{days}} days to enable it.",
+        "setupButton": "Enable Two-Factor Authentication Now"
+      },
+      "errors": {
+        "accountNotFound": "Could not identify current account",
+        "allFieldsRequired": "All fields are required",
+        "passwordsNotMatch": "New passwords do not match",
+        "passwordSame": "New password must be different from old password",
+        "passwordTooShort": "Password must be 8 characters minimum",
+        "passwordNeedsUppercase": "Password must contain at least one uppercase letter",
+        "passwordNeedsLowercase": "Password must contain at least one lowercase letter",
+        "passwordNeedsNumber": "Password must contain at least one number",
+        "passwordNeedsSpecial": "Password must contain at least one special character",
+        "incorrectPassword": "Current password is incorrect",
+        "phoneRequired": "Add a phone number to your account before changing password. Go to your Profile page to add one.",
+        "passwordChangeFailed": "Failed to update password",
+        "mfaDisableFailed": "Failed to disable MFA",
+        "revokeFailed": "Failed to revoke sessions"
+      },
+      "email": "Email",
+      "emailAlert": {
+        "title": "Security Alert: {{action}}",
+        "message": "A security change was made on your account: {{action}}. {{details}} If this wasn't you, please contact support immediately."
+      }
     }
   },
   "admin": {
@@ -1163,7 +2099,70 @@
       "indefinite": "Indefinite",
       "unblock": "Unblock",
       "ipRequired": "IP address is required",
-      "reasonRequired": "Reason is required",
+      "reasonRequired": "Reason is required"
+    },
+    "auditReport": {
+      "title": "Admin Activity & Permissions Audit",
+      "subtitle": "Track all admin actions and permission changes",
+      "export": "Export CSV",
+      "exporting": "Exporting...",
+      "exportSuccess": "Audit logs exported successfully",
+      "exportError": "Failed to export audit logs",
+      "filters": "Filters",
+      "clearFilters": "Clear",
+      "actorRole": "Actor Role",
+      "allRoles": "All Roles",
+      "actionCategory": "Action Category",
+      "allCategories": "All Categories",
+      "targetTable": "Target Table",
+      "allTables": "All Tables",
+      "severity": "Severity",
+      "allSeverities": "All Severities",
+      "startDate": "Start Date",
+      "endDate": "End Date",
+      "targetId": "Target ID",
+      "targetIdPlaceholder": "Enter ID...",
+      "actorId": "Actor ID",
+      "actorIdPlaceholder": "Enter ID...",
+      "totalResults": "Total results",
+      "refresh": "Refresh",
+      "noResults": "No audit logs found",
+      "timestamp": "Timestamp",
+      "actor": "Actor",
+      "action": "Action",
+      "target": "Target",
+      "details": "Details",
+      "view": "View",
+      "showing": "Showing",
+      "of": "of",
+      "logDetails": "Log Details",
+      "logIpAddress": "IP Address",
+      "userAgent": "User Agent",
+      "changes": "Changes",
+      "noChanges": "No changes detected",
+      "old": "Old",
+      "new": "New",
+      "rawData": "Raw Data",
+      "oldValues": "Old Values",
+      "newValues": "New Values",
+      "noData": "No data",
+      "unknown": "Unknown",
+      "byAction": "By Action",
+      "byRole": "By Role",
+      "critical": "Critical",
+      "fetchError": "Failed to fetch log details",
+      "changesCount": "{{count}} change",
+      "changesCountPlural": "{{count}} changes",
+      "previousValue": "Previous value",
+      "newValue": "New value",
+      "adminId": "Admin ID",
+      "unknownAdmin": "Unknown admin",
+      "notAvailable": "—",
+      "pageInfo": "Page {{page}} of {{totalPages}}",
+      "previous": "Previous",
+      "next": "Next",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
       "ipBlocked": "IP blocked successfully",
       "ipUnblocked": "IP unblocked successfully",
       "blockFailed": "Failed to block IP",
@@ -1535,329 +2534,6 @@
     "payouts": {
       "title": "Payouts Management",
       "subtitle": "Manage vendor payouts and settlements",
-      "export": {
-        "csv": "Export CSV",
-        "pdf": "Export PDF"
-      },
-      "filters": {
-        "dateRange": "Date Range",
-        "statusFilter": "Status Filter",
-        "pending": "Pending",
-        "approved": "Approved",
-        "processing": "Processing",
-        "completed": "Completed",
-        "rejected": "Rejected",
-        "all": "All"
-      },
-      "dateRanges": {
-        "7d": "Last 7 Days",
-        "30d": "Last 30 Days",
-        "3m": "Last 3 Months",
-        "6m": "Last 6 Months",
-        "all": "All Time"
-      },
-      "stats": {
-        "pending": "Pending Payouts",
-        "requests": "requests",
-        "dualApproval": "require dual approval",
-        "processing": "Processing",
-        "inTransit": "in transit",
-        "completed": "Completed",
-        "payouts": "payouts",
-        "rejected": "Rejected"
-      },
-      "table": {
-        "reference": "Reference",
-        "vendor": "Vendor",
-        "amount": "Amount",
-        "status": "Status",
-        "method": "Method",
-        "ordersCount": "Orders",
-        "period": "Period",
-        "approval": "Approval",
-        "created": "Created",
-        "actions": "Actions"
-      },
-      "status": {
-        "pending": "Pending",
-        "approved": "Approved",
-        "processing": "Processing",
-        "completed": "Completed",
-        "rejected": "Rejected",
-        "failed": "Failed"
-      },
-      "actions": {
-        "firstApproval": "First Approval",
-        "secondApproval": "Second Approval",
-        "processPayout": "Process",
-        "completePayout": "Complete",
-        "reject": "Reject",
-        "viewAudit": "Audit"
-      },
-      "rejectModal": {
-        "title": "Reject Payout",
-        "reasonLabel": "Rejection Reason",
-        "reasonPlaceholder": "Provide a reason for rejection...",
-        "confirmReject": "Confirm Rejection",
-        "rejecting": "Rejecting..."
-      },
-      "auditModal": {
-        "title": "Payout Audit Trail",
-        "noLogs": "No audit logs found for this payout",
-        "action": "Action",
-        "performedBy": "Performed By",
-        "timestamp": "Timestamp",
-        "details": "Details"
-      },
-      "pdfReport": {
-        "title": "Payout Report",
-        "summary": "Summary",
-        "totalPayouts": "Total Payouts",
-        "totalAmount": "Total Amount",
-        "completed": "Completed",
-        "pending": "Pending",
-        "payoutDetails": "Payout Details"
-      },
-      "notifications": {
-        "loadFailed": "Failed to load payouts",
-        "firstApproval": "First approval recorded. Awaiting second approval.",
-        "secondApproval": "Second approval recorded. Payout is now fully approved!",
-        "approvalFailed": "Failed to approve payout",
-        "rejectSuccess": "Payout rejected",
-        "rejectFailed": "Failed to reject payout",
-        "processSuccess": "Payout processing started. Ref: {{ref}}",
-        "processFailed": "Failed to process payout",
-        "completeSuccess": "Payout marked as completed",
-        "completeFailed": "Failed to complete payout",
-        "exportFailed": "Failed to export",
-        "csvSuccess": "Payouts exported as CSV!",
-        "pdfSuccess": "Payouts exported as PDF!",
-        "noData": "No data to export",
-        "rejectReasonRequired": "Please provide a rejection reason"
-      }
-    },
-    "settings": {
-      "title": "Platform Settings",
-      "subtitle": "Manage global platform configuration",
-      "auditLog": "Audit Log",
-      "reload": "Reload",
-      "tabs": {
-        "general": "General",
-        "features": "Features",
-        "financial": "Financial",
-        "orders": "Orders & Delivery",
-        "maintenance": "Maintenance"
-      },
-      "general": {
-        "title": "General Settings",
-        "platformName": "Platform Name",
-        "supportEmail": "Support Email",
-        "supportPhone": "Support Phone",
-        "language": "Language",
-        "currency": "Currency",
-        "timezone": "Timezone"
-      },
-      "features": {
-        "title": "Feature Toggles",
-        "vendorRegistration": "Vendor Registration",
-        "buyerOrders": "Buyer Orders",
-        "driverDeliveries": "Driver Deliveries",
-        "reviews": "Reviews & Ratings",
-        "returns": "Return Requests",
-        "chat": "Chat System"
-      },
-      "financial": {
-        "title": "Financial Settings",
-        "commissionRate": "Commission Rate (%)",
-        "commissionHelp": "Percentage taken from each vendor sale",
-        "minWithdrawal": "Min Withdrawal Amount (MAD)",
-        "minWithdrawalHelp": "Minimum amount vendors can withdraw",
-        "maxOrder": "Max Order Amount (MAD)",
-        "maxOrderHelp": "Maximum value for a single order"
-      },
-      "orders": {
-        "title": "Orders & Delivery Settings",
-        "autoCancel": "Auto-Cancel After (hours)",
-        "autoCancelHelp": "Orders auto-cancelled if not confirmed",
-        "deliveryRadius": "Delivery Radius (km)",
-        "deliveryRadiusHelp": "Maximum delivery distance"
-      },
-      "maintenance": {
-        "title": "Maintenance Mode",
-        "label": "Maintenance Mode",
-        "description": "Put the platform in maintenance mode",
-        "messageLabel": "Maintenance Message",
-        "messagePlaceholder": "We're currently performing maintenance. Please check back later...",
-        "messageHelp": "This message will be shown to all users when maintenance mode is active."
-      },
-      "saveBar": {
-        "unsavedChanges": "You have unsaved changes",
-        "discard": "Discard Changes",
-        "save": "Save Settings",
-        "saving": "Saving..."
-      },
-      "notifications": {
-        "loadFailed": "Failed to load settings",
-        "saveSuccess": "Settings saved successfully!",
-        "saveFailed": "Failed to save settings",
-        "noChanges": "No changes to save",
-        "changesDiscarded": "Changes discarded",
-        "updatedByAnother": "Settings were updated by another admin. Reloading..."
-      }
-    },
-    "settingsAuditLog": {
-      "title": "Settings Audit Log",
-      "subtitle": "Track all platform settings changes",
-      "refresh": "Refresh",
-      "totalChanges": "Total changes recorded",
-      "noChanges": "No settings changes found",
-      "changes": "{{count}} change",
-      "changesPlural": "{{count}} changes",
-      "previousValue": "Previous Value",
-      "newValue": "New Value",
-      "adminId": "Admin ID",
-      "ipAddress": "IP Address",
-      "userAgent": "User Agent",
-      "unknownAdmin": "Unknown Admin",
-      "notAvailable": "N/A",
-      "pageInfo": "Page {{page}} of {{totalPages}}",
-      "previous": "Previous",
-      "next": "Next",
-      "enabled": "Enabled",
-      "disabled": "Disabled"
-    },
-    "circuitBreakers": {
-      "title": "Circuit Breakers & Health",
-      "subtitle": "Monitor service health and manage circuit breakers",
-      "history": "History",
-      "runChecks": "Run Checks",
-      "checking": "Checking...",
-      "overallStatus": "Overall System Status",
-      "healthy": "healthy",
-      "degraded": "degraded",
-      "down": "down",
-      "total": "total",
-      "latency": "Latency",
-      "lastCheck": "Last Check",
-      "circuit": "Circuit",
-      "open": "OPEN",
-      "closed": "CLOSED",
-      "openBlocking": "OPEN (blocking)",
-      "closedNormal": "CLOSED (normal)",
-      "closeCircuit": "Close Circuit (Restore)",
-      "openCircuit": "Open Circuit (Block)",
-      "viewDetails": "View Details",
-      "changeHistory": "Circuit Breaker Change History",
-      "noChanges": "No circuit breaker changes recorded",
-      "recentChanges": "Recent Changes",
-      "byAdmin": "by admin",
-      "circuitOpened": "Circuit opened for {{name}} — traffic blocked",
-      "circuitClosed": "Circuit closed for {{name}} — traffic restored",
-      "statusLabels": {
-        "healthy": "Healthy",
-        "degraded": "Degraded",
-        "down": "Down",
-        "unknown": "Unknown"
-      },
-      "services": {
-        "database": "Database (Supabase)",
-        "databaseDesc": "Primary database and API",
-        "storage": "Storage Service",
-        "storageDesc": "File storage (images, documents)",
-        "auth": "Auth Service",
-        "authDesc": "Authentication & session management",
-        "realtime": "Realtime (WebSockets)",
-        "realtimeDesc": "Live updates and subscriptions",
-        "notifications": "Notification Service",
-        "notificationsDesc": "In-app notifications and alerts",
-        "orders": "Orders Service",
-        "ordersDesc": "Order processing and management"
-      }
-    },
-    "commissions": {
-      "title": "Commissions Dashboard",
-      "subtitle": "Track your platform earnings (3% commission)",
-      "totalCommissions": "Total Commissions",
-      "thisMonth": "This Month",
-      "growth": "Growth",
-      "avgPerOrder": "Avg per Order",
-      "commissionOverTime": "Commission Over Time",
-      "ordersOverTime": "Orders Over Time",
-      "noDataYet": "No data yet",
-      "recentTransactions": "Recent Transactions",
-      "orderId": "Order ID",
-      "user": "User",
-      "amount": "Amount",
-      "commission": "Commission (3%)",
-      "vendorGets": "Vendor Gets",
-      "status": "Status",
-      "date": "Date",
-      "noTransactionsYet": "No transactions yet"
-    },
-    "moderation": {
-      "title": "Content Moderation",
-      "subtitle": "Review and handle user reports",
-      "pending": "Pending",
-      "reviewing": "Reviewing",
-      "resolved": "Resolved",
-      "dismissed": "Dismissed",
-      "pendingReports": "pending report",
-      "noReports": "No reports found",
-      "reporter": "Reporter",
-      "reported": "Reported",
-      "reportDetails": "Report Details",
-      "type": "Type",
-      "priority": "Priority",
-      "status": "Status",
-      "description": "Description",
-      "evidence": "Evidence",
-      "reportedUser": "Reported User",
-      "currentlySuspended": "Currently Suspended",
-      "actionTaken": "Action Taken",
-      "adminNotes": "Admin Notes",
-      "adminNotesLabel": "Admin Notes",
-      "notesPlaceholder": "Add your review notes...",
-      "suspensionDuration": "Suspension Duration (hours)",
-      "hours24": "24 hours",
-      "days3": "3 days",
-      "week1": "1 week",
-      "month1": "1 month",
-      "startReview": "Start Review",
-      "issueWarning": "Issue Warning",
-      "removeContent": "Remove Content",
-      "suspendUser": "Suspend User ({{hours}}h)",
-      "permanentBan": "Permanent Ban",
-      "dismissReport": "Dismiss Report",
-      "selectReport": "Select a report to review",
-      "newReport": "New {{type}} report",
-      "reportNotFound": "Report not found",
-      "reportResolved": "Report resolved successfully",
-      "resolveFailed": "Failed to resolve report",
-      "reportDismissed": "Report dismissed",
-      "reportDismissedMsg": "A report against you ({{reportType}}) has been reviewed and dismissed. No action was taken.",
-      "dismissFailed": "Failed to dismiss report",
-      "reportMarkedReviewing": "Report marked as reviewing",
-      "startReviewFailed": "Failed to start review",
-      "loadReportsFailed": "Failed to load reports",
-      "noViolation": "No violation found",
-      "accountSuspended": "Account Suspended",
-      "accountSuspendedMsg": "Your account has been suspended for {{hours}} hours. Reason: {{reason}}. Please contact support if you believe this is an error.",
-      "accountBanned": "Account Permanently Banned",
-      "accountBannedMsg": "Your account has been permanently banned. Reason: {{reason}}. This action cannot be undone.",
-      "warningIssued": "Warning Issued",
-      "warningIssuedMsg": "You have received a warning regarding your {{reportType}}. {{notes}}",
-      "contentRemoved": "Content Removed",
-      "contentRemovedMsg": "Your content has been removed due to a {{reportType}} report. {{reason}}",
-      "violationGuidelines": "Violation of community guidelines",
-      "severeViolation": "Severe violation of community guidelines",
-      "note": "Note",
-      "reason": "Reason",
-      "reviewGuidelines": "Please review and follow our community guidelines.",
-      "reviewGuidelines2": "Please review our community guidelines."
-    },
-    "payouts": {
-      "title": "Payouts Management",
-      "subtitle": "Manage vendor payouts and settlements",
       "exportCSV": "Export CSV",
       "exportPDF": "Export PDF",
       "dateRanges": {
@@ -2034,7 +2710,22 @@
     "address": "Address",
     "city": "City",
     "country": "Country",
-    "updateProfile": "Update Profile"
+    "updateProfile": "Update Profile",
+    "tabs": {
+      "personal": "Personal Information",
+      "store": "Store Information",
+      "delivery": "Delivery Address",
+      "security": "Security"
+    },
+    "delivery": {
+      "infoTitle": "Primary Delivery Address",
+      "infoDesc": "This address will be shown to the vendor when placing an order and used as the default shipping address.",
+      "address": "Delivery Address",
+      "addressPlaceholder": "City, district, street, door number",
+      "city": "City",
+      "cityPlaceholder": "Select city",
+      "country": "Country"
+    }
   },
   "favorites": {
     "title": "My Favorites",
@@ -2046,10 +2737,22 @@
     "browseMarketplace": "Browse the marketplace and click the heart icon to save products",
     "browseNow": "Browse Now",
     "addToCart": "Add to Cart",
+    "negotiatePrice": "Negotiate Price",
     "saveVendors": "Save your favorite vendors for quick access",
     "viewProducts": "View Products",
     "removeFavorite": "Remove from favorites",
-    "addFavorite": "Add to favorites"
+    "addFavorite": "Add to favorites",
+    "guestNotice": "Your favorites are saved on this device. Sign in to sync them across devices and keep them permanently.",
+    "signInToSync": "Sign In",
+    "outOfStock": "Out of Stock",
+    "lowStock": "Only {{quantity}} left",
+    "retry": "Retry",
+    "removeConfirmTitle": "Remove from favorites?",
+    "removeConfirmMessage": "Are you sure you want to remove this item from your favorites?",
+    "addToCartAria": "Add {{name}} to cart",
+    "outOfStockAria": "{{name}} is out of stock",
+    "viewDetailsAria": "View {{name}} details",
+    "removeFromFavoritesAria": "Remove {{name}} from favorites"
   },
   "chat": {
     "title": "Chat",
@@ -2223,88 +2926,54 @@
       "copyFailed": "Failed to copy link",
       "selectRating": "Please select a rating",
       "selectReason": "Please select a reason"
+    },
+    "aria": {
+      "stars": "{{count}} star"
     }
   },
   "orderTracking": {
-    "title": "Track Your Order",
-    "subtitle": "Enter your order number and registered phone number to verify the status of your delivery.",
-    "unknownProduct": "Unknown Product",
-    "form": {
-      "orderNumber": {
-        "label": "Order Number",
-        "placeholder": "e.g., ORD-20240101-00001",
-        "hint": "Find your order number in the confirmation email"
-      },
-      "or": "OR",
-      "and": "AND",
-      "phone": {
-        "label": "Phone Number",
-        "placeholder": "+212 6XX-XXXXXX",
-        "hint": "Use the same phone number you registered with"
-      },
-      "submit": "Track Order",
-      "searching": "Searching...",
-      "recentSearches": "Recent searches",
-      "clearHistory": "Clear history"
+    "title": "Track Your Orders",
+    "subtitle": "Track your delivery status in real time",
+    "guest": {
+      "title": "Track Your Orders",
+      "message": "Sign in to view your orders and track delivery status in real time",
+      "signIn": "Sign In",
+      "createAccount": "Create Account"
     },
-    "validation": {
-      "orderNumber": {
-        "min": "Order number is too short",
-        "max": "Order number is too long",
-        "format": "Order number can only contain letters, numbers, and hyphens"
-      },
-      "phone": {
-        "min": "Phone number is too short",
-        "max": "Phone number is too long",
-        "format": "Enter a valid Moroccan phone number (e.g., +212612345678)"
-      },
-      "atLeastOne": "Please enter both your order number and phone number",
-      "xssDetected": "Invalid characters detected",
-      "sqlDetected": "Invalid characters detected"
+    "tabs": {
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "empty": {
+      "title": "No orders yet",
+      "message": "Start shopping from the marketplace",
+      "browseMarketplace": "Browse Marketplace"
+    },
+    "searchPlaceholder": "Search by order number or store name...",
+    "loadMore": "Load More",
+    "nonBuyer": {
+      "title": "Order Tracking",
+      "message": "This page is designed for buyers. Track your orders and delivery status from your own dashboard.",
+      "goToDashboard": "Dashboard"
+    },
+    "stats": {
+      "total": "Total",
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "viewAllOrders": "View all orders",
+    "buyerOrders": {
+      "loadError": "Could not load your orders",
+      "empty": "No active orders right now"
     },
     "results": {
-      "searching": "Looking for your order...",
       "found": {
         "title": "Order Found!",
         "orderDate": "Order Date",
         "total": "Total",
         "city": "City",
         "items": "Items in Order",
-        "viewFull": "View Full Tracking"
-      },
-      "notFound": {
-        "title": "Order Not Found",
-        "desc": "We couldn't find an order matching your search. Please check the details and try again.",
-        "searchedFor": "Searched For",
-        "suggestions": "What you can try",
-        "tips": {
-          "orderNumber": "Double-check your order number from the confirmation email",
-          "phone": "Make sure you're using the same phone number you registered with",
-          "email": "Check your email inbox for the order confirmation"
-        }
-      },
-      "error": {
-        "title": "Search Failed",
-        "desc": "An error occurred while searching for your order. Please try again later."
-      }
-    },
-    "actions": {
-      "trackAnother": "Track Another Order",
-      "tryAgain": "Try Again",
-      "contactSupport": "Contact Support"
-    },
-    "help": {
-      "step1": {
-        "title": "Enter Order Number",
-        "desc": "Find it in your confirmation email or account order history"
-      },
-      "step2": {
-        "title": "Enter Your Phone Number",
-        "desc": "Use the same Moroccan phone number that was used when placing the order"
-      },
-      "step3": {
-        "title": "Track Delivery",
-        "desc": "View real-time status and full tracking details of your order"
+        "viewFull": "View Tracking"
       }
     },
     "status": {
@@ -2321,13 +2990,11 @@
       "driver_picked_up": "Picked Up",
       "awaiting_driver": "Awaiting Driver"
     },
-    "notifications": {
-      "found": "Order found!"
-    },
-    "errors": {
-      "rateLimited": "Too many attempts. Please wait {{minutes}} minutes before trying again.",
-      "requiresOrderAndPhone": "Please enter both order number and phone number for security.",
-      "searchFailed": "Failed to search. Please try again."
+    "aria": {
+      "refresh": "Refresh",
+      "callDriver": "Call driver",
+      "chatDriver": "Chat with driver",
+      "openMaps": "Open in maps"
     }
   },
   "auth": {
@@ -2355,7 +3022,7 @@
       "continueWithGoogle": "Continue with Google",
       "orContinueWithEmail": "or continue with email",
       "emailAddress": "Email address",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "password": "Password",
       "passwordPlaceholder": "Enter your password",
       "forgotPassword": "Forgot password?",
@@ -2370,7 +3037,7 @@
       "lastName": "Last Name",
       "lastNamePlaceholder": "Doe",
       "emailAddress": "Email address",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "phoneNumber": "Phone Number",
       "phonePlaceholder": "+212 6XX-XXXXXX",
       "identityVerification": "Identity Verification",
@@ -2455,7 +3122,7 @@
       "title": "Reset Password",
       "subtitle": "Enter your email and we'll send you a link to reset your password.",
       "emailLabel": "Email address",
-      "emailPlaceholder": "Qotoof273@gmail.com",
+      "emailPlaceholder": "qotoof273@gmail.com",
       "sending": "Sending...",
       "sendLink": "Send Reset Link",
       "rememberPassword": "Remember your password?",
@@ -2463,23 +3130,84 @@
     },
     "verifyEmail": {
       "noPendingVerification": "No pending email verification found. Please sign up first.",
+      "noPendingVerificationHelp": "Please create a new account or sign in.",
       "resendCooldown": "Please wait {{seconds}} seconds before resending.",
       "rateLimited": "Too many resend attempts. Please wait a few minutes before trying again.",
-      "resendSuccess": "Verification email resent! Check your inbox.",
-      "resendFailed": "Failed to resend verification email. Please try again.",
+      "resendSuccess": "Verification code resent! Check your inbox.",
+      "resendFailed": "Failed to resend verification code. Please try again.",
+      "verifiedSuccess": "Email verified successfully!",
       "verifiedTitle": "Email Verified!",
       "verifiedDescription": "Your email has been verified successfully. Redirecting to login...",
       "title": "Check your email",
-      "description": "We've sent a verification link to",
-      "instructions": "Click the link in the email to verify your account.",
-      "helpTitle": "Didn't receive the email?",
+      "subtitle": "Enter the 6-digit verification code sent to your email.",
+      "description": "We've sent a verification code to",
+      "instructions": "Enter the 6-digit code you received in your email to verify your account.",
+      "helpTitle": "Didn't receive the code?",
       "helpSpam": "Check your spam or junk folder",
       "helpCorrectEmail": "Make sure you entered the correct email",
       "helpWait": "Wait a few minutes for delivery",
       "openEmailApp": "Open email app",
-      "resendButton": "Resend Verification Email",
+      "resendButton": "Resend Verification Code",
       "resendIn": "Resend in {{seconds}}s",
-      "backToLogin": "Back to Login"
+      "backToLogin": "Back to Login",
+      "wrongEmail": "Wrong email? Create a new account",
+      "goToRegister": "Create a new account",
+      "codePlaceholder": "123456",
+      "codeLabel": "Verification code",
+      "verifyButton": "Verify & Activate Account",
+      "invalidCode": "Invalid or expired verification code",
+      "invalidEmail": "Invalid email address"
+    },
+    "mfa": {
+      "title": "Two-Factor Authentication",
+      "headerDescription": "Your account is protected with Two-Factor Authentication (2FA).",
+      "totpDescription": "To continue, enter the current 6-digit verification code generated by your Authenticator application.",
+      "checkingMFA": "Checking MFA status...",
+      "verifyButton": "Verify Code",
+      "verifying": "Verifying...",
+      "cancelAndSignOut": "Cancel and Sign Out",
+      "backToLogin": "Back to Login",
+      "success": "Authentication verified!",
+      "codeRefreshesIn": "Code refreshes in {{seconds}}s",
+      "languageSwitcher": "Language",
+      "formAriaLabel": "MFA verification form",
+      "codeInputLegend": "Enter your 6-digit verification code",
+      "digitLabel": "Digit {{n}}",
+      "howToGetCode": {
+        "title": "How to get your verification code",
+        "step1": "Open your Authenticator application.",
+        "step2": "Locate your Qotoof account.",
+        "step3": "Copy the current 6-digit verification code.",
+        "step4": "Enter the code before it refreshes."
+      },
+      "noApp": {
+        "title": "Don't have an Authenticator application?",
+        "description": "We recommend one of these free, trusted applications:",
+        "note": "Available on iOS and Android. Search for them in your app store."
+      },
+      "security": {
+        "title": "Why is this required?",
+        "description": "Two-Factor Authentication adds an extra security layer. Even if someone knows your password, they cannot access your account without the code generated on your trusted device.",
+        "protectsLabel": "This protects your:",
+        "item1": "Personal information",
+        "item2": "Orders",
+        "item3": "Payments",
+        "item4": "Account settings"
+      },
+      "needHelp": {
+        "title": "Need help?",
+        "tip1": "Check your device time is correct.",
+        "tip2": "Wait for the next verification code to appear.",
+        "tip3": "Make sure you selected the correct account in your app.",
+        "tip4": "Try the new code after it refreshes.",
+        "tip5": "Contact support if you permanently lost access to your authenticator."
+      },
+      "errors": {
+        "incompleteCode": "Please enter all 6 digits",
+        "invalidCode": "Invalid or expired code. Please try again.",
+        "noFactors": "No TOTP factors found. Please set up MFA first.",
+        "verificationFailed": "Failed to verify code. Please try again."
+      }
     }
   },
   "buyerDashboard": {
@@ -2665,6 +3393,10 @@
     "save": {
       "saving": "Saving...",
       "saved": "Save Settings"
+    },
+    "deletePhoneVerify": {
+      "title": "Confirm Account Deletion",
+      "desc": "Account deletion is permanent, so we need an SMS verification code before proceeding."
     }
   },
   "buyerAddresses": {
@@ -2716,7 +3448,52 @@
     }
   },
   "buyerSecurity": {
+    "title": "Security Settings",
+    "subtitle": "Manage your account security and privacy",
     "passwordUpdated": "Password updated successfully! All other sessions have been signed out.",
+    "personalInfo": {
+      "title": "Personal Information",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "city": "City"
+    },
+    "mfa": {
+      "title": "Two-Factor Authentication",
+      "enabled": "Enabled",
+      "disabledBadge": "Disabled",
+      "disabled": "Two-factor authentication disabled",
+      "disableFailed": "Failed to disable authentication",
+      "protected": "Your account is protected",
+      "using": "Using",
+      "emailMethod": "email",
+      "appMethod": "authenticator app",
+      "lastUsed": "Last used",
+      "disabling": "Disabling...",
+      "disable": "Disable Two-Factor Authentication",
+      "enableTitle": "Enable Two-Factor Authentication",
+      "enableDesc": "Add extra protection to your account against unauthorized access",
+      "enable": "Enable Two-Factor Authentication"
+    },
+    "sessions": {
+      "title": "Active Sessions",
+      "manage": "Manage your active sessions",
+      "viewAll": "View All",
+      "count": "You have {{count}} active session(s)",
+      "signOutOthers": "Sign out from other devices",
+      "confirmRevokeAll": "Sign out from all other devices?",
+      "revokedAll": "Signed out from all devices",
+      "revokeFailed": "Failed to sign out"
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "empty": "No activity",
+      "viewFullLog": "View full activity log"
+    },
+    "phoneVerify": {
+      "title": "Confirm Password Change",
+      "desc": "Before applying the new password, enter the verification code sent to your registered phone."
+    },
     "errors": {
       "passwordTooShort": "Password must be 8 characters minimum",
       "passwordTooLong": "Password must be less than 128 characters",
@@ -2729,7 +3506,32 @@
       "passwordsNotMatch": "New passwords do not match",
       "passwordMustDiffer": "New password must be different from old password",
       "incorrectPassword": "Current password is incorrect",
-      "passwordUpdateFailed": "Failed to update password"
+      "passwordUpdateFailed": "Failed to update password",
+      "phoneRequired": "Add a phone number to your account before changing password",
+      "passwordTooWeak": "Password does not meet strength requirements"
+    }
+  },
+  "buyerTracking": {
+    "title": "Order Tracking",
+    "empty": "No orders to track",
+    "emptyMessage": "Start shopping from the marketplace",
+    "browse": "Browse Marketplace",
+    "active": "Active Orders",
+    "delivered": "Delivered",
+    "driverAssigned": "Driver assigned",
+    "eta": {
+      "label": "ETA",
+      "pending": "Pending",
+      "accepted": "Accepted",
+      "preparing": "Preparing",
+      "driverAssigned": "Driver assigned",
+      "pickedUp": "Picked up",
+      "onTheWay": "On the way",
+      "arrivingSoon": "Arriving soon",
+      "minutes": "{{count}} min",
+      "hours": "{{count}}h",
+      "hoursMinutes": "{{h}}h {{m}}m",
+      "range": "{{min}}–{{max}}"
     }
   },
   "notFound": {
@@ -2740,6 +3542,16 @@
   "orderConfirmation": {
     "redirecting": "Redirecting...",
     "title": "Order Confirmed!",
+    "titleCod": "Order Placed — Pay on Delivery",
+    "titleBankReview": "Payment Pending Review",
+    "titlePending": "Payment Pending",
+    "titleFailed": "Payment Failed",
+    "pendingTitle": "Payment Pending",
+    "pendingPaypalDesc": "Your PayPal payment has not been completed yet. You can retry the payment using the button below.",
+    "pendingBankDesc": "Your bank transfer is being reviewed. You will be notified once payment is confirmed.",
+    "pendingDesc": "Your payment is being processed. Please wait for confirmation.",
+    "failedTitle": "Payment Failed",
+    "failedDesc": "Your payment could not be completed. Please try again or choose a different payment method.",
     "orderPrefix": "Order",
     "orderPlaced": "Your order has been placed successfully",
     "whatsNext": "What's Next?",
@@ -2750,7 +3562,26 @@
     "step3Title": "Delivery",
     "step3Desc": "A driver will deliver to your address",
     "viewOrders": "View My Orders",
-    "continueShopping": "Continue Shopping"
+    "continueShopping": "Continue Shopping",
+    "paypal": {
+      "cancelledMessage": "PayPal payment was cancelled. You can retry from this order page.",
+      "confirmedMessage": "PayPal payment confirmed successfully.",
+      "pendingMessage": "Returned from PayPal, but the payment is still being processed.",
+      "errorMessage": "Could not confirm PayPal payment.",
+      "alreadyPaidError": "This order has already been paid.",
+      "retryInitError": "Could not restart PayPal session.",
+      "recordNotFoundError": "Could not find PayPal payment record to restart.",
+      "retryError": "Could not restart PayPal.",
+      "sectionTitle": "Pay with PayPal",
+      "completedDescription": "PayPal payment for this order has been confirmed successfully.",
+      "pendingDescription": "This order is waiting for PayPal completion or confirmation. You can continue payment using the button below if the process did not finish.",
+      "retryButton": "Complete Payment via PayPal",
+      "processingButton": "Initializing PayPal..."
+    },
+    "cod": {
+      "sectionTitle": "Cash on Delivery Policy",
+      "policyText": "This order is registered as cash on delivery. In case of proven delivery or fulfillment and refusal of payment, the trust score may be lowered and a collection dispute may be opened in accordance with the platform's legal terms."
+    }
   },
   "contact": {
     "title": "Contact Us",
@@ -2810,7 +3641,7 @@
     },
     "q8": {
       "question": "How do I contact support?",
-      "answer": "You can reach us through the Contact page, email us at Qotoof273@gmail.com, or call +212 674 841 248 during business hours."
+      "answer": "You can reach us through the Contact page, email us at qotoof273@gmail.com, or call +212 674 841 248 during business hours."
     },
     "stillQuestions": {
       "title": "Still have questions?",
@@ -3165,7 +3996,7 @@
     "section13": {
       "title": "13. Contact",
       "intro": "For questions about these Terms, contact us at:",
-      "email": "Email: Qotoof273@gmail.com",
+      "email": "Email: qotoof273@gmail.com",
       "phone": "Phone: +212 674 841 248",
       "address": "Address: Casablanca, Morocco"
     },
@@ -3340,6 +4171,9 @@
     },
     "tracking": {
       "liveMap": "Live Delivery Map"
+    },
+    "settings": {
+      "paypalEmail": "PayPal Email"
     }
   },
   "buyer": {
@@ -3437,6 +4271,7 @@
         "tryAdjusting": "Try adjusting your search or filter criteria"
       },
       "searchPlaceholder": "Search by order number, vendor, or product...",
+      "clearSearchAria": "Clear search",
       "advancedFilters": "Filters",
       "clearFilters": "Clear all",
       "orderCount": "Showing {{count}} order(s)",
@@ -3450,7 +4285,9 @@
       "clearSelection": "Clear selection",
       "selectAll": "Select all",
       "loadMore": "Load More Orders",
-      "showingCount": "Showing {{shown}} of {{total}} order(s)"
+      "showingCount": "Showing {{shown}} of {{total}} order(s)",
+      "noAddress": "No address provided",
+      "deliverySlot": "Delivery slot"
     },
     "coupons": {
       "title": "My Coupons",
@@ -3496,17 +4333,136 @@
       "subtitle": "Earn points with every purchase",
       "pointsBalance": "Your Points Balance",
       "lifetimeSpent": "Lifetime spent",
+      "lifetimePoints": "Lifetime Points",
       "tierMember": "{{tier}} Member",
       "pointsToNext": "{{points}} / {{nextMin}} points to {{nextTier}}",
       "currentBadge": "Current",
       "historyTitle": "Points History",
       "emptyHistory": "No points earned yet. Start shopping to earn loyalty points!",
       "pointsEarned": "Points earned",
+      "referralBonus": "Referral Bonus",
+      "registeredReferrals": "Registered Referrals",
+      "activeRewards": "Active Rewards",
+      "referralProgram": "Referral Program",
+      "referralDesc": "Share your link or link your account with a valid referral code",
+      "yourReferralCode": "Your Referral Code",
+      "copyReferralLink": "Copy referral registration link",
+      "referredBy": "Your account was referred by",
+      "firstOrderCompleted": "First order linked to this referral has been completed and the bonus has been awarded.",
+      "haveReferralCode": "Have a referral code?",
+      "enterReferralCode": "Enter referral code",
+      "linking": "Linking...",
+      "linkCode": "Link Referral Code",
+      "noReferralsYet": "No referrals yet. Share your code with new buyers.",
+      "referralEarned": "First order completed and referral bonus prepared",
+      "referralPending": "Awaiting first completed order",
+      "statusEarned": "Earned",
+      "statusPending": "Pending",
+      "newUser": "New User",
+      "rewardsTitle": "Points Rewards",
+      "rewardsDesc": "Convert your points into personal coupons usable for purchases",
+      "noRewardsAvailable": "No rewards available currently.",
+      "points": "points",
+      "rewardValue": "Reward Value",
+      "creatingCoupon": "Creating coupon...",
+      "convertToCoupon": "Convert to personal coupon",
+      "insufficientPoints": "Insufficient points",
+      "currency": "MAD",
+      "order": "Order",
+      "coupon": "Coupon",
       "tiers": {
         "bronze": "Bronze",
         "silver": "Silver",
         "gold": "Gold",
         "platinum": "Platinum"
+      },
+      "reasons": {
+        "orderCompleted": "Points earned from completed order",
+        "referralBonus": "Referral bonus",
+        "rewardRedeemed": "Points redeemed for reward",
+        "default": "Points transaction"
+      },
+      "errors": {
+        "loadFailed": "Failed to load loyalty data",
+        "copyFailed": "Failed to copy",
+        "redeemFailed": "Failed to redeem reward",
+        "referralFailed": "Failed to apply referral code"
+      },
+      "success": {
+        "couponCreated": "Your personal coupon has been created: {{code}}",
+        "codeCopied": "Referral code copied",
+        "linkCopied": "Referral link copied",
+        "referralAlreadyLinked": "Your account is already linked to a referral",
+        "referralLinked": "Referral code linked successfully"
+      }
+    },
+    "rfq": {
+      "title": "Request for Quotes",
+      "subtitle": "Post your product needs and receive vendor offers — choose the best price and quality.",
+      "newRequest": "New Request",
+      "deadline": "Deadline",
+      "maxBudget": "Max Budget",
+      "offers": "offers",
+      "viewOffers": "View Offers",
+      "viewDetails": "View Details",
+      "vendorFallback": "Vendor",
+      "unit": "unit",
+      "total": "total",
+      "acceptOffer": "Accept This Offer",
+      "confirmCancel": "Are you sure you want to cancel this request?",
+      "cancelTitle": "Cancel Request",
+      "noOffersYet": "No offers yet.",
+      "status": {
+        "open": "Open",
+        "closed": "Closed",
+        "expired": "Expired",
+        "cancelled": "Cancelled"
+      },
+      "offerStatus": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "withdrawn": "Withdrawn"
+      },
+      "summary": {
+        "total": "Total Requests",
+        "open": "Open",
+        "completed": "Completed"
+      },
+      "empty": {
+        "title": "No requests yet",
+        "desc": "Post your first request and receive vendor offers.",
+        "createButton": "Create Request"
+      },
+      "modal": {
+        "title": "New Quote Request"
+      },
+      "form": {
+        "title": "Request Title",
+        "titlePlaceholder": "e.g., Need 500kg fresh tomatoes",
+        "category": "Category",
+        "quantity": "Quantity",
+        "maxBudget": "Max Budget (MAD)",
+        "optional": "Optional",
+        "city": "City",
+        "cityPlaceholder": "Casablanca",
+        "deadline": "Offer Deadline",
+        "description": "Additional Details",
+        "descriptionPlaceholder": "Quality specs, preferred delivery method...",
+        "submit": "Publish Request"
+      },
+      "errors": {
+        "loadFailed": "Failed to load your requests",
+        "loadOffersFailed": "Failed to load offers",
+        "acceptFailed": "Failed to accept offer",
+        "cancelFailed": "Failed to cancel request",
+        "titleAndQuantityRequired": "Title and quantity are required",
+        "createFailed": "Failed to create request"
+      },
+      "success": {
+        "offerAccepted": "Offer accepted and request closed",
+        "cancelled": "Request cancelled",
+        "created": "Request for quote published"
       }
     },
     "reports": {
@@ -3544,6 +4500,12 @@
         "listDeleted": "List deleted",
         "deleteFailed": "Failed to delete list",
         "itemsAdded": "{{count}} item(s) added to cart"
+      }
+    },
+    "addresses": {
+      "aria": {
+        "edit": "Edit address",
+        "delete": "Delete address"
       }
     }
   },
@@ -3651,7 +4613,7 @@
     "gdprRight4": "Right to data portability (export)",
     "gdprRight5": "Right to object to processing",
     "gdprRight6": "Right to withdraw consent",
-    "gdprContact": "To exercise any of these rights, contact us at Qotoof273@gmail.com",
+    "gdprContact": "To exercise any of these rights, contact us at qotoof273@gmail.com",
     "deleteAccountQuestion": "Delete Your Account?",
     "permanently": "permanently",
     "deleteAccountWarning1": "This will",
@@ -3680,7 +4642,14 @@
     "cookieConsentReset": "Cookie consent reset. Refresh the page to see the banner again.",
     "accountDeleted": "Your account has been permanently deleted",
     "deleteAccountFailed": "Failed to delete account",
+    "addPhoneFirst": "Add a phone number to your account before requesting deletion",
     "typeDeleteConfirm": "Please type exactly \"DELETE\" (all caps) to confirm"
+  },
+  "authGate": {
+    "title": "Sign in required",
+    "message": "You need to be signed in to continue.",
+    "signIn": "Sign In",
+    "createAccount": "Create Account"
   },
   "unauthorized": {
     "title": "Access Denied",
@@ -3763,10 +4732,46 @@
       "upgradeFailed": "Failed to upgrade account"
     }
   },
+  "becomeDriver": {
+    "title": "Become a Driver",
+    "subtitle": "Start delivering on Qotoof",
+    "success": "Welcome! Your account has been upgraded to driver",
+    "submit": "Become a Driver",
+    "benefits": {
+      "title": "Driver Benefits",
+      "flexible": "Flexible schedule — work when you want",
+      "competitive": "Competitive earnings per delivery",
+      "tracking": "Real-time delivery tracking",
+      "ratings": "Build your reputation with ratings"
+    },
+    "form": {
+      "vehicleType": "Vehicle Type",
+      "vehiclePlate": "Vehicle Plate Number",
+      "platePlaceholder": "e.g., 12345-A-6",
+      "city": "City",
+      "cityPlaceholder": "Casablanca",
+      "phone": "Phone",
+      "phonePlaceholder": "+212 6XX XXX XXX",
+      "types": {
+        "motorcycle": "Motorcycle",
+        "car": "Car",
+        "van": "Van",
+        "truck": "Truck"
+      }
+    },
+    "errors": {
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Enter a valid Moroccan phone number (+212 or 06/07...)",
+      "plateRequired": "Vehicle plate is required",
+      "plateLong": "Plate number is too long",
+      "cityRequired": "City is required",
+      "fixErrors": "Please fix the errors in the form",
+      "upgradeFailed": "Failed to upgrade account"
+    }
+  },
   "helpCenter": {
     "title": "Help Center",
     "subtitle": "Find answers or contact support",
-    "loginRequired": "Please sign in to submit a support ticket.",
     "contact": {
       "ticket": "Support Ticket",
       "ticketDesc": "Submit a ticket",
@@ -3793,7 +4798,11 @@
       "ticketServer": "Support is temporarily unavailable. Please try again shortly."
     },
     "ticketSuccess": "Support ticket submitted! We'll respond within 24 hours.",
-    "ticketError": "Failed to submit ticket"
+    "ticketError": "Failed to submit ticket",
+    "authGate": {
+      "title": "Sign in to create a ticket",
+      "message": "You need to be signed in to submit a support ticket."
+    }
   },
   "productComparison": {
     "title": "Compare Products",
@@ -3848,6 +4857,13 @@
       "loadFailed": "Failed to load messages",
       "loadConversation": "Failed to load conversation",
       "sendFailed": "Failed to send message"
+    },
+    "aria": {
+      "search": "Search messages",
+      "back": "Back to messages",
+      "callVendor": "Call vendor",
+      "input": "Message input",
+      "send": "Send message"
     }
   },
   "layout": {
@@ -3892,6 +4908,12 @@
     "admin": {
       "panelTitle": "Admin",
       "defaultTitle": "Admin",
+      "mobileTabs": {
+        "home": "Home",
+        "users": "Users",
+        "products": "Products",
+        "settings": "Settings"
+      },
       "links": {
         "dashboard": "Dashboard",
         "users": "Users",
@@ -3916,6 +4938,13 @@
     "vendor": {
       "panelTitle": "My Store",
       "defaultTitle": "Vendor",
+      "mobileTabs": {
+        "home": "Home",
+        "products": "Products",
+        "orders": "Orders",
+        "subscription": "Plan",
+        "profile": "Profile"
+      },
       "links": {
         "dashboard": "Dashboard",
         "products": "My Products",
@@ -3925,18 +4954,30 @@
         "findDriver": "Find a Driver",
         "analytics": "Analytics",
         "reviews": "Reviews",
+        "wallet": "Wallet",
+        "returns": "Returns",
+        "tax": "Tax",
         "coupons": "Coupons",
         "premium": "Premium",
+        "rfqs": "RFQs",
         "rfqBoard": "RFQ Board",
         "schedules": "Schedules",
         "location": "Location",
+        "subscription": "Subscription",
         "profile": "Profile",
+        "security": "Security",
         "settings": "Settings"
       }
     },
     "driver": {
       "panelTitle": "Driver",
       "defaultTitle": "Driver",
+      "mobileTabs": {
+        "home": "Home",
+        "active": "Deliveries",
+        "map": "Map",
+        "profile": "Profile"
+      },
       "links": {
         "dashboard": "Dashboard",
         "active": "Active Deliveries",
@@ -3950,13 +4991,25 @@
       }
     },
     "buyer": {
+      "mobileTabs": {
+        "home": "Home",
+        "marketplace": "Market",
+        "cart": "Cart",
+        "orders": "Orders",
+        "tracking": "Track",
+        "settings": "Settings",
+        "more": "More"
+      },
       "links": {
         "dashboard": "Dashboard",
-        "orders": "Orders",
+        "marketplace": "Marketplace",
+        "orders": "My Orders",
         "addresses": "Addresses",
-        "shoppingLists": "Shopping Lists",
-        "myRequests": "My Requests",
+        "coupons": "Coupons",
         "loyalty": "Loyalty",
+        "shoppingLists": "Shopping Lists",
+        "rfq": "RFQ",
+        "security": "Security",
         "settings": "Settings"
       }
     },
@@ -3970,8 +5023,7 @@
         "buyer": "Buyer"
       }
     }
-  }
-  ,
+  },
   "marketplaceFeatures": {
     "common": {
       "unknownOrder": "Unknown order",
@@ -4374,6 +5426,173 @@
         "cancel": "Cancel",
         "confirm": "Confirm receipt"
       }
+    }
+  },
+  "negotiation": {
+    "status": {
+      "pending": "Awaiting Response",
+      "accepted": "Accepted",
+      "rejected": "Rejected",
+      "countered": "Counter Offer",
+      "expired": "Expired",
+      "converted": "Converted to Order"
+    },
+    "round": "Round",
+    "originalPrice": "Original Price",
+    "proposedPrice": "Proposed Price",
+    "quantity": "Quantity",
+    "productTotal": "Product Total",
+    "delivery": "Delivery",
+    "deliveryFree": "Free",
+    "distance": "Distance",
+    "grandTotal": "Grand Total",
+    "buyer": "Buyer",
+    "vendor": "Vendor",
+    "buyerNote": "Buyer Note",
+    "vendorNote": "Vendor Note",
+    "expiresIn": "Expires in",
+    "disclaimer": "This is a non-binding offer until final approval and payment completion",
+    "acceptOffer": "Accept Offer",
+    "rejectOffer": "Reject Offer",
+    "counterOffer": "Counter Offer",
+    "yourPrice": "Your Proposed Price",
+    "note": "Note (optional)",
+    "notePlaceholder": "Add a note...",
+    "sendCounter": "Send",
+    "accepted": "Offer accepted",
+    "rejected": "Offer rejected",
+    "counterSent": "Counter offer sent",
+    "payAndOrder": "Pay & Create Order",
+    "creatingOrder": "Creating order...",
+    "addToCartAndCheckout": "Add to Cart & Checkout",
+    "addingToCart": "Adding to cart...",
+    "addedToCart": "Added to cart with negotiated price",
+    "createTitle": "Negotiate Price",
+    "sendOffer": "Send Offer",
+    "backToFavorites": "Back to Favorites",
+    "completePayment": "Complete payment via PayPal",
+    "orderCreated": "Order created successfully",
+    "viewOrder": "View Order",
+    "backToOrders": "Back to Orders",
+    "acceptedWaitingBuyer": "Offer accepted — waiting for buyer to pay",
+    "convertedToOrder": "Offer successfully converted to order",
+    "offerRejected": "Offer rejected",
+    "offerExpired": "Offer expired",
+    "errors": {
+      "notFound": "Negotiation not found",
+      "forbidden": "You cannot view this negotiation",
+      "loadFailed": "Failed to load negotiation",
+      "acceptFailed": "Failed to accept offer",
+      "rejectFailed": "Failed to reject offer",
+      "counterFailed": "Failed to send counter offer",
+      "invalidPrice": "Invalid price",
+      "invalidQuantity": "Invalid quantity",
+      "convertFailed": "Failed to convert negotiation to order",
+      "productNotFound": "Product not found",
+      "createFailed": "Failed to create negotiation",
+      "addToCartFailed": "Failed to add to cart",
+      "phoneNotVerified": "Phone verification required to create negotiations",
+      "rateLimitExceeded": "Rate limit exceeded. Try again in {{seconds}} seconds"
+    }
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "previous": "Previous",
+    "gotIt": "Got it!",
+    "saving": "Saving...",
+    "nextArrow": "Next →",
+    "previousArrow": "← Previous",
+    "errors": {
+      "saveFailed": "Could not save onboarding progress right now",
+      "completeFailed": "Could not complete onboarding right now"
+    },
+    "buyer": {
+      "roleLabel": "Buyer Setup",
+      "completeLabel": "Start Shopping Now 🚀",
+      "slides": {
+        "s1": {
+          "title": "Welcome to Qotoof",
+          "lines": [
+            "Morocco's first wholesale marketplace",
+            "for vegetables, fruits and plants",
+            "Buy directly from farmers",
+            "and sellers at wholesale prices"
+          ]
+        },
+        "s2": {
+          "title": "Search, Choose & Pay",
+          "lines": [
+            "1️⃣ Search for your product",
+            "2️⃣ Choose the right vendor",
+            "3️⃣ Pay the way you want",
+            "4️⃣ Receive your order and rate the experience"
+          ]
+        },
+        "s3": {
+          "title": "Full Protection for You",
+          "lines": [
+            "✅ Every transaction is digitally verified",
+            "✅ Product condition photos before and after",
+            "✅ Instant reporting of any issue",
+            "✅ Full legal support when needed"
+          ]
+        }
+      }
+    },
+    "vendor": {
+      "roleLabel": "Vendor Setup",
+      "completeLabel": "Sign Contract & Start →",
+      "slides": {
+        "s1": {
+          "title": "Start Selling in 4 Steps",
+          "lines": [
+            "Reach thousands of buyers in Morocco",
+            "No upfront fees",
+            "Flexible commission on what you sell only"
+          ]
+        },
+        "s2": {
+          "title": "Complete Your Store Profile",
+          "lines": [
+            "1️⃣ Sign the digital contract",
+            "2️⃣ Add your store details",
+            "3️⃣ Set your delivery method",
+            "4️⃣ Add your products"
+          ]
+        },
+        "s3": {
+          "title": "How Does Commission Work?",
+          "lines": [
+            "• Sell your products and receive money directly",
+            "• At the end of each month we send you an invoice for the platform commission on total sales",
+            "• Pay within 7 days",
+            "• Non-payment = temporary account freeze"
+          ]
+        },
+        "s4": {
+          "title": "You're Ready to Start!",
+          "lines": [
+            "✅ Your store is legally protected",
+            "✅ Your payments are guaranteed",
+            "✅ Full support for any issue"
+          ],
+          "callout": [
+            "First step:",
+            "Sign the digital contract to start selling"
+          ]
+        }
+      }
+    },
+    "negotiation": {
+      "slide1Title": "Negotiate Prices",
+      "slide1Desc": "Found a product you like but want a better price? Click \"Negotiate Price\" on any product in your favorites to start a negotiation with the vendor.",
+      "slide2Title": "Send Your Offer",
+      "slide2Desc": "Propose your price and quantity. The vendor can accept, reject, or send a counter-offer. You can negotiate up to 3 rounds.",
+      "slide3Title": "Locked-In Price",
+      "slide3Desc": "When your offer is accepted, the item is added to your cart with the agreed price locked in. The price won't change even if the vendor updates their listing.",
+      "slide4Title": "Unified Checkout",
+      "slide4Desc": "Checkout with all your items in one place — negotiated and regular items together. Pay once for everything in your cart."
     }
   }
 }

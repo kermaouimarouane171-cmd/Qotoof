@@ -4,6 +4,7 @@
  */
 
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { PhotoIcon, XMarkIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
@@ -28,6 +29,7 @@ export const ImageUploader = ({
   onRemoveNewImage,
   onRemoveExistingImage,
 }) => {
+  const { t } = useTranslation()
   const inputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
 
@@ -40,18 +42,18 @@ export const ImageUploader = ({
     if (selected.length === 0) return []
 
     if (selected.length + totalCount > MAX_IMAGES) {
-      toast.error(`الحد الأقصى هو ${MAX_IMAGES} صور لكل منتج`)
+      toast.error(t('vendor.productForm.maxImagesError', { max: MAX_IMAGES }))
       return []
     }
 
     const valid = []
     for (const file of selected) {
       if (!ACCEPTED_TYPES.includes(file.type)) {
-        toast.error(`صيغة غير مدعومة: ${file.name}. المسموح JPG/PNG/WebP فقط`)
+        toast.error(t('vendor.productForm.unsupportedFormatError', { fileName: file.name }))
         continue
       }
       if (file.size > MAX_SIZE_BYTES) {
-        toast.error(`حجم الصورة كبير: ${file.name}. الحد الأقصى 5MB`)
+        toast.error(t('vendor.productForm.fileTooLargeError', { fileName: file.name }))
         continue
       }
       valid.push(file)

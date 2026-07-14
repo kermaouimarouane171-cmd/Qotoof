@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { Card, LoadingSpinner } from '@/components/ui'
@@ -24,12 +25,13 @@ const ADDRESS_TYPES = (t) => [
   { id: 'other', label: t('buyerAddresses.addressTypes.other', 'Other'), icon: MapPinIcon },
 ]
 
+const ADDRESSES_QUERY_KEY = (userId) => ['buyer-addresses-page', userId]
+
 const BuyerAddresses = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [addresses, setAddresses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
@@ -47,35 +49,26 @@ const BuyerAddresses = () => {
     delivery_instructions: '',
   })
 
-  const loadAddresses = useCallback(async () => {
-    if (!user?.id) {
-      setAddresses([])
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    try {
+  const { data: addresses = [], isLoading: loading } = useQuery({
+    queryKey: ADDRESSES_QUERY_KEY(user?.id),
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('addresses')
         .select('*')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: false })
+      if (error) {
+        logger.error('Error loading addresses:', error)
+        throw error
+      }
+      return data || []
+    },
+    enabled: Boolean(user?.id),
+    staleTime: 2 * 60 * 1000,
+  })
 
-      if (error) throw error
-      setAddresses(data || [])
-    } catch (error) {
-      logger.error('Error loading addresses:', error)
-      toast.error(t('buyerAddresses.notifications.loadFailed', 'Failed to load addresses'))
-    } finally {
-      setLoading(false)
-    }
-  }, [t, user?.id])
-
-  useEffect(() => {
-    loadAddresses()
-  }, [loadAddresses])
+  const invalidateAddresses = () => queryClient.invalidateQueries({ queryKey: ADDRESSES_QUERY_KEY(user?.id) })
 
   const resetForm = () => {
     setFormData({
@@ -141,7 +134,7 @@ const BuyerAddresses = () => {
       }
 
       resetForm()
-      await loadAddresses()
+      invalidateAddresses()
     } catch (error) {
       logger.error('Error saving address:', error)
       toast.error(t('buyerAddresses.notifications.saveFailed', 'Failed to save address'))
@@ -159,7 +152,7 @@ const BuyerAddresses = () => {
 
       if (error) throw error
       toast.success(t('buyerAddresses.notifications.deleted', 'Address deleted'))
-      setAddresses(prev => prev.filter(a => a.id !== id))
+      invalidateAddresses()
     } catch (error) {
       logger.error('Error deleting address:', error)
       toast.error(t('buyerAddresses.notifications.deleteFailed', 'Failed to delete address'))
@@ -171,10 +164,12 @@ const BuyerAddresses = () => {
   const handleSetDefault = async (id) => {
     try {
       // Unset all defaults first
-      await supabase
+      const { error: unsetError } = await supabase
         .from('addresses')
         .update({ is_default: false })
         .eq('user_id', user.id)
+
+      if (unsetError) throw unsetError
 
       // Set this one as default
       const { error } = await supabase
@@ -185,7 +180,7 @@ const BuyerAddresses = () => {
 
       if (error) throw error
       toast.success(t('buyerAddresses.notifications.defaultUpdated', 'Default address updated'))
-      await loadAddresses()
+      invalidateAddresses()
     } catch (error) {
       logger.error('Error setting default address:', error)
       toast.error(t('buyerAddresses.notifications.defaultFailed', 'Failed to update default address'))
@@ -206,9 +201,9 @@ const BuyerAddresses = () => {
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/buyer/dashboard')}
+            onClick={() => navigate('/marketplace')}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            aria-label={t('buyerAddresses.backToDashboard', 'Back to dashboard')}
+            aria-label={t('buyerAddresses.backToMarketplace', 'Back to marketplace')}
           >
             <ArrowLeftIcon className="w-5 h-5 text-gray-600" />
           </button>
@@ -248,7 +243,7 @@ const BuyerAddresses = () => {
               <h2 className="text-lg font-semibold text-gray-900">
                 {editingId ? t('buyerAddresses.form.editTitle', 'Edit Address') : t('buyerAddresses.form.addTitle', 'Add New Address')}
               </h2>
-              <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg" aria-label="Close">
+              <button onClick={resetForm} className="p-1 hover:bg-gray-100 rounded-lg" aria-label={t('common.close', 'إغلاق')}>
                 <XMarkIcon className="w-5 h-5 text-gray-400" />
               </button>
             </div>
@@ -465,7 +460,7 @@ const BuyerAddresses = () => {
                   <button
                     onClick={() => handleEdit(addr)}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                    aria-label="Edit address"
+                    aria-label={t('buyer.addresses.aria.edit', 'تعديل العنوان')}
                   >
                     <PencilIcon className="w-4 h-4" />
                   </button>
@@ -473,7 +468,7 @@ const BuyerAddresses = () => {
                     onClick={() => handleDelete(addr.id)}
                     disabled={deletingId === addr.id}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                    aria-label="Delete address"
+                    aria-label={t('buyer.addresses.aria.delete', 'حذف العنوان')}
                   >
                     {deletingId === addr.id ? (
                       <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />

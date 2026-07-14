@@ -72,6 +72,17 @@ export const runProductImageFallbackQuery = async ({
 }) => {
   const primaryResult = await buildQuery(selectWithImages)
   if (!primaryResult.error) {
+    // Normalize: ensure both `images` and `product_images` fields exist.
+    // Queries that use `product_images(...)` (not aliased) produce only the
+    // `product_images` field, but many components read `product.images`.
+    // mergeProductImages with an empty images array reuses existing images
+    // from the product row and adds the missing aliases — no extra DB call.
+    if (Array.isArray(primaryResult.data)) {
+      primaryResult.data = mergeProductImages(primaryResult.data, [])
+    } else if (primaryResult.data) {
+      const [normalized] = mergeProductImages([primaryResult.data], [])
+      primaryResult.data = normalized || primaryResult.data
+    }
     return primaryResult
   }
 

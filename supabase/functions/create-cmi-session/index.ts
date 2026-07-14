@@ -4,6 +4,8 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireAuth } from '../_shared/auth.ts'
+import { getCorsHeaders, handleOptions } from '../_shared/cors.ts'
 
 // ============================================
 // Environment Configuration
@@ -12,8 +14,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const CMI_MERCHANT_ID = Deno.env.get('CMI_MERCHANT_ID')
 const CMI_STORE_KEY = Deno.env.get('CMI_STORE_KEY')
 const CMI_API_URL = Deno.env.get('CMI_API_URL') || 'https://payment.cmi.co.ma/fim/api'
-const CMI_SUCCESS_URL = Deno.env.get('CMI_SUCCESS_URL') || 'https://qotoof.ma/payment/success'
-const CMI_FAIL_URL = Deno.env.get('CMI_FAIL_URL') || 'https://qotoof.ma/payment/fail'
+const CMI_SUCCESS_URL = Deno.env.get('CMI_SUCCESS_URL') || 'https://greenmarket-marketplace.web.app/payment/success'
+const CMI_FAIL_URL = Deno.env.get('CMI_FAIL_URL') || 'https://greenmarket-marketplace.web.app/payment/fail'
 const CMI_LANG = Deno.env.get('CMI_LANG') || 'en'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -40,7 +42,7 @@ async function generateCMISignature(params: Record<string, string>): Promise<str
   const data = encoder.encode(hashStr + CMI_STORE_KEY)
   const hashBuffer = await crypto.subtle.digest('SHA-1', data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const _hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
   
   // Base64 encode the hash
   const hashBytes = new Uint8Array(hashArray)
@@ -56,15 +58,8 @@ async function generateCMISignature(params: Record<string, string>): Promise<str
 serve(async (req) => {
   try {
     // CORS headers
-    if (req.method === 'OPTIONS') {
-      return new Response('ok', {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST, GET',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-      })
-    }
+    const optionsResponse = handleOptions(req)
+    if (optionsResponse) return optionsResponse
 
     // Only allow POST requests
     if (req.method !== 'POST') {
@@ -74,9 +69,20 @@ serve(async (req) => {
           status: 405, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
+      )
+    }
+
+    // Require authenticated user to prevent unauthorized payment session creation
+    try {
+      await requireAuth(req)
+    } catch (error) {
+      if (error instanceof Response) return error
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json', ...getCorsHeaders(req.headers.get('Origin')) } }
       )
     }
 
@@ -89,7 +95,7 @@ serve(async (req) => {
           status: 500, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -121,7 +127,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -135,7 +141,7 @@ serve(async (req) => {
           status: 400, 
           headers: { 
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
+            ...getCorsHeaders(req.headers.get('Origin')),
           } 
         }
       )
@@ -226,7 +232,7 @@ serve(async (req) => {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(req.headers.get('Origin')),
         },
       }
     )
@@ -243,7 +249,7 @@ serve(async (req) => {
         status: 500,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
+          ...getCorsHeaders(req.headers.get('Origin')),
         },
       }
     )

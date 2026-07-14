@@ -5,8 +5,10 @@
  * @edge-function confirm-order-payment, register-payment-receipt, confirm-bank-transfer
  */
 
-export {
+import {
   confirmOrderPayment,
   registerPaymentReceipt,
   confirmBankTransfer,
-} from '@/services/paymentService';
+} from '@/modules/payments';
+
+export { confirmOrderPayment, registerPaymentReceipt, confirmBankTransfer };

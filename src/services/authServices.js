@@ -10,10 +10,10 @@
 import { supabase } from '@/services/supabase'
 import { generateOTP, generateDeviceFingerprint, getDeviceInfo, secureStorage, hashBackupCodes, clearSupabaseLocalStorage } from '@/utils/encryption'
 import { auditLogger } from '@/services/auditLogger'
-import { checkMFARate } from '@/utils/rateLimiter'
 import { logger } from '../utils/logger.js'
 import { emailService } from '@/services/emailService'
 import { withRetry } from '@/utils/withRetry'
+import { unauthenticatedResponse } from '@/utils/authHelpers'
 
 const getSessionTokenPrefix = (session) => {
   const accessToken = session?.access_token
@@ -62,9 +62,9 @@ export const mfaService = {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return null
 
-      const publicFields = 'id, user_id, is_enabled, last_verified_at, created_at, updated_at'
+      // RLS allows authenticated users to SELECT their own mfa_settings
+      const publicFields = 'id, user_id, is_enabled, method, failed_attempts, locked_until, last_verified_at, last_used_at, created_at, updated_at'
 
-      // Explicitly exclude totp_secret and backup_codes — secrets must not be sent to the browser
       const { data: existingRows, error } = await supabase
         .from('mfa_settings')
         .select(publicFields)
@@ -73,16 +73,28 @@ export const mfaService = {
 
       if (error) throw error
 
-      const existingSettings = existingRows?.[0] || null
-      if (existingSettings) {
-        return existingSettings
+      if (existingRows?.[0]) {
+        // If method is not 'totp', treat as invalid configuration
+        if (existingRows[0].method !== 'totp' && existingRows[0].is_enabled) {
+          logger.warn(`Invalid MFA method '${existingRows[0].method}' for user ${user.id}, disabling MFA`)
+          // Disable MFA for this user - they need to set up TOTP
+          await supabase
+            .from('mfa_settings')
+            .update({ is_enabled: false, method: 'totp' })
+            .eq('user_id', user.id)
+          return { ...existingRows[0], is_enabled: false, method: 'totp' }
+        }
+        return existingRows[0]
       }
 
-      const { error: insertError } = await supabase
-        .from('mfa_settings')
-        .upsert({ user_id: user.id }, { onConflict: 'user_id' })
-
-      if (insertError) throw insertError
+      // No row yet — create one via Edge Function (RLS blocks client INSERT)
+      const { error: invokeError } = await supabase.functions.invoke('enable-mfa', {
+        body: { action: 'ensure' },
+      })
+      if (invokeError) {
+        logger.error('Failed to create MFA settings via Edge Function:', invokeError)
+        return null
+      }
 
       const { data: createdRows, error: createdError } = await supabase
           .from('mfa_settings')
@@ -99,54 +111,83 @@ export const mfaService = {
     }
   }, { maxRetries: 3, baseDelay: 1000 }),
 
-  enableWithEmail: withRetry(async function enableWithEmail() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+  // Email MFA is disabled - TOTP only
+  // initiateEmailMFA: withRetry(async function initiateEmailMFA() {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser()
+  //     if (!user) return unauthenticatedResponse()
 
-      const { data: otp, error: otpError } = await supabase.rpc('generate_otp', {
-        p_user_id: user.id,
-        p_purpose: 'mfa_verify'
-      })
-      if (otpError) throw otpError
-      if (!otp) throw new Error('Failed to generate OTP')
+  //     const { data, error } = await supabase.functions.invoke('enable-mfa', {
+  //       body: { action: 'initiate-email' },
+  //     })
 
-      const { error: updateError } = await supabase
-        .from('mfa_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: true,
-          method: 'email',
-          enabled_at: new Date().toISOString()
-        }, { onConflict: 'user_id' })
-      if (updateError) throw updateError
+  //     if (error) throw error
+  //     if (!data?.success) {
+  //       return { success: false, error: data?.error || 'Failed to initiate email MFA' }
+  //     }
 
-      const emailResult = await emailService.sendOTP(user, otp)
-      if (!emailResult.success && !emailResult.skipped) {
-        throw new Error('Failed to send OTP email')
-      }
+  //     return { success: true, message: 'OTP sent to your email' }
+  //   } catch (error) {
+  //     if (error.message === 'No user logged in') {
+  //       return { success: false, error: 'No user logged in' }
+  //     }
+  //     logger.error('Initiate email MFA error:', error)
+  //     return { success: false, error: error.message }
+  //   }
+  // }, { maxRetries: 2, baseDelay: 1000 }),
 
-      await auditLogger.logMFAAction('MFA_ENABLED', user.id, { method: 'email' })
-      return { success: true, message: 'OTP sent to your email' }
-    } catch (error) {
-      if (error.message === 'No user logged in') {
-        return { success: false, error: 'No user logged in' }
-      }
-      logger.error('Enable MFA error:', error)
-      return { success: false, error: error.message }
-    }
-  }, { maxRetries: 2, baseDelay: 1000 }),
+  // Email MFA is disabled - TOTP only
+  // verifyEmailMFA: withRetry(async function verifyEmailMFA(code) {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser()
+  //     if (!user) return unauthenticatedResponse()
+
+  //     if (!code) {
+  //       return { success: false, error: 'Verification code is required' }
+  //     }
+
+  //     const { data, error } = await supabase.functions.invoke('enable-mfa', {
+  //       body: { action: 'verify-email', code },
+  //     })
+
+  //     if (error) throw error
+  //     if (!data?.success) {
+  //         error: data?.error || 'Invalid or expired code',
+  //       }
+  //     }
+
+  //     return {
+  //       success: true,
+  //       backupCodes: data.backupCodes,
+  //     }
+  //   } catch (error) {
+  //     if (error.message === 'No user logged in') {
+  //       return { success: false, error: 'No user logged in' }
+  //     }
+  //     logger.error('Verify email MFA error:', error)
+  //     return { success: false, error: error.message }
+  //   }
+  // }, { maxRetries: 2, baseDelay: 1000 }),
 
   generateTOTPSecret: withRetry(async function generateTOTPSecret() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+      if (!user) return unauthenticatedResponse()
 
-      const secret = generateOTP(32)
+      // SECURITY: Generate the TOTP secret on the server to prevent client-side tampering
+      const { data, error } = await supabase.functions.invoke('enable-mfa', {
+        body: { action: 'generate', method: 'totp' },
+      })
+
+      if (error) throw error
+      if (!data?.success || !data?.secret) {
+        throw new Error(data?.error || 'Failed to generate TOTP secret')
+      }
+
       return {
         success: true,
-        secret,
-        qrCodeUrl: `otpauth://totp/Qotoof:${user.email}?secret=${secret}&issuer=Qotoof`
+        secret: data.secret,
+        qrCodeUrl: data.qrCodeUrl || `otpauth://totp/Qotoof:${user.email}?secret=${data.secret}&issuer=Qotoof`
       }
     } catch (error) {
       if (error.message === 'No user logged in') {
@@ -157,35 +198,40 @@ export const mfaService = {
     }
   }, { maxRetries: 2, baseDelay: 500 }),
 
-  enableWithTOTP: withRetry(async function enableWithTOTP() {
+  enableWithTOTP: withRetry(async function enableWithTOTP(secret, code) {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+      if (!user) return unauthenticatedResponse()
 
-      const secret = generateOTP(32)
+      if (!secret || !code) {
+        return { success: false, error: 'TOTP secret and verification code are required' }
+      }
 
-      const { error } = await supabase
-        .from('mfa_settings')
-        .upsert({
-          user_id: user.id,
-          is_enabled: true,
+      const { data, error } = await supabase.functions.invoke('enable-mfa', {
+        body: {
           method: 'totp',
-          totp_secret: secret,
-          enabled_at: new Date().toISOString()
-        }, { onConflict: 'user_id' })
+          secret,
+          code,
+        },
+      })
+
       if (error) throw error
+      if (!data?.success) {
+        return {
+          success: false,
+          locked: data?.locked,
+          lockedUntil: data?.lockedUntil,
+          retryAfter: data?.retryAfter,
+          attemptsRemaining: data?.attemptsRemaining,
+          error: data?.error || 'Failed to enable TOTP MFA',
+        }
+      }
 
-      const plainBackupCodes = Array.from({ length: 10 }, () => generateOTP(8))
-      const hashedBackupCodes = await hashBackupCodes(plainBackupCodes)
-
-      const { error: hashError } = await supabase
-        .from('mfa_settings')
-        .update({ totp_backup_codes: hashedBackupCodes })
-        .eq('user_id', user.id)
-      if (hashError) throw hashError
-
-      await auditLogger.logMFAAction('MFA_ENABLED', user.id, { method: 'totp' })
-      return { success: true, secret, backupCodes: plainBackupCodes, qrCodeUrl: `otpauth://totp/Qotoof:${user.email}?secret=${secret}&issuer=Qotoof` }
+      return {
+        success: true,
+        backupCodes: data.backupCodes,
+        qrCodeUrl: `otpauth://totp/Qotoof:${user.email}?secret=${secret}&issuer=Qotoof`,
+      }
     } catch (error) {
       if (error.message === 'No user logged in') {
         return { success: false, error: 'No user logged in' }
@@ -195,30 +241,43 @@ export const mfaService = {
     }
   }, { maxRetries: 2, baseDelay: 1000 }),
 
-  verifyCode: withRetry(async function verifyCode(code) {
+  verifyCode: withRetry(async function verifyCode(code, method = 'email') {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+      if (!user) return unauthenticatedResponse()
 
-      const rateLimit = checkMFARate(user.id)
-      if (!rateLimit.allowed) {
-        throw new Error('Too many attempts. Please try again later.')
+      if (method === 'totp') {
+        const { data, error } = await supabase.functions.invoke('verify-mfa', {
+          body: { method: 'totp', code },
+        })
+        if (error) throw error
+
+        if (data?.success) return { success: true }
+        return {
+          success: false,
+          locked: Boolean(data?.locked),
+          lockedUntil: data?.lockedUntil,
+          retryAfter: data?.retryAfter,
+          attemptsRemaining: data?.attemptsRemaining,
+          error: data?.error || 'Invalid or expired code',
+        }
       }
 
-      const { data: isValid, error } = await supabase.rpc('verify_otp', {
+      const { data: result, error } = await supabase.rpc('verify_otp', {
         p_user_id: user.id,
         p_code: code,
         p_purpose: 'mfa_verify'
       })
       if (error) throw error
 
-      if (!isValid) {
-        await auditLogger.logMFAAction('MFA_VERIFY_FAILED', user.id, { code })
-        return { success: false, error: 'Invalid or expired code' }
+      if (result) {
+        return { success: true }
       }
 
-      await auditLogger.logMFAAction('MFA_VERIFIED', user.id)
-      return { success: true }
+      return {
+        success: false,
+        error: 'Invalid or expired code'
+      }
     } catch (error) {
       if (error.message === 'No user logged in') {
         return { success: false, error: 'No user logged in' }
@@ -231,20 +290,18 @@ export const mfaService = {
   disable: withRetry(async function disable() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+      if (!user) return unauthenticatedResponse()
 
-      const { error } = await supabase
-        .from('mfa_settings')
-        .update({
-          is_enabled: false,
-          method: null,
-          totp_secret: null,
-          totp_backup_codes: null
-        })
-        .eq('user_id', user.id)
+      // SECURITY: Use Edge Function for server-side audit logging
+      const { data, error } = await supabase.functions.invoke('enable-mfa', {
+        body: { action: 'disable' },
+      })
+
       if (error) throw error
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to disable MFA')
+      }
 
-      await auditLogger.logMFAAction('MFA_DISABLED', user.id)
       return { success: true }
     } catch (error) {
       if (error.message === 'No user logged in') {
@@ -258,19 +315,19 @@ export const mfaService = {
   regenerateBackupCodes: withRetry(async function regenerateBackupCodes() {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return { success: false, error: 'No user logged in' }
+      if (!user) return unauthenticatedResponse()
 
-      const plainBackupCodes = Array.from({ length: 10 }, () => generateOTP(8))
-      const hashedBackupCodes = await hashBackupCodes(plainBackupCodes)
+      // SECURITY: Use Edge Function for server-side generation and audit logging
+      const { data, error } = await supabase.functions.invoke('enable-mfa', {
+        body: { action: 'regenerate-backup-codes' },
+      })
 
-      const { error } = await supabase
-        .from('mfa_settings')
-        .update({ totp_backup_codes: hashedBackupCodes })
-        .eq('user_id', user.id)
       if (error) throw error
+      if (!data?.success || !data?.backupCodes) {
+        throw new Error(data?.error || 'Failed to regenerate backup codes')
+      }
 
-      await auditLogger.logMFAAction('MFA_BACKUP_CODES_REGENERATED', user.id)
-      return { success: true, backupCodes: plainBackupCodes }
+      return { success: true, backupCodes: data.backupCodes }
     } catch (error) {
       if (error.message === 'No user logged in') {
         return { success: false, error: 'No user logged in' }
@@ -324,6 +381,14 @@ export const sessionService = {
       }
 
       await auditLogger.logSessionAction('SESSION_CREATED', user.id, { deviceInfo, deviceFingerprint })
+      // SECURITY: Also log server-side via Edge Function
+      try {
+        await supabase.functions.invoke('session-audit', {
+          body: { user_id: user.id, action: 'SESSION_CREATED', metadata: { deviceInfo, deviceFingerprint } },
+        })
+      } catch (auditErr) {
+        logger.debug('Server-side session audit failed:', auditErr)
+      }
     } catch (error) {
       logger.error('Register session error:', error)
     }
@@ -361,6 +426,13 @@ export const sessionService = {
       if (error) throw error
 
       await auditLogger.logSessionAction('SESSION_REVOKED', user.id, { sessionId })
+      try {
+        await supabase.functions.invoke('session-audit', {
+          body: { user_id: user.id, action: 'SESSION_REVOKED', metadata: { sessionId } },
+        })
+      } catch (auditErr) {
+        logger.debug('Server-side session audit failed:', auditErr)
+      }
       return { success: true }
     } catch (error) {
       logger.error('Revoke session error:', error)
@@ -381,6 +453,13 @@ export const sessionService = {
       if (error) throw error
 
       await auditLogger.logSessionAction('SESSIONS_REVOKED_ALL', user.id)
+      try {
+        await supabase.functions.invoke('session-audit', {
+          body: { action: 'SESSIONS_REVOKED_ALL', metadata: {} },
+        })
+      } catch (auditErr) {
+        logger.debug('Server-side session audit failed:', auditErr)
+      }
       return { success: true }
     } catch (error) {
       logger.error('Revoke all sessions error:', error)
@@ -406,6 +485,13 @@ export const sessionService = {
       if (error) throw error
 
       await auditLogger.logSessionAction('SESSION_REVOKED_CURRENT', user.id)
+      try {
+        await supabase.functions.invoke('session-audit', {
+          body: { user_id: user.id, action: 'SESSION_REVOKED_CURRENT', metadata: {} },
+        })
+      } catch (auditErr) {
+        logger.debug('Server-side session audit failed:', auditErr)
+      }
       return { success: true }
     } catch (error) {
       logger.error('Revoke current session error:', error)
@@ -440,31 +526,69 @@ export const autoLogoutService = {
   timer: null,
   warningTimer: null,
   lastActivity: Date.now(),
+  _broadcastChannel: null,
+  _onWarning: null,
+  _onLogout: null,
+
+  _getBroadcastChannel() {
+    if (this._broadcastChannel) return this._broadcastChannel
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      this._broadcastChannel = new BroadcastChannel('qotoof-auto-logout')
+      this._broadcastChannel.onmessage = (event) => {
+        if (event?.data?.type === 'activity') {
+          this.lastActivity = Date.now()
+          this._resetTimers()
+        } else if (event?.data?.type === 'logout') {
+          if (this._onLogout) this._onLogout()
+        }
+      }
+    }
+    return this._broadcastChannel
+  },
+
+  _postBroadcast(type) {
+    try {
+      this._getBroadcastChannel()?.postMessage({ type })
+    } catch {
+      // BroadcastChannel may be closed or unavailable
+    }
+  },
+
+  _resetTimers() {
+    if (this.timer) { clearTimeout(this.timer); this.timer = null }
+    if (this.warningTimer) { clearTimeout(this.warningTimer); this.warningTimer = null }
+
+    this.warningTimer = setTimeout(() => {
+      if (this._onWarning) this._onWarning(this.IDLE_TIMEOUT - this.warningTimeout)
+    }, this.warningTimeout)
+
+    this.timer = setTimeout(() => {
+      this.performLogout(this._onLogout)
+    }, this.IDLE_TIMEOUT)
+  },
 
   start(onWarning, onLogout) {
     this.stop()
     this.lastActivity = Date.now()
+    this._onWarning = onWarning
+    this._onLogout = onLogout
 
-    this.warningTimer = setTimeout(() => {
-      if (onWarning) onWarning(this.IDLE_TIMEOUT - this.warningTimeout)
-    }, this.warningTimeout)
-
-    this.timer = setTimeout(() => {
-      this.performLogout(onLogout)
-    }, this.IDLE_TIMEOUT)
-
+    this._resetTimers()
     this.addActivityListeners()
   },
 
   stop() {
     if (this.timer) { clearTimeout(this.timer); this.timer = null }
     if (this.warningTimer) { clearTimeout(this.warningTimer); this.warningTimer = null }
+    this._onWarning = null
+    this._onLogout = null
     this.removeActivityListeners()
   },
 
   reset() {
     this.lastActivity = Date.now()
-    this.start(() => {}, () => {})
+    this._resetTimers()
+    this._postBroadcast('activity')
   },
 
   async performLogout(onLogout) {
@@ -481,6 +605,7 @@ export const autoLogoutService = {
       secureStorage.clear()
       clearSupabaseLocalStorage()
       await supabase.auth.signOut()
+      this._postBroadcast('logout')
       if (onLogout) onLogout()
     } catch (error) {
       logger.error('Auto logout error:', error)

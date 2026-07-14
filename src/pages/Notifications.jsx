@@ -33,7 +33,7 @@ import {
   isWithinQuietHours,
   notificationsApi,
   normalizeNotificationPreferences,
-} from '@/services/notifications'
+} from '@/modules/notifications'
 
 const NOTIFICATIONS_PER_PAGE = 20
 

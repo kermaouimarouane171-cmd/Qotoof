@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { requireRole } from '../_shared/auth.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,20 +57,22 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Authenticate and verify buyer role (API-002)
+    let user: { id: string }
+    try {
+      const auth = await requireRole(req, ['buyer'])
+      user = { id: auth.userId }
+    } catch (error) {
+      if (error instanceof Response) {
+        const status = error.status
+        const message = status === 401 ? 'Authentication required' : 'Access restricted to buyers only'
+        return new Response(
+          JSON.stringify({ success: false, error: message }),
+          { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        )
+      }
       return new Response(
         JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      )
-    }
-
-    const token = authHeader.split(' ')[1]
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid or expired token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       )
     }

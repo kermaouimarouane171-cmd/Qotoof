@@ -1,5 +1,5 @@
 import { supabase } from '@/services/supabase'
-import { notificationsApi } from '@/services/notifications'
+import { notificationsApi } from '@/modules/notifications'
 import { logger } from '@/utils/logger'
 
 const getAdminUsers = async () => {

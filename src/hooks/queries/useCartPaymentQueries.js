@@ -4,7 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { hydrateRowsWithProductField, isProductImagesRelationError } from '@/services/productImages'
+import { hydrateRowsWithProductField, isProductImagesRelationError } from '@/modules/catalog'
 import { supabase } from '@/services/supabase'
 import { CACHE_CONFIG } from '@/constants/apiEndpoints'
 
@@ -26,8 +26,14 @@ export const paymentKeys = {
 
 // ══════════════════════════════════════════
 // CART QUERIES
+// DB-004/ARCH-003: These DB-backed cart hooks are DEPRECATED for Beta.
+// The Zustand cartStore (src/modules/cart/stores/cartStore.js) is the
+// single source of truth for the buyer cart. These hooks query the
+// `cart_items` table directly and are not used by any component.
+// Do NOT use these in buyer checkout — use useCartStore instead.
 // ══════════════════════════════════════════
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useCart = (options = {}) => {
   return useQuery({
     queryKey: cartKeys.items(),
@@ -77,6 +83,7 @@ export const useCart = (options = {}) => {
   })
 }
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useCartCount = (options = {}) => {
   return useQuery({
     queryKey: cartKeys.count(),
@@ -102,6 +109,7 @@ export const useCartCount = (options = {}) => {
 // CART MUTATIONS
 // ══════════════════════════════════════════
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useAddToCart = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -151,6 +159,7 @@ export const useAddToCart = () => {
   })
 }
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useUpdateCartItem = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -171,6 +180,7 @@ export const useUpdateCartItem = () => {
   })
 }
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useRemoveFromCart = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -188,6 +198,7 @@ export const useRemoveFromCart = () => {
   })
 }
 
+/** @deprecated Use useCartStore from @/modules/cart instead. */
 export const useClearCart = () => {
   const queryClient = useQueryClient()
   return useMutation({
@@ -212,6 +223,11 @@ export const useClearCart = () => {
 // PAYMENT QUERIES
 // ══════════════════════════════════════════
 
+/**
+ * DB-001 FIX: payments table has no user_id column.
+ * Query through orders.buyer_id instead.
+ * @deprecated Consider using orders API directly for payment history.
+ */
 export const usePaymentHistory = (filters = {}, options = {}) => {
   return useQuery({
     queryKey: paymentKeys.history(filters),
@@ -219,10 +235,11 @@ export const usePaymentHistory = (filters = {}, options = {}) => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      // DB-001: payments has no user_id — filter through orders.buyer_id
       let query = supabase
         .from('payments')
-        .select('*, order:orders(id, status, total_amount)')
-        .eq('user_id', session.user.id)
+        .select('*, order:orders!inner(id, status, total_amount, buyer_id)')
+        .eq('order.buyer_id', session.user.id)
         .order('created_at', { ascending: false })
 
       if (filters.status) {
@@ -271,11 +288,11 @@ export const useCreatePayment = () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
 
+      // DB-001: payments table has no user_id column — omit it
       const { data, error } = await supabase
         .from('payments')
         .insert({
           order_id: orderId,
-          user_id: session.user.id,
           amount,
           payment_method: method,
           status: 'pending',

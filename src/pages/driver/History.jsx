@@ -6,7 +6,6 @@ import ErrorBoundary from '@/components/ErrorBoundary'
 import { Card, Badge, EmptyState, ErrorState, StateSkeleton as Skeleton } from '@/components/ui'
 import { formatPrice } from '@/utils/currency'
 import {
-  ClockIcon,
   TruckIcon,
   MapPinIcon,
   ChevronLeftIcon,

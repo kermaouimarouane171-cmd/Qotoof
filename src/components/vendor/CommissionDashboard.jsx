@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, LoadingSpinner, Modal } from '@/components/ui'
-import { commissionService } from '@/services/commissionService'
+import { commissionService } from '@/modules/commissions'
 import { useTranslation } from 'react-i18next'
 import {
   CurrencyDollarIcon,

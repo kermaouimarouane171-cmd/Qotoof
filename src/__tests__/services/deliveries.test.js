@@ -63,6 +63,12 @@ const mockCreateQueryBuilder = (table) => {
       state.filters.push({ field, value })
       return builder
     }),
+    in: jest.fn((field, values) => {
+      state.filters.push({ field, value: values })
+      return builder
+    }),
+    order: jest.fn(() => builder),
+    limit: jest.fn(() => builder),
     maybeSingle: jest.fn(() => {
       state.terminal = 'maybeSingle'
       return builder
@@ -114,6 +120,7 @@ import {
   subscribeToDeliveryUpdates,
   updateDeliveryStatus,
 } from '@/services/deliveries'
+import { deliveriesApi } from '@/services/deliveries'
 
 const mockSupabase = globalThis.__mockSupabase
 
@@ -330,5 +337,63 @@ describe('deliveries service', () => {
       data: null,
       error,
     })
+  })
+})
+
+describe('getBuyerActiveDelivery (B-06)', () => {
+  beforeEach(() => {
+    mockSupabaseState.queryResolver.mockReset()
+  })
+
+  it('returns null when buyer has no active orders', async () => {
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      if (state.table === 'orders') {
+        return { data: [], error: null }
+      }
+      return { data: null, error: null }
+    })
+
+    const result = await deliveriesApi.getBuyerActiveDelivery('buyer-1')
+    expect(result).toBeNull()
+  })
+
+  it('returns active delivery for buyer with active orders', async () => {
+    const mockDelivery = {
+      id: 'del-1',
+      order_id: 'order-1',
+      driver_id: 'driver-1',
+      status: 'on_the_way',
+      current_latitude: '34.05',
+      current_longitude: '-6.81',
+      driver: { first_name: 'Ahmed' },
+      order: { order_number: 'ORD-001', total: 150 },
+    }
+
+    let callCount = 0
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      callCount++
+      if (state.table === 'orders') {
+        return { data: [{ id: 'order-1' }, { id: 'order-2' }], error: null }
+      }
+      return { data: mockDelivery, error: null }
+    })
+
+    const result = await deliveriesApi.getBuyerActiveDelivery('buyer-1')
+
+    expect(result).toEqual(mockDelivery)
+    expect(mockSupabase.from).toHaveBeenCalledWith('orders')
+    expect(mockSupabase.from).toHaveBeenCalledWith('deliveries')
+  })
+
+  it('throws when orders query fails', async () => {
+    mockSupabaseState.queryResolver.mockImplementation((state) => {
+      if (state.table === 'orders') {
+        return { data: null, error: { message: 'RLS violation' } }
+      }
+      return { data: null, error: null }
+    })
+
+    await expect(deliveriesApi.getBuyerActiveDelivery('buyer-1'))
+      .rejects.toMatchObject({ message: 'RLS violation' })
   })
 })

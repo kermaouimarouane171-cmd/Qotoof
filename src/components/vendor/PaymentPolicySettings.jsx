@@ -6,35 +6,36 @@ import {
   TruckIcon,
 } from '@heroicons/react/24/outline'
 import { Card, Modal } from '@/components/ui'
-
-const PAYMENT_OPTIONS = [
-  {
-    key: 'full',
-    title: 'دفع كامل قبل التنفيذ',
-    description: 'يدفع المشتري كامل قيمة الطلب قبل بدء التجهيز أو الشحن.',
-    icon: BanknotesIcon,
-    panelClassName: 'border-emerald-200 bg-emerald-50/60',
-    iconClassName: 'bg-emerald-100 text-emerald-700',
-  },
-  {
-    key: 'split',
-    title: 'دفع مرحلي 50% + 50%',
-    description: '50% عند تأكيد الطلب و50% بعد تأكيد التوصيل أو قبل التسليم النهائي.',
-    icon: ShieldCheckIcon,
-    panelClassName: 'border-amber-200 bg-amber-50/70',
-    iconClassName: 'bg-amber-100 text-amber-700',
-  },
-  {
-    key: 'cod',
-    title: 'الدفع عند الاستلام',
-    description: 'متاح فقط للمشترين المؤهلين وفق درجة الثقة وسجل الالتزام السابق.',
-    icon: TruckIcon,
-    panelClassName: 'border-rose-200 bg-rose-50/70',
-    iconClassName: 'bg-rose-100 text-rose-700',
-  },
-]
+import { useTranslation } from 'react-i18next'
 
 const PaymentPolicySettings = ({ value, onChange, disabled = false, error }) => {
+  const { t } = useTranslation()
+  const PAYMENT_OPTIONS = [
+    {
+      key: 'full',
+      title: t('vendor.paymentPolicy.options.full.title', 'دفع كامل قبل التنفيذ'),
+      description: t('vendor.paymentPolicy.options.full.desc', 'يدفع المشتري كامل قيمة الطلب قبل بدء التجهيز أو الشحن.'),
+      icon: BanknotesIcon,
+      panelClassName: 'border-emerald-200 bg-emerald-50/60',
+      iconClassName: 'bg-emerald-100 text-emerald-700',
+    },
+    {
+      key: 'split',
+      title: t('vendor.paymentPolicy.options.split.title', 'دفع مرحلي 50% + 50%'),
+      description: t('vendor.paymentPolicy.options.split.desc', '50% عند تأكيد الطلب و50% بعد تأكيد التوصيل أو قبل التسليم النهائي.'),
+      icon: ShieldCheckIcon,
+      panelClassName: 'border-amber-200 bg-amber-50/70',
+      iconClassName: 'bg-amber-100 text-amber-700',
+    },
+    {
+      key: 'cod',
+      title: t('vendor.paymentPolicy.options.cod.title', 'الدفع عند الاستلام'),
+      description: t('vendor.paymentPolicy.options.cod.desc', 'متاح فقط للمشترين المؤهلين وفق درجة الثقة وسجل الالتزام السابق.'),
+      icon: TruckIcon,
+      panelClassName: 'border-rose-200 bg-rose-50/70',
+      iconClassName: 'bg-rose-100 text-rose-700',
+    },
+  ]
   const [showCodWarning, setShowCodWarning] = useState(false)
 
   const enabledPoliciesCount = useMemo(

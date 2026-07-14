@@ -5,7 +5,7 @@ import { formatPrice } from '@/utils/currency'
 import {
   getCargoSizeLabel,
   getDriverDeliveryPaymentMethodLabel,
-} from '@/services/deliveryMatchingService'
+} from '@/modules/delivery'
 
 const OrderSummary = ({
   items,

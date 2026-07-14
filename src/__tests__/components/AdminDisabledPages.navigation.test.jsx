@@ -7,37 +7,40 @@ const protectedRouteSource = fs.readFileSync(protectedRoutePath, 'utf-8')
 const appRouterPath = path.resolve(__dirname, '../../router/AppRouter.jsx')
 const appRouterSource = fs.readFileSync(appRouterPath, 'utf-8')
 
-describe('Admin disabled pages — fraud-reports and disputes are not reachable', () => {
-  test('/admin/fraud-reports link is commented out in adminLinks', () => {
-    // The line containing fraud-reports must be preceded by // (commented out)
-    expect(protectedRouteSource).toMatch(/\/\/ \{ to: '\/admin\/fraud-reports'/)
+describe('Admin recovered pages — fraud-reports and disputes are reachable', () => {
+  test('/admin/fraud-reports link is active in adminLinks', () => {
+    expect(protectedRouteSource).toMatch(/\{ to: '\/admin\/fraud-reports'/)
+    expect(protectedRouteSource).not.toMatch(/\/\/ \{ to: '\/admin\/fraud-reports'/)
   })
 
-  test('/admin/disputes link is commented out in adminLinks', () => {
-    expect(protectedRouteSource).toMatch(/\/\/ \{ to: '\/admin\/disputes'/)
+  test('/admin/disputes link is active in adminLinks', () => {
+    expect(protectedRouteSource).toMatch(/\{ to: '\/admin\/disputes'/)
+    expect(protectedRouteSource).not.toMatch(/\/\/ \{ to: '\/admin\/disputes'/)
   })
 
-  test('fraud-reports route is commented out in AppRouter', () => {
-    // JSX comment syntax: {/* <Route path="fraud-reports" ... */}
-    expect(appRouterSource).toMatch(/\{\s*\/\*.*<Route path="fraud-reports"/)
+  test('fraud-reports route is active in AppRouter', () => {
+    expect(appRouterSource).toMatch(/<Route path="fraud-reports"/)
+    expect(appRouterSource).not.toMatch(/\{\s*\/\*.*<Route path="fraud-reports"/)
   })
 
-  test('disputes route is commented out in AppRouter', () => {
-    expect(appRouterSource).toMatch(/\{\s*\/\*.*<Route path="disputes"/)
+  test('disputes route is active in AppRouter', () => {
+    expect(appRouterSource).toMatch(/<Route path="disputes"/)
+    expect(appRouterSource).not.toMatch(/\{\s*\/\*.*<Route path="disputes"/)
   })
 
-  test('AdminFraudReports lazy import is commented out', () => {
-    expect(appRouterSource).toMatch(/\/\/ const AdminFraudReports/)
+  test('AdminFraudReports lazy import is active', () => {
+    expect(appRouterSource).toMatch(/const AdminFraudReports\s*=\s*lazy/)
+    expect(appRouterSource).not.toMatch(/\/\/ const AdminFraudReports/)
   })
 
-  test('AdminDisputeManagement lazy import is commented out', () => {
-    expect(appRouterSource).toMatch(/\/\/ const AdminDisputeManagement/)
+  test('AdminDisputeManagement lazy import is active', () => {
+    expect(appRouterSource).toMatch(/const AdminDisputeManagement\s*=\s*lazy/)
+    expect(appRouterSource).not.toMatch(/\/\/ const AdminDisputeManagement/)
   })
 
-  test('contains comments explaining temporary disablement due to missing DB tables', () => {
-    expect(protectedRouteSource).toContain('fraud_reports table does not exist')
-    expect(protectedRouteSource).toContain('payment_disputes table does not exist')
-    expect(appRouterSource).toContain('fraud_reports')
-    expect(appRouterSource).toContain('payment_disputes')
+  test('stale "table does not exist" comments are removed', () => {
+    expect(protectedRouteSource).not.toContain('fraud_reports table does not exist')
+    expect(protectedRouteSource).not.toContain('payment_disputes table does not exist')
+    expect(appRouterSource).not.toContain('TEMPORARILY DISABLED')
   })
 })

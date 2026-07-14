@@ -15,8 +15,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
-import { USER_ROLES } from '@/constants/roles';
+import { useAuthStore, USER_ROLES } from '@/modules/auth';
 import {
   checkOnboardingNeeded,
   getOnboardingPathForRole,
@@ -47,7 +46,6 @@ export function useOnboardingGate() {
   const profileError        = useAuthStore((s) => s.profileError);
 
   // Kept as full objects only where identity comparison is intentional:
-  const user    = useAuthStore((s) => s.user);
   const profile = useAuthStore((s) => s.profile);
 
   const [pendingPhoneVerification, setPendingPhoneVerification] = useState(
@@ -139,7 +137,6 @@ export function useOnboardingGate() {
         timeoutId = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, onboardingCompleted, profileRole, userId]);
 
   // 5. Redirect to/from the onboarding path based on resolved state
@@ -161,7 +158,6 @@ export function useOnboardingGate() {
     if (!needsOnboarding && isOnboardingPath) {
       navigate(getPostOnboardingPath(profileRole), { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, navigate, needsOnboarding, onboardingResolved, profileRole, userId]);
 
   // Block rendering while phone verification or onboarding state is unresolved.

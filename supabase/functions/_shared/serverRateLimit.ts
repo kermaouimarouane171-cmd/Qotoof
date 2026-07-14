@@ -1,6 +1,7 @@
 export const getClientIp = (req: Request) => {
   const forwardedFor = req.headers.get('x-forwarded-for') || ''
-  return forwardedFor.split(',')[0]?.trim() || 'unknown'
+  const realIp = req.headers.get('x-real-ip') || ''
+  return forwardedFor.split(',')[0]?.trim() || realIp.trim() || 'unknown'
 }
 
 export const getClientUserAgent = (req: Request) => req.headers.get('user-agent') || 'unknown'
@@ -67,12 +68,20 @@ export const getCorsHeaders = (req: Request): Record<string, string> => {
 }
 
 /**
- * Legacy static headers kept for OPTIONS responses in older functions.
- * Prefer getCorsHeaders(req) in all new and updated handlers.
- * NOTE: 'Access-Control-Allow-Origin' is intentionally absent here;
- * call getCorsHeaders(req) to obtain origin-scoped CORS headers.
+ * Build CORS headers for OPTIONS responses.
+ * Returns full CORS headers including Access-Control-Allow-Origin scoped to the request.
+ */
+export const corsOptionsHeaders = (req: Request): Record<string, string> => {
+  return getSharedCorsHeaders(req.headers.get('Origin')) as Record<string, string>
+}
+
+/**
+ * Legacy static headers — DEPRECATED.
+ * Use corsOptionsHeaders(req) or getCorsHeaders(req) instead.
+ * Kept only for backward compatibility; includes a wildcard origin as a safe fallback.
  */
 export const jsonHeaders = {
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
@@ -96,7 +105,9 @@ export const json = (
   const extra: Record<string, string> = reqOrExtraHeaders instanceof Request
     ? extraHeaders
     : (reqOrExtraHeaders ?? {})
-  const corsHdrs = req ? getCorsHeaders(req) : {}
+  const corsHdrs = req
+    ? getCorsHeaders(req)
+    : { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' }
   return new Response(JSON.stringify(body), {
     status,
     headers: {

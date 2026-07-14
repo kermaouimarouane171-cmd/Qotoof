@@ -25,7 +25,7 @@ import {
   notificationsApi,
   resolveNotificationLink,
   shouldMuteNotificationPreview,
-} from '@/services/notifications'
+} from '@/modules/notifications'
 import { supabase } from '@/services/supabase'
 
 describe('notifications helpers', () => {

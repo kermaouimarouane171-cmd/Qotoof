@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 
 describe('COD / Bank Transfer payment schema compliance', () => {
-  const filePath = path.resolve(__dirname, '../../services/paymentGateway.js')
+  const filePath = path.resolve(__dirname, '../../modules/payments/api/paymentGateway.js')
   const source = fs.readFileSync(filePath, 'utf-8')
 
   // Extract processCodPayment method body

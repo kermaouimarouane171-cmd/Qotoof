@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { supabase } from '@/services/supabase'
 import { emailService } from '@/services/emailService'
 import { Card, LoadingSpinner } from '@/components/ui'
+import AuthGate from '@/components/auth/AuthGate'
 import { formatPrice } from '@/utils/currency'
 import {
   ArrowPathIcon,
@@ -15,7 +16,6 @@ import {
   EyeIcon,
   PhotoIcon,
   XMarkIcon,
-  LockClosedIcon,
 } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 import { logger } from '@/utils/logger'
@@ -146,23 +146,6 @@ const PolicyTab = ({ t }) => (
       </div>
     </Card>
   </div>
-)
-
-// ============================================
-// Auth Gate
-// ============================================
-
-const AuthGate = ({ t, tabLabel }) => (
-  <Card className="p-12 text-center">
-    <LockClosedIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-    <h3 className="text-lg font-semibold text-gray-900 mb-2">{t('returns.authRequired.title', 'Sign in required')}</h3>
-    <p className="text-gray-500 mb-6">
-      {t('returns.authRequired.desc', 'You need to be signed in to access {{tab}}.', { tab: tabLabel })}
-    </p>
-    <Link to="/login" className="btn-primary inline-flex items-center gap-2">
-      {t('returns.authRequired.signIn', 'Sign In')}
-    </Link>
-  </Card>
 )
 
 // ============================================
@@ -584,12 +567,12 @@ const Returns = () => {
       {activeTab === 'request' && (
         user
           ? <RequestTab t={t} user={user} navigate={navigate} />
-          : <AuthGate t={t} tabLabel={t('returns.tabs.request', 'Request Return')} />
+          : <AuthGate title={t('returns.authRequired.title', 'Sign in required')} message={t('returns.authRequired.desc', 'You need to be signed in to access {{tab}}.', { tab: t('returns.tabs.request', 'Request Return') })} from="/returns" />
       )}
       {activeTab === 'history' && (
         user
           ? <HistoryTab t={t} user={user} navigate={navigate} />
-          : <AuthGate t={t} tabLabel={t('returns.tabs.history', 'My Returns')} />
+          : <AuthGate title={t('returns.authRequired.title', 'Sign in required')} message={t('returns.authRequired.desc', 'You need to be signed in to access {{tab}}.', { tab: t('returns.tabs.history', 'My Returns') })} from="/returns" />
       )}
     </div>
   )

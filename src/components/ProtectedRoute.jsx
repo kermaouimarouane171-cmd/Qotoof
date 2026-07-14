@@ -1,12 +1,15 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { Navigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { USER_ROLES } from '@/constants/roles';
+import { Logo } from '@/components/ui';
 import Navbar from '@/components/Navbar';
 import NotificationLink from '@/components/notifications/NotificationLink';
 import {
   ChartBarIcon,
   ShoppingBagIcon,
   ClipboardDocumentListIcon,
+  BuildingStorefrontIcon,
   UsersIcon,
   Cog6ToothIcon,
   TruckIcon,
@@ -16,18 +19,32 @@ import {
   HomeIcon,
   DocumentChartBarIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon,
-  FlagIcon,
   ArrowRightOnRectangleIcon,
   ChatBubbleLeftRightIcon,
-  Bars3Icon,
   XMarkIcon,
   UserCircleIcon,
+  FlagIcon,
+  ExclamationTriangleIcon,
+  HeartIcon,
+  ShoppingCartIcon,
+  MoonIcon,
+  SunIcon,
+  BanknotesIcon,
+  ArrowUturnLeftIcon,
+  WrenchScrewdriverIcon,
+  ClockIcon,
+  DocumentCheckIcon,
+  CalculatorIcon,
 } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon as ShoppingCartSolid } from '@heroicons/react/24/solid';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/modules/cart';
+import { useLanguageStore } from '@/store/languageStore';
+import { useDarkMode } from '@/hooks/useDarkMode';
 import { useOnboardingGate } from '@/orchestrators/OnboardingOrchestrator';
 import { usePaymentGuard } from '@/contexts/PaymentGuard';
+import { CartAbandonmentRecovery } from '@/components/ui';
 import { useMobileKeyboardGuard } from '@/hooks/useMobileKeyboardGuard';
 
 /**
@@ -40,7 +57,7 @@ const LoadingFallback = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="text-center">
         <div className="inline-block">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
         </div>
         <p className="mt-4 text-gray-600">{t('common.loading', 'Loading...')}</p>
       </div>
@@ -62,11 +79,48 @@ const AuthTimeoutFallback = ({ onRetry }) => {
         </p>
         <button
           type="button"
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+          className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
           onClick={onRetry}
         >
           {t('auth.timeout.retry', 'Retry')}
         </button>
+      </div>
+    </div>
+  )
+}
+
+const ProfileErrorFallback = ({ onRetry }) => {
+  const { t } = useTranslation();
+  const signOut = useAuthStore((s) => s.signOut);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="text-center max-w-md px-6">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+          <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+        </div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          {t('auth.profileError.title', 'Profile could not be loaded')}
+        </h2>
+        <p className="text-gray-600 mb-6">
+          {t('auth.profileError.description', 'Your account was created but we could not load your profile. This may be a temporary issue. Please try again or log out and log back in.')}
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg bg-primary-600 text-white hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            onClick={onRetry}
+          >
+            {t('auth.timeout.retry', 'Retry')}
+          </button>
+          <button
+            type="button"
+            className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+            onClick={() => signOut()}
+          >
+            {t('auth.logout', 'Log out')}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -86,8 +140,16 @@ export const ProtectedRoute = ({
   requiredRole = null,
   allowedRoles = [],
 }) => {
-  // Use Supabase-based auth store instead of broken custom middleware
-  const { user, profile, loading, profileLoading, profileError, mfaRequired, mfaPending } = useAuthStore();
+  // Use individual selectors to avoid re-rendering on unrelated store changes
+  // (e.g. deviceFingerprint, session, autoLogoutWarning) that cause the entire
+  // ProtectedRoute to re-render and potentially trigger redirect loops.
+  const user           = useAuthStore((s) => s.user);
+  const profile        = useAuthStore((s) => s.profile);
+  const loading        = useAuthStore((s) => s.loading);
+  const profileLoading = useAuthStore((s) => s.profileLoading);
+  const profileError   = useAuthStore((s) => s.profileError);
+  const mfaRequired    = useAuthStore((s) => s.mfaRequired);
+  const mfaPending     = useAuthStore((s) => s.mfaPending);
   const { isBlocking } = useOnboardingGate();
   const { shouldRedirect, redirectTo, message } = usePaymentGuard();
   const location = useLocation();
@@ -138,11 +200,11 @@ export const ProtectedRoute = ({
   }
 
   // Incomplete buyer profile: allow onboarding + public marketplace paths (avoid login/dashboard loops).
-  const buyerNeedsOnboarding = profile?.role === 'buyer' && profile?.onboarding_completed === false
+  const buyerNeedsOnboarding = profile?.role === USER_ROLES.BUYER && profile?.onboarding_completed === false
   const buyerPublicPaths = isOnboardingPath
     || /^\/(marketplace|cart|checkout|product|products|stores|favorites|search)(\/|$)/.test(location.pathname)
 
-  if (buyerNeedsOnboarding && !buyerPublicPaths && requiredRole === 'buyer') {
+  if (buyerNeedsOnboarding && !buyerPublicPaths && requiredRole === USER_ROLES.BUYER) {
     return <Navigate to="/onboarding/buyer" replace />;
   }
 
@@ -155,6 +217,11 @@ export const ProtectedRoute = ({
       return <Navigate to="/unauthorized" replace />;
     }
   } else if (requiredRole || allowedRoles.length > 0) {
+    // Profile is null. If profileError is true, the profile fetch has permanently
+    // failed — show an error state with retry/logout instead of spinning forever.
+    if (profileError) {
+      return <ProfileErrorFallback onRetry={handleRetry} />;
+    }
     return <LoadingFallback />;
   }
 
@@ -185,51 +252,204 @@ export const ProtectedRoute = ({
 export const DefaultLayout = () => <Outlet />;
 
 /**
-/**
  * MainLayout - Full public layout with Navbar + Footer
+ * Adds role-aware mobile bottom nav + mobile header for buyers on mobile.
  */
 export const MainLayout = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const user    = useAuthStore((s) => s.user);
+  const profile = useAuthStore((s) => s.profile);
+  const signOut = useAuthStore((s) => s.signOut);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const cartItems = useCartStore((s) => s.items);
+  const cartCount = cartItems.length;
+  const { language, setLanguage } = useLanguageStore();
+  const { isDark: dark, toggle: toggleDark } = useDarkMode();
+  useMobileKeyboardGuard();
+
+  const isBuyer = profile?.role === USER_ROLES.BUYER;
+  const isGuest = !user;
+  const isAuthenticated = Boolean(user || profile);
+  const role = profile?.role || USER_ROLES.GUEST;
+
+  const roleProfilePath = {
+    [USER_ROLES.BUYER]: '/buyer/settings',
+    [USER_ROLES.VENDOR]: '/vendor/profile',
+    [USER_ROLES.DRIVER]: '/driver/profile',
+    [USER_ROLES.ADMIN]: '/admin/settings',
+  }[role] || '/login';
+
+  const roleDashboardPath = {
+    [USER_ROLES.BUYER]: '/marketplace',
+    [USER_ROLES.VENDOR]: '/vendor/dashboard',
+    [USER_ROLES.DRIVER]: '/driver/dashboard',
+    [USER_ROLES.ADMIN]: '/admin/dashboard',
+  }[role] || null;
+
+  const mainTabs = isBuyer
+    ? [
+        { to: '/marketplace', icon: ShoppingBagIcon, label: t('layout.buyer.mobileTabs.marketplace', 'السوق') },
+        { to: '/cart', icon: ShoppingCartIcon, label: t('layout.buyer.mobileTabs.cart', 'السلة') },
+        { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: t('layout.buyer.mobileTabs.orders', 'طلباتي') },
+        { to: '/buyer/tracking', icon: TruckIcon, label: t('layout.buyer.mobileTabs.tracking', 'تتبع') },
+        { to: '/buyer/settings', icon: Cog6ToothIcon, label: t('layout.buyer.mobileTabs.settings', 'الإعدادات') },
+      ]
+    : isGuest
+    ? [
+        { to: '/', icon: HomeIcon, label: t('layout.buyer.mobileTabs.home', 'Home') },
+        { to: '/marketplace', icon: ShoppingBagIcon, label: t('layout.buyer.mobileTabs.marketplace', 'Market') },
+        { to: '/stores', icon: BuildingStorefrontIcon, label: t('layout.buyer.mobileTabs.stores', 'المتاجر') },
+        { to: '/tracking', icon: TruckIcon, label: t('layout.buyer.mobileTabs.tracking', 'تتبع') },
+      ]
+    : [
+        { to: '/', icon: HomeIcon, label: t('layout.buyer.mobileTabs.home', 'Home') },
+        { to: '/marketplace', icon: ShoppingBagIcon, label: t('layout.buyer.mobileTabs.marketplace', 'Market') },
+        { to: '/stores', icon: BuildingStorefrontIcon, label: t('layout.buyer.mobileTabs.stores', 'المتاجر') },
+      ];
+
+  const mainMobileActions = (
+    <div className="flex items-center gap-1">
+      <Link
+          to="/favorites"
+          className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label={t('nav.favorites', 'المفضلة')}
+        >
+          <HeartIcon className="w-5.5 h-5.5" style={{ width: '22px', height: '22px' }} />
+        </Link>
+
+      <Link
+        to="/cart"
+        className="relative inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        aria-label={t('nav.cart', 'السلة')}
+      >
+        {cartCount > 0 ? (
+          <ShoppingCartSolid className="text-primary-600" style={{ width: '22px', height: '22px' }} />
+        ) : (
+          <ShoppingCartIcon style={{ width: '22px', height: '22px' }} />
+        )}
+        {cartCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-primary-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+            {cartCount > 9 ? '9+' : cartCount}
+          </span>
+        )}
+      </Link>
+
+      {/* Notifications — only for authenticated users */}
+      {isAuthenticated && (
+        <NotificationLink
+          ariaLabel={t('nav.notifications', 'الإشعارات')}
+          className="relative inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          iconClassName="w-[22px] h-[22px]"
+          badgeClassName="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none"
+        />
+      )}
+
+      {isAuthenticated ? (
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label={t('layout.shared.profile', 'الحساب')}
+        >
+          <UserCircleIcon style={{ width: '24px', height: '24px' }} />
+        </button>
+      ) : (
+        <Link
+          to="/login"
+          className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          aria-label={t('auth.login.signIn', 'Sign In')}
+        >
+          <UserCircleIcon style={{ width: '24px', height: '24px' }} />
+        </Link>
+      )}
+
+      <button
+        onClick={toggleDark}
+        className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        aria-label={dark ? t('nav.lightMode', 'Light mode') : t('nav.darkMode', 'Dark mode')}
+      >
+        {dark ? <SunIcon style={{ width: '22px', height: '22px' }} /> : <MoonIcon style={{ width: '22px', height: '22px' }} />}
+      </button>
+
+      <button
+        onClick={() => {
+          const langs = ['ar', 'fr', 'en'];
+          const currentIdx = langs.indexOf(language || i18n.language || 'ar');
+          const nextLang = langs[(currentIdx + 1) % langs.length];
+          setLanguage(nextLang);
+        }}
+        className="inline-flex items-center justify-center w-11 h-11 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-[11px] font-bold"
+        aria-label={t('nav.changeLanguage', 'Change language')}
+      >
+        {(language || i18n.language || 'ar').toUpperCase().slice(0, 2)}
+      </button>
+    </div>
+  );
+
+  const buyerMainLinks = [
+    { to: '/buyer/dashboard', icon: ChartBarIcon, label: t('layout.buyer.links.dashboard', 'لوحة التحكم') },
+    { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: t('layout.buyer.links.orders', 'طلباتي') },
+    { to: '/buyer/addresses', icon: MapIcon, label: t('layout.buyer.links.addresses', 'العناوين') },
+    { to: '/buyer/coupons', icon: CurrencyDollarIcon, label: t('layout.buyer.links.coupons', 'الكوبونات') },
+    { to: '/buyer/loyalty', icon: StarIcon, label: t('layout.buyer.links.loyalty', 'نقاط الولاء') },
+    { to: '/buyer/shopping-lists', icon: ShoppingBagIcon, label: t('layout.buyer.links.shoppingLists', 'قوائم التسوق') },
+    { to: '/buyer/rfq', icon: DocumentChartBarIcon, label: t('layout.buyer.links.rfq', 'طلب عروض') },
+    { to: '/buyer/security', icon: ShieldCheckIcon, label: t('layout.buyer.links.security', 'الأمان') },
+    { to: '/buyer/settings', icon: Cog6ToothIcon, label: t('layout.buyer.links.settings', 'الإعدادات') },
+    { to: '/profile', icon: UserCircleIcon, label: t('layout.buyer.links.profile', 'الملف الشخصي') },
+  ];
+
+  const nonBuyerMainLinks = [
+    ...(roleDashboardPath ? [{ to: roleDashboardPath, icon: ChartBarIcon, label: t('nav.dashboard', 'لوحة التحكم') }] : []),
+    { to: '/profile', icon: UserCircleIcon, label: t('layout.buyer.links.profile', 'الملف الشخصي') },
+    { to: roleProfilePath, icon: Cog6ToothIcon, label: t('layout.buyer.links.settings', 'الإعدادات') },
+  ];
 
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-950">
       <Navbar />
-      <a id="main-content" className="sr-only" href="#main" tabIndex={-1} aria-hidden="true">{t('layout.main.skipToContent', 'Skip to main content')}</a>
-      <main className="flex-1">
+      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:right-4 focus:z-50 focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-white focus:shadow-lg">
+        {t('layout.main.skipToContent', 'Skip to main content')}
+      </a>
+      <main id="main" className="flex-1 mobile-safe-top-offset mobile-safe-bottom-offset">
         <Outlet />
       </main>
-      <footer className="bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-auto">
+      <footer className="hidden md:block bg-gray-50 dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 mt-auto">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-6">
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 bg-gradient-to-br from-green-500 to-emerald-600 rounded-md flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">ق</span>
-                </div>
-                <span className="font-bold text-gray-900 dark:text-white">قطوف</span>
-              </div>
+              <Logo size="sm" showText={true} textClass="text-gray-900 dark:text-white" className="mb-3" />
               <p className="text-xs text-gray-500 dark:text-gray-400">{t('home.footer.description', "Morocco's leading B2B wholesale marketplace for fresh produce.")}</p>
             </div>
             <div>
               <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('layout.main.quickLinks', 'Quick Links')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><Link to="/marketplace" className="hover:text-green-600">{t('nav.marketplace', 'Marketplace')}</Link></li>
-                <li><Link to="/stores" className="hover:text-green-600">{t('nav.stores', 'Stores')}</Link></li>
-                <li><Link to="/cart" className="hover:text-green-600">{t('nav.cart', 'Cart')}</Link></li>
+                <li><Link to="/marketplace" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('nav.marketplace', 'Marketplace')}</Link></li>
+                <li><Link to="/stores" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('nav.stores', 'Stores')}</Link></li>
+                <li><Link to="/cart" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('nav.cart', 'Cart')}</Link></li>
+                <li><Link to="/help" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.helpCenter', 'Help Center')}</Link></li>
+                <li><Link to="/contact" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('layout.main.contactUs', 'Contact Us')}</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('home.footer.forBuyers', 'For Buyers')}</h4>
+              <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
+                <li><Link to="/marketplace" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.browseMarketplace', 'Browse Marketplace')}</Link></li>
+                <li><Link to="/register?role=buyer" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.registerAsBuyer', 'Register as Buyer')}</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('layout.main.forVendors', 'For Vendors')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><Link to="/register?role=vendor" className="hover:text-green-600">{t('home.footer.becomeVendor', 'Become a Vendor')}</Link></li>
-                <li><Link to="/vendor/dashboard" className="hover:text-green-600">{t('nav.dashboard', 'Dashboard')}</Link></li>
+                <li><Link to="/register?role=vendor" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.becomeVendor', 'Become a Vendor')}</Link></li>
+                <li><Link to={isAuthenticated && role === USER_ROLES.VENDOR ? '/vendor/dashboard' : '/register?role=vendor'} className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('nav.dashboard', 'Dashboard')}</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('home.footer.support', 'Support')}</h4>
+              <h4 className="font-semibold text-sm text-gray-900 dark:text-white mb-3">{t('home.footer.forDrivers', 'For Drivers')}</h4>
               <ul className="space-y-2 text-xs text-gray-500 dark:text-gray-400">
-                <li><a href="/help" className="hover:text-green-600">{t('home.footer.helpCenter', 'Help Center')}</a></li>
-                <li><a href="/contact" className="hover:text-green-600">{t('layout.main.contactUs', 'Contact Us')}</a></li>
+                <li><Link to="/become-driver" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.becomeDriver', 'Become a Driver')}</Link></li>
+                <li><Link to="/register?role=driver" className="hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('home.footer.registerAsDriver', 'Register as Driver')}</Link></li>
               </ul>
             </div>
           </div>
@@ -238,6 +458,41 @@ export const MainLayout = () => {
           </div>
         </div>
       </footer>
+
+      <RoleMobileHeader
+        title={t('layout.buyer.panelTitle', 'Qotoof')}
+        onToggleDrawer={() => setDrawerOpen(true)}
+        profilePath={isAuthenticated ? roleProfilePath : '/login'}
+        t={t}
+        extraMobileActions={mainMobileActions}
+        isAuthenticated={isAuthenticated}
+      />
+
+      {isAuthenticated && (
+        <RoleMobileDrawer
+          isOpen={drawerOpen}
+          closeDrawer={() => setDrawerOpen(false)}
+          panelTitle={isBuyer ? t('layout.buyer.panelTitle', 'Buyer') : t('layout.shared.account', 'حسابي')}
+          panelHome={roleDashboardPath || '/marketplace'}
+          panelIcon={(
+            <img src="/icon-192x192.png" alt="Qotoof" className="w-8 h-8 rounded-lg object-cover" aria-hidden="true" />
+          )}
+          links={isBuyer ? buyerMainLinks : nonBuyerMainLinks}
+          extraDrawerLinks={[
+            { to: '/', icon: HomeIcon, label: t('layout.shared.backToSite', 'Back to Site') },
+          ]}
+          onSignOut={() => signOut()}
+          t={t}
+        />
+      )}
+
+      <RoleMobileBottomNav
+        tabs={mainTabs}
+        roleName={role}
+        badgeCounts={{ '/cart': cartCount }}
+      />
+
+      <CartAbandonmentRecovery />
     </div>
   );
 };
@@ -249,9 +504,9 @@ const SideNavLink = ({ to, icon: Icon, label }) => {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
         active
-          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+          ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
       }`}
     >
@@ -269,12 +524,11 @@ const MobileSideNavLink = ({ to, icon: Icon, label, onClick }) => {
     <Link
       to={to}
       onClick={onClick}
-      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-base transition-colors ${
+      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
         active
-          ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+          ? 'bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-400'
           : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
       }`}
-      style={{ fontFamily: 'Tajawal, sans-serif' }}
     >
       <Icon className="w-6 h-6 flex-shrink-0" />
       <span>{label}</span>
@@ -293,30 +547,23 @@ const resolveActiveTitle = (pathname, links, fallback) => {
   return segmentMatch?.label || fallback;
 };
 
-const RoleMobileHeader = ({ title, onToggleDrawer, profilePath, t }) => {
+const RoleMobileHeader = ({ title, onToggleDrawer, profilePath: _profilePath, t, extraMobileActions, isAuthenticated: headerIsAuthenticated }) => {
+  const showAuthActions = headerIsAuthenticated !== false;
   return (
     <header
       dir="ltr"
       className="md:hidden fixed top-0 inset-x-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur border-b border-gray-200 dark:border-gray-700 px-3 flex items-center mobile-top-header"
       data-testid="role-mobile-header"
     >
-      <div className="w-1/3 flex items-center justify-start gap-1.5">
-        <button
-          type="button"
-          onClick={onToggleDrawer}
-          className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label={t('layout.shared.openMenu', 'Open menu')}
-        >
-          <Bars3Icon className="w-6 h-6" />
-        </button>
-        <Link to="/" className="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-green-700 text-white">
-          <span className="text-base font-extrabold" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
+      <div className="w-1/3 flex items-center justify-start gap-1">
+        <Link to="/" className="inline-flex items-center justify-center w-8 h-8 rounded-lg overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500" aria-label={t('nav.home', 'Home')}>
+          <img src="/icon-192x192.png" alt="Qotoof" className="w-full h-full object-cover" aria-hidden="true" />
         </Link>
       </div>
 
       <div className="w-1/3 text-center px-2 truncate" style={{ direction: 'rtl' }}>
         <h1
-          className="text-base truncate text-gray-900 dark:text-white"
+          className="text-sm truncate text-gray-900 dark:text-white"
           style={{ fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}
         >
           {title}
@@ -324,18 +571,27 @@ const RoleMobileHeader = ({ title, onToggleDrawer, profilePath, t }) => {
       </div>
 
       <div className="w-1/3 flex items-center justify-end gap-1">
-        <NotificationLink
-          ariaLabel={t('nav.notifications', 'Notifications')}
-          className="relative p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          iconClassName="w-6 h-6"
-        />
-        <Link
-          to={profilePath}
-          className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-          aria-label={t('layout.shared.profile', 'Profile')}
-        >
-          <UserCircleIcon className="w-7 h-7" />
-        </Link>
+        {extraMobileActions ? (
+          extraMobileActions
+        ) : (
+          <>
+            {showAuthActions && (
+              <NotificationLink
+                ariaLabel={t('nav.notifications', 'Notifications')}
+                className="relative p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                iconClassName="w-6 h-6"
+              />
+            )}
+            <button
+              type="button"
+              onClick={onToggleDrawer}
+              className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label={t('layout.shared.profile', 'Profile')}
+            >
+              <UserCircleIcon className="w-7 h-7" />
+            </button>
+          </>
+        )}
       </div>
     </header>
   );
@@ -365,6 +621,7 @@ const RoleMobileDrawer = ({
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
         dir="rtl"
+        data-testid="role-mobile-drawer"
       >
         <div className="h-16 px-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
           <button
@@ -418,7 +675,7 @@ const RoleMobileDrawer = ({
   );
 };
 
-const RoleMobileBottomNav = ({ tabs, roleName }) => {
+const RoleMobileBottomNav = ({ tabs, roleName, onMoreTab, badgeCounts }) => {
   const { pathname } = useLocation();
 
   return (
@@ -428,25 +685,56 @@ const RoleMobileBottomNav = ({ tabs, roleName }) => {
       data-testid="role-mobile-bottom-nav"
       data-role={roleName}
     >
-      <div className="h-16 grid grid-cols-4">
+      <div className="h-15 grid" style={{ height: '60px', gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
         {tabs.map((tab) => {
-          const isActive = pathname === tab.to || pathname.startsWith(tab.to + '/');
+          const isActive = tab.to && (pathname === tab.to || pathname.startsWith(tab.to + '/'));
+          const isMore = tab.action === 'more';
+          const badge = badgeCounts?.[tab.to] || 0;
+
+          const content = (
+            <div className="relative flex flex-col items-center justify-center gap-0.5">
+              <tab.icon className="w-5 h-5" />
+              {badge > 0 && (
+                <span className="absolute -top-1 right-2 min-w-[16px] h-4 px-1 bg-primary-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+              <span className="text-[11px] leading-none">{tab.label}</span>
+            </div>
+          );
+
+          const className = `h-full flex items-center justify-center px-1 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
+            isActive
+              ? 'text-primary-700 border-t-2 border-primary-600'
+              : 'text-slate-400 dark:text-slate-500 border-t-2 border-transparent'
+          }`;
+
+          if (isMore) {
+            return (
+              <button
+                key={tab.to || 'more'}
+                type="button"
+                onClick={onMoreTab}
+                className={className}
+                style={{ fontFamily: 'Tajawal, sans-serif' }}
+                data-route="more"
+                aria-label={tab.label}
+              >
+                {content}
+              </button>
+            );
+          }
 
           return (
             <Link
               key={tab.to}
               to={tab.to}
-              className={`h-full flex flex-col items-center justify-center gap-0.5 px-1 ${
-                isActive
-                  ? 'text-green-700 bg-green-50 dark:bg-green-900/20'
-                  : 'text-slate-400 dark:text-slate-500'
-              }`}
+              className={className}
               style={{ fontFamily: 'Tajawal, sans-serif' }}
               data-route={tab.to}
               aria-current={isActive ? 'page' : undefined}
             >
-              <tab.icon className="w-6 h-6" />
-              <span className="text-[10px] leading-none">{tab.label}</span>
+              {content}
             </Link>
           );
         })}
@@ -470,7 +758,9 @@ const RoleLayoutShell = ({
   setDrawerOpen,
   extraDrawerLinks = [],
   extraDesktopActions = null,
+  extraMobileActions = null,
   children,
+  mobileBottomNavMoreTab = false,
 }) => {
   const { t } = useTranslation();
   useMobileKeyboardGuard();
@@ -481,7 +771,7 @@ const RoleLayoutShell = ({
   useEffect(() => { setDrawerOpen(false); }, [desktopHeaderTitle]);
 
   return (
-    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950 overflow-x-hidden" dir="rtl" style={{ fontFamily: 'Tajawal, sans-serif' }}>
+    <div className="flex min-h-screen bg-gray-50 dark:bg-gray-950" dir="rtl" style={{ fontFamily: 'Tajawal, sans-serif' }}>
       <aside className="hidden md:flex w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <Link to={panelHome} className="flex items-center gap-2">
@@ -509,7 +799,7 @@ const RoleLayoutShell = ({
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
         <header className="hidden md:flex bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-6 py-3 items-center justify-between">
           <h1
             className="text-lg text-gray-900 dark:text-white"
@@ -523,7 +813,7 @@ const RoleLayoutShell = ({
             <NotificationLink ariaLabel={t('nav.notifications', 'Notifications')} />
             <Link
               to={desktopProfilePath}
-              className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-500 hover:text-green-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="inline-flex items-center justify-center p-1.5 rounded-lg text-gray-500 hover:text-primary-600 hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
               aria-label={t('layout.shared.profile', 'Profile')}
             >
               <UserCircleIcon className="w-6 h-6" />
@@ -531,31 +821,36 @@ const RoleLayoutShell = ({
           </div>
         </header>
 
-        <RoleMobileHeader
-          title={desktopHeaderTitle}
-          onToggleDrawer={() => setDrawerOpen(true)}
-          profilePath={mobileProfilePath}
-          t={t}
-        />
-
-        <RoleMobileDrawer
-          isOpen={drawerOpen}
-          closeDrawer={() => setDrawerOpen(false)}
-          panelTitle={panelTitle}
-          panelHome={panelHome}
-          panelIcon={panelIcon}
-          links={links}
-          extraDrawerLinks={extraDrawerLinks}
-          onSignOut={onSignOut}
-          t={t}
-        />
-
         <main className="flex-1 overflow-y-auto p-4 md:p-6 md:pt-6 md:pb-6 mobile-safe-top-offset mobile-safe-bottom-offset" data-testid="role-layout-main">
           {children}
         </main>
-
-        <RoleMobileBottomNav tabs={tabs} roleName={roleName} />
       </div>
+
+      <RoleMobileHeader
+        title={desktopHeaderTitle}
+        onToggleDrawer={() => setDrawerOpen(true)}
+        profilePath={mobileProfilePath}
+        t={t}
+        extraMobileActions={extraMobileActions}
+      />
+
+      <RoleMobileDrawer
+        isOpen={drawerOpen}
+        closeDrawer={() => setDrawerOpen(false)}
+        panelTitle={panelTitle}
+        panelHome={panelHome}
+        panelIcon={panelIcon}
+        links={links}
+        extraDrawerLinks={extraDrawerLinks}
+        onSignOut={onSignOut}
+        t={t}
+      />
+
+      <RoleMobileBottomNav
+        tabs={tabs}
+        roleName={roleName}
+        onMoreTab={mobileBottomNavMoreTab ? () => setDrawerOpen(true) : undefined}
+      />
     </div>
   );
 };
@@ -579,26 +874,27 @@ export const AdminLayout = () => {
     { to: '/admin/analytics', icon: ChartBarIcon, label: t('layout.admin.links.analytics', 'Analytics') },
     { to: '/admin/reports', icon: DocumentChartBarIcon, label: t('layout.admin.links.reports', 'Reports') },
     { to: '/admin/moderation', icon: ShieldCheckIcon, label: t('layout.admin.links.moderation', 'Moderation') },
-    /* TEMPORARILY DISABLED: fraud_reports table does not exist in DB schema — requires migration before re-enabling */
-    // { to: '/admin/fraud-reports', icon: FlagIcon, label: t('layout.admin.links.fraudReports', 'Fraud Reports') },
+    { to: '/admin/fraud-reports', icon: FlagIcon, label: t('layout.admin.links.fraudReports', 'Fraud Reports') },
     { to: '/admin/commissions', icon: CurrencyDollarIcon, label: t('layout.admin.links.commissions', 'Commissions') },
     { to: '/admin/commission-management', icon: CurrencyDollarIcon, label: t('layout.admin.links.commissionManagement', 'Commission Management') },
-    /* TEMPORARILY DISABLED: payment_disputes table does not exist in DB schema — requires migration before re-enabling */
-    // { to: '/admin/disputes', icon: ExclamationTriangleIcon, label: t('layout.admin.links.disputes', 'Payment Disputes') },
+    { to: '/admin/disputes', icon: ExclamationTriangleIcon, label: t('layout.admin.links.disputes', 'Payment Disputes') },
     { to: '/admin/payouts', icon: CurrencyDollarIcon, label: t('layout.admin.links.payouts', 'Payouts') },
     { to: '/admin/reviews', icon: StarIcon, label: t('layout.admin.links.reviews', 'Reviews') },
     { to: '/admin/support-tickets', icon: ChatBubbleLeftRightIcon, label: t('layout.admin.links.supportTickets', 'Support Tickets') },
     { to: '/admin/security', icon: ShieldCheckIcon, label: t('layout.admin.links.security', 'Security') },
     { to: '/admin/settings', icon: Cog6ToothIcon, label: t('layout.admin.links.settings', 'Settings') },
+    { to: '/admin/driver-verification', icon: DocumentCheckIcon, label: t('layout.admin.links.driverVerification', 'Driver Verification') },
+    { to: '/admin/settings-audit', icon: ClockIcon, label: t('layout.admin.links.settingsAudit', 'Settings Audit Log') },
+    { to: '/admin/system-health', icon: WrenchScrewdriverIcon, label: t('layout.admin.links.systemHealth', 'System Health') },
   ];
 
   const desktopHeaderTitle = resolveActiveTitle(pathname, adminLinks, t('layout.admin.defaultTitle', 'Admin'));
 
   const adminTabs = [
-    { to: '/admin/dashboard', icon: HomeIcon, label: 'الرئيسية' },
-    { to: '/admin/users', icon: UsersIcon, label: 'المستخدمون' },
-    { to: '/admin/products', icon: ShoppingBagIcon, label: 'المنتجات' },
-    { to: '/admin/settings', icon: Cog6ToothIcon, label: 'الإعدادات' },
+    { to: '/admin/dashboard', icon: HomeIcon, label: t('layout.admin.mobileTabs.home', 'Home') },
+    { to: '/admin/users', icon: UsersIcon, label: t('layout.admin.mobileTabs.users', 'Users') },
+    { to: '/admin/products', icon: ShoppingBagIcon, label: t('layout.admin.mobileTabs.products', 'Products') },
+    { to: '/admin/settings', icon: Cog6ToothIcon, label: t('layout.admin.mobileTabs.settings', 'Settings') },
   ];
 
   return (
@@ -620,7 +916,7 @@ export const AdminLayout = () => {
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}
       extraDesktopActions={(
-        <Link to="/" className="text-sm text-gray-500 hover:text-green-600">{t('layout.shared.backToSite', 'Back to Site')}</Link>
+        <Link to="/" className="text-sm text-gray-500 hover:text-primary-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded">{t('layout.shared.backToSite', 'Back to Site')}</Link>
       )}
     >
       <Outlet />
@@ -681,25 +977,32 @@ export const VendorLayout = () => {
     { to: '/vendor/dashboard', icon: HomeIcon, label: t('layout.vendor.links.dashboard', 'Dashboard') },
     { to: '/vendor/products', icon: ShoppingBagIcon, label: t('layout.vendor.links.products', 'My Products') },
     { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: t('layout.vendor.links.orders', 'Orders') },
+    { to: '/vendor/rfqs', icon: DocumentCheckIcon, label: t('layout.vendor.links.rfqs', 'RFQs') },
     { to: '/vendor/delivery-options', icon: TruckIcon, label: t('layout.vendor.links.deliveryOptions', 'Delivery Options') },
     { to: '/vendor/driver-preferences', icon: TruckIcon, label: t('layout.vendor.links.driverPreferences', 'Preferred Driver') },
     { to: '/vendor/find-driver', icon: UsersIcon, label: t('layout.vendor.links.findDriver', 'Find a Driver') },
     { to: '/vendor/analytics', icon: ChartBarIcon, label: t('layout.vendor.links.analytics', 'Analytics') },
     { to: '/vendor/reviews', icon: StarIcon, label: t('layout.vendor.links.reviews', 'Reviews') },
+    { to: '/vendor/wallet', icon: BanknotesIcon, label: t('layout.vendor.links.wallet', 'Wallet') },
+    { to: '/vendor/returns', icon: ArrowUturnLeftIcon, label: t('layout.vendor.links.returns', 'Returns') },
+    { to: '/vendor/tax', icon: CalculatorIcon, label: t('layout.vendor.links.tax', 'Tax') },
     { to: '/vendor/coupons', icon: CurrencyDollarIcon, label: t('layout.vendor.links.coupons', 'Coupons') },
-    { to: '/vendor/schedules', icon: MapIcon, label: t('layout.vendor.links.schedules', 'Schedules') },
+    { to: '/vendor/schedules', icon: ClockIcon, label: t('layout.vendor.links.schedules', 'Schedules') },
     { to: '/vendor/location', icon: MapIcon, label: t('layout.vendor.links.location', 'Location') },
+    { to: '/vendor/subscription', icon: CurrencyDollarIcon, label: t('layout.vendor.links.subscription', 'Subscription') },
     { to: '/vendor/profile', icon: Cog6ToothIcon, label: t('layout.vendor.links.profile', 'Profile') },
+    { to: '/vendor/security', icon: ShieldCheckIcon, label: t('layout.vendor.links.security', 'Security') },
     { to: '/vendor/settings', icon: Cog6ToothIcon, label: t('layout.vendor.links.settings', 'Settings') },
   ];
 
   const desktopHeaderTitle = resolveActiveTitle(pathname, vendorLinks, t('layout.vendor.defaultTitle', 'Vendor'));
 
   const vendorTabs = [
-    { to: '/vendor/dashboard', icon: HomeIcon, label: 'الرئيسية' },
-    { to: '/vendor/products', icon: ShoppingBagIcon, label: 'منتجاتي' },
-    { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: 'الطلبات' },
-    { to: '/vendor/profile', icon: UserCircleIcon, label: 'ملفي' },
+    { to: '/vendor/dashboard', icon: HomeIcon, label: t('layout.vendor.mobileTabs.home', 'Home') },
+    { to: '/vendor/products', icon: ShoppingBagIcon, label: t('layout.vendor.mobileTabs.products', 'Products') },
+    { to: '/vendor/orders', icon: ClipboardDocumentListIcon, label: t('layout.vendor.mobileTabs.orders', 'Orders') },
+    { to: '/vendor/subscription', icon: CurrencyDollarIcon, label: t('layout.vendor.mobileTabs.subscription', 'Plan') },
+    { to: '/vendor/profile', icon: UserCircleIcon, label: t('layout.vendor.mobileTabs.profile', 'Profile') },
   ];
 
   return (
@@ -707,9 +1010,7 @@ export const VendorLayout = () => {
       panelHome="/vendor/dashboard"
       panelTitle={t('layout.vendor.panelTitle', 'My Store')}
       panelIcon={(
-        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
-        </div>
+        <img src="/icon-192x192.png" alt="Qotoof" className="w-8 h-8 rounded-lg object-cover" />
       )}
       links={vendorLinks}
       desktopHeaderTitle={desktopHeaderTitle}
@@ -746,17 +1047,20 @@ export const DriverLayout = () => {
     { to: '/driver/find-vendor', icon: UsersIcon, label: t('layout.driver.links.findVendor', 'Find a Vendor') },
     { to: '/driver/history', icon: ClipboardDocumentListIcon, label: t('layout.driver.links.history', 'History') },
     { to: '/driver/earnings', icon: CurrencyDollarIcon, label: t('layout.driver.links.earnings', 'Earnings') },
-    { to: '/driver/profile', icon: Cog6ToothIcon, label: t('layout.driver.links.profile', 'Profile') },
+    { to: '/driver/wallet', icon: BanknotesIcon, label: t('layout.driver.links.wallet', 'Wallet') },
+    { to: '/driver/performance', icon: ChartBarIcon, label: t('layout.driver.links.performance', 'Performance') },
+    { to: '/driver/profile', icon: UserCircleIcon, label: t('layout.driver.links.profile', 'Profile') },
     { to: '/driver/settings', icon: Cog6ToothIcon, label: t('layout.driver.links.settings', 'Settings') },
+    { to: '/driver/security', icon: ShieldCheckIcon, label: t('layout.driver.links.security', 'Security') },
   ];
 
   const desktopHeaderTitle = resolveActiveTitle(pathname, driverLinks, t('layout.driver.defaultTitle', 'Driver'));
 
   const driverTabs = [
-    { to: '/driver/dashboard', icon: HomeIcon, label: 'الرئيسية' },
-    { to: '/driver/active', icon: TruckIcon, label: 'توصيلاتي' },
-    { to: '/driver/available', icon: MapIcon, label: 'الخريطة' },
-    { to: '/driver/profile', icon: UserCircleIcon, label: 'ملفي' },
+    { to: '/driver/dashboard', icon: HomeIcon, label: t('layout.driver.mobileTabs.home', 'Home') },
+    { to: '/driver/active', icon: TruckIcon, label: t('layout.driver.mobileTabs.active', 'Deliveries') },
+    { to: '/driver/available', icon: MapIcon, label: t('layout.driver.mobileTabs.map', 'Map') },
+    { to: '/driver/profile', icon: UserCircleIcon, label: t('layout.driver.mobileTabs.profile', 'Profile') },
   ];
 
   return (
@@ -774,61 +1078,6 @@ export const DriverLayout = () => {
       mobileProfilePath="/driver/profile"
       tabs={driverTabs}
       roleName="driver"
-      onSignOut={() => signOut()}
-      drawerOpen={drawerOpen}
-      setDrawerOpen={setDrawerOpen}
-    >
-      <Outlet />
-    </RoleLayoutShell>
-  );
-};
-
-/**
- * BuyerLayout - Sidebar layout for buyer panel
- */
-export const BuyerLayout = () => {
-  const { signOut } = useAuthStore();
-  const { pathname } = useLocation();
-  const { t } = useTranslation();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-
-  const buyerLinks = [
-    { to: '/buyer/dashboard', icon: HomeIcon, label: t('layout.buyer.links.dashboard', 'Dashboard') },
-    { to: '/marketplace', icon: ShoppingBagIcon, label: t('layout.buyer.links.marketplace', 'Marketplace') },
-    { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: t('layout.buyer.links.orders', 'My Orders') },
-    { to: '/buyer/addresses', icon: MapIcon, label: t('layout.buyer.links.addresses', 'Addresses') },
-    { to: '/buyer/coupons', icon: CurrencyDollarIcon, label: t('layout.buyer.links.coupons', 'Coupons') },
-    { to: '/buyer/loyalty', icon: StarIcon, label: t('layout.buyer.links.loyalty', 'Loyalty') },
-    { to: '/buyer/shopping-lists', icon: ShoppingBagIcon, label: t('layout.buyer.links.shoppingLists', 'Shopping Lists') },
-    { to: '/buyer/rfq', icon: DocumentChartBarIcon, label: t('layout.buyer.links.rfq', 'RFQ') },
-    { to: '/buyer/security', icon: ShieldCheckIcon, label: t('layout.buyer.links.security', 'Security') },
-    { to: '/buyer/settings', icon: Cog6ToothIcon, label: t('layout.buyer.links.settings', 'Settings') },
-  ];
-
-  const desktopHeaderTitle = resolveActiveTitle(pathname, buyerLinks, t('layout.buyer.defaultTitle', 'Buyer'));
-
-  const buyerTabs = [
-    { to: '/buyer/dashboard', icon: HomeIcon, label: 'الرئيسية' },
-    { to: '/marketplace', icon: ShoppingBagIcon, label: 'السوق' },
-    { to: '/buyer/orders', icon: ClipboardDocumentListIcon, label: 'طلباتي' },
-    { to: '/buyer/settings', icon: UserCircleIcon, label: 'ملفي' },
-  ];
-
-  return (
-    <RoleLayoutShell
-      panelHome="/buyer/dashboard"
-      panelTitle={t('layout.buyer.panelTitle', 'Buyer')}
-      panelIcon={(
-        <div className="w-8 h-8 bg-green-700 rounded-lg flex items-center justify-center">
-          <span className="text-white font-bold text-sm" style={{ fontFamily: 'Cairo, sans-serif' }}>ق</span>
-        </div>
-      )}
-      links={buyerLinks}
-      desktopHeaderTitle={desktopHeaderTitle}
-      desktopProfilePath="/buyer/settings"
-      mobileProfilePath="/buyer/settings"
-      tabs={buyerTabs}
-      roleName="buyer"
       onSignOut={() => signOut()}
       drawerOpen={drawerOpen}
       setDrawerOpen={setDrawerOpen}

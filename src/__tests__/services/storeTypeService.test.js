@@ -2,10 +2,9 @@ jest.mock('@/services/supabase', () => ({
   supabase: {},
 }))
 
-import {
-  decorateStoreProfile,
-  resolveOrderDeliveryStrategy,
-} from '@/services/storeTypeService'
+import { storeTypeService } from '@/modules/marketplace'
+
+const { decorateStoreProfile, resolveOrderDeliveryStrategy } = storeTypeService
 
 describe('storeTypeService', () => {
   it('1. يفرض التوصيل الذاتي على المتجر الصغير إذا كان الخيار الحالي غير صالح', () => {

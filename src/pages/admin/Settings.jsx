@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/authStore'
-import { platformSettings } from '@/services/platformSettings'
+import { platformSettings } from '@/modules/admin'
 import { Card, LoadingSpinner, Input, Toggle } from '@/components/ui'
 import {
   Cog6ToothIcon,

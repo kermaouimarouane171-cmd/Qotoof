@@ -29,34 +29,32 @@ const DriverSecurityPage = () => {
   const [showMFASetup, setShowMFASetup] = useState(false)
   const [showSessionManager, setShowSessionManager] = useState(false)
   const [showLocationInfo, setShowLocationInfo] = useState(false)
+  const [showDisableMFAConfirm, setShowDisableMFAConfirm] = useState(false)
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false)
 
   const { logs, loading: logsLoading, refresh: refreshLogs } = useAuditLogs({ limit: 10 })
 
   const handleDisableMFA = async () => {
-    if (!confirm(t('driver.security.disableMFAConfirm', 'Are you sure you want to disable two-factor authentication?'))) {
-      return
-    }
-
     try {
       await disableMFA()
       toast.success(t('driver.security.mfaDisabled', 'Two-factor authentication disabled'))
       await loadSecurityData()
     } catch {
       toast.error(t('driver.security.mfaDisableFailed', 'Failed to disable two-factor authentication'))
+    } finally {
+      setShowDisableMFAConfirm(false)
     }
   }
 
   const handleRevokeAllSessions = async () => {
-    if (!confirm(t('driver.security.revokeConfirm', 'Sign out from all other devices?'))) {
-      return
-    }
-
     try {
       await revokeAllSessions()
       toast.success(t('driver.security.revokeSuccess', 'Signed out from all devices'))
       await loadSecurityData()
     } catch {
       toast.error(t('driver.security.revokeFailed', 'Failed to sign out'))
+    } finally {
+      setShowRevokeConfirm(false)
     }
   }
 
@@ -171,12 +169,12 @@ const DriverSecurityPage = () => {
                     <span className="font-medium text-green-900">{t('driver.security.accountProtected', 'Your account is protected')}</span>
                   </div>
                   <p className="text-sm text-green-700">
-                    {t('driver.security.using', 'Using')} {mfaSettings.method === 'email' ? t('driver.security.emailMethod', 'Email') : t('driver.security.authenticatorApp', 'Authenticator App')}
+                    {t('driver.security.using', 'Using')} {t('driver.security.authenticatorApp', 'Authenticator App')}
                   </p>
                 </div>
 
                 <button
-                  onClick={handleDisableMFA}
+                  onClick={() => setShowDisableMFAConfirm(true)}
                   disabled={disablingMFA}
                   className="btn-secondary w-full disabled:opacity-50"
                 >
@@ -238,7 +236,7 @@ const DriverSecurityPage = () => {
 
             {sessionCount > 1 && (
               <button
-                onClick={handleRevokeAllSessions}
+                onClick={() => setShowRevokeConfirm(true)}
                 className="btn-secondary w-full text-sm"
               >
                 {t('driver.security.revokeOther', 'Sign out from other devices')}
@@ -305,6 +303,50 @@ const DriverSecurityPage = () => {
         isOpen={showSessionManager}
         onClose={() => setShowSessionManager(false)}
       />
+
+      {/* Disable MFA Confirmation */}
+      {showDisableMFAConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {t('driver.security.disableMFAConfirmTitle', 'Disable 2FA?')}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              {t('driver.security.disableMFAConfirm', 'Are you sure you want to disable two-factor authentication? This will make your account less secure.')}
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setShowDisableMFAConfirm(false)} className="flex-1 btn-outline">
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button type="button" onClick={handleDisableMFA} disabled={disablingMFA} className="flex-1 rounded-xl bg-red-600 text-white py-2.5 text-sm font-medium hover:bg-red-700 disabled:opacity-50">
+                {disablingMFA ? t('driver.security.disabling', 'Disabling...') : t('driver.security.confirmDisable', 'Disable')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revoke Sessions Confirmation */}
+      {showRevokeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              {t('driver.security.revokeConfirmTitle', 'Sign out all devices?')}
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              {t('driver.security.revokeConfirm', 'You will be signed out from all other devices. Your current session will remain active.')}
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setShowRevokeConfirm(false)} className="flex-1 btn-outline">
+                {t('common.cancel', 'Cancel')}
+              </button>
+              <button type="button" onClick={handleRevokeAllSessions} className="flex-1 rounded-xl bg-red-600 text-white py-2.5 text-sm font-medium hover:bg-red-700">
+                {t('driver.security.revokeOther', 'Sign out from other devices')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

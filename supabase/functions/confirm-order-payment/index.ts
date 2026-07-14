@@ -6,7 +6,7 @@ import { requireRole } from '../_shared/auth.ts'
 // CORS headers are resolved dynamically per-request origin via getCorsHeaders(origin).
 // See supabase/functions/_shared/cors.ts and the ALLOWED_ORIGINS Edge Function secret.
 
-const COMMISSION_RATE = 0.03
+const DEFAULT_COMMISSION_RATE = 0.03
 const DELIVERY_WORKFLOW_STATUSES = new Set([
   'shipped',
   'on_the_way',
@@ -16,17 +16,47 @@ const DELIVERY_WORKFLOW_STATUSES = new Set([
   'delivered',
 ])
 
+/**
+ * Get the commission rate for a vendor based on their subscription plan.
+ * Falls back to DEFAULT_COMMISSION_RATE (3%) if the plan can't be determined.
+ */
+const getVendorCommissionRate = async (supabase: ReturnType<typeof createClient>, vendorId: string): Promise<number> => {
+  try {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('subscription_plan')
+      .eq('id', vendorId)
+      .single()
+
+    if (!profileError && profile?.subscription_plan) {
+      const { data: plan, error: planError } = await supabase
+        .from('subscription_plans')
+        .select('commission_rate')
+        .eq('id', profile.subscription_plan)
+        .eq('is_active', true)
+        .single()
+
+      if (!planError && plan?.commission_rate != null) {
+        return Number(plan.commission_rate) / 100
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  return DEFAULT_COMMISSION_RATE
+}
+
 const json = (body: unknown, status = 200, req?: Request) => new Response(JSON.stringify(body), {
   status,
   headers: { ...(req ? getCorsHeaders(req.headers.get('Origin')) : {}), 'Content-Type': 'application/json' },
 })
 
-const getMonthYear = (date = new Date()) => ({
+const _getMonthYear = (date = new Date()) => ({
   month: date.getMonth() + 1,
   year: date.getFullYear(),
 })
 
-const ensureMonthlySale = async (supabase: ReturnType<typeof createClient>, vendorId: string, month: number, year: number) => {
+const _ensureMonthlySale = async (supabase: ReturnType<typeof createClient>, vendorId: string, month: number, year: number) => {
   const { data: existingSale, error: existingSaleError } = await supabase
     .from('vendor_monthly_sales')
     .select('*')
@@ -38,6 +68,7 @@ const ensureMonthlySale = async (supabase: ReturnType<typeof createClient>, vend
   if (existingSaleError) throw existingSaleError
   if (existingSale) return existingSale
 
+  const vendorRate = await getVendorCommissionRate(supabase, vendorId)
   const { data: createdSale, error: createdSaleError } = await supabase
     .from('vendor_monthly_sales')
     .insert({
@@ -45,7 +76,7 @@ const ensureMonthlySale = async (supabase: ReturnType<typeof createClient>, vend
       month,
       year,
       total_sales: 0,
-      commission_rate: COMMISSION_RATE,
+      commission_rate: vendorRate,
       commission_due: 0,
       commission_paid: 0,
       status: 'active',
@@ -70,7 +101,7 @@ const ensureMonthlySale = async (supabase: ReturnType<typeof createClient>, vend
   return retriedSale
 }
 
-const buildCommissionSummary = async (supabase: ReturnType<typeof createClient>, orderId: string) => {
+const _buildCommissionSummary = async (supabase: ReturnType<typeof createClient>, orderId: string) => {
   const { data: existingTransaction, error: existingTransactionError } = await supabase
     .from('confirmed_transactions')
     .select('id, commission_amount, monthly_sale_id')
@@ -127,12 +158,13 @@ const confirmSaleAndCalculate = async (supabase: ReturnType<typeof createClient>
     throw new Error('الحساب مجمّد ولا يمكن تسجيل مبيعات جديدة')
   }
 
+  const vendorRate = await getVendorCommissionRate(supabase, vendorId)
   const { data, error } = await supabase.rpc('record_confirmed_transaction', {
     p_order_id: String(order.id || ''),
     p_vendor_id: vendorId,
     p_buyer_id: order.buyer_id || null,
     p_sale_amount: saleAmount,
-    p_commission_rate: COMMISSION_RATE,
+    p_commission_rate: vendorRate,
     p_confirmed_at: new Date().toISOString(),
   })
 

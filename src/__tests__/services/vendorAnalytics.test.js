@@ -1,9 +1,13 @@
+jest.mock('@/services/reports/pdfExport', () => ({
+  pdfExport: { generate: jest.fn() },
+}))
+
 import {
   buildAnalyticsCsvRows,
   buildTopProductMetrics,
   calculateVendorAnalyticsMetrics,
   resolveVendorAnalyticsRange,
-} from '@/services/vendorAnalytics'
+} from '@/modules/analytics'
 
 describe('vendorAnalytics helpers', () => {
   test('resolves custom date ranges and keeps them active', () => {
